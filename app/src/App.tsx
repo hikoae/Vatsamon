@@ -37,35 +37,11 @@ import { QuizScreen } from './components/QuizScreen';
 import { BattleTurnBased } from './components/BattleTurnBased';
 import { ArenaBattle } from './components/ArenaBattle';
 import { ARENAS, ArenaId } from './data/arenas';
+import { TREK_ROUTES } from './data/routes';
 import { soundEngine } from './utils/audio';
 import { generateVazzamonClient } from './lib/generate';
 import { REAL_COWS, REAL_TOTAL, REAL_CASERE, SHOWCASE_BY_RARITY } from './data/realCows';
 import { distanza, fmtDist, RAGGIO_CATTURA } from './lib/geo';
-
-// Real geographic trail route in Valle d'Aosta (Cammino dei Pascoli & Castelli)
-export const VALLE_DAOSTA_TRAIL_COORDS = [
-  { lat: 45.815, lng: 6.992, name: "Courmayeur (Alpeggi Val Ferret)" },
-  { lat: 45.791, lng: 6.965, name: "La Saxe (Courmayeur)" },
-  { lat: 45.764, lng: 6.985, name: "Pré-Saint-Didier (Sorgenti Termali)" },
-  { lat: 45.751, lng: 7.042, name: "Morgex (Vigneti di Montagna)" },
-  { lat: 45.736, lng: 7.085, name: "La Salle (Cascata di Lenteney)" },
-  { lat: 45.708, lng: 7.139, name: "Avise (Gola di Leverogne)" },
-  { lat: 45.705, lng: 7.164, name: "Arvier (Vigneto l'Enfer)" },
-  { lat: 45.719, lng: 7.203, name: "Villeneuve (Alpeggio Châtel-Argent)" },
-  { lat: 45.710, lng: 7.227, name: "Saint-Pierre (Castello di Saint-Pierre)" },
-  { lat: 45.717, lng: 7.258, name: "Sarre (Castello Reale)" },
-  { lat: 45.739, lng: 7.330, name: "Aosta Centro (Arco d'Augusto)" },
-  { lat: 45.742, lng: 7.401, name: "Quart (Castello di Quart)" },
-  { lat: 45.746, lng: 7.443, name: "Nus (Vallone di Saint-Barthélemy)" },
-  { lat: 45.736, lng: 7.491, name: "Fénis (Castello dei Challant)" },
-  { lat: 45.748, lng: 7.545, name: "Chambave (Vigneti di Moscato)" },
-  { lat: 45.744, lng: 7.649, name: "Saint-Vincent (Col de Joux Trail)" },
-  { lat: 45.698, lng: 7.692, name: "Verrès (Castello di Verrès)" },
-  { lat: 45.662, lng: 7.721, name: "Arnad (Lardo DOP)" },
-  { lat: 45.609, lng: 7.744, name: "Forte di Bard (Rocca Monumentale)" },
-  { lat: 45.602, lng: 7.761, name: "Donnas (Antica Strada Romana)" },
-  { lat: 45.608, lng: 7.355, name: "Prati di Sant'Orso (Cogne Valle)" }
-];
 
 // Fallback coordinate conversion for consistent SVG layout positioning
 export const getSvgCoords = (lat: number, lng: number) => {
@@ -81,6 +57,13 @@ export const getSvgCoords = (lat: number, lng: number) => {
     x: Math.max(5, Math.min(95, x)),
     y: Math.max(5, Math.min(95, y))
   };
+};
+
+// Classi statiche per l'accento colore dei percorsi (Tailwind JIT-safe).
+const ROUTE_TONE: Record<string, { border: string; bg: string; text: string }> = {
+  emerald: { border: "border-emerald-400", bg: "bg-emerald-500/10", text: "text-emerald-300" },
+  sky: { border: "border-sky-400", bg: "bg-sky-500/10", text: "text-sky-300" },
+  amber: { border: "border-amber-400", bg: "bg-amber-500/10", text: "text-amber-300" },
 };
 
 // Procedural overworld spawn pool
@@ -160,12 +143,28 @@ export default function App() {
   // Trekking Waypoints coordinates tracking
   const [currentWaypointIndex, setCurrentWaypointIndex] = useState<number>(() => {
     const cached = localStorage.getItem('vazzamon_waypoint_idx');
-    return cached ? Number(cached) : 10; // Start at Aosta Centro (index 10)
+    return cached ? Number(cached) : 0; // si parte dalla prima tappa del percorso
   });
   const [waypointProgress, setWaypointProgress] = useState<number>(() => {
     const cached = localStorage.getItem('vazzamon_waypoint_progress');
     return cached ? Number(cached) : 0;
   });
+
+  // Percorso di trekking attivo (3 itinerari selezionabili).
+  const [activeRouteId, setActiveRouteId] = useState<string>(() => {
+    return localStorage.getItem('vazzamon_active_route_id') || TREK_ROUTES[0].id;
+  });
+  useEffect(() => { localStorage.setItem('vazzamon_active_route_id', activeRouteId); }, [activeRouteId]);
+  const activeRoute = TREK_ROUTES.find(r => r.id === activeRouteId) ?? TREK_ROUTES[0];
+  const activeTrail = activeRoute.coords;
+  // Cambia percorso: riparte dalla prima tappa.
+  const selectRoute = (id: string) => {
+    playClickSfx();
+    setActiveRouteId(id);
+    setCurrentWaypointIndex(0);
+    setWaypointProgress(0);
+    setGpsPos(null);
+  };
 
   // Track hiking feeds to avoid intrusive standard popups
   const [trekkingFeed, setTrekkingFeed] = useState<string[]>([
@@ -212,9 +211,10 @@ export default function App() {
   const [caseraCooldowns, setCaseraCooldowns] = useState<Record<string, number>>({});
 
   // Calculate current player coordinates along the route link early for leaflet effect scope visibility
-  const currentWaypoint = VALLE_DAOSTA_TRAIL_COORDS[currentWaypointIndex] || VALLE_DAOSTA_TRAIL_COORDS[10];
-  const nextWaypointIndex = (currentWaypointIndex + 1) % VALLE_DAOSTA_TRAIL_COORDS.length;
-  const nextWaypoint = VALLE_DAOSTA_TRAIL_COORDS[nextWaypointIndex];
+  const safeWaypointIndex = currentWaypointIndex % activeTrail.length;
+  const currentWaypoint = activeTrail[safeWaypointIndex] || activeTrail[0];
+  const nextWaypointIndex = (safeWaypointIndex + 1) % activeTrail.length;
+  const nextWaypoint = activeTrail[nextWaypointIndex];
   
   const playerLat = currentWaypoint.lat + (nextWaypoint.lat - currentWaypoint.lat) * (waypointProgress / 100);
   const playerLng = currentWaypoint.lng + (nextWaypoint.lng - currentWaypoint.lng) * (waypointProgress / 100);
@@ -283,7 +283,7 @@ export default function App() {
       if (leafletPolylineRef.current) {
         leafletPolylineRef.current.remove();
       }
-      const coordsArray = VALLE_DAOSTA_TRAIL_COORDS.map(wp => [wp.lat, wp.lng] as L.LatLngTuple);
+      const coordsArray = activeTrail.map(wp => [wp.lat, wp.lng] as L.LatLngTuple);
       leafletPolylineRef.current = L.polyline(coordsArray, {
         color: '#10b981', // Emerald 500
         weight: 5,
@@ -434,7 +434,7 @@ export default function App() {
         leafletMarkersRef.current = [];
       }
     }
-  }, [activeTab, mapMode, effLat, effLng, wildCows, caseraCooldowns, vazzadex]);
+  }, [activeTab, mapMode, effLat, effLng, wildCows, caseraCooldowns, vazzadex, activeRouteId]);
 
   // GPS reale: attiva/disattiva il tracciamento della posizione vera
   const toggleGps = () => {
@@ -681,16 +681,16 @@ export default function App() {
 
     // Update trek coordinates progress
     const nextProgress = waypointProgress + 20; // 5 steps of 500m = 2.5km segment
-    let nextIndex = currentWaypointIndex;
+    let nextIndex = safeWaypointIndex;
     let actualProgress = nextProgress;
     let feedMsg = "";
 
     if (nextProgress >= 100) {
-      nextIndex = (currentWaypointIndex + 1) % VALLE_DAOSTA_TRAIL_COORDS.length;
+      nextIndex = (safeWaypointIndex + 1) % activeTrail.length;
       actualProgress = nextProgress - 100;
-      feedMsg = `🏔️ Nuovo Traguardo! Sei arrivato a: ${VALLE_DAOSTA_TRAIL_COORDS[nextIndex].name}!`;
+      feedMsg = `🏔️ Nuovo Traguardo! Sei arrivato a: ${activeTrail[nextIndex].name}!`;
     } else {
-      const targetWp = VALLE_DAOSTA_TRAIL_COORDS[nextWaypointIndex] || VALLE_DAOSTA_TRAIL_COORDS[0];
+      const targetWp = activeTrail[nextWaypointIndex] || activeTrail[0];
       feedMsg = `🥾 Cammini verso ${targetWp.name}... Progressi: ${nextProgress}%`;
     }
 
@@ -698,9 +698,9 @@ export default function App() {
     setCurrentWaypointIndex(nextIndex);
 
     // Calculate updated coordinates to pass for fresh nearby spawner
-    const baseWp = VALLE_DAOSTA_TRAIL_COORDS[nextIndex] || VALLE_DAOSTA_TRAIL_COORDS[10];
-    const afterIdx = (nextIndex + 1) % VALLE_DAOSTA_TRAIL_COORDS.length;
-    const afterWp = VALLE_DAOSTA_TRAIL_COORDS[afterIdx] || VALLE_DAOSTA_TRAIL_COORDS[11];
+    const baseWp = activeTrail[nextIndex] || activeTrail[0];
+    const afterIdx = (nextIndex + 1) % activeTrail.length;
+    const afterWp = activeTrail[afterIdx] || activeTrail[0];
     const nextLat = baseWp.lat + (afterWp.lat - baseWp.lat) * (actualProgress / 100);
     const nextLng = baseWp.lng + (afterWp.lng - baseWp.lng) * (actualProgress / 100);
 
@@ -1411,6 +1411,38 @@ export default function App() {
         {/* VIEW 1: INTERACTIVE MAP OVERWORLD */}
         {activeTab === 'map' && (
           <div className="space-y-6" id="overworld-view">
+
+            {/* SELETTORE PERCORSO (3 grandi itinerari valdostani) */}
+            <div className="bg-slate-950 border border-slate-850 rounded-3xl p-4 space-y-3" id="route-selector">
+              <h3 className="text-xs font-mono font-extrabold uppercase text-slate-300 tracking-wider flex items-center gap-1.5">
+                <Compass className="w-4 h-4 text-emerald-400" />
+                Scegli il tuo cammino
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                {TREK_ROUTES.map((route) => {
+                  const active = route.id === activeRouteId;
+                  const t = ROUTE_TONE[route.accent] ?? ROUTE_TONE.emerald;
+                  return (
+                    <button
+                      key={route.id}
+                      onClick={() => selectRoute(route.id)}
+                      className={`relative text-left rounded-2xl border-2 p-3 transition-all overflow-hidden ${active ? `${t.border} ${t.bg}` : 'border-slate-800 bg-slate-900 hover:bg-slate-850'}`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="text-2xl">{route.icon}</span>
+                        <div className="min-w-0">
+                          <div className={`text-[11px] font-mono font-black truncate ${active ? t.text : 'text-slate-200'}`}>{route.name}</div>
+                          <div className="text-[9px] font-mono text-slate-400">{route.difficulty} · {route.lengthKm} km · {route.coords.length} tappe</div>
+                        </div>
+                      </div>
+                      <p className="text-[9px] text-slate-500 leading-snug mt-1.5 line-clamp-2">{route.description}</p>
+                      {active && <span className={`absolute top-2 right-2 text-[8px] font-mono font-black ${t.text}`}>● ATTIVO</span>}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
             <div className="bg-slate-950 rounded-3xl p-5 border border-slate-850 relative overflow-hidden shadow-2xl">
               
               {/* Overworld Title HUD */}
