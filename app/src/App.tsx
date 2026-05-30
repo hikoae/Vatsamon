@@ -83,6 +83,57 @@ const LORE_POOL = [
   "Leggerissima nei movimenti, si camuffa tra i banchi di nebbia per sorprendere i trekker pigri con simpatici baccani."
 ];
 
+// ===== Linea "Vazza-ball": i campanacci-cattura in stile Poké Ball =====
+// Tre potenze crescenti + la Master garantita. `mult` moltiplica il tasso di
+// cattura base; `mult: null` = cattura garantita (100%). Colori inline per
+// evitare il purge di Tailwind sui nomi di classe dinamici.
+interface BallMeta {
+  short: string; full: string; description: string; emoji: string;
+  mult: number | null; color: string; bestFor: string;
+}
+const BALL_META: Record<string, BallMeta> = {
+  'item-bell-std':    { short: 'Vazza-ball',        full: 'Vazza-ball',         emoji: '🔔', mult: 1.0,  color: '#f59e0b', bestFor: 'Comuni · Rare',        description: 'Campanaccio in ottone risonante. Il rintocco base per le catture ordinarie.' },
+  'item-bell-giga':   { short: 'Super Vazza-ball',  full: 'Super Vazza-ball',   emoji: '🛎️', mult: 2.2,  color: '#38bdf8', bestFor: 'Rare · Epiche',        description: 'Campana d\'acciaio dal rintocco profondo. Più che raddoppia la presa: ideale sulle Epiche.' },
+  'item-bell-iper':   { short: 'Iper Vazza-ball',   full: 'Iper Vazza-ball',    emoji: '⚜️', mult: 4.0,  color: '#a78bfa', bestFor: 'Epiche · Leggendarie', description: 'Bronzo runico d\'alta quota. Risonanza ipnotica che doma anche le Reines Leggendarie.' },
+  'item-bell-master': { short: 'Master Vazza-ball', full: 'Master Vazza-ball',  emoji: '⭐', mult: null, color: '#fb7185', bestFor: 'Cattura garantita',    description: 'Manufatto in platino della tradizione. Cattura garantita al 100%: usala con saggezza.' },
+};
+const BALL_ORDER = ['item-bell-std', 'item-bell-giga', 'item-bell-iper', 'item-bell-master'];
+
+// Backpack di partenza: la linea completa di Vazza-ball a scorte decrescenti.
+const DEFAULT_BAG: BackpackItem[] = [
+  { id: 'item-bell-std',    name: 'Vazza-ball',        description: BALL_META['item-bell-std'].description,    quantity: 20, type: 'ball' },
+  { id: 'item-bell-giga',   name: 'Super Vazza-ball',  description: BALL_META['item-bell-giga'].description,   quantity: 8,  type: 'ball' },
+  { id: 'item-bell-iper',   name: 'Iper Vazza-ball',   description: BALL_META['item-bell-iper'].description,   quantity: 3,  type: 'ball' },
+  { id: 'item-bell-master', name: 'Master Vazza-ball', description: BALL_META['item-bell-master'].description, quantity: 1,  type: 'ball' },
+  { id: 'item-apple', name: 'Mela Alpina d\'Oro', description: 'Frutto profumatissimo. Addolcisce i Vazzamon selvatici del 50%.', quantity: 6, type: 'food' },
+  { id: 'item-hay', name: 'Fieno delle Vette', description: 'Nutriente speciale usato per aumentare il livello e CP dei Vazzamon.', quantity: 12, type: 'candy' },
+];
+
+// Tasso di cattura base per rarità (prima di ball / mela / precisione del lancio).
+const BASE_CATCH: Record<RarityType, number> = {
+  Comune: 0.45, Rara: 0.30, Epica: 0.18, Leggendaria: 0.09,
+};
+
+// Stima "a riposo" del tasso di cattura (ball + mela, precisione media) → 0..1.
+// Mostrata in anticipo per far capire quanto sarà facile, in stile Pokémon GO.
+function estimateCatch(rarity: RarityType | undefined, ballId: string, fedApple: boolean): number {
+  const meta = BALL_META[ballId];
+  if (meta && meta.mult === null) return 1;
+  let p = BASE_CATCH[rarity ?? 'Comune'];
+  p *= meta?.mult ?? 1;
+  if (fedApple) p *= 1.5;
+  return Math.max(0, Math.min(1, p));
+}
+
+// Anello colorato di difficoltà (verde→rosso) come il cerchio target di Pokémon GO.
+function catchDifficulty(p: number): { color: string; label: string } {
+  if (p >= 1)    return { color: '#10b981', label: 'GARANTITA' };
+  if (p >= 0.6)  return { color: '#22c55e', label: 'FACILE' };
+  if (p >= 0.35) return { color: '#eab308', label: 'MEDIA' };
+  if (p >= 0.15) return { color: '#f97316', label: 'DIFFICILE' };
+  return { color: '#ef4444', label: 'ARDUA' };
+}
+
 export default function App() {
   // ---- 1. PERSISTENT STATS ----
   const [vazzadex, setVazzadex] = useState<Vazzamon[]>(() => {
@@ -96,15 +147,17 @@ export default function App() {
   const [backpack, setBackpack] = useState<BackpackItem[]>(() => {
     const cached = localStorage.getItem('vazzamon_bag_go');
     if (cached) {
-      try { return JSON.parse(cached); } catch (e) { console.error(e); }
+      try {
+        const parsed: BackpackItem[] = JSON.parse(cached);
+        // Migrazione: assicura che esista l'intera linea di Vazza-ball anche per
+        // i salvataggi vecchi (es. nuova Iper Vazza-ball), senza azzerare le scorte.
+        DEFAULT_BAG.forEach(def => {
+          if (!parsed.find(p => p.id === def.id)) parsed.push({ ...def });
+        });
+        return parsed;
+      } catch (e) { console.error(e); }
     }
-    return [
-      { id: 'item-bell-std', name: 'Vazza-ball Ottone', description: 'Campanaccio base risonante. Ideale per catture ordinarie.', quantity: 20, type: 'ball' },
-      { id: 'item-bell-giga', name: 'Alpen-Bell d\'Acciaio', description: 'Campanella massiccia dal rintocco potente. Perfetta per bovine Epiche.', quantity: 10, type: 'ball' },
-      { id: 'item-bell-master', name: 'Bell di Platino', description: 'Pregiato manufatto dorato d\'alta quota. 100% tasso di cattura!', quantity: 2, type: 'ball' },
-      { id: 'item-apple', name: 'Mela Alpina d\'Oro', description: 'Frutto profumatissimo. Addolcisce i Vazzamon selvatici del 40%.', quantity: 6, type: 'food' },
-      { id: 'item-hay', name: 'Fieno delle Vette', description: 'Nutriente speciale usato per aumentare il livello e CP dei Vazzamon.', quantity: 12, type: 'candy' }
-    ];
+    return DEFAULT_BAG.map(i => ({ ...i }));
   });
 
   const [eggs, setEggs] = useState<Egg[]>(() => {
@@ -780,8 +833,12 @@ export default function App() {
         setBackpack(prev => prev.map(item => item.id === 'item-apple' ? { ...item, quantity: item.quantity + 2 } : item));
       }
       if (odds > 0.7) {
-        looted.push("+1 Alpen-Bell");
+        looted.push("+1 Super Vazza-ball");
         setBackpack(prev => prev.map(item => item.id === 'item-bell-giga' ? { ...item, quantity: item.quantity + 1 } : item));
+      }
+      if (odds > 0.88) {
+        looted.push("+1 Iper Vazza-ball");
+        setBackpack(prev => prev.map(item => item.id === 'item-bell-iper' ? { ...item, quantity: item.quantity + 1 } : item));
       }
       if (odds > 0.9) {
         looted.push("+1 Fieno Vette");
@@ -877,19 +934,18 @@ export default function App() {
     }, 2200);
 
     setTimeout(() => {
-      // Determine final success based on rating, ball accuracy multiplier, and if apple fed
-      let captureChance = 0.40; // baseline Comune
-      if (encounterCow?.rarity === 'Leggendaria') captureChance = 0.08;
-      else if (encounterCow?.rarity === 'Epica') captureChance = 0.18;
-      else if (encounterCow?.rarity === 'Rara') captureChance = 0.28;
-
-      // Multipliers
-      if (selectedBallId === 'item-bell-master') captureChance = 1.0; // masterpiece
-      else if (selectedBallId === 'item-bell-giga') captureChance *= 1.8;
-      
-      if (hasFedApple) captureChance *= 1.5;
-      if (rating === 'EXCELLENT') captureChance *= 1.6;
-      else if (rating === 'GREAT') captureChance *= 1.35;
+      // Tasso finale: rarità base × potenza della Vazza-ball × mela × precisione lancio.
+      const ballMeta = BALL_META[selectedBallId];
+      let captureChance: number;
+      if (ballMeta && ballMeta.mult === null) {
+        captureChance = 1.0; // Master Vazza-ball: cattura garantita
+      } else {
+        captureChance = BASE_CATCH[encounterCow?.rarity ?? 'Comune'];
+        captureChance *= ballMeta?.mult ?? 1;       // potenza della ball
+        if (hasFedApple) captureChance *= 1.5;       // mela alpina
+        if (rating === 'EXCELLENT') captureChance *= 1.6;
+        else if (rating === 'GREAT') captureChance *= 1.35;
+      }
 
       const isCaught = Math.random() <= captureChance;
 
@@ -1289,8 +1345,11 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-900 flex flex-col font-sans text-slate-100 antialiased selection:bg-emerald-500 selection:text-white" id="vazzamon-go-app">
-      
+    <div className="min-h-screen bg-gradient-to-b from-slate-900 via-slate-950 to-slate-900 flex flex-col font-sans text-slate-100 antialiased selection:bg-emerald-500 selection:text-white relative overflow-x-hidden" id="vazzamon-go-app">
+
+      {/* Sfondo aurora animato (tema Pokémon moderno) */}
+      <div className="aurora-bg" aria-hidden="true" />
+
       {/* 🎒 MAIN HUD STATUS BAR (POKEMON GO STYLE) 🎒 */}
       <header className="bg-slate-950 border-b border-emerald-900/60 p-3 sticky top-0 z-50 shadow-md">
         <div className="max-w-4xl mx-auto flex items-center justify-between gap-4">
@@ -1307,7 +1366,7 @@ export default function App() {
             </div>
             <div>
               <div className="flex items-center gap-1.5">
-                <span className="font-mono font-black text-sm tracking-wide text-emerald-400">VAZZAMON GO</span>
+                <span className="font-mono font-black text-sm tracking-wide title-gradient">VAZZAMON GO</span>
                 <span className="text-[9px] bg-emerald-950/80 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-full font-bold uppercase">
                   Valle d'Aosta
                 </span>
@@ -1351,7 +1410,7 @@ export default function App() {
         <div className="max-w-md mx-auto grid grid-cols-6 gap-0.5 p-1 text-[11px] font-extrabold">
           <button
             onClick={() => { playClickSfx(); setActiveTab('map'); }}
-            className={`flex flex-col items-center py-2 rounded-xl transition-all ${activeTab === 'map' ? 'bg-emerald-500 text-slate-950' : 'text-slate-400 hover:bg-slate-900'}`}
+            className={`flex flex-col items-center py-2 rounded-xl transition-all ${activeTab === 'map' ? 'nav-active text-slate-950' : 'text-slate-400 hover:bg-slate-900 hover:-translate-y-0.5'}`}
           >
             <Compass className="w-4 h-4 mb-0.5" />
             <span>Mappa</span>
@@ -1359,7 +1418,7 @@ export default function App() {
 
           <button
             onClick={() => { playClickSfx(); setActiveTab('scanner'); }}
-            className={`flex flex-col items-center py-2 rounded-xl transition-all ${activeTab === 'scanner' ? 'bg-emerald-500 text-slate-950' : 'text-slate-400 hover:bg-slate-900'}`}
+            className={`flex flex-col items-center py-2 rounded-xl transition-all ${activeTab === 'scanner' ? 'nav-active text-slate-950' : 'text-slate-400 hover:bg-slate-900 hover:-translate-y-0.5'}`}
           >
             <Camera className="w-4 h-4 mb-0.5" />
             <span>AR Scan</span>
@@ -1367,7 +1426,7 @@ export default function App() {
 
           <button
             onClick={() => { playClickSfx(); setActiveTab('eggs'); }}
-            className={`flex flex-col items-center py-2 rounded-xl transition-all relative ${activeTab === 'eggs' ? 'bg-emerald-500 text-slate-950' : 'text-slate-400 hover:bg-slate-900'}`}
+            className={`flex flex-col items-center py-2 rounded-xl transition-all relative ${activeTab === 'eggs' ? 'nav-active text-slate-950' : 'text-slate-400 hover:bg-slate-900 hover:-translate-y-0.5'}`}
           >
             <Gift className="w-4 h-4 mb-0.5" />
             <span>Vitelli</span>
@@ -1376,7 +1435,7 @@ export default function App() {
 
           <button
             onClick={() => { playClickSfx(); setActiveTab('vazzadex'); }}
-            className={`flex flex-col items-center py-2 rounded-xl transition-all relative ${activeTab === 'vazzadex' ? 'bg-emerald-500 text-slate-950' : 'text-slate-400 hover:bg-slate-900'}`}
+            className={`flex flex-col items-center py-2 rounded-xl transition-all relative ${activeTab === 'vazzadex' ? 'nav-active text-slate-950' : 'text-slate-400 hover:bg-slate-900 hover:-translate-y-0.5'}`}
           >
             <BookOpen className="w-4 h-4 mb-0.5" />
             <span>Vazzadex</span>
@@ -1389,7 +1448,7 @@ export default function App() {
 
           <button
             onClick={() => { playClickSfx(); setActiveTab('battle'); }}
-            className={`flex flex-col items-center py-2 rounded-xl transition-all ${activeTab === 'battle' ? 'bg-emerald-500 text-slate-950' : 'text-slate-400 hover:bg-slate-900'}`}
+            className={`flex flex-col items-center py-2 rounded-xl transition-all ${activeTab === 'battle' ? 'nav-active text-slate-950' : 'text-slate-400 hover:bg-slate-900 hover:-translate-y-0.5'}`}
           >
             <Swords className="w-4 h-4 mb-0.5" />
             <span>Gym</span>
@@ -1397,7 +1456,7 @@ export default function App() {
 
           <button
             onClick={() => { playClickSfx(); setActiveTab('quiz'); }}
-            className={`flex flex-col items-center py-2 rounded-xl transition-all ${activeTab === 'quiz' ? 'bg-emerald-500 text-slate-950' : 'text-slate-400 hover:bg-slate-900'}`}
+            className={`flex flex-col items-center py-2 rounded-xl transition-all ${activeTab === 'quiz' ? 'nav-active text-slate-950' : 'text-slate-400 hover:bg-slate-900 hover:-translate-y-0.5'}`}
           >
             <GraduationCap className="w-4 h-4 mb-0.5" />
             <span>Scuola</span>
@@ -1406,7 +1465,8 @@ export default function App() {
       </nav>
 
       {/* 🗺️ ACTIVE VIEW DISPLAY 🗺️ */}
-      <main className="flex-grow p-4 md:p-6 max-w-4xl w-full mx-auto" id="app-viewport">
+      <main className="flex-grow p-4 md:p-6 max-w-4xl w-full mx-auto relative z-10" id="app-viewport">
+        <div key={activeTab} className="view-in">
         
         {/* VIEW 1: INTERACTIVE MAP OVERWORLD */}
         {activeTab === 'map' && (
@@ -1804,6 +1864,7 @@ export default function App() {
         {/* WILD CAPTURE / AR WILD ENCOUNTER SCREEN */}
         {isCapturingMode && encounterCow && (
           <div className="fixed inset-0 bg-slate-950/95 z-50 flex items-center justify-center p-4 animate-scale-in" id="encounter-screen">
+            <div className="encounter-flash" aria-hidden="true" />
             <div className="bg-gradient-to-b from-sky-950 via-emerald-950 to-slate-900 border-2 border-emerald-500/50 rounded-3xl max-w-lg w-full aspect-[3/4] p-5 flex flex-col justify-between shadow-2xl relative overflow-hidden">
               
               {/* Back out button */}
@@ -1908,9 +1969,30 @@ export default function App() {
                   📟 {captureLogMsg}
                 </div>
 
-                {captureStep === 'aiming' && (
+                {captureStep === 'aiming' && (() => {
+                  // Probabilità stimata con la ball selezionata (stile Pokémon GO).
+                  const selMeta = BALL_META[selectedBallId];
+                  const estP = estimateCatch(encounterCow.rarity, selectedBallId, hasFedApple);
+                  const diff = catchDifficulty(estP);
+                  const pctLabel = selMeta?.mult === null ? '100%' : `${Math.round(estP * 100)}%`;
+                  return (
                   <div className="space-y-3">
-                    
+
+                    {/* Indicatore difficoltà di cattura (reagisce a ball + mela + rarità) */}
+                    <div
+                      id="catch-chance"
+                      className="flex items-center justify-between rounded-xl px-3 py-1.5 border"
+                      style={{ borderColor: diff.color, backgroundColor: `${diff.color}1a` }}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 rounded-full animate-pulse" style={{ backgroundColor: diff.color }} />
+                        <span className="text-[10px] font-mono font-black tracking-wide" style={{ color: diff.color }}>
+                          CATTURA {diff.label}
+                        </span>
+                      </div>
+                      <span className="text-[11px] font-mono font-black" style={{ color: diff.color }}>{pctLabel}</span>
+                    </div>
+
                     {/* Throw speed bar indicator */}
                     <div className="space-y-1">
                       <div className="flex justify-between text-[10px] font-mono text-slate-400">
@@ -1920,15 +2002,58 @@ export default function App() {
                       <div className="relative bg-slate-850 rounded-full h-3.5 overflow-hidden border border-slate-700/80">
                         {/* Perfect capture range highlight zone */}
                         <div className="absolute inset-y-0 left-[75%] right-[8%] bg-green-500/30 border-x border-green-400/40" title="Zona Perfetta" />
-                        <div 
+                        <div
                           className="bg-gradient-to-r from-emerald-500 to-amber-400 h-full rounded-full transition-all duration-75"
                           style={{ width: `${throwSpeedGauge}%` }}
                         />
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-3 gap-2 py-0.5">
-                      
+                    {/* Selettore Vazza-ball in stile Poké Ball: una tessera per potenza */}
+                    <div id="ball-selector" className="space-y-1">
+                      <div className="flex items-center justify-between text-[9px] font-mono uppercase tracking-wider text-slate-400">
+                        <span>Scegli il campanaccio</span>
+                        <span className="text-slate-500">{selMeta?.bestFor}</span>
+                      </div>
+                      <div className="grid grid-cols-4 gap-1.5">
+                        {BALL_ORDER.map(id => {
+                          const meta = BALL_META[id];
+                          const item = backpack.find(b => b.id === id);
+                          const qty = item?.quantity ?? 0;
+                          const selected = selectedBallId === id;
+                          const out = qty <= 0;
+                          return (
+                            <button
+                              key={id}
+                              id={`ball-${id}`}
+                              onClick={() => { if (!out) { playClickSfx(); setSelectedBallId(id); } }}
+                              disabled={out}
+                              title={meta.description}
+                              className={`relative bg-slate-900 hover:bg-slate-850 rounded-xl py-2 px-1 flex flex-col items-center justify-center text-center transition-all active:scale-95 cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed ${selected ? 'border-2' : 'border border-slate-800'}`}
+                              style={selected ? { borderColor: meta.color, boxShadow: `0 0 10px ${meta.color}66` } : undefined}
+                            >
+                              {/* badge quantità */}
+                              <span
+                                className="absolute -top-1.5 -right-1.5 min-w-4 h-4 px-1 rounded-full text-[8px] font-mono font-black flex items-center justify-center text-slate-950"
+                                style={{ backgroundColor: meta.color }}
+                              >
+                                {qty}
+                              </span>
+                              <span className="text-lg leading-none">{meta.emoji}</span>
+                              <span className="text-[8px] font-mono font-bold mt-1 leading-tight" style={{ color: selected ? meta.color : '#cbd5e1' }}>
+                                {meta.short.replace('Vazza-ball', '').trim() || 'Base'}
+                              </span>
+                              <span className="text-[8px] font-mono font-black mt-0.5" style={{ color: meta.color }}>
+                                {meta.mult === null ? '100%' : `×${meta.mult}`}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Azioni: mela alpina + lancio */}
+                    <div className="grid grid-cols-[1fr_1.4fr] gap-2 py-0.5">
                       {/* Interactive Feed apple */}
                       <button
                         onClick={handleFeedApple}
@@ -1936,40 +2061,25 @@ export default function App() {
                         className="bg-slate-900 hover:bg-slate-850 border border-slate-800 disabled:opacity-50 py-2 rounded-xl flex flex-col items-center justify-center text-center cursor-pointer active:scale-95 transition-all group"
                       >
                         <span className="text-xl group-hover:scale-125 transition-transform">🍏</span>
-                        <span className="text-[9px] font-mono text-slate-300 mt-1">Mela Alpina d'Oro</span>
-                        <span className="text-[9px] font-bold text-emerald-400 mt-0.5">({backpack.find(item => item.id === 'item-apple')?.quantity || 0})</span>
+                        <span className="text-[9px] font-mono text-slate-300 mt-1">{hasFedApple ? 'Mela offerta!' : 'Mela Alpina'}</span>
+                        <span className="text-[9px] font-bold text-emerald-400 mt-0.5">×1.5 ({backpack.find(item => item.id === 'item-apple')?.quantity || 0})</span>
                       </button>
 
                       {/* Launch Trigger Button */}
                       <button
                         onClick={executeThrow}
-                        className="bg-gradient-to-r from-yellow-500 to-amber-500 hover:from-yellow-400 hover:to-amber-400 text-slate-950 font-mono font-black text-xs px-2 rounded-xl border-b-4 border-amber-700 flex flex-col items-center justify-center text-center active:scale-95 cursor-pointer"
+                        className="text-slate-950 font-mono font-black text-sm px-2 rounded-xl border-b-4 flex flex-col items-center justify-center text-center active:scale-95 cursor-pointer"
+                        style={{ backgroundColor: selMeta?.color ?? '#f59e0b', borderColor: 'rgba(0,0,0,0.35)' }}
                         id="throw-btn"
                       >
-                        <span className="text-lg">📢</span>
-                        <span>CATTURA!</span>
+                        <span className="text-lg">{selMeta?.emoji ?? '📢'}</span>
+                        <span>LANCIA {selMeta?.short.replace('Vazza-ball', '').trim() || ''}</span>
                       </button>
-
-                      {/* Select active ball drawer menu */}
-                      <div className="bg-slate-900 border border-slate-800 rounded-xl p-1.5 flex flex-col items-center justify-between text-center">
-                        <select
-                          value={selectedBallId}
-                          onChange={(e) => setSelectedBallId(e.target.value)}
-                          className="bg-slate-950 text-amber-300 font-mono text-[9px] font-bold p-1 rounded-md border border-slate-800 tracking-tight outline-none w-full text-center"
-                        >
-                          {backpack.filter(item => item.type === 'ball').map(item => (
-                            <option key={item.id} value={item.id}>
-                              {item.name.split(" ")[1]} ({item.quantity})
-                            </option>
-                          ))}
-                        </select>
-                        <span className="text-[8px] text-slate-400 mt-1 uppercase tracking-wider font-mono font-bold">Armamento</span>
-                      </div>
-
                     </div>
 
                   </div>
-                )}
+                  );
+                })()}
 
                 {captureStep !== 'aiming' && (
                   <div className="flex justify-center pt-2">
@@ -2481,11 +2591,12 @@ export default function App() {
             </div>
           </div>
         )}
+        </div>
 
       </main>
 
       {/* FOOTER GENERAL LEGALS AND RESET ACCENTS */}
-      <footer className="bg-slate-950 text-slate-500 text-[10px] text-center py-4 px-6 border-t border-slate-850 mt-12 gap-2 flex flex-col items-center">
+      <footer className="bg-slate-950 text-slate-500 text-[10px] text-center py-4 px-6 border-t border-slate-850 mt-12 gap-2 flex flex-col items-center relative z-10">
         <p>© 2026 Vazzamon GO - Un'esplorazione virtuale ecologica della Valle d'Aosta.</p>
         <div className="flex gap-4">
           <button
@@ -2519,7 +2630,7 @@ export default function App() {
               <h5 className="text-[10px] font-mono text-slate-400 uppercase tracking-wide">Premi Sbloccati d'alta quota</h5>
               <div className="flex justify-center gap-4 text-xs font-mono font-bold text-amber-300 mt-2">
                 <span>+50 Monete 🪙</span>
-                <span>+5 Alpen-Bell 🔔</span>
+                <span>+5 Super Vazza-ball 🛎️</span>
               </div>
             </div>
 

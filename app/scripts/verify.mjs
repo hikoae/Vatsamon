@@ -125,8 +125,12 @@ if (await fileInput.count()) {
   if (!capturing) problems.push("scanner non porta alla cattura");
   await page.screenshot({ path: `${OUT}/v2int-4-cattura.png` });
   if (capturing) {
-    await page.locator("select").first().selectOption("item-bell-master").catch(() => {});
-    await page.waitForTimeout(200);
+    // selettore Vazza-ball in stile Poké Ball: scegli la Master (cattura garantita)
+    const chanceVisible = await page.locator("#catch-chance").isVisible().catch(() => false);
+    note(`indicatore probabilità cattura: ${chanceVisible}`);
+    if (!chanceVisible) problems.push("manca l'indicatore di probabilità di cattura");
+    await page.locator("#ball-item-bell-master").click().catch(() => {});
+    await page.waitForTimeout(250);
     await page.locator("#throw-btn").click();
     await page.waitForTimeout(4200);
     const secured = await page.locator("text=CATTURATA").isVisible().catch(() => false);
