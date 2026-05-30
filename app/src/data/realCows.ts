@@ -69,6 +69,15 @@ function clamp(n: number) { return Math.max(10, Math.min(100, Math.round(n))); }
 export const REAL_COWS: Vazzamon[] = data.bovine.map(convert);
 export const REAL_TOTAL = REAL_COWS.length;
 
+/**
+ * Vetrina "una Reina per tipologia": per ogni rarità presente, la prima bovina
+ * CON FOTO REALE. Usata nel Vazzadex come galleria delle carte rappresentative.
+ */
+const RARITY_ORDER: RarityType[] = ["Leggendaria", "Epica", "Rara", "Comune"];
+export const SHOWCASE_BY_RARITY: Vazzamon[] = RARITY_ORDER
+  .map((rar) => REAL_COWS.find((c) => c.rarity === rar && c.realPhoto))
+  .filter((c): c is Vazzamon => Boolean(c));
+
 // coordinate per la mappa "radar" SVG (stessi bound di v2)
 function svgXY(lat: number, lng: number) {
   const x = 5 + ((lng - 6.9) / (7.85 - 6.9)) * 90;

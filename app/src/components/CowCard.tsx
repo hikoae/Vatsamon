@@ -1,6 +1,7 @@
 import { motion } from "motion/react";
 import { Vazzamon, RarityType } from "../types";
 import { CowVisual } from "./CowVisual";
+import { cowMoves, MOVE_KIND_STYLE } from "../data/moves";
 
 /** Stelle di rarità (badge carta). */
 const RARITY_STARS: Record<RarityType, number> = {
@@ -10,18 +11,51 @@ const RARITY_STARS: Record<RarityType, number> = {
   Comune: 2,
 };
 
-const RARITY_FRAME: Record<RarityType, string> = {
-  Leggendaria: "border-amber-500/60 from-amber-500/15",
-  Epica: "border-purple-500/60 from-purple-500/15",
-  Rara: "border-blue-500/60 from-blue-500/15",
-  Comune: "border-slate-700 from-slate-700/10",
-};
-
-const RARITY_TEXT: Record<RarityType, string> = {
-  Leggendaria: "text-amber-400",
-  Epica: "text-purple-400",
-  Rara: "text-blue-400",
-  Comune: "text-slate-400",
+/** Stile completo per rarità: cornice, sfondo, gemma, testo, intensità holo. */
+const RARITY: Record<
+  RarityType,
+  { frame: string; bg: string; text: string; gem: string; ring: string; holo: number; glow: string; label: string }
+> = {
+  Leggendaria: {
+    frame: "border-amber-400/70",
+    bg: "from-amber-500/20 via-amber-900/10 to-slate-950",
+    text: "text-amber-300",
+    gem: "bg-amber-400",
+    ring: "shadow-[0_0_28px_rgba(245,158,11,0.35)]",
+    holo: 1,
+    glow: "legendary-glow opacity-40",
+    label: "★ LEGGENDARIA ★",
+  },
+  Epica: {
+    frame: "border-purple-400/70",
+    bg: "from-purple-500/20 via-purple-900/10 to-slate-950",
+    text: "text-purple-300",
+    gem: "bg-purple-400",
+    ring: "shadow-[0_0_24px_rgba(168,85,247,0.3)]",
+    holo: 0.7,
+    glow: "epic-glow opacity-30",
+    label: "EPICA",
+  },
+  Rara: {
+    frame: "border-blue-400/60",
+    bg: "from-blue-500/15 via-blue-900/10 to-slate-950",
+    text: "text-blue-300",
+    gem: "bg-blue-400",
+    ring: "shadow-[0_0_18px_rgba(59,130,246,0.25)]",
+    holo: 0.4,
+    glow: "rare-glow opacity-25",
+    label: "RARA",
+  },
+  Comune: {
+    frame: "border-slate-600",
+    bg: "from-slate-700/15 to-slate-950",
+    text: "text-slate-300",
+    gem: "bg-slate-400",
+    ring: "",
+    holo: 0,
+    glow: "opacity-0",
+    label: "COMUNE",
+  },
 };
 
 const REAL_STATS = [
@@ -32,16 +66,14 @@ const REAL_STATS = [
 ] as const;
 
 /**
- * Scheda dettaglio "carta Pokémon" di una Reina: cornice olografica per rarità,
- * illustrazione grande, 4 statistiche reali animate, badge + provenienza + funFact.
- * I bottoni d'azione (Potenzia/Libera/Compagno) restano in App.tsx attorno a questa card.
+ * Scheda dettaglio "carta Pokémon" di una Reina: grafica che cambia con la rarità
+ * (cornice/sfondo/gemme/holo), illustrazione o foto reale, 4 statistiche reali
+ * animate, provenienza, e l'elenco delle MOSSE disponibili in stile carta.
  */
 export function CowCard({ cow }: { cow: Vazzamon }) {
+  const r = RARITY[cow.rarity];
   const stars = RARITY_STARS[cow.rarity];
-  const glow =
-    cow.rarity === "Leggendaria" ? "legendary-glow opacity-30" :
-    cow.rarity === "Epica" ? "epic-glow opacity-25" :
-    cow.rarity === "Rara" ? "rare-glow opacity-20" : "opacity-0";
+  const moves = cowMoves(cow);
 
   return (
     <motion.div
@@ -50,22 +82,26 @@ export function CowCard({ cow }: { cow: Vazzamon }) {
       whileHover={{ rotateY: 4, rotateX: -4 }}
       transition={{ type: "spring", stiffness: 200, damping: 18 }}
       style={{ transformPerspective: 900 }}
-      className={`relative rounded-3xl border-2 bg-gradient-to-b to-slate-950 ${RARITY_FRAME[cow.rarity]} p-4 space-y-3 overflow-hidden`}
+      className={`relative rounded-3xl border-2 bg-gradient-to-b ${r.frame} ${r.bg} ${r.ring} p-4 space-y-3 overflow-hidden`}
     >
-      {/* sheen olografico */}
-      <div className="absolute inset-0 holo-sheen pointer-events-none rounded-3xl" />
+      {/* sheen olografico (intensità per rarità) */}
+      {r.holo > 0 && <div className="absolute inset-0 holo-sheen pointer-events-none rounded-3xl" style={{ opacity: r.holo }} />}
+
+      {/* gemme angolari per rarità */}
+      <span className={`absolute top-2 left-2 w-2.5 h-2.5 rounded-full ${r.gem} shadow`} />
+      <span className={`absolute top-2 right-9 w-2.5 h-2.5 rounded-full ${r.gem} shadow`} />
 
       {/* intestazione: rarità + stelle */}
-      <div className="relative flex items-center justify-between">
-        <span className={`text-[10px] bg-slate-950/70 border border-current/20 font-mono font-black tracking-widest px-3 py-1 rounded-full uppercase ${RARITY_TEXT[cow.rarity]}`}>
-          {cow.rarity}
+      <div className="relative flex items-center justify-between pl-5">
+        <span className={`text-[10px] bg-slate-950/70 border border-current/20 font-mono font-black tracking-widest px-3 py-1 rounded-full uppercase ${r.text}`}>
+          {r.label}
         </span>
-        <span className={`text-sm tracking-tight ${RARITY_TEXT[cow.rarity]}`}>
+        <span className={`text-sm tracking-tight ${r.text}`}>
           {"★".repeat(stars)}<span className="text-slate-700">{"★".repeat(5 - stars)}</span>
         </span>
       </div>
 
-      {/* nome + CP/livello */}
+      {/* nome + CP/livello + tipo */}
       <div className="relative text-center space-y-0.5">
         <h1 className="text-2xl font-mono font-black text-[#F5F5DC] tracking-tight leading-none uppercase">{cow.name}</h1>
         <div className="text-xs text-slate-400 font-mono">
@@ -74,10 +110,12 @@ export function CowCard({ cow }: { cow: Vazzamon }) {
         </div>
       </div>
 
-      {/* illustrazione grande con aura rarità */}
+      {/* illustrazione / foto reale con cornice rarità */}
       <div className="relative py-2 flex justify-center">
-        <div className={`absolute inset-6 rounded-full pointer-events-none filter blur-xl ${glow}`} />
-        <CowVisual cow={cow} className="w-40 h-40 relative z-10 animate-float" />
+        <div className={`absolute inset-6 rounded-full pointer-events-none filter blur-xl ${r.glow}`} />
+        <div className={`relative z-10 rounded-2xl border-2 ${r.frame} p-1 bg-slate-950/40`}>
+          <CowVisual cow={cow} className="w-40 h-40 animate-float" />
+        </div>
       </div>
 
       {/* 3 statistiche di gioco */}
@@ -125,13 +163,29 @@ export function CowCard({ cow }: { cow: Vazzamon }) {
         </div>
       )}
 
-      {/* funFact (se presente) */}
-      {cow.funFact && (
-        <div className="relative bg-amber-950/30 border border-amber-900/60 rounded-2xl p-3 text-left flex gap-1.5">
-          <span className="text-sm">💡</span>
-          <p className="text-[10px] text-amber-100/90 leading-normal">{cow.funFact}</p>
+      {/* MOSSE DISPONIBILI (stile carta Pokémon) */}
+      <div className="relative bg-slate-950/70 border border-slate-850 rounded-2xl p-3 space-y-2 text-left">
+        <div className="text-[9px] font-mono font-black text-slate-300 uppercase tracking-widest flex items-center gap-1">
+          ⚔️ Mosse disponibili
         </div>
-      )}
+        {moves.map((m) => (
+          <div key={m.id} className="flex items-center gap-2">
+            <span className="text-base w-6 text-center flex-shrink-0">{m.emoji}</span>
+            <div className="flex-grow min-w-0">
+              <div className="flex items-center gap-1.5">
+                <span className="text-[11px] font-mono font-black text-slate-100 truncate">{m.name}</span>
+                <span className={`text-[7.5px] font-mono font-bold px-1 py-0.5 rounded border uppercase ${MOVE_KIND_STYLE[m.kind]}`}>{m.kind}</span>
+                {m.requiresEnergy && <span className="text-[7.5px]">⚡</span>}
+              </div>
+              <div className="text-[8.5px] text-slate-500 leading-tight truncate">{m.desc}</div>
+            </div>
+            <span className="flex-shrink-0 text-right font-mono leading-none">
+              <span className="block text-xs font-black text-[#F5F5DC]">{m.value}</span>
+              <span className="block text-[7px] text-slate-500 uppercase">{m.unit}</span>
+            </span>
+          </div>
+        ))}
+      </div>
 
       {/* lore */}
       <p className="relative text-xs text-slate-300 italic px-3 leading-relaxed bg-slate-950/40 p-3 rounded-xl border border-slate-850">

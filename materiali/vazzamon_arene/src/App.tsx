@@ -24,21 +24,12 @@ import {
   ShoppingBag,
   Gift,
   Footprints,
-  Plus,
-  GraduationCap
+  Plus
 } from 'lucide-react';
 import { Vazzamon, Hotspot, BackpackItem, Egg, Trainer, BattleState, RarityType } from './types';
 import { VazzamonAvatar } from './components/VazzamonAvatar';
-import { CowVisual } from './components/CowVisual';
-import { CowCard } from './components/CowCard';
-import { TrailOverlay } from './components/TrailOverlay';
-import { VALDOSTAN_TRAILS } from './data/trails';
-import { QuizScreen } from './components/QuizScreen';
-import { BattleTurnBased } from './components/BattleTurnBased';
 import { soundEngine } from './utils/audio';
-import { generateVazzamonClient } from './lib/generate';
-import { REAL_COWS, REAL_TOTAL, REAL_CASERE, SHOWCASE_BY_RARITY } from './data/realCows';
-import { distanza, fmtDist, RAGGIO_CATTURA } from './lib/geo';
+import { INITIAL_VAZZADEX, DEMO_PREMIUM_COWS, HP_LOCATIONS } from './data/mockVazzamon';
 
 // Real geographic trail route in Valle d'Aosta (Cammino dei Pascoli & Castelli)
 export const VALLE_DAOSTA_TRAIL_COORDS = [
@@ -63,6 +54,158 @@ export const VALLE_DAOSTA_TRAIL_COORDS = [
   { lat: 45.609, lng: 7.744, name: "Forte di Bard (Rocca Monumentale)" },
   { lat: 45.602, lng: 7.761, name: "Donnas (Antica Strada Romana)" },
   { lat: 45.608, lng: 7.355, name: "Prati di Sant'Orso (Cogne Valle)" }
+];
+
+export interface TrekRoute {
+  id: string;
+  name: string;
+  description: string;
+  difficulty: 'Turistico' | 'Escursionistico' | 'Alpinistico';
+  lengthKm: number;
+  icon: string;
+  accent: string;
+  coords: { lat: number; lng: number; name: string }[];
+}
+
+export const TREK_ROUTES: TrekRoute[] = [
+  {
+    id: 'alta_via_1',
+    name: "Alta Via 1 (Sentiero dei Giganti) 🏔️",
+    description: "Trek d'alta quota che si articola ai piedi delle cime leggendarie d'Europa: Cervino, Monte Rosa e Monte Bianco. Paesaggi celestiali e ascese eroiche.",
+    difficulty: "Escursionistico",
+    lengthKm: 120,
+    icon: "🏔️",
+    accent: "emerald",
+    coords: [
+      { lat: 45.776, lng: 7.824, name: "Gressoney-Saint-Jean (Conca di Gressoney)" },
+      { lat: 45.839, lng: 7.728, name: "Champoluc (Alpeggi Frachey di Ayas)" },
+      { lat: 45.879, lng: 7.625, name: "Valtournenche (Pascoli Fioriti sotto il Cervino)" },
+      { lat: 45.852, lng: 7.377, name: "Oyace (Vallone di Tornalla, Valpelline)" },
+      { lat: 45.850, lng: 7.291, name: "Ollomont (Meravigliosa Conca di By)" },
+      { lat: 45.824, lng: 7.181, name: "Bosses (S. Rhémy, antica dogana d'alta quota)" },
+      { lat: 45.791, lng: 6.965, name: "La Saxe (Ingresso dei Giganti Courmayeur)" },
+      { lat: 45.815, lng: 6.992, name: "Val Ferret (Alpeggi alpestri di Lavachey)" }
+    ]
+  },
+  {
+    id: 'alta_via_2',
+    name: "Alta Via 2 (Passo del Gran Paradiso) 🐐",
+    description: "Un itinerario selvaggio nel Parco Nazionale d'Italia. Attraversa fitte foreste di larici guidato da marmotte, stambecchi regali e antiche baite in ardesia.",
+    difficulty: "Alpinistico",
+    lengthKm: 150,
+    icon: "🐐",
+    accent: "sky",
+    coords: [
+      { lat: 45.602, lng: 7.761, name: "Donnas (Strada Romana di Pietra)" },
+      { lat: 45.623, lng: 7.618, name: "Champorcher (Rifugio Miserin e lago alpino)" },
+      { lat: 45.608, lng: 7.355, name: "Cogne (Meraviglie dei Prati di Sant'Orso)" },
+      { lat: 45.590, lng: 7.213, name: "Valsavarenche (Fitte pinete selvagge d'Introd)" },
+      { lat: 45.568, lng: 7.118, name: "Rhêmes-Notre-Dame (Lago glaciale di Pellaud)" },
+      { lat: 45.626, lng: 7.062, name: "Valgrisenche (Diga d'Alta Quota Beauregard)" },
+      { lat: 45.715, lng: 6.953, name: "La Thuile (Imponenti cascate impetuose del Rutor)" },
+      { lat: 45.791, lng: 6.965, name: "Courmayeur Centro (Stazione Funivia Monte Bianco)" }
+    ]
+  },
+  {
+    id: 'cammino_balteo',
+    name: "Cammino Balteo (La Bassa Via dei Castelli) 🏰",
+    description: "Un cammino rurale circolare di mezza quota tra vigneti eroici d'alta scuola vitivinicola, fiumi cristallini e i possenti manieri medioevali della Valle.",
+    difficulty: "Turistico",
+    lengthKm: 90,
+    icon: "🏰",
+    accent: "amber",
+    coords: [
+      { lat: 45.603, lng: 7.798, name: "Pont-Saint-Martin (Antico Ponte di Pietra Romano)" },
+      { lat: 45.609, lng: 7.744, name: "Forte di Bard (Stupenda Rocca Fortificata)" },
+      { lat: 45.662, lng: 7.721, name: "Arnad (Prati e produzione Lardo DOP)" },
+      { lat: 45.698, lng: 7.692, name: "Verrès (Castello Monolito d'Ardesia)" },
+      { lat: 45.736, lng: 7.491, name: "Fénis (Meraviglioso Castello dei Challant)" },
+      { lat: 45.742, lng: 7.401, name: "Castello di Quart (Collina d'Aosta)" },
+      { lat: 45.746, lng: 7.345, name: "Saint-Christophe (Alpeggi collinari e frutteti)" },
+      { lat: 45.717, lng: 7.258, name: "Sarre (Castello Reale e parco di caccia)" },
+      { lat: 45.719, lng: 7.203, name: "Villeneuve (Rovine del Châtel-Argent)" },
+      { lat: 45.705, lng: 7.164, name: "Arvier (Vigneti terrazzati dell'Enfer d'Arvier)" }
+    ]
+  }
+];
+
+export interface Gym {
+  id: 'cogne' | 'gran_paradiso' | 'fenis' | 'morgex';
+  name: string;
+  bossName: string;
+  bossCowName: string;
+  bossBreed: string;
+  bossRarity: 'Rara' | 'Epica' | 'Leggendaria';
+  difficulty: 'Facile' | 'Medio' | 'Difficile' | 'Leggendario';
+  requiredLevel: number;
+  cp: number;
+  badgeName: string;
+  badgeEmoji: string;
+  bonusDesc: string;
+  bgGradient: string;
+}
+
+export const GYMS: Gym[] = [
+  {
+    id: 'cogne',
+    name: "Palestra dei Prati di Cogne 🌸",
+    bossName: "Caterina l'Alpigiana",
+    bossCowName: "Regina Fleur",
+    bossBreed: "Pezzata Rossa",
+    bossRarity: "Rara",
+    difficulty: "Facile",
+    requiredLevel: 1,
+    cp: 850,
+    badgeName: "Medaglia Flora",
+    badgeEmoji: "🌸",
+    bonusDesc: "Tutti i Latti curativi curano il +25% in più di HP in ogni battaglia.",
+    bgGradient: "from-emerald-900/40 to-slate-950 border-emerald-500/30"
+  },
+  {
+    id: 'gran_paradiso',
+    name: "Palestra del Ghiacciaio delle Vette ❄️",
+    bossName: "Edoardo lo Scalatore",
+    bossCowName: "Ghiaccina Tempesta",
+    bossBreed: "Pezzata Nera",
+    bossRarity: "Epica",
+    difficulty: "Medio",
+    requiredLevel: 2,
+    cp: 1550,
+    badgeName: "Medaglia Ghiacciaio",
+    badgeEmoji: "❄️",
+    bonusDesc: "+25% di Punti Esperienza (XP) guadagnati da qualsiasi attività.",
+    bgGradient: "from-sky-900/40 to-slate-950 border-sky-500/30"
+  },
+  {
+    id: 'fenis',
+    name: "Palestra del Castello di Fénis 🏰",
+    bossName: "Duca Aimone di Challant",
+    bossCowName: "Petra la Fortificata",
+    bossBreed: "Evolène",
+    bossRarity: "Epica",
+    difficulty: "Difficile",
+    requiredLevel: 3,
+    cp: 2350,
+    badgeName: "Medaglia Fortezza",
+    badgeEmoji: "🏰",
+    bonusDesc: "+15% di difesa passiva totale permanente in tutti gli scontri.",
+    bgGradient: "from-amber-900/40 to-slate-950 border-amber-500/30"
+  },
+  {
+    id: 'morgex',
+    name: "Palestra dei Vigneti di Morgex 🍇",
+    bossName: "Maddalena la Viticoltrice",
+    bossCowName: "Regina Eroica Grappolo",
+    bossBreed: "Castana Valdostana",
+    bossRarity: "Leggendaria",
+    difficulty: "Leggendario",
+    requiredLevel: 4,
+    cp: 3600,
+    badgeName: "Medaglia Vigneto",
+    badgeEmoji: "🍇",
+    bonusDesc: "+15% di probabilità di evasione (schivata pascoli) automatica permanente.",
+    bgGradient: "from-purple-900/40 to-slate-950 border-purple-500/30"
+  }
 ];
 
 // Fallback coordinate conversion for consistent SVG layout positioning
@@ -105,7 +248,7 @@ export default function App() {
     if (cached) {
       try { return JSON.parse(cached); } catch (e) { console.error(e); }
     }
-    return []; // si parte da Vazzadex vuota: tutte le 73 reali da catturare
+    return INITIAL_VAZZADEX;
   });
 
   const [backpack, setBackpack] = useState<BackpackItem[]>(() => {
@@ -118,7 +261,8 @@ export default function App() {
       { id: 'item-bell-giga', name: 'Alpen-Bell d\'Acciaio', description: 'Campanella massiccia dal rintocco potente. Perfetta per bovine Epiche.', quantity: 10, type: 'ball' },
       { id: 'item-bell-master', name: 'Bell di Platino', description: 'Pregiato manufatto dorato d\'alta quota. 100% tasso di cattura!', quantity: 2, type: 'ball' },
       { id: 'item-apple', name: 'Mela Alpina d\'Oro', description: 'Frutto profumatissimo. Addolcisce i Vazzamon selvatici del 40%.', quantity: 6, type: 'food' },
-      { id: 'item-hay', name: 'Fieno delle Vette', description: 'Nutriente speciale usato per aumentare il livello e CP dei Vazzamon.', quantity: 12, type: 'candy' }
+      { id: 'item-hay', name: 'Fieno delle Vette', description: 'Nutriente speciale usato per aumentare il livello e CP dei Vazzamon.', quantity: 12, type: 'candy' },
+      { id: 'item-potion', name: 'Zabaione alle Erbe', description: 'Genuino rimedio a base di uova fresche, erbe alpine e liquore genepì. Rigenera ben +120 HP dal vivo in battaglia.', quantity: 5, type: 'potion' }
     ];
   });
 
@@ -141,9 +285,9 @@ export default function App() {
     return {
       name: "TrekkerGO",
       level: 1,
-      xp: 0,
+      xp: 150,
       xpToNextLevel: 1000,
-      capturedCount: 0,
+      capturedCount: 2,
       kmTraveled: 0,
       coins: 120
     };
@@ -155,32 +299,62 @@ export default function App() {
   useEffect(() => { localStorage.setItem('vazzamon_eggs_go', JSON.stringify(eggs)); }, [eggs]);
   useEffect(() => { localStorage.setItem('vazzamon_trainer_go', JSON.stringify(trainer)); }, [trainer]);
 
-  // Trekking Waypoints coordinates tracking
+  // Active Trekking Route Selection
+  const [activeRouteId, setActiveRouteId] = useState<string>(() => {
+    return localStorage.getItem('vazzamon_active_route_id') || 'alta_via_1';
+  });
+
+  // Trainer gym badges system
+  const [trainerBadges, setTrainerBadges] = useState<string[]>(() => {
+    const cached = localStorage.getItem('vazzamon_badges');
+    if (cached) {
+      try { return JSON.parse(cached); } catch (e) { console.error(e); }
+    }
+    return [];
+  });
+
+  useEffect(() => {
+    localStorage.setItem('vazzamon_badges', JSON.stringify(trainerBadges));
+  }, [trainerBadges]);
+
+  useEffect(() => {
+    localStorage.setItem('vazzamon_active_route_id', activeRouteId);
+  }, [activeRouteId]);
+
+  // Trekking Waypoints coordinates tracking (dynamic per route)
   const [currentWaypointIndex, setCurrentWaypointIndex] = useState<number>(() => {
-    const cached = localStorage.getItem('vazzamon_waypoint_idx');
-    return cached ? Number(cached) : 10; // Start at Aosta Centro (index 10)
+    const cached = localStorage.getItem(`vazzamon_waypoint_idx_${activeRouteId}`);
+    return cached ? Number(cached) : 0;
   });
   const [waypointProgress, setWaypointProgress] = useState<number>(() => {
-    const cached = localStorage.getItem('vazzamon_waypoint_progress');
+    const cached = localStorage.getItem(`vazzamon_waypoint_progress_${activeRouteId}`);
     return cached ? Number(cached) : 0;
   });
 
+  // Synchronize dynamic indices when route switches
+  useEffect(() => {
+    const cachedIdx = localStorage.getItem(`vazzamon_waypoint_idx_${activeRouteId}`);
+    const cachedProg = localStorage.getItem(`vazzamon_waypoint_progress_${activeRouteId}`);
+    setCurrentWaypointIndex(cachedIdx ? Number(cachedIdx) : 0);
+    setWaypointProgress(cachedProg ? Number(cachedProg) : 0);
+  }, [activeRouteId]);
+
+  useEffect(() => {
+    localStorage.setItem(`vazzamon_waypoint_idx_${activeRouteId}`, String(currentWaypointIndex));
+  }, [currentWaypointIndex, activeRouteId]);
+
+  useEffect(() => {
+    localStorage.setItem(`vazzamon_waypoint_progress_${activeRouteId}`, String(waypointProgress));
+  }, [waypointProgress, activeRouteId]);
+
   // Track hiking feeds to avoid intrusive standard popups
   const [trekkingFeed, setTrekkingFeed] = useState<string[]>([
-    "Benvenuto in Valle d'Aosta! Preparati all'escursionismo alpino.",
-    "Bussola sintonizzata: sei attualmente ad Aosta Centro 🏰."
+    "Benvenuto in Valle d'Aosta! Scegli il tuo sentiero preferito e cammina.",
+    "Bussola sintonizzata: pronto a esplorare l'alpeggio."
   ]);
 
-  useEffect(() => { localStorage.setItem('vazzamon_waypoint_idx', String(currentWaypointIndex)); }, [currentWaypointIndex]);
-  useEffect(() => { localStorage.setItem('vazzamon_waypoint_progress', String(waypointProgress)); }, [waypointProgress]);
-
   // ---- 2. VIEW NAVIGATION ----
-  const [activeTab, setActiveTab] = useState<'map' | 'scanner' | 'eggs' | 'vazzadex' | 'battle' | 'quiz'>('map');
-  // Quiz "Scuola d'Alpeggio": miglior punteggio persistito.
-  const [quizBest, setQuizBest] = useState<number>(() => {
-    const saved = localStorage.getItem('vazzamon_quiz_go');
-    return saved ? parseInt(saved, 10) : 0;
-  });
+  const [activeTab, setActiveTab] = useState<'map' | 'scanner' | 'eggs' | 'vazzadex' | 'battle'>('map');
   const [soundEnabled, setSoundEnabled] = useState(true);
 
   // Overworld spawned wild Vazzamons
@@ -201,34 +375,23 @@ export default function App() {
   // PokeStop dairy cooldowns declared early for scope visibility
   const [caseraCooldowns, setCaseraCooldowns] = useState<Record<string, number>>({});
 
+  // Dynamic Route resolution
+  const activeRoute = TREK_ROUTES.find(r => r.id === activeRouteId) || TREK_ROUTES[0];
+  const activeRouteCoords = activeRoute.coords;
+
   // Calculate current player coordinates along the route link early for leaflet effect scope visibility
-  const currentWaypoint = VALLE_DAOSTA_TRAIL_COORDS[currentWaypointIndex] || VALLE_DAOSTA_TRAIL_COORDS[10];
-  const nextWaypointIndex = (currentWaypointIndex + 1) % VALLE_DAOSTA_TRAIL_COORDS.length;
-  const nextWaypoint = VALLE_DAOSTA_TRAIL_COORDS[nextWaypointIndex];
+  const currentWaypoint = activeRouteCoords[currentWaypointIndex] || activeRouteCoords[0];
+  const nextWaypointIndex = (currentWaypointIndex + 1) % activeRouteCoords.length;
+  const nextWaypoint = activeRouteCoords[nextWaypointIndex] || activeRouteCoords[0];
   
   const playerLat = currentWaypoint.lat + (nextWaypoint.lat - currentWaypoint.lat) * (waypointProgress / 100);
   const playerLng = currentWaypoint.lng + (nextWaypoint.lng - currentWaypoint.lng) * (waypointProgress / 100);
 
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const leafletMapRef = useRef<L.Map | null>(null);
-  // Istanza Leaflet esposta come stato per l'overlay sentieri (re-render al cambio).
-  const [mapInstance, setMapInstance] = useState<L.Map | null>(null);
-  // Sentiero reale selezionato (null = "Esplora libera").
-  const [selectedTrailId, setSelectedTrailId] = useState<string | null>(null);
-  const selectedTrail = VALDOSTAN_TRAILS.find(t => t.id === selectedTrailId) ?? null;
   const leafletMarkersRef = useRef<L.Marker[]>([]);
   const leafletPlayerMarkerRef = useRef<L.Marker | null>(null);
   const leafletPolylineRef = useRef<L.Polyline | null>(null);
-  const leafletRadiusRef = useRef<L.Circle | null>(null);
-
-  // Posizione GPS reale o "demo" (tap sulla mappa); se null si segue il sentiero.
-  const [gpsPos, setGpsPos] = useState<{ lat: number; lng: number } | null>(null);
-  const [gpsOn, setGpsOn] = useState(false);
-  const gpsWatchRef = useRef<number | null>(null);
-
-  // Posizione effettiva del giocatore (GPS/demo se presente, altrimenti sentiero)
-  const effLat = gpsPos ? gpsPos.lat : playerLat;
-  const effLng = gpsPos ? gpsPos.lng : playerLng;
 
   // Synchronize dynamic Leaflet Map Layer drawing
   useEffect(() => {
@@ -236,8 +399,8 @@ export default function App() {
       if (!leafletMapRef.current) {
         // Center on current player position
         const initMap = L.map(mapContainerRef.current, {
-          center: [effLat, effLng],
-          zoom: 13,
+          center: [playerLat, playerLng],
+          zoom: 12,
           zoomControl: true,
           attributionControl: false
         });
@@ -247,33 +410,19 @@ export default function App() {
           maxZoom: 19,
         }).addTo(initMap);
 
-        // Demo: tocca la mappa per "camminare" (se non sei in GPS reale)
-        initMap.on('click', (e: L.LeafletMouseEvent) => {
-          setGpsPos({ lat: e.latlng.lat, lng: e.latlng.lng });
-        });
-
         leafletMapRef.current = initMap;
-        setMapInstance(initMap);
       } else {
         // Pan dynamically on simulated steps
-        leafletMapRef.current.setView([effLat, effLng], leafletMapRef.current.getZoom(), { animate: true });
+        leafletMapRef.current.setView([playerLat, playerLng], leafletMapRef.current.getZoom(), { animate: true });
       }
 
       const map = leafletMapRef.current;
-
-      // Raggio di cattura attorno al giocatore
-      if (leafletRadiusRef.current) leafletRadiusRef.current.remove();
-      leafletRadiusRef.current = L.circle([effLat, effLng], {
-        radius: RAGGIO_CATTURA,
-        color: '#10b981', fillColor: '#10b981', fillOpacity: 0.1, weight: 1.5,
-        interactive: false,
-      }).addTo(map);
 
       // Draw routing polyline representing Valle d'Aosta trial path
       if (leafletPolylineRef.current) {
         leafletPolylineRef.current.remove();
       }
-      const coordsArray = VALLE_DAOSTA_TRAIL_COORDS.map(wp => [wp.lat, wp.lng] as L.LatLngTuple);
+      const coordsArray = activeRouteCoords.map(wp => [wp.lat, wp.lng] as L.LatLngTuple);
       leafletPolylineRef.current = L.polyline(coordsArray, {
         color: '#10b981', // Emerald 500
         weight: 5,
@@ -285,8 +434,8 @@ export default function App() {
       leafletMarkersRef.current.forEach(m => m.remove());
       leafletMarkersRef.current = [];
 
-      // Add Casera Checkpoints (PokéStops) — pascoli REALI
-      REAL_CASERE.forEach(hp => {
+      // Add Casera Checkpoints (PokéStops)
+      HP_LOCATIONS.forEach(hp => {
         const hpLat = hp.lat ?? playerLat;
         const hpLng = hp.lng ?? playerLng;
         const cooldownActive = caseraCooldowns[hp.id] && caseraCooldowns[hp.id] > Date.now();
@@ -352,41 +501,6 @@ export default function App() {
         leafletMarkersRef.current.push(cowMarker);
       });
 
-      // ===== Bovine REALI (Batailles) non ancora catturate, nei comuni veri =====
-      const capturedIds = new Set(vazzadex.map(c => c.id));
-      REAL_COWS.filter(rc => !capturedIds.has(rc.id) && rc.lat != null && rc.lng != null).forEach(rc => {
-        const d = distanza({ lat: effLat, lng: effLng }, { lat: rc.lat!, lng: rc.lng! });
-        const inRange = d <= RAGGIO_CATTURA;
-        const ring = inRange ? 'border-emerald-400' : 'border-slate-500';
-        const photo = rc.realPhoto
-          ? `background-image:url('${rc.realPhoto}');background-size:cover;background-position:center;`
-          : '';
-        const inner = rc.realPhoto ? '' : '<span class="text-xl">🐮</span>';
-        const realIcon = L.divIcon({
-          className: 'custom-leaflet-marker',
-          html: `<div class="flex flex-col items-center ${inRange ? '' : 'opacity-70'}">
-                   <div class="w-11 h-11 rounded-full border-2 ${ring} bg-slate-950 flex items-center justify-center shadow-lg overflow-hidden relative" style="${photo}">
-                     ${inner}
-                     <span class="absolute -top-1 -right-1 bg-emerald-500 text-slate-950 font-mono text-[7px] font-black px-1 rounded-full">CP${rc.cp}</span>
-                   </div>
-                   <div class="px-1 rounded bg-emerald-900/90 border border-emerald-700 text-[7px] text-emerald-200 font-mono font-bold whitespace-nowrap mt-0.5">REALE · ${rc.rarity}</div>
-                 </div>`,
-          iconSize: [44, 56], iconAnchor: [22, 28],
-        });
-        const m = L.marker([rc.lat!, rc.lng!], { icon: realIcon })
-          .addTo(map)
-          .on('click', () => {
-            playClickSfx();
-            const dist = distanza({ lat: effLat, lng: effLng }, { lat: rc.lat!, lng: rc.lng! });
-            if (dist <= RAGGIO_CATTURA) {
-              initiateCatchWild({ id: rc.id, vazza: rc, lat: rc.lat!, lng: rc.lng!, x: 0, y: 0, angle: 0 });
-            } else {
-              setTrekkingFeed(prev => [`🧭 ${rc.name} (${rc.comune}) è a ${fmtDist(dist)}: cammina verso di lei!`, ...prev.slice(0, 8)]);
-            }
-          });
-        leafletMarkersRef.current.push(m);
-      });
-
       // Place or shift Player Marker
       if (leafletPlayerMarkerRef.current) {
         leafletPlayerMarkerRef.current.remove();
@@ -404,7 +518,7 @@ export default function App() {
         iconAnchor: [22, 27]
       });
 
-      leafletPlayerMarkerRef.current = L.marker([effLat, effLng], { icon: playerHtmlIcon, interactive: false, zIndexOffset: -1000 })
+      leafletPlayerMarkerRef.current = L.marker([playerLat, playerLng], { icon: playerHtmlIcon })
         .addTo(map);
 
       // Force layout recalculations dynamically
@@ -417,37 +531,12 @@ export default function App() {
       if (leafletMapRef.current) {
         leafletMapRef.current.remove();
         leafletMapRef.current = null;
-        setMapInstance(null);
         leafletPlayerMarkerRef.current = null;
         leafletPolylineRef.current = null;
-        leafletRadiusRef.current = null;
         leafletMarkersRef.current = [];
       }
     }
-  }, [activeTab, mapMode, effLat, effLng, wildCows, caseraCooldowns, vazzadex]);
-
-  // GPS reale: attiva/disattiva il tracciamento della posizione vera
-  const toggleGps = () => {
-    playClickSfx();
-    if (gpsOn) {
-      if (gpsWatchRef.current != null) navigator.geolocation.clearWatch(gpsWatchRef.current);
-      gpsWatchRef.current = null;
-      setGpsOn(false);
-      setGpsPos(null);
-      return;
-    }
-    if (!navigator.geolocation) {
-      setTrekkingFeed(prev => ["⚠️ GPS non disponibile su questo dispositivo.", ...prev.slice(0, 8)]);
-      return;
-    }
-    setTrekkingFeed(prev => ["📡 Attivo il GPS reale…", ...prev.slice(0, 8)]);
-    gpsWatchRef.current = navigator.geolocation.watchPosition(
-      (pos) => { setGpsOn(true); setGpsPos({ lat: pos.coords.latitude, lng: pos.coords.longitude }); },
-      () => setTrekkingFeed(prev => ["⚠️ Permesso GPS negato: usa la demo (tocca la mappa).", ...prev.slice(0, 8)]),
-      { enableHighAccuracy: true, maximumAge: 5000 },
-    );
-  };
-  useEffect(() => () => { if (gpsWatchRef.current != null) navigator.geolocation.clearWatch(gpsWatchRef.current); }, []);
+  }, [activeTab, mapMode, playerLat, playerLng, wildCows, caseraCooldowns, activeRouteId]);
 
   // PokeStop: Casere d'Alpeggio active interactions
   const [selectedCasera, setSelectedCasera] = useState<Hotspot | null>(null);
@@ -614,8 +703,12 @@ export default function App() {
 
   // Handle Level Up calculations
   const addTrainerXp = (amount: number) => {
+    let finalAmount = amount;
+    if (trainerBadges.includes('gran_paradiso')) {
+      finalAmount = Math.floor(amount * 1.25);
+    }
     setTrainer(prev => {
-      let currentXp = prev.xp + amount;
+      let currentXp = prev.xp + finalAmount;
       let currentLevel = prev.level;
       let nextLevelXp = prev.xpToNextLevel;
 
@@ -676,11 +769,11 @@ export default function App() {
     let feedMsg = "";
 
     if (nextProgress >= 100) {
-      nextIndex = (currentWaypointIndex + 1) % VALLE_DAOSTA_TRAIL_COORDS.length;
+      nextIndex = (currentWaypointIndex + 1) % activeRouteCoords.length;
       actualProgress = nextProgress - 100;
-      feedMsg = `🏔️ Nuovo Traguardo! Sei arrivato a: ${VALLE_DAOSTA_TRAIL_COORDS[nextIndex].name}!`;
+      feedMsg = `🏔️ Nuovo Traguardo! Sei arrivato a: ${activeRouteCoords[nextIndex].name}!`;
     } else {
-      const targetWp = VALLE_DAOSTA_TRAIL_COORDS[nextWaypointIndex] || VALLE_DAOSTA_TRAIL_COORDS[0];
+      const targetWp = activeRouteCoords[nextWaypointIndex] || activeRouteCoords[0];
       feedMsg = `🥾 Cammini verso ${targetWp.name}... Progressi: ${nextProgress}%`;
     }
 
@@ -688,9 +781,9 @@ export default function App() {
     setCurrentWaypointIndex(nextIndex);
 
     // Calculate updated coordinates to pass for fresh nearby spawner
-    const baseWp = VALLE_DAOSTA_TRAIL_COORDS[nextIndex] || VALLE_DAOSTA_TRAIL_COORDS[10];
-    const afterIdx = (nextIndex + 1) % VALLE_DAOSTA_TRAIL_COORDS.length;
-    const afterWp = VALLE_DAOSTA_TRAIL_COORDS[afterIdx] || VALLE_DAOSTA_TRAIL_COORDS[11];
+    const baseWp = activeRouteCoords[nextIndex] || activeRouteCoords[0];
+    const afterIdx = (nextIndex + 1) % activeRouteCoords.length;
+    const afterWp = activeRouteCoords[afterIdx] || activeRouteCoords[0];
     const nextLat = baseWp.lat + (afterWp.lat - baseWp.lat) * (actualProgress / 100);
     const nextLng = baseWp.lng + (afterWp.lng - baseWp.lng) * (actualProgress / 100);
 
@@ -769,11 +862,15 @@ export default function App() {
         looted.push("+2 Mele d'Oro");
         setBackpack(prev => prev.map(item => item.id === 'item-apple' ? { ...item, quantity: item.quantity + 2 } : item));
       }
-      if (odds > 0.7) {
+      if (odds > 0.6) {
+        looted.push("+1 Zabaione");
+        setBackpack(prev => prev.map(item => item.id === 'item-potion' ? { ...item, quantity: item.quantity + 1 } : item));
+      }
+      if (odds > 0.8) {
         looted.push("+1 Alpen-Bell");
         setBackpack(prev => prev.map(item => item.id === 'item-bell-giga' ? { ...item, quantity: item.quantity + 1 } : item));
       }
-      if (odds > 0.9) {
+      if (odds > 0.93) {
         looted.push("+1 Fieno Vette");
         setBackpack(prev => prev.map(item => item.id === 'item-hay' ? { ...item, quantity: item.quantity + 1 } : item));
       }
@@ -803,7 +900,11 @@ export default function App() {
     setIsCapturingMode(true);
     setCaptureStep('aiming');
     setHasFedApple(false);
-    setSelectedBallId('item-bell-std');
+    
+    // Auto pre-select first ball with quantity > 0
+    const firstAvailableBall = backpack.find(item => item.type === 'ball' && item.quantity > 0);
+    setSelectedBallId(firstAvailableBall ? firstAvailableBall.id : 'item-bell-std');
+    
     setCaptureLogMsg('Pronto a lanciare il rintocco captatore!');
   };
 
@@ -868,10 +969,10 @@ export default function App() {
 
     setTimeout(() => {
       // Determine final success based on rating, ball accuracy multiplier, and if apple fed
-      let captureChance = 0.40; // baseline Comune
-      if (encounterCow?.rarity === 'Leggendaria') captureChance = 0.08;
-      else if (encounterCow?.rarity === 'Epica') captureChance = 0.18;
-      else if (encounterCow?.rarity === 'Rara') captureChance = 0.28;
+      let captureChance = 0.50; // baseline Comune
+      if (encounterCow?.rarity === 'Leggendaria') captureChance = 0.15;
+      else if (encounterCow?.rarity === 'Epica') captureChance = 0.25;
+      else if (encounterCow?.rarity === 'Rara') captureChance = 0.35;
 
       // Multipliers
       if (selectedBallId === 'item-bell-master') captureChance = 1.0; // masterpiece
@@ -904,11 +1005,26 @@ export default function App() {
         addTrainerXp(rating === 'EXCELLENT' ? 350 : rating === 'GREAT' ? 200 : 120);
 
       } else {
-        setCaptureStep('escaped');
-        setCaptureLogMsg(`Oh no! Si è liberata dal rintocco alpino ed è svanita tra le nebbie!`);
-        // Remove from spawns even if it flees to keep map fresh
-        if (encounterCow) {
-          setWildCows(prev => prev.filter(c => c.id !== encounterCow.id));
+        // Roll for retreat (flee rate depends on rarity, giving players multiple retries)
+        let fleeRate = 0.15; // 15% for Common
+        if (encounterCow?.rarity === 'Leggendaria') fleeRate = 0.45;
+        else if (encounterCow?.rarity === 'Epica') fleeRate = 0.30;
+        else if (encounterCow?.rarity === 'Rara') fleeRate = 0.20;
+
+        const didFlee = Math.random() <= fleeRate;
+
+        if (didFlee) {
+          setCaptureStep('escaped');
+          setCaptureLogMsg(`Oh no! ${encounterCow?.name || 'La Reina'} si è liberata ed è fuggita tra le nebbie!`);
+          // Remove from spawns even if it flees to keep map fresh
+          if (encounterCow) {
+            setWildCows(prev => prev.filter(c => c.id !== encounterCow.id));
+          }
+        } else {
+          // Breakout but stays!
+          setCaptureStep('aiming');
+          setCaptureLogMsg(`Mmmh! ${encounterCow?.name || 'La Reina'} si è liberata dal rintocco... Riprova a lanciare!`);
+          playMooSfx();
         }
       }
     }, 3400);
@@ -973,7 +1089,16 @@ export default function App() {
     alert(`${cow.name} è tornata felice nell'alpeggio d'alta quota! Ricevuti +5 fieni.`);
   };
 
-  // ---- 10. REAL-TIME TAP-AND-DODGE GYM BATTLES ----
+  // Selected Arena before match start
+  const [selectedArenaId, setSelectedArenaId] = useState<'cogne' | 'gran_paradiso' | 'fenis' | 'morgex'>('cogne');
+
+  // Move uses inside battle to prevent spamming
+  const [milkLickUses, setMilkLickUses] = useState(3);
+
+  // Tactical sub-control tabs in battleground
+  const [battleActionTab, setBattleActionTab] = useState<'moves' | 'bag' | 'swap'>('moves');
+
+  // ---- 10. REAL-TIME TURN-BASED ARENA BATTLES ----
   const handleInitiateGymMatch = () => {
     playClickSfx();
     const activeBuddy = vazzadex.find(c => c.id === activeCombatantId) || vazzadex[0];
@@ -982,156 +1107,304 @@ export default function App() {
       return;
     }
 
-    // Avversari = vere Reines (preferendo le più forti) per una sfida autentica
-    const bosses = REAL_COWS.filter(c => c.rarity === 'Leggendaria' || c.rarity === 'Epica');
-    const opponentCowPool = bosses.length ? bosses : REAL_COWS;
-    const opponentModel = opponentCowPool[Math.floor(Math.random() * opponentCowPool.length)];
+    const currentGym = GYMS.find(g => g.id === selectedArenaId) || GYMS[0];
     
     // Scale opponent matching user level
-    const oppPowerMult = 1.0 + (trainer.level * 0.1);
+    const oppPowerMult = 1.05 + (trainer.level * 0.08);
     const scaledOpponent: Vazzamon = {
-      ...opponentModel,
       id: "opponent-boss",
-      name: `${opponentModel.name} Boss`,
-      cp: Math.floor(opponentModel.cp * oppPowerMult)
+      name: currentGym.bossCowName,
+      breed: currentGym.bossBreed,
+      rarity: "Leggendaria",
+      eco_tip: "Questo Boss leggendario combatte per proteggere i pascoli alpini incontaminati.",
+      lore: "La regina indiscussa dell'arena valdostana d'alta quota.",
+      capturedAt: new Date().toLocaleDateString(),
+      level: Math.max(12, activeBuddy.level + 2),
+      cp: Math.floor(currentGym.cp * oppPowerMult),
+      stats: {
+        strength: Math.floor(45 + currentGym.cp * 0.02),
+        defense: Math.floor(40 + currentGym.cp * 0.015),
+        agility: Math.floor(35 + currentGym.cp * 0.01)
+      }
     };
+
+    setMilkLickUses(3);
+
+    // Initial greeting description based on the selected arena
+    const introMsg = selectedArenaId === 'fenis' 
+      ? `🏰 Ti trovi nell'Arena del Castello di Fénis! Le massicce mura di pietra riducono i danni subiti.`
+      : selectedArenaId === 'gran_paradiso'
+      ? `❄️ Ti trovi sull'Arena del Ghiacciaio! L'aria sottile rinvigorisce la determinazione e l'energia iniziale.`
+      : selectedArenaId === 'morgex'
+      ? `🍇 Ti trovi nell'Arena dei Vigneti di Morgex! Coltivazioni eroiche ad alta quota aumentano l'evasione naturale.`
+      : `🌸 Ti trovi nell'Arena dei Prati di Sant'Orso! La brezza di Cogne infonde forza riparatrice alle mosse rigenerative.`;
 
     setGymState({
       playerVazzamon: activeBuddy,
       opponentVazzamon: scaledOpponent,
-      playerHp: 300 + activeBuddy.level * 15,
-      opponentHp: 280 + scaledOpponent.level * 25,
-      playerMaxHp: 300 + activeBuddy.level * 15,
-      opponentMaxHp: 280 + scaledOpponent.level * 25,
-      energy: 0,
-      opponentEnergy: 0,
-      status: 'intro',
-      history: [
-        `🥊 Benvenuti all'Arena "Bataille de Reines" d'Aosta!`,
-        `👉 Tappa col tempismo giusto per colpire ed accumulare energia!`,
-        `🛡️ Clicca "SCHIVA" quando l'avversario carica per dimezzare il danno!`,
-        `⚔️ Combattenti: ${activeBuddy.name} (CP ${activeBuddy.cp}) vs ${scaledOpponent.name} (CP ${scaledOpponent.cp})`
-      ],
+      playerHp: 320 + activeBuddy.level * 18,
+      opponentHp: 300 + scaledOpponent.level * 22,
+      playerMaxHp: 320 + activeBuddy.level * 18,
+      opponentMaxHp: 300 + scaledOpponent.level * 22,
+      energy: selectedArenaId === 'gran_paradiso' ? 40 : 20,
+      opponentEnergy: 10,
+      status: 'active', // Entra subito nell'arena di battaglia turn-based
       winner: null,
       opponentStatsModifier: 0,
       playerAttackAnim: false,
-      opponentAttackAnim: false
+      opponentAttackAnim: false,
+      arenaId: selectedArenaId,
+      activeTurn: 'player',
+      playerDefenseBuff: 0,
+      opponentDefenseBuff: 0,
+      playerEvasionBuff: 0,
+      opponentEvasionBuff: 0,
+      history: [
+        `🏆 BENVENUTO IN ARENA: Bataille de Reines!`,
+        introMsg,
+        `⚔️ Scontro: ${activeBuddy.name} (CP ${activeBuddy.cp}) contro Opp Boss ${scaledOpponent.name} (CP ${scaledOpponent.cp})`,
+        `👉 È il tuo turno! Seleziona una mossa d'attacco o schiva per difenderti!`
+      ]
     });
   };
 
-  // Start continuous background AI attack generator loop when combat begins
-  useEffect(() => {
-    if (gymState.status === 'active') {
-      battleLoopRef.current = setInterval(() => {
-        // AI Bot logic attacking player periodically
-        setGymState(prev => {
-          if (prev.status !== 'active') return prev;
+  // Background CPU battle machine turn
+  const executeOpponentTurn = (currentState: BattleState) => {
+    if (currentState.status !== 'active') return;
 
-          // Decide if AI casts standard attack or super move
-          const isSuperReady = prev.opponentEnergy >= 100;
-          let dmg = Math.floor(12 + (prev.opponentVazzamon?.stats.strength || 50) * 0.15 + (Math.random() * 8));
-          let actionName = "Spallata";
+    // Transition state block to block multiple user click events
+    setGymState(prev => ({ ...prev, activeTurn: 'processing' }));
 
-          if (isSuperReady) {
-            dmg = Math.floor(dmg * 2.3);
-            actionName = "🔥 INCORNATA DEVASTANTE";
+    setTimeout(() => {
+      setGymState(prev => {
+        if (prev.status !== 'active' || !prev.opponentVazzamon) return prev;
+
+        const isSuperReady = prev.opponentEnergy >= 100;
+        let baseDamage = 13 + (prev.opponentVazzamon.stats.strength * 0.15) + (Math.random() * 8);
+        let moveName = "Spallata Frontale Valdostana";
+        let moveEmoji = "💥";
+        let isHeal = false;
+
+        if (isSuperReady) {
+          baseDamage *= 2.3;
+          moveName = "⚡ INCORNATA DIVINA DEL MONTE BIANCO";
+          moveEmoji = "🔱";
+        } else {
+          // AI tactics: heal or bolster defenses randomly
+          const hpPct = prev.opponentHp / prev.opponentMaxHp;
+          if (hpPct < 0.38 && Math.random() > 0.45) {
+            isHeal = true;
+            moveName = "🥛 Mungitura Salvavita d'Alpeggio";
+            moveEmoji = "🍼";
+          } else if (Math.random() > 0.7) {
+            moveName = "🛡️ Posizione Arroccata (Forte di Bard)";
+            moveEmoji = "🛡️";
           }
+        }
 
-          // Dodge mechanics
-          let isDodged = false;
-          let finalDmg = dmg;
-          if (activeDodgeEffect) {
-            isDodged = true;
-            finalDmg = Math.floor(dmg * 0.15); // reduce damage by 85%
-          }
+        const logs = [...prev.history];
 
-          const logs = [...prev.history];
-          logs.push(
-            isDodged 
-              ? `⚡ ${prev.opponentVazzamon?.name} lancia ${actionName}, MA HAI SCHIVATO CON SUCCESSO! Subito solo ${finalDmg} danni!`
-              : `💥 ${prev.opponentVazzamon?.name} sferra ${actionName} infliggendo ${finalDmg} danni!`
-          );
-
-          const nextPlayerHp = Math.max(0, prev.playerHp - finalDmg);
-          const nextOpponentEnergy = isSuperReady ? 0 : Math.min(100, prev.opponentEnergy + 20);
-
-          let status: BattleState['status'] = prev.status;
-          let winner: BattleState['winner'] = prev.winner;
-          if (nextPlayerHp <= 0) {
-            status = 'ended';
-            winner = 'opponent';
-            logs.push(`💀 Il tuo Vazzamon ha ceduto! Sconfitta dignitosa. Sali di livello nel Vazzadex per riprovare.`);
-            if (battleLoopRef.current) clearInterval(battleLoopRef.current);
-          }
-
-          // Trigger hit sfx
-          playHitSfx();
+        if (isHeal) {
+          const healAmount = Math.floor(45 + prev.opponentVazzamon.stats.agility * 0.35);
+          const nextOppHp = Math.min(prev.opponentMaxHp, prev.opponentHp + healAmount);
+          logs.push(`${moveEmoji} Il Boss ${prev.opponentVazzamon.name} si ritira in difesa e usa ${moveName}! Recupera +${healAmount} HP.`);
+          
+          playMooSfx();
 
           return {
             ...prev,
-            playerHp: nextPlayerHp,
-            opponentEnergy: nextOpponentEnergy,
+            opponentHp: nextOppHp,
+            opponentEnergy: Math.min(100, prev.opponentEnergy + 20),
+            activeTurn: 'player',
             opponentAttackAnim: true,
-            status,
-            winner,
-            history: logs.slice(-8) // keep history short and neat
+            history: [...logs, `🟢 Tocca alle tue scelte! Quale mossa sferri?`].slice(-10)
           };
-        });
+        } else {
+          // Check player evasion rating
+          const playerEvasion = prev.playerEvasionBuff || 0;
+          const arenaEvasionBonus = prev.arenaId === 'morgex' ? 0.20 : 0;
+          const badgeEvasionBonus = trainerBadges.includes('morgex') ? 0.15 : 0;
+          const finalEvadeCheck = playerEvasion + arenaEvasionBonus + badgeEvasionBonus;
 
-        // clear animation triggers after animation completed
-        setTimeout(() => {
-          setGymState(prev => ({ ...prev, opponentAttackAnim: false }));
-        }, 300);
+          const isPlayerEvaded = Math.random() < finalEvadeCheck;
 
-      }, 1800);
-    }
+          if (isPlayerEvaded) {
+            logs.push(`💨 Fantastico! Il tuo ${prev.playerVazzamon?.name} elude e schiva con stile l'attacco ${moveName}! Nessun danno subìto.${trainerBadges.includes('morgex') ? " (Schivata Vigneto)" : ""}`);
+            playClickSfx();
 
-    return () => {
-      if (battleLoopRef.current) clearInterval(battleLoopRef.current);
-    };
-  }, [gymState.status, activeDodgeEffect]);
+            return {
+              ...prev,
+              activeTurn: 'player',
+              opponentAttackAnim: true,
+              history: [...logs, `🟢 Tocca a te! Il nemico ha fallito, colpisci!`].slice(-10)
+            };
+          } else {
+            // Apply defense reduction curves
+            const playerDef = prev.playerDefenseBuff || 0;
+            const arenaDefBonus = prev.arenaId === 'fenis' ? 0.25 : 0;
+            const badgeDefBonus = trainerBadges.includes('fenis') ? 0.15 : 0;
+            const finalDefenseFactor = 1.0 - Math.min(0.75, (playerDef + arenaDefBonus + badgeDefBonus));
 
-  const handlePlayerTapAttack = () => {
-    if (gymState.status === 'intro') {
-      playClickSfx();
-      setGymState(prev => ({ ...prev, status: 'active' }));
-      return;
-    }
-    if (gymState.status !== 'active') return;
+            const finalDamage = Math.floor(baseDamage * finalDefenseFactor);
+            const nextPlayerHp = Math.max(0, prev.playerHp - finalDamage);
 
-    playHitSfx();
-    
+            logs.push(`${moveEmoji} Boss ${prev.opponentVazzamon.name} scaglia ${moveName}! Infligge ${finalDamage} danni.`);
+            playHitSfx();
+
+            let status = prev.status;
+            let winner = prev.winner;
+            if (nextPlayerHp <= 0) {
+              status = 'ended';
+              winner = 'opponent';
+              logs.push(`💀 Il tuo leale compagno ${prev.playerVazzamon?.name} è esausto! Ha dato tutto nell'arena d'alta quota.`);
+            }
+
+            return {
+              ...prev,
+              playerHp: nextPlayerHp,
+              opponentEnergy: isSuperReady ? 0 : Math.min(100, prev.opponentEnergy + 25),
+              activeTurn: 'player',
+              opponentAttackAnim: true,
+              status,
+              winner,
+              history: [...logs, status === 'ended' ? `🏁 L'incontro d'Alpeggio si è chiuso!` : `🟢 Tocca a te! Scegli la mossa strategica.`].slice(-10)
+            };
+          }
+        }
+      });
+
+      // Clear animation classes
+      setTimeout(() => {
+        setGymState(prev => ({ ...prev, opponentAttackAnim: false }));
+      }, 300);
+
+    }, 1100);
+  };
+
+  // Player execution move action
+  const handleExecutePlayerMove = (moveId: 'headbutt' | 'shield' | 'healing' | 'special') => {
+    if (gymState.status !== 'active' || gymState.activeTurn !== 'player') return;
+
     setGymState(prev => {
-      if (prev.status !== 'active' || !prev.playerVazzamon) return prev;
+      if (!prev.playerVazzamon || !prev.opponentVazzamon) return prev;
 
-      const dmg = Math.floor(8 + prev.playerVazzamon.stats.strength * 0.12 + Math.random() * 6);
-      const nextOppHp = Math.max(0, prev.opponentHp - dmg);
-      const nextEnergy = Math.min(100, prev.energy + 10);
       const logs = [...prev.history];
-      logs.push(`⚔️ ${prev.playerVazzamon.name} attacca infliggendo ${dmg} danni!`);
+      let damage = 0;
+      let isHeal = false;
+      let healAmount = 0;
+      let energyGain = 0;
+      let defenseGain = 0;
+      let evasionGain = 0;
+      let description = '';
 
-      let status: BattleState['status'] = prev.status;
-      let winner: BattleState['winner'] = prev.winner;
+      if (moveId === 'headbutt') {
+        damage = Math.round(16 + (prev.playerVazzamon.stats.strength * 0.18) + Math.random() * 6);
+        energyGain = 18;
+        description = `sferra TESTATA D'ALTA QUOTA 💥`;
+        playHitSfx();
+      } else if (moveId === 'shield') {
+        damage = Math.round(7 + (prev.playerVazzamon.stats.strength * 0.08) + Math.random() * 4);
+        energyGain = 12;
+        defenseGain = 0.35; // +35% defense for combat
+        description = `usa CORNO PROTETTIVO 🛡️ alzando le sue barriere di tenacia (+35% difesa)`;
+        playHitSfx();
+      } else if (moveId === 'healing') {
+        if (milkLickUses <= 0) {
+          alert("Attenzione! Hai esaurito le ricompense di latte fresco per questo scontro!");
+          return prev;
+        }
+        setMilkLickUses(u => u - 1);
+        isHeal = true;
+        // Arena Cogne bonus
+        const arenaCologneHealBonus = prev.arenaId === 'cogne' ? 30 : 0;
+        let baseHeal = Math.round(55 + (prev.playerVazzamon.stats.agility * 0.4) + arenaCologneHealBonus);
+        if (trainerBadges.includes('cogne')) {
+          baseHeal = Math.round(baseHeal * 1.25);
+        }
+        healAmount = baseHeal;
+        energyGain = 20;
+        description = `beve un SORSO DI LATTE REALE 🍼 rigenerando ben +${healAmount} HP con purezza alpina${trainerBadges.includes('cogne') ? " (Bonus Flora)" : ""}`;
+        playMooSfx();
+      } else if (moveId === 'special') {
+        if (prev.energy < 100) {
+          alert("L'energia non è ancora carica! Usa attacchi base per riempire l'indicatore.");
+          return prev;
+        }
+        damage = Math.round((26 + prev.playerVazzamon.stats.strength * 0.25) * 2.3);
+        energyGain = -100;
+        description = `sprigiona la devastante INCORNATA SUPREMA DEL GRAN PARADISO 🔱 frantumando la terra`;
+        playVictorySfx();
+      }
+
+      // Roll evasion check for Opponent Boss
+      const oppEvasion = prev.opponentEvasionBuff || 0;
+      const isOppEvaded = !isHeal && Math.random() < oppEvasion;
+
+      let nextOppHp = prev.opponentHp;
+      let nextPlayerHp = prev.playerHp;
+
+      if (isHeal) {
+        nextPlayerHp = Math.min(prev.playerMaxHp, prev.playerHp + healAmount);
+        logs.push(`🍀 ${prev.playerVazzamon.name} ${description}.`);
+      } else if (isOppEvaded) {
+        logs.push(`💨 Boss ${prev.opponentVazzamon.name} scarta di lato, schivando abilmente la mossa di ${prev.playerVazzamon.name}!`);
+      } else {
+        // Compute defense formula
+        const oppDef = prev.opponentDefenseBuff || 0;
+        const totalOppDef = 1.0 - Math.min(0.68, oppDef);
+
+        const finalDamage = Math.round(damage * totalOppDef);
+        nextOppHp = Math.max(0, prev.opponentHp - finalDamage);
+        logs.push(`⚔️ Il tuo ${prev.playerVazzamon.name} ${description} infliggendo ${finalDamage} danni!`);
+      }
+
+      let status = prev.status;
+      let winner = prev.winner;
+
       if (nextOppHp <= 0) {
         status = 'ended';
         winner = 'player';
-        logs.push(`🏆 EPIC WIN! ${prev.playerVazzamon.name} si laurea Reina indiscussa dell'Arena! Sbloccati premi favolosi.`);
-        if (battleLoopRef.current) clearInterval(battleLoopRef.current);
-
-        // Award resources to Trainer
+        
+        const currentGym = GYMS.find(g => g.id === selectedArenaId);
+        const alreadyHasBadge = trainerBadges.includes(selectedArenaId);
+        let winLog = `🏆 RELLA D'ORO! ${prev.playerVazzamon.name} vince gloriosamente la Bataille de Reines! Ricevi +60 🪙 e +500 XP.`;
+        
+        if (currentGym) {
+          if (!alreadyHasBadge) {
+            winLog += ` Hai ottenuto la prestigiosa medaglia ${currentGym.badgeEmoji} ${currentGym.badgeName}! Bonus attivo: ${currentGym.bonusDesc}`;
+            setTrainerBadges(badges => [...badges, selectedArenaId]);
+          } else {
+            winLog += ` Hai difeso valorosamente la medaglia ${currentGym.badgeEmoji} ${currentGym.badgeName}!`;
+          }
+        }
+        
+        logs.push(winLog);
+        
+        // Save resource update mechanics
         addTrainerXp(500);
         setTrainer(t => ({ ...t, coins: t.coins + 60 }));
       }
 
-      return {
+      const updatedState: BattleState = {
         ...prev,
         opponentHp: nextOppHp,
-        energy: nextEnergy,
+        playerHp: nextPlayerHp,
+        energy: moveId === 'special' ? 0 : Math.min(100, prev.energy + energyGain),
+        playerDefenseBuff: Math.max(0, (prev.playerDefenseBuff || 0) + (defenseGain ? 0.35 : 0) - 0.05), // decays slightly per turn
         playerAttackAnim: true,
         status,
         winner,
-        history: logs.slice(-8)
+        history: logs.slice(-10)
       };
+
+      if (status === 'ended') {
+        return updatedState;
+      } else {
+        setTimeout(() => {
+          executeOpponentTurn(updatedState);
+        }, 150);
+        return updatedState;
+      }
     });
 
     setTimeout(() => {
@@ -1139,46 +1412,106 @@ export default function App() {
     }, 200);
   };
 
-  const handlePlayerDodge = () => {
-    if (gymState.status !== 'active' || activeDodgeEffect) return;
-    playClickSfx();
-    setActiveDodgeEffect(true);
-    
-    // Dodge visual cooldown lasts 450ms
-    setTimeout(() => {
-      setActiveDodgeEffect(false);
-    }, 450);
-  };
+  // Consumable Item utilization during high-intensity battles
+  const handleUseBackpackItemInCombat = (itemId: string) => {
+    if (gymState.status !== 'active' || gymState.activeTurn !== 'player') return;
 
-  const handlePlayerSuperAttack = () => {
-    if (gymState.status !== 'active' || gymState.energy < 100 || !gymState.playerVazzamon) return;
-    playVictorySfx();
+    const item = backpack.find(i => i.id === itemId);
+    if (!item || item.quantity <= 0) {
+      alert("Oggetto non disponibile o esaurito!");
+      return;
+    }
+
+    playClickSfx();
+
+    // Reduce item quantity safely
+    setBackpack(p => p.map(i => i.id === itemId ? { ...i, quantity: i.quantity - 1 } : i));
 
     setGymState(prev => {
-      const critDmg = Math.floor((15 + (prev.playerVazzamon?.stats.strength || 50) * 0.2) * 2.5);
-      const nextOppHp = Math.max(0, prev.opponentHp - critDmg);
+      if (!prev.playerVazzamon) return prev;
       const logs = [...prev.history];
-      logs.push(`🌟✨ SPECTACULAR STRIKE! ${prev.playerVazzamon?.name} sferra "RUGITO DELLA COGNE" infliggendo ${critDmg} danni devastanti!`);
 
-      let status: BattleState['status'] = prev.status;
-      let winner: BattleState['winner'] = prev.winner;
-      if (nextOppHp <= 0) {
-        status = 'ended';
-        winner = 'player';
-        logs.push(`🏆 EPIC WIN! ${prev.playerVazzamon?.name} ha sconfitto il Boss!`);
-        if (battleLoopRef.current) clearInterval(battleLoopRef.current);
-        addTrainerXp(500);
-        setTrainer(t => ({ ...t, coins: t.coins + 60 }));
+      let rawHeal = 0;
+      let defenseAmount = 0;
+      let evasionAmount = 0;
+      let msg = '';
+
+      if (itemId === 'item-apple') {
+        rawHeal = 150;
+        msg = `🍎 Nutri ${prev.playerVazzamon.name} con una Mela Alpina d'Oro! Pura energia che ripristina +150 HP!`;
+      } else if (itemId === 'item-hay') {
+        defenseAmount = 0.50; // Permanent shield for this bout
+        msg = `🌾 Consumi un Fieno delle Vette! Un pasto nutriente che innalza del +50% la sua difesa robusta.`;
+      } else if (itemId === 'item-potion') {
+        rawHeal = 120;
+        msg = `🥚 Sorseggi lo Zabaione alle Erbe! Una ricarica tonificante che ristora ben +120 HP.`;
+      } else {
+        // Fallback or generic recovery
+        rawHeal = 50;
+        msg = `🎒 Usato utile strumento nel corso del duello! (+50 HP)`;
       }
 
-      return {
+      let healAmount = rawHeal;
+      if (trainerBadges.includes('cogne') && rawHeal > 0) {
+        healAmount = Math.round(rawHeal * 1.25);
+        msg += ` (Bonus Flora: +25% HP)`;
+      }
+
+      logs.push(msg);
+
+      const nextHp = Math.min(prev.playerMaxHp, prev.playerHp + healAmount);
+      const nextDef = (prev.playerDefenseBuff || 0) + defenseAmount;
+      const nextEva = (prev.playerEvasionBuff || 0) + evasionAmount;
+
+      const updatedState: BattleState = {
         ...prev,
-        opponentHp: nextOppHp,
-        energy: 0, // reset special energy gauge
-        status,
-        winner,
-        history: logs.slice(-8)
+        playerHp: nextHp,
+        playerDefenseBuff: nextDef,
+        playerEvasionBuff: nextEva,
+        history: logs.slice(-10)
       };
+
+      setTimeout(() => {
+        executeOpponentTurn(updatedState);
+      }, 150);
+
+      return updatedState;
+    });
+  };
+
+  // Mid-fight partner swaps
+  const handleSwapCombatBuddy = (buddy: Vazzamon) => {
+    if (gymState.status !== 'active' || gymState.activeTurn !== 'player') return;
+
+    if (gymState.playerVazzamon?.id === buddy.id) {
+      alert("Questo compagno d'alpeggio è già sul campo dell'arena!");
+      return;
+    }
+
+    playClickSfx();
+
+    setGymState(prev => {
+      const logs = [...prev.history];
+      logs.push(`🔄 Richiami ${prev.playerVazzamon?.name} in panchina. Scende in campo l'inespugnabile ${buddy.name} (CP ${buddy.cp})!`);
+
+      const newMaxHp = 320 + buddy.level * 18;
+
+      const updatedState: BattleState = {
+        ...prev,
+        playerVazzamon: buddy,
+        playerMaxHp: newMaxHp,
+        playerHp: Math.min(newMaxHp, prev.playerHp > 0 ? prev.playerHp : newMaxHp), // Maintain current HP levels or reset on clean entry
+        history: logs.slice(-10)
+      };
+
+      // Set combat selection index
+      setActiveCombatantId(buddy.id);
+
+      setTimeout(() => {
+        executeOpponentTurn(updatedState);
+      }, 250);
+
+      return updatedState;
     });
   };
 
@@ -1207,9 +1540,14 @@ export default function App() {
     }, 550);
 
     try {
-      // Build statica: generazione client (niente server), stesso schema.
-      const parsed: Vazzamon = await generateVazzamonClient(imgBase64, false);
+      const response = await fetch('/api/generate-vazzamon', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageBase64: imgBase64, isDemo: false })
+      });
 
+      const parsed: Vazzamon = await response.json();
+      
       clearInterval(timer);
       setScanProgress(100);
       setScanMessage("DNA sintetizzato correttamente!");
@@ -1338,7 +1676,7 @@ export default function App() {
 
       {/* 🧭 PRIMARY MAIN TABS NAVIGATION 🧭 */}
       <nav className="bg-slate-950/90 border-b border-slate-850 sticky top-[73px] z-40 shadow-inner">
-        <div className="max-w-md mx-auto grid grid-cols-6 gap-0.5 p-1 text-[11px] font-extrabold">
+        <div className="max-w-md mx-auto grid grid-cols-5 gap-0.5 p-1 text-[11px] font-extrabold">
           <button
             onClick={() => { playClickSfx(); setActiveTab('map'); }}
             className={`flex flex-col items-center py-2 rounded-xl transition-all ${activeTab === 'map' ? 'bg-emerald-500 text-slate-950' : 'text-slate-400 hover:bg-slate-900'}`}
@@ -1383,14 +1721,6 @@ export default function App() {
           >
             <Swords className="w-4 h-4 mb-0.5" />
             <span>Gym</span>
-          </button>
-
-          <button
-            onClick={() => { playClickSfx(); setActiveTab('quiz'); }}
-            className={`flex flex-col items-center py-2 rounded-xl transition-all ${activeTab === 'quiz' ? 'bg-emerald-500 text-slate-950' : 'text-slate-400 hover:bg-slate-900'}`}
-          >
-            <GraduationCap className="w-4 h-4 mb-0.5" />
-            <span>Scuola</span>
           </button>
         </div>
       </nav>
@@ -1439,16 +1769,6 @@ export default function App() {
                   >
                     <Footprints className="w-4 h-4 fill-current animate-bounce" />
                     CAMMINA 500m
-                  </button>
-
-                  {/* GPS reale */}
-                  <button
-                    onClick={toggleGps}
-                    className={`font-black text-xs py-2.5 px-4 rounded-xl shadow active:scale-95 transition-all flex items-center gap-1.5 border-b-2 ${gpsOn ? 'bg-blue-500 text-white border-blue-700' : 'bg-slate-900 text-slate-200 border-slate-800 hover:bg-slate-850'}`}
-                    id="gps-btn"
-                  >
-                    <MapPin className="w-4 h-4" />
-                    {gpsOn ? 'GPS attivo' : 'GPS reale'}
                   </button>
                 </div>
               </div>
@@ -1509,8 +1829,8 @@ export default function App() {
                     </span>
                   </div>
 
-                  {/* POKESTOPS: Traditional Dairy Casere — pascoli reali */}
-                  {REAL_CASERE.map((hp) => {
+                  {/* POKESTOPS: Traditional Dairy Casere */}
+                  {HP_LOCATIONS.map((hp) => {
                     const onCooldown = caseraCooldowns[hp.id] && caseraCooldowns[hp.id] > Date.now();
                     return (
                       <button
@@ -1561,78 +1881,88 @@ export default function App() {
 
             </div>
 
-            {/* Overlay sentieri reali (disegna su Leaflet, non rende nulla nel DOM) */}
-            <TrailOverlay map={mapInstance} trail={selectedTrail} />
-
-            {/* SELETTORE SENTIERI REALI (trekking responsabile) */}
-            <div className="bg-slate-950 border border-slate-850 rounded-3xl p-4 space-y-3" id="trail-selector">
-              <h4 className="text-xs font-mono font-extrabold uppercase text-slate-300 tracking-wider flex items-center gap-1.5">
-                <MapPin className="w-4 h-4 text-amber-400" />
-                Sentieri reali della Valle d'Aosta
-              </h4>
-              <div className="flex flex-wrap gap-2">
-                <button
-                  onClick={() => { playClickSfx(); setSelectedTrailId(null); }}
-                  className={`text-[10px] font-mono font-bold px-3 py-1.5 rounded-full border transition-all ${selectedTrailId === null ? 'bg-emerald-500 text-slate-950 border-emerald-400' : 'bg-slate-900 text-slate-300 border-slate-800 hover:bg-slate-850'}`}
-                >
-                  🧭 Esplora libera
-                </button>
-                {VALDOSTAN_TRAILS.map((t) => (
-                  <button
-                    key={t.id}
-                    onClick={() => { playClickSfx(); setMapMode('real'); setSelectedTrailId(t.id); }}
-                    className={`text-[10px] font-mono font-bold px-3 py-1.5 rounded-full border transition-all ${selectedTrailId === t.id ? 'bg-amber-500 text-slate-950 border-amber-400' : 'bg-slate-900 text-amber-200 border-amber-700/40 hover:bg-slate-850'}`}
-                  >
-                    {t.location}
-                  </button>
-                ))}
+            {/* REAL TREKKING ROUTES SELECTOR PANEL */}
+            <div className="bg-slate-950 border border-slate-850 p-5 rounded-3xl space-y-4 shadow-lg">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 border-b border-slate-900 pb-3">
+                <div>
+                  <h4 className="text-sm font-mono font-black uppercase text-emerald-400 tracking-wider flex items-center gap-1.5">
+                    <Compass className="w-4 h-4 text-emerald-500" />
+                    Sentieri Alpini di Trekking Reali
+                  </h4>
+                  <p className="text-[10px] text-slate-400 leading-snug">Seleziona e percorri i tracciati montani della Valle d'Aosta. I progressi vengono salvati per ciascun sentiero!</p>
+                </div>
+                <span className="text-[10px] font-mono font-bold text-slate-400 bg-slate-900 px-2 py-0.5 rounded-lg border border-slate-800">
+                  {TREK_ROUTES.length} Percorsi
+                </span>
               </div>
 
-              {selectedTrail && (
-                <div className="bg-slate-900/60 border border-amber-700/30 rounded-2xl p-3 space-y-3" id="trail-panel">
-                  <div>
-                    <div className="text-sm font-mono font-black text-amber-300">{selectedTrail.name}</div>
-                    <p className="text-[10px] text-slate-400 leading-relaxed mt-0.5">{selectedTrail.description}</p>
-                  </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4" id="trekking-routes-selector">
+                {TREK_ROUTES.map((route) => {
+                  const isActive = activeRouteId === route.id;
+                  const savedIdx = Number(localStorage.getItem(`vazzamon_waypoint_idx_${route.id}`) || 0);
+                  const savedProg = Number(localStorage.getItem(`vazzamon_waypoint_progress_${route.id}`) || 0);
+                  const currentWpName = route.coords[savedIdx]?.name || "Inizio";
+                  
+                  return (
+                    <div 
+                      key={route.id}
+                      onClick={() => {
+                        playClickSfx();
+                        setActiveRouteId(route.id);
+                        setTrekkingFeed(prev => [
+                          `🥾 Sei entrato sul percorso: ${route.name}!`,
+                          `🏔️ Posizione attuale del tuo cammino: ${currentWpName}`,
+                          ...prev.slice(0, 7)
+                        ]);
+                      }}
+                      className={`p-4 rounded-2xl border-2 transition-all cursor-pointer flex flex-col justify-between hover:scale-[1.01] active:scale-95 text-left h-full ${
+                        isActive 
+                          ? 'bg-emerald-950/20 border-emerald-500/80 shadow-md shadow-emerald-500/5' 
+                          : 'bg-slate-900/40 border-slate-850/80 hover:bg-slate-900 hover:border-slate-800'
+                      }`}
+                    >
+                      <div className="space-y-2">
+                        <div className="flex justify-between items-start gap-1">
+                          <span className="text-2xl">{route.icon}</span>
+                          <span className={`text-[8.5px] font-mono font-black uppercase px-2 py-0.5 rounded-full ${
+                            route.difficulty === 'Alpinistico' 
+                              ? 'bg-rose-500/10 text-rose-450 border border-rose-500/20' 
+                              : route.difficulty === 'Escursionistico' 
+                              ? 'bg-sky-500/10 text-sky-450 border border-sky-500/20' 
+                              : 'bg-emerald-500/10 text-emerald-450 border border-emerald-500/20'
+                          }`}>
+                            {route.difficulty}
+                          </span>
+                        </div>
+                        
+                        <div>
+                          <h5 className="font-mono font-black text-xs text-slate-100 uppercase tracking-tight line-clamp-1">{route.name.split(" (")[0]}</h5>
+                          <p className="text-[9.5px] text-slate-400 font-mono mt-0.5 leading-none">Distanza: <span className="text-emerald-400 font-extrabold">{route.lengthKm} km</span></p>
+                        </div>
 
-                  <div className="grid grid-cols-4 gap-2 text-center">
-                    <div className="bg-slate-950 rounded-xl border border-slate-850 py-1.5">
-                      <div className="text-[9px] text-slate-500 font-mono uppercase">Difficoltà</div>
-                      <div className="text-[11px] font-mono font-black text-slate-100">{selectedTrail.difficulty}</div>
-                    </div>
-                    <div className="bg-slate-950 rounded-xl border border-slate-850 py-1.5">
-                      <div className="text-[9px] text-slate-500 font-mono uppercase">Lunghezza</div>
-                      <div className="text-[11px] font-mono font-black text-slate-100">{selectedTrail.lengthKm} km</div>
-                    </div>
-                    <div className="bg-slate-950 rounded-xl border border-slate-850 py-1.5">
-                      <div className="text-[9px] text-slate-500 font-mono uppercase">Durata</div>
-                      <div className="text-[11px] font-mono font-black text-slate-100">{selectedTrail.durationHours} h</div>
-                    </div>
-                    <div className="bg-slate-950 rounded-xl border border-slate-850 py-1.5">
-                      <div className="text-[9px] text-slate-500 font-mono uppercase">Dislivello</div>
-                      <div className="text-[11px] font-mono font-black text-slate-100">{selectedTrail.altitudeGain} m</div>
-                    </div>
-                  </div>
+                        <p className="text-[10px] text-slate-400 leading-snug line-clamp-2 mt-1.5">{route.description}</p>
+                      </div>
 
-                  <div className="bg-emerald-950/30 border border-emerald-900 rounded-2xl p-3 space-y-1.5">
-                    <div className="text-[10px] font-mono font-black text-emerald-400 uppercase tracking-widest flex items-center gap-1">
-                      <ShieldAlert className="w-3.5 h-3.5" /> Trekking responsabile
+                      <div className="border-t border-slate-900/60 pt-2.5 mt-3 space-y-1">
+                        <div className="flex justify-between items-center text-[8.5px] font-mono">
+                          <span className="text-slate-500">Tappa attuale:</span>
+                          <span className="text-slate-300 font-black truncate max-w-[130px]">{currentWpName.split(" (")[0]}</span>
+                        </div>
+                        <div className="flex justify-between items-center text-[8.5px] font-mono">
+                          <span className="text-slate-500">Avanzamento:</span>
+                          <span className="text-emerald-400 font-extrabold">Tappa {savedIdx + 1}/{route.coords.length} ({savedProg}%)</span>
+                        </div>
+                        
+                        {isActive && (
+                          <div className="bg-emerald-500 text-slate-950 text-[8px] font-mono font-black uppercase text-center py-1 rounded-md tracking-wider mt-2.5 animate-pulse">
+                            CAMMINO ATTIVO 🥾
+                          </div>
+                        )}
+                      </div>
                     </div>
-                    <ul className="space-y-1">
-                      {selectedTrail.responsibleTips.map((tip, i) => (
-                        <li key={i} className="flex items-start gap-1.5 text-[10px] text-slate-300 leading-snug">
-                          <span className="text-emerald-500 mt-0.5">✓</span>
-                          <span>{tip}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-
-                  <div className="text-[9.5px] text-slate-500 font-mono">
-                    Incontri tipici: <span className="text-amber-200">{selectedTrail.cowsToEncounter.join(' · ')}</span>
-                  </div>
-                </div>
-              )}
+                  );
+                })}
+              </div>
             </div>
 
             {/* LIVE TREKKING ACTIVITY FEED LOG */}
@@ -1802,7 +2132,7 @@ export default function App() {
                   
                   {/* Bouncing Cow Avatar with Custom Keyframe Glow */}
                   <div className={`transition-all duration-300 ${captureStep === 'wobbling' ? 'scale-0 translate-y-24 opacity-0 rotate-180 duration-[1200ms]' : captureStep === 'secured' ? 'opacity-0 scale-0' : 'animate-bounce'}`}>
-                    <CowVisual cow={encounterCow} className="w-36 h-36" />
+                    <VazzamonAvatar breed={encounterCow.breed} rarity={encounterCow.rarity} className="w-36 h-36" />
                   </div>
 
                   {/* Circular target shrinking selector HUD */}
@@ -1917,7 +2247,7 @@ export default function App() {
                         >
                           {backpack.filter(item => item.type === 'ball').map(item => (
                             <option key={item.id} value={item.id}>
-                              {item.name.split(" ")[1]} ({item.quantity})
+                              {item.name} ({item.quantity})
                             </option>
                           ))}
                         </select>
@@ -2151,61 +2481,9 @@ export default function App() {
               </div>
             </div>
 
-            {/* Avanzamento catalogo REALI (Batailles de Reines) */}
-            {(() => {
-              const realiPrese = vazzadex.filter(c => c.isReal).length;
-              const bonus = vazzadex.filter(c => !c.isReal).length;
-              return (
-                <div className="bg-gradient-to-br from-emerald-950 to-slate-950 border border-emerald-800/50 rounded-3xl p-5">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="font-mono font-black text-emerald-300 text-lg uppercase">Reines reali: {realiPrese}/{REAL_TOTAL}</div>
-                    <div className="text-[10px] font-mono text-slate-400">{bonus > 0 ? `+${bonus} bonus IA` : 'dati Batailles 2026'}</div>
-                  </div>
-                  <div className="h-2.5 rounded-full bg-slate-800 overflow-hidden">
-                    <div className="h-full bg-emerald-500 transition-[width]" style={{ width: `${(realiPrese / REAL_TOTAL) * 100}%` }} />
-                  </div>
-                  <p className="text-[10px] text-slate-400 font-mono mt-2">Le bovine reali vivono nei loro comuni veri sulla mappa: cammina e catturale.</p>
-                </div>
-              );
-            })()}
-
-            {/* Galleria "una Reina per tipologia": carte con foto reale per rarità */}
-            <div className="bg-slate-950 border border-slate-850 rounded-3xl p-5 space-y-3" id="showcase-rarity">
-              <h3 className="text-xs font-mono font-extrabold uppercase text-slate-300 tracking-wider flex items-center gap-1.5">
-                <Award className="w-4 h-4 text-amber-400" />
-                Una Reina per rarità (carte ufficiali)
-              </h3>
-              <div className="grid grid-cols-3 gap-3">
-                {SHOWCASE_BY_RARITY.map((cow) => {
-                  const tone =
-                    cow.rarity === 'Leggendaria' ? 'border-amber-400/60 from-amber-500/15' :
-                    cow.rarity === 'Epica' ? 'border-purple-400/60 from-purple-500/15' :
-                    cow.rarity === 'Rara' ? 'border-blue-400/60 from-blue-500/15' : 'border-slate-700 from-slate-700/10';
-                  const txt =
-                    cow.rarity === 'Leggendaria' ? 'text-amber-300' :
-                    cow.rarity === 'Epica' ? 'text-purple-300' :
-                    cow.rarity === 'Rara' ? 'text-blue-300' : 'text-slate-300';
-                  return (
-                    <button
-                      key={cow.id}
-                      onClick={() => { playClickSfx(); setSelectedVazzamon(cow); }}
-                      className={`relative bg-gradient-to-b to-slate-950 border-2 ${tone} rounded-2xl p-2 flex flex-col items-center gap-1.5 transition-transform hover:-translate-y-1 overflow-hidden`}
-                    >
-                      <div className="holo-sheen absolute inset-0 pointer-events-none opacity-50 rounded-2xl" />
-                      <span className={`relative text-[8px] font-mono font-black uppercase tracking-widest ${txt}`}>{cow.rarity}</span>
-                      <CowVisual cow={cow} className="relative w-16 h-16" />
-                      <span className="relative text-[10px] font-mono font-black text-slate-100 truncate max-w-full">{cow.name}</span>
-                      <span className="relative text-[8px] font-mono text-amber-300">CP {cow.cp}</span>
-                    </button>
-                  );
-                })}
-              </div>
-              <p className="text-[10px] text-slate-500 font-mono">Tocca una carta per aprire la scheda completa con statistiche reali e mosse.</p>
-            </div>
-
             {/* Grid display with Search filters */}
             <div className="bg-slate-950 border border-slate-850 rounded-3xl p-4 space-y-4">
-
+              
               {/* Dynamic search / rarity ribbon controllers */}
               <div className="flex flex-col sm:flex-row items-center gap-2.5">
                 <div className="relative w-full sm:flex-1">
@@ -2268,7 +2546,7 @@ export default function App() {
                           <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-transparent via-slate-700/5 to-transparent"></div>
 
                           <div className="my-2.5 flex justify-center">
-                            <CowVisual cow={cow} className="w-20 h-20 group-hover:scale-110 transition-transform" />
+                            <VazzamonAvatar breed={cow.breed} rarity={cow.rarity} className="w-20 h-20 group-hover:scale-110 transition-transform" />
                           </div>
 
                           <div className="space-y-1 flex flex-col items-center">
@@ -2292,18 +2570,73 @@ export default function App() {
 
         {/* DETAILS POPUP MODAL SCREEN FOR SINGLE SELECTED VAZZAMON */}
         {selectedVazzamon && (
-          <div className="fixed inset-0 bg-slate-950/90 z-50 flex items-center justify-center p-4 backdrop-blur-xs animate-fade-in overflow-y-auto" id="details-modal">
-            <div className="bg-slate-900 border-2 border-slate-800 rounded-3xl max-w-md w-full p-5 text-center space-y-4 shadow-2xl relative my-auto">
-
+          <div className="fixed inset-0 bg-slate-950/90 z-50 flex items-center justify-center p-4 backdrop-blur-xs animate-fade-in" id="details-modal">
+            <div className="bg-slate-900 border-2 border-slate-800 rounded-3xl max-w-md w-full p-6 text-center space-y-4 shadow-2xl relative overflow-hidden">
+              
               <button
                 onClick={() => { playClickSfx(); setSelectedVazzamon(null); }}
-                className="absolute top-3 right-3 z-20 text-slate-400 hover:text-slate-200 transition-colors p-1 bg-slate-950/60 rounded-full"
+                className="absolute top-4 right-4 text-slate-400 hover:text-slate-200 transition-colors p-1"
               >
                 <X className="w-6 h-6" />
               </button>
 
-              {/* Scheda "carta Pokémon" (componente dedicato) */}
-              <CowCard cow={selectedVazzamon} />
+              {/* Glowing aura frame matching rarity */}
+              <div className="pt-2">
+                <span className={`text-[10px] bg-slate-950 border font-mono font-black tracking-widest px-3 py-1 rounded-full uppercase ${
+                  selectedVazzamon.rarity === 'Leggendaria' ? 'text-amber-400 border-amber-500/20' :
+                  selectedVazzamon.rarity === 'Epica' ? 'text-purple-400 border-purple-500/20' :
+                  selectedVazzamon.rarity === 'Rara' ? 'text-blue-400 border-blue-500/20' : 'text-slate-400 border-slate-800'
+                }`}>
+                  Bovina {selectedVazzamon.rarity}
+                </span>
+              </div>
+
+              {/* CP & level display */}
+              <div className="space-y-1">
+                <div className="text-[10px] text-slate-500 font-mono tracking-wider">REGISTRO GENOMA</div>
+                <h1 className="text-3xl font-mono font-black text-[#F5F5DC] tracking-tight leading-none uppercase">CP {selectedVazzamon.cp}</h1>
+                <div className="text-xs text-slate-400 font-mono">Livello {selectedVazzamon.level} • Razza: {selectedVazzamon.breed}</div>
+              </div>
+
+              {/* Massive Center Avatar View with Rarity representation classes */}
+              <div className="py-4 flex justify-center relative">
+                <div className={`absolute inset-4 rounded-full pointer-events-none filter blur-xl ${
+                  selectedVazzamon.rarity === 'Leggendaria' ? 'legendary-glow opacity-30' :
+                  selectedVazzamon.rarity === 'Epica' ? 'epic-glow opacity-25' :
+                  selectedVazzamon.rarity === 'Rara' ? 'rare-glow opacity-20' : 'opacity-0'
+                }`}></div>
+                <VazzamonAvatar breed={selectedVazzamon.breed} rarity={selectedVazzamon.rarity} className="w-32 h-32 relative z-10 animate-float" />
+              </div>
+
+              {/* RPG Stats curved gauges bars */}
+              <div className="grid grid-cols-3 gap-2 py-2 bg-slate-950 rounded-2xl border border-slate-850">
+                <div>
+                  <span className="block font-mono font-black text-sm text-amber-400">{selectedVazzamon.stats.strength}</span>
+                  <span className="text-[9.5px] text-slate-400 uppercase font-mono">Forza 🏋️‍♂️</span>
+                </div>
+                <div>
+                  <span className="block font-mono font-black text-sm text-blue-400">{selectedVazzamon.stats.defense}</span>
+                  <span className="text-[9.5px] text-slate-400 uppercase font-mono">Difesa 🛡️</span>
+                </div>
+                <div>
+                  <span className="block font-mono font-black text-sm text-emerald-400">{selectedVazzamon.stats.agility}</span>
+                  <span className="text-[9.5px] text-slate-400 uppercase font-mono">Agilità ⚡</span>
+                </div>
+              </div>
+
+              {/* Bio lore snippets */}
+              <p className="text-xs text-slate-300 italic px-4 leading-relaxed bg-slate-950/40 p-3 rounded-xl border border-slate-850">
+                "{selectedVazzamon.lore}"
+              </p>
+
+              {/* Eco tracker sustainable tip */}
+              <div className="bg-emerald-950/40 border-2 border-emerald-900 p-3 rounded-2xl text-left flex gap-1.5">
+                <ShieldAlert className="w-4 h-4 text-emerald-400 flex-shrink-0 mt-0.5" />
+                <div className="space-y-0.5">
+                  <h4 className="text-[10px] font-mono font-black text-emerald-400 uppercase tracking-wide leading-none">Safari Eco-Tip</h4>
+                  <p className="text-[10px] text-slate-300 leading-normal">{selectedVazzamon.eco_tip}</p>
+                </div>
+              </div>
 
               {/* Pokemon GO Action: Power Up and Transfers */}
               <div className="border-t border-slate-850 pt-3 flex gap-2">
@@ -2347,263 +2680,649 @@ export default function App() {
           </div>
         )}
 
-        {/* VIEW 6: SCUOLA D'ALPEGGIO (QUIZ EDUCATIVO) */}
-        {activeTab === 'quiz' && (
-          <div className="space-y-4" id="quiz-tab-view">
-            <div className="bg-slate-950 border border-slate-850 rounded-3xl p-5 text-center">
-              <h2 className="text-lg font-mono font-black text-emerald-400 flex items-center justify-center gap-1.5 uppercase">
-                <GraduationCap className="w-5 h-5" /> Scuola d'Alpeggio
-              </h2>
-              <p className="text-xs text-slate-400 mt-1">Metti alla prova il tuo rispetto per montagna, bovine e tradizioni. Ogni risposta giusta vale monete e XP!</p>
-            </div>
-            <QuizScreen
-              bestScore={quizBest}
-              onFinish={(correct, totale) => {
-                const coinsWon = correct * 10;
-                setTrainer(prev => ({ ...prev, coins: prev.coins + coinsWon }));
-                addTrainerXp(correct * 30);
-                if (correct > quizBest) {
-                  setQuizBest(correct);
-                  localStorage.setItem('vazzamon_quiz_go', String(correct));
-                }
-                setTrekkingFeed(prev => [`🎓 Scuola d'Alpeggio: ${correct}/${totale} risposte giuste (+${coinsWon} 🪙)`, ...prev.slice(0, 8)]);
-              }}
-            />
-          </div>
-        )}
-
-        {/* VIEW 5: BATAILLE DE REINES (TAP COMBAT arena) */}
+        {/* VIEW 5: BATAILLE DE REINES (POKÉMON-STYLE TURN-BASED ARENA) */}
         {activeTab === 'battle' && (
-          <div className="space-y-6" id="battle-tab-view">
-
-            {/* BATAILLE A TURNI (stile Pokémon) vs Pastori */}
-            <div className="bg-slate-950 border border-amber-700/30 rounded-3xl p-5 space-y-4" id="turnbattle-card">
-              <div className="text-center">
-                <h2 className="text-lg font-mono font-black text-amber-400 uppercase tracking-tight flex items-center justify-center gap-1.5">
-                  <Swords className="w-5 h-5" /> Bataille a Turni
-                </h2>
-                <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">Sfida i Pastori in una spinta a turni: 4 mosse dalle statistiche reali della tua Reina.</p>
-              </div>
-              {vazzadex.length > 0 ? (
-                <BattleTurnBased
-                  playerCow={vazzadex.find(c => c.id === activeCombatantId) || vazzadex[0]}
-                  playClick={playClickSfx}
-                  onResult={(won, xp, coins) => {
-                    if (won) {
-                      addTrainerXp(xp);
-                      setTrainer(prev => ({ ...prev, coins: prev.coins + coins }));
-                      setTrekkingFeed(prev => [`🏆 Bataille a turni vinta! +${xp} XP · +${coins} 🪙`, ...prev.slice(0, 8)]);
-                    } else {
-                      setTrekkingFeed(prev => [`🐂 Bataille a turni persa: allena ancora la tua Reina!`, ...prev.slice(0, 8)]);
-                    }
-                  }}
-                />
-              ) : (
-                <div className="text-center py-6 space-y-2">
-                  <p className="text-xs text-slate-500">Cattura una Reina per combattere a turni!</p>
-                  <button onClick={() => setActiveTab('map')} className="bg-emerald-500 text-slate-950 font-mono font-black text-xs px-4 py-2 rounded-xl">Vai alla mappa</button>
+          <div className="space-y-6 animate-fade-in" id="battle-tab-view">
+            
+            {/* Header banner */}
+            <div className="bg-gradient-to-r from-red-950 via-slate-900 to-emerald-950 border border-slate-800 rounded-3xl p-6 text-center relative overflow-hidden shadow-xl">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-red-500/5 rounded-full blur-2xl pointer-events-none"></div>
+              <div className="absolute bottom-0 left-0 w-32 h-32 bg-emerald-500/5 rounded-full blur-2xl pointer-events-none"></div>
+              
+              <div className="flex justify-center mb-3">
+                <div className="p-3 bg-gradient-to-br from-red-500 to-rose-600 rounded-2xl shadow-lg shadow-rose-500/10 text-white animate-pulse">
+                  <Swords className="w-8 h-8" />
                 </div>
-              )}
+              </div>
+              <h2 className="text-2xl font-mono font-black text-slate-100 uppercase tracking-tight">Arena Bataille de Reines 🏆</h2>
+              <p className="text-xs text-slate-400 mt-1 max-w-md mx-auto leading-relaxed">
+                Affronta le grandi bovine regine in incontri olimpici d'alta quota ispirati alle tradizioni valdostane. Scegli la strategia perfetta!
+              </p>
             </div>
 
-            <div className="bg-slate-950 border border-slate-850 rounded-3xl p-5 text-center space-y-4">
-              
-              <div className="flex justify-center">
-                <div className="p-3 bg-red-950 rounded-full border border-red-500/20 text-red-400">
-                  <Swords className="w-8 h-8 fill-current" />
+            {/* CABINET DISPLAY: BACHECA MEDAGLIE & BONUS ALPINI */}
+            <div className="bg-slate-950 border border-slate-850 rounded-3xl p-5 shadow-lg space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-900 pb-3">
+                <div className="flex items-center gap-2">
+                  <Award className="w-5 h-5 text-amber-400 animate-bounce" />
+                  <h3 className="font-mono font-black text-sm text-slate-100 uppercase tracking-wider">Bacheca Medaglie & Bonus Alpini</h3>
                 </div>
+                <span className="text-[10px] font-mono text-emerald-400 font-bold bg-emerald-950/40 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                  {trainerBadges.length} di {GYMS.length} Conquistate
+                </span>
               </div>
 
-              <div>
-                <h2 className="text-2xl font-mono font-black text-emerald-400 uppercase tracking-tight">Bataille de Reines Arena 🏆</h2>
-                <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">La famosa giostra d'alpeggio valdostana non cruenta. Prepara il coraggio del tuo compagno!</p>
-              </div>
-
-              {gymState.status === 'idle' ? (
-                <div className="py-8 bg-slate-900/40 rounded-3xl border border-slate-850 max-w-md mx-auto space-y-4">
-                  <span className="text-[10px] font-mono text-slate-400 uppercase tracking-widest">Allenatore Champion Buddy</span>
-                  
-                  {vazzadex.length > 0 ? (
-                    <div className="flex flex-col items-center space-y-4">
-                      
-                      {/* Active combat buddy display */}
-                      <div className="bg-slate-950 rounded-2xl p-4 border border-slate-850 flex items-center gap-4 w-[80%]">
-                        <CowVisual cow={(vazzadex.find(c => c.id === activeCombatantId) || vazzadex[0])} className="w-16 h-16" />
-                        <div className="text-left">
-                          <h4 className="font-mono font-black text-slate-200">{(vazzadex.find(c => c.id === activeCombatantId) || vazzadex[0]).name}</h4>
-                          <span className="text-[10px] bg-slate-900 border border-slate-800 text-yellow-400 py-0.5 px-2 rounded font-mono font-bold">
-                            CP {(vazzadex.find(c => c.id === activeCombatantId) || vazzadex[0]).cp}
-                          </span>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {GYMS.map((gym) => {
+                  const hasBadge = trainerBadges.includes(gym.id);
+                  return (
+                    <div 
+                      key={gym.id}
+                      className={`relative p-4 rounded-2xl border flex flex-col items-center justify-center text-center space-y-2.5 transition-all overflow-hidden ${
+                        hasBadge 
+                          ? 'bg-gradient-to-b from-slate-900 to-amber-950/20 border-amber-500/30 shadow-md shadow-amber-500/5' 
+                          : 'bg-slate-900/40 border-slate-900/80 filter opacity-60'
+                      }`}
+                    >
+                      {/* Badge Orb representation */}
+                      <div className="relative">
+                        {hasBadge && (
+                          <div className="absolute -inset-2 bg-gradient-to-tr from-amber-500 to-yellow-300 rounded-full blur-xs opacity-50 animate-pulse"></div>
+                        )}
+                        <div className={`w-14 h-14 rounded-full border-2 flex items-center justify-center text-3xl shadow-lg relative ${
+                          hasBadge 
+                            ? 'bg-gradient-to-br from-amber-400 to-yellow-500 border-yellow-200 animate-float' 
+                            : 'bg-slate-800 border-slate-700 text-slate-500'
+                        }`}>
+                          {gym.badgeEmoji}
                         </div>
                       </div>
 
-                      <button
-                        onClick={handleInitiateGymMatch}
-                        className="bg-red-650 hover:bg-rose-700 hover:shadow-red-200 shadow-lg text-white font-mono font-black text-xs py-3 px-8 rounded-xl border-b-4 border-rose-800 transition-all cursor-pointer uppercase flex items-center gap-1.5"
-                        id="challenge-arena-btn"
-                      >
-                        <Swords className="w-3.5 h-3.5" />
-                        Sfida Boss dell'Arena
-                      </button>
+                      <div>
+                        <h4 className="font-mono font-black text-xs uppercase leading-tight tracking-tight text-slate-200">{gym.badgeName}</h4>
+                        <span className="text-[8.5px] font-mono font-black text-slate-500 uppercase block tracking-widest mt-0.5 mt-1">
+                          {gym.name.split(" ").slice(1).join(" ")}
+                        </span>
+                      </div>
 
+                      <p className={`text-[9.5px] leading-snug font-mono ${hasBadge ? 'text-amber-400' : 'text-slate-500'}`}>
+                        {hasBadge ? `✅ Bonus: ${gym.bonusDesc.split(". ")[0]}` : `🔒 Sconfiggi ${gym.bossName} per sbloccare`}
+                      </p>
                     </div>
-                  ) : (
-                    <div className="p-4 space-y-2">
-                      <p className="text-xs text-slate-500">Nessuna Reina sbloccata per combattere!</p>
-                      <button onClick={() => setActiveTab('map')} className="bg-emerald-500 text-slate-950 font-mono font-black text-xs px-4 py-2 rounded-xl">Spicca volo</button>
-                    </div>
-                  )}
+                  );
+                })}
+              </div>
+            </div>
 
-                </div>
-              ) : (
+            {gymState.status === 'idle' ? (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 
-                // MAIN COMBAT ACTIVE STAGE
-                <div className="space-y-4 text-slate-100" id="battleground">
-                  
-                  {/* BATTLEGROUND MATRIX DOCK */}
-                  <div className="grid grid-cols-1 md:grid-cols-5 bg-slate-950/80 border border-slate-850 rounded-3xl p-5 items-center gap-4 relative overflow-hidden shadow-2xl">
-                    
-                    {/* Visual active gym floor background */}
-                    <div className="absolute inset-x-0 bottom-0 top-[60%] bg-[#1c3a1c]/15 border-t border-emerald-500/5 pointer-events-none"></div>
-
-                    {/* Left: Player Side */}
-                    <div className="md:col-span-2 bg-slate-900 rounded-2xl p-4 border border-slate-800 relative space-y-2 text-center overflow-hidden">
-                      <span className="absolute -top-1 left-2 bg-emerald-500 text-slate-950 text-[8px] font-mono font-bold px-1.5 rounded uppercase font-black">La tua Reina</span>
-                      
-                      <div className={`transition-all duration-150 flex justify-center ${gymState.playerAttackAnim ? 'translate-x-6 scale-110 rotate-3 z-10' : ''} ${activeDodgeEffect ? '-translate-y-4 filter blur-xs duration-75' : ''}`}>
-                        <CowVisual cow={gymState.playerVazzamon!} className="w-20 h-20" />
-                      </div>
-
-                      <h4 className="font-mono font-black text-yellow-300 text-xs truncate uppercase leading-none mt-1">{gymState.playerVazzamon!.name}</h4>
-                      
-                      <div className="space-y-1 text-left">
-                        <div className="flex justify-between text-[9px] font-mono text-slate-400 leading-none">
-                          <span>Tenacia (HP)</span>
-                          <span className="font-bold text-slate-200">{gymState.playerHp} / {gymState.playerMaxHp}</span>
-                        </div>
-                        <div className="w-full bg-slate-950 rounded-full h-1.5 overflow-hidden">
-                          <div className="bg-gradient-to-r from-emerald-500 to-green-400 h-1.5 rounded-full" style={{ width: `${(gymState.playerHp / gymState.playerMaxHp) * 100}%` }} />
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Middle control module */}
-                    <div className="flex flex-col items-center gap-2 py-2">
-                      <div className="w-10 h-10 rounded-full bg-red-600 border border-red-500 font-mono font-black italic shadow text-white text-xs flex items-center justify-center animate-pulse">VS</div>
-                      
-                      {gymState.status === 'intro' && (
-                        <button
-                          onClick={() => setGymState(prev => ({ ...prev, status: 'active' }))}
-                          className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-mono font-black text-xs py-2 px-4 rounded-xl cursor-pointer"
-                        >
-                          COMBATTI!
-                        </button>
-                      )}
-
-                      {gymState.status === 'active' && (
-                        <div className="space-y-2 w-full">
-                          
-                          {/* Big circular tapping strike pad */}
-                          <button
-                            onClick={handlePlayerTapAttack}
-                            className="w-20 h-20 rounded-full bg-gradient-to-r from-red-600 to-rose-600 hover:scale-105 active:scale-95 border-4 border-slate-100 flex flex-col items-center justify-center shadow-lg cursor-pointer transform transition-all group mx-auto"
-                          >
-                            <span className="text-xl group-hover:scale-110 transition-transform">⚔️</span>
-                            <span className="text-[7.5px] font-mono font-black text-rose-100 tracking-wider">TAP STRIKE!</span>
-                          </button>
-
-                          {/* Action quick dogde button */}
-                          <button
-                            onClick={handlePlayerDodge}
-                            disabled={activeDodgeEffect}
-                            className="w-full bg-slate-800 hover:bg-slate-750 disabled:opacity-50 text-[10px] font-mono font-black text-emerald-400 py-1.5 rounded-xl border border-slate-700/80 cursor-pointer flex items-center justify-center gap-1"
-                          >
-                            <span>⚡</span> SCHIVA DESTRA
-                          </button>
-                          
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Right: Opponent Side */}
-                    <div className="md:col-span-2 bg-slate-900 rounded-2xl p-4 border border-slate-800 relative space-y-2 text-center overflow-hidden">
-                      <span className="absolute -top-1 right-2 bg-rose-600 text-white text-[8px] font-mono font-bold px-1.5 rounded uppercase font-black">Sfidante Elite</span>
-                      
-                      <div className={`transition-all duration-150 flex justify-center ${gymState.opponentAttackAnim ? '-translate-x-6 scale-110 -rotate-3 z-10' : ''}`}>
-                        <CowVisual cow={gymState.opponentVazzamon!} className="w-20 h-20" />
-                      </div>
-
-                      <h4 className="font-mono font-black text-red-400 text-xs truncate uppercase leading-none mt-1">{gymState.opponentVazzamon!.name}</h4>
-                      
-                      <div className="space-y-1 text-left">
-                        <div className="flex justify-between text-[9px] font-mono text-slate-400 leading-none">
-                          <span>Tenacia Sfidante</span>
-                          <span className="font-bold text-slate-200">{gymState.opponentHp} / {gymState.opponentMaxHp}</span>
-                        </div>
-                        <div className="w-full bg-slate-950 rounded-full h-1.5 overflow-hidden">
-                          <div className="bg-red-500 h-1.5 rounded-full" style={{ width: `${(gymState.opponentHp / gymState.opponentMaxHp) * 100}%` }} />
-                        </div>
-                      </div>
-                    </div>
-
+                {/* 1. ARENA HUB SELECTION */}
+                <div className="lg:col-span-2 bg-slate-950 border border-slate-850 rounded-3xl p-5 space-y-4 shadow-lg">
+                  <div className="flex items-center gap-2 border-b border-slate-900 pb-3">
+                    <MapPin className="w-5 h-5 text-emerald-400" />
+                    <h3 className="font-mono font-black text-sm text-slate-200 uppercase tracking-wider">Passo 1: Seleziona l'Arena delle Nubi</h3>
                   </div>
 
-                  {/* SUPER SPECIAL ATTACK TRIGGER ACTION */}
-                  {gymState.status === 'active' && (
-                    <div className="bg-slate-950 p-3 rounded-2xl border border-slate-850 flex items-center justify-between gap-4">
-                      
-                      <div className="flex-grow space-y-1 text-left">
-                        <div className="flex justify-between text-[9px] font-mono text-slate-400">
-                          <span>Energia Mossa Speciale</span>
-                          <span className="font-bold text-blue-400">{gymState.energy}% / 100%</span>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3" id="arena-grid">
+                    {GYMS.map((gym) => {
+                      const isSelected = selectedArenaId === gym.id;
+                      const hasBadge = trainerBadges.includes(gym.id);
+                      return (
+                        <div 
+                          key={gym.id}
+                          onClick={() => { playClickSfx(); setSelectedArenaId(gym.id); }}
+                          className={`p-4 rounded-2xl border-2 cursor-pointer transition-all flex flex-col justify-between h-44 relative overflow-hidden group ${
+                            isSelected 
+                              ? 'bg-emerald-950/20 border-emerald-500/80 shadow-lg' 
+                              : 'bg-slate-900/60 border-slate-850 hover:bg-slate-900 hover:border-slate-800'
+                          }`}
+                        >
+                          <div className="flex justify-between items-start">
+                            <span className="text-sm font-mono font-black text-slate-100 flex items-center gap-1.5 truncate">
+                              {gym.badgeEmoji} {gym.name.split(" ")[2] || gym.name}
+                            </span>
+                            <div className="flex gap-1 flex-wrap">
+                              {hasBadge && (
+                                <span className="text-[8.5px] font-mono font-black px-2 py-0.5 bg-amber-500/25 border border-amber-500/30 rounded text-amber-300 uppercase">CONQUISTATA</span>
+                              )}
+                              <span className={`text-[8.5px] font-mono font-bold px-2 py-0.5 rounded-full ${
+                                isSelected ? 'bg-red-500 text-slate-950' : 'bg-slate-800 text-slate-400'
+                              }`}>Lv.{gym.requiredLevel} RECOMMENDED</span>
+                            </div>
+                          </div>
+
+                          <div className="space-y-1 mt-2">
+                            <p className="text-[10px] text-slate-300 leading-snug">Boss: <span className="text-emerald-400 font-extrabold">{gym.bossName}</span> con <span className="text-emerald-300 font-extrabold">{gym.bossCowName}</span> ({gym.bossBreed} CP {gym.cp})</p>
+                            <p className="text-[9.5px] text-slate-400 leading-tight">Difficoltà: <span className="text-amber-400 font-bold">{gym.difficulty}</span></p>
+                          </div>
+
+                          <span className="text-[9.5px] font-mono font-bold text-slate-300 mt-2 block bg-slate-950/80 p-1.5 rounded-lg border border-slate-850/30 z-10 leading-snug">
+                            ⚡ {gym.bonusDesc}
+                          </span>
                         </div>
-                        <div className="bg-slate-900 rounded-full h-2 overflow-hidden border border-slate-800 shadow-inner">
-                          <div className="bg-gradient-to-r from-blue-500 to-cyan-400 h-2 rounded-full transition-all duration-150" style={{ width: `${gymState.energy}%` }}></div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* 2. BUDDY SELECT & CHALLENGE ACTOR */}
+                <div className="bg-slate-950 border border-slate-850 rounded-3xl p-5 flex flex-col justify-between shadow-lg space-y-4">
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 border-b border-slate-900 pb-3">
+                      <User className="w-5 h-5 text-emerald-400" />
+                      <h3 className="font-mono font-black text-sm text-slate-200 uppercase tracking-wider">Passo 2: Il tuo Campione</h3>
+                    </div>
+
+                    {vazzadex.length > 0 ? (
+                      <div className="space-y-4">
+                        {/* Currently selected fighter card display */}
+                        {(() => {
+                          const activeBuddy = vazzadex.find(c => c.id === activeCombatantId) || vazzadex[0];
+                          return (
+                            <div className="bg-gradient-to-br from-slate-900 to-slate-950 p-4 rounded-2xl border border-slate-800 space-y-3 relative overflow-hidden">
+                              <div className="absolute top-2 right-2 px-2 py-0.5 bg-emerald-500/10 border border-emerald-500/20 rounded font-mono text-[9px] font-black text-emerald-400 uppercase">
+                                COMBATTENTE ATTIVO
+                              </div>
+                              <div className="flex items-center gap-3">
+                                <VazzamonAvatar breed={activeBuddy.breed} rarity={activeBuddy.rarity} className="w-14 h-14" />
+                                <div>
+                                  <h4 className="font-mono font-black text-sm text-slate-200 leading-snug">{activeBuddy.name}</h4>
+                                  <p className="text-[10px] text-slate-400 mt-0.5 leading-none">Tipo: {activeBuddy.breed} ({activeBuddy.rarity})</p>
+                                  <div className="mt-1.5 flex gap-2">
+                                    <span className="text-[10px] font-mono font-black bg-slate-950 text-yellow-400 px-1.5 py-0.5 rounded">CP: {activeBuddy.cp}</span>
+                                    <span className="text-[10px] font-mono font-bold bg-slate-950 text-slate-400 px-1.5 py-0.5 rounded">LV: {activeBuddy.level}</span>
+                                  </div>
+                                </div>
+                              </div>
+                              {/* Short stats panel */}
+                              <div className="grid grid-cols-3 gap-1 bg-slate-950/60 p-2 rounded-xl text-center text-[10px] font-mono border border-slate-900">
+                                <div>
+                                  <span className="text-[8px] text-slate-500 block uppercase leading-none">Forza</span>
+                                  <span className="font-bold text-slate-300">{activeBuddy.stats.strength}</span>
+                                </div>
+                                <div>
+                                  <span className="text-[8px] text-slate-500 block uppercase leading-none">Difesa</span>
+                                  <span className="font-bold text-slate-300">{activeBuddy.stats.defense}</span>
+                                </div>
+                                <div>
+                                  <span className="text-[8px] text-slate-500 block uppercase leading-none">Agilità</span>
+                                  <span className="font-bold text-slate-300">{activeBuddy.stats.agility}</span>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })()}
+
+                        {/* List other buddies to dynamically set as main partner */}
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] text-slate-400 font-mono font-bold uppercase tracking-wider block">Seleziona compagno di scorta:</label>
+                          <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar max-h-24">
+                            {vazzadex.map(buddy => (
+                              <button 
+                                key={buddy.id}
+                                onClick={() => { playClickSfx(); setActiveCombatantId(buddy.id); }}
+                                className={`flex-shrink-0 p-2 rounded-xl border-2 transition-all flex items-center gap-2 cursor-pointer ${
+                                  activeCombatantId === buddy.id 
+                                    ? 'bg-emerald-950/30 border-emerald-500/60' 
+                                    : 'bg-slate-900 border-slate-850 hover:bg-slate-850'
+                                }`}
+                              >
+                                <VazzamonAvatar breed={buddy.breed} rarity={buddy.rarity} className="w-8 h-8" />
+                                <div className="text-left leading-tight pr-1">
+                                  <span className="text-[10px] font-mono font-bold text-slate-200 block truncate max-w-[80px]">{buddy.name}</span>
+                                  <span className="text-[9px] text-yellow-400 font-mono">CP {buddy.cp}</span>
+                                </div>
+                              </button>
+                            ))}
+                          </div>
                         </div>
                       </div>
-
-                      <button
-                        onClick={handlePlayerSuperAttack}
-                        disabled={gymState.energy < 100}
-                        className="bg-amber-500 hover:bg-amber-400 disabled:opacity-40 text-slate-950 font-mono font-black text-xs py-2 px-5 rounded-xl border-b-4 border-amber-700 cursor-pointer tracking-wider flex items-center gap-1 select-none animate-pulse"
-                      >
-                        🌟 SPECIAL STRIKE!
-                      </button>
-
-                    </div>
-                  )}
-
-                  {/* BATTLE GROUND MATRIX HISTORY FEED */}
-                  <div className="bg-slate-900/40 border border-slate-850 rounded-2xl p-4 text-left font-mono text-[10.5px] text-green-300 space-y-2 shadow-inner">
-                    <span className="text-[9px] uppercase tracking-wider text-slate-500 font-extrabold block">REGISTRO ARENA</span>
-                    <div className="space-y-1.5 max-h-36 overflow-y-auto no-scrollbar">
-                      {gymState.history.map((line, idx) => (
-                        <p key={idx} className="leading-normal">{line}</p>
-                      ))}
-                    </div>
-
-                    {gymState.status === 'ended' && (
-                      <div className="pt-3 border-t border-slate-850 flex flex-col sm:flex-row items-center justify-between gap-3">
-                        <div className="flex items-center gap-1.5 text-xs text-slate-200">
-                          <span>Esito scontro:</span>
-                          <strong className={gymState.winner === 'player' ? 'text-green-400' : 'text-red-400'}>
-                            {gymState.winner === 'player' ? 'Vittoria Epica! +60🪙' : 'Buddy Stremato'}
-                          </strong>
-                        </div>
-                        <button
-                          onClick={() => setGymState(prev => ({ ...prev, status: 'idle' }))}
-                          className="bg-slate-850 hover:bg-slate-800 text-yellow-400 py-1.5 px-4 rounded-xl border border-slate-700 cursor-pointer font-bold"
-                        >
-                          Sfida di Nuovo!
-                        </button>
+                    ) : (
+                      <div className="text-center p-6 bg-slate-900 rounded-2xl border border-slate-850 space-y-2">
+                        <p className="text-xs text-slate-450">Non possiedi alcuna Reina nel Vazzadex!</p>
+                        <p className="text-[10px] text-slate-500 leading-normal">Cattura bovine lungo il percorso alpeggio prima di sfidare gli avversari delle vette.</p>
                       </div>
                     )}
                   </div>
 
+                  <div className="pt-3 border-t border-slate-900">
+                    <button
+                      onClick={handleInitiateGymMatch}
+                      disabled={vazzadex.length === 0}
+                      className="w-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-mono font-black tracking-wider text-xs uppercase transition-all shadow-lg shadow-red-600/10 active:scale-95 border-b-4 border-red-800 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-40"
+                    >
+                      <Swords className="w-4 h-4" />
+                      Combatti nell'Arena!
+                    </button>
+                  </div>
                 </div>
-              )}
 
-            </div>
+              </div>
+            ) : (
+              
+              /* ====== POKÉMON STYLE BATTLEGROUND INTERACTIVE GAME ===== */
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-6" id="battleground-matrix">
+                
+                {/* LEFT COLUMN: THE GRAPHIC ENCOUNTER CONTAINER */}
+                <div className="bg-slate-950 border border-slate-850 rounded-3xl p-5 flex flex-col justify-between gap-5 relative overflow-hidden shadow-2xl">
+                  
+                  {/* Subtle vector lines mapping background inside the arena */}
+                  <div className={`absolute inset-0 opacity-[0.06] pointer-events-none transition-colors duration-500 ${
+                    gymState.arenaId === 'fenis' ? 'bg-[radial-gradient(#d97706_1px,transparent_1px)] [background-size:16px_16px]' :
+                    gymState.arenaId === 'gran_paradiso' ? 'bg-[radial-gradient(#38bdf8_1px,transparent_1px)] [background-size:16px_16px]' :
+                    gymState.arenaId === 'morgex' ? 'bg-[radial-gradient(#a855f7_1px,transparent_1px)] [background-size:16px_16px]' :
+                    'bg-[radial-gradient(#10b981_1px,transparent_1px)] [background-size:16px_16px]'
+                  }`}></div>
+
+                  <div className="flex items-center justify-between border-b border-slate-900 pb-2 relative z-10">
+                    <span className="text-[10px] font-mono font-black text-slate-400 uppercase tracking-widest flex items-center gap-1">
+                      ⚔️ ARENA: <span className="text-yellow-400">{
+                        gymState.arenaId === 'fenis' ? 'CASTELLO DI FÉNIS 🏰' :
+                        gymState.arenaId === 'gran_paradiso' ? 'GHIACCIAIO DEL GRAN PARADISO ❄️' :
+                        gymState.arenaId === 'morgex' ? 'VIGNETI DI MORGEX 🍇' :
+                        'PRATI DI SANT\'ORSO (COGNE) 🌸'
+                      }</span>
+                    </span>
+                    <span className="text-[8px] bg-slate-900 border border-slate-800 text-slate-400 px-2 py-0.5 rounded font-mono font-bold capitalize">
+                      {gymState.activeTurn === 'player' ? '🟢 Tuo Turno' : gymState.winner ? '🏁 Chiuso' : '🔴 Caricamento...'}
+                    </span>
+                  </div>
+
+                  {/* VIRTUAL STAGE CANVAS */}
+                  <div className="my-2 space-y-6 relative z-10">
+                    
+                    {/* OPPONENT SCREEN (Top Right Corner aligned) */}
+                    <div className="flex flex-col items-end w-[90%] md:w-[75%] ml-auto max-w-sm">
+                      <div className="bg-slate-900 p-3 rounded-2xl border border-slate-850 w-full relative overflow-hidden flex flex-col gap-1.5 shadow-md">
+                        {/* Elite level/Name info */}
+                        <div className="flex justify-between items-center text-xs font-mono font-bold pb-1 text-slate-200">
+                          <span className="text-red-400 leading-none truncate max-w-[120px]">👑 BOSS {gymState.opponentVazzamon?.name}</span>
+                          <span className="text-[10px] bg-red-950 border border-red-900 text-red-300 px-1 py-0.2 rounded font-black text-right scale-95 uppercase">
+                            LV {gymState.opponentVazzamon?.level}
+                          </span>
+                        </div>
+
+                        {/* Health slider block */}
+                        <div className="space-y-1">
+                          <div className="flex justify-between text-[9px] font-mono text-slate-400">
+                            <span>Resistenza Boss (HP)</span>
+                            <span className="font-bold text-slate-300">{gymState.opponentHp} / {gymState.opponentMaxHp}</span>
+                          </div>
+                          
+                          {/* Animated bar using percentage thresholds */}
+                          <div className="w-full bg-slate-950 rounded-full h-2 overflow-hidden border border-slate-800 shadow-inner">
+                            <div 
+                              className={`h-full rounded-full transition-all duration-300 ${
+                                (gymState.opponentHp / gymState.opponentMaxHp) >= 0.5 ? 'bg-emerald-500' :
+                                (gymState.opponentHp / gymState.opponentMaxHp) >= 0.2 ? 'bg-amber-400' : 'bg-red-500'
+                              }`} 
+                              style={{ width: `${(gymState.opponentHp / gymState.opponentMaxHp) * 100}%` }} 
+                            />
+                          </div>
+                        </div>
+
+                        {/* Passive stats display for boss */}
+                        <div className="flex items-center gap-1.5 text-[8.5px] font-mono text-slate-500">
+                          <span>Stato:</span>
+                          <span className="text-slate-400">Naturale</span>
+                          {gymState.arenaId === 'fenis' && <span className="text-amber-500 border border-amber-950 bg-amber-950/20 px-1 rounded-sm scale-95 leading-none">🛡️ Fortificato (-25% Dmg)</span>}
+                        </div>
+                      </div>
+
+                      {/* Opponent Avatar with Headbutt animation */}
+                      <div className="mr-6 mt-1.5 flex justify-end">
+                        <div className={`transition-all duration-150 ${gymState.opponentAttackAnim ? '-translate-x-12 scale-110 -rotate-6 z-10 filter brightness-110' : ''}`}>
+                          <VazzamonAvatar breed={gymState.opponentVazzamon!.breed} rarity={gymState.opponentVazzamon!.rarity} className="w-16 h-16 filter drop-shadow-[0_4px_12px_rgba(239,68,68,0.25)]" />
+                          <div className="w-16 h-1 rounded-full bg-slate-900/60 blur-[2px] mt-0.5 mx-auto"></div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* PLAYER STAGE COWER (Bottom Left Corner aligned) */}
+                    <div className="flex flex-col items-start w-[90%] md:w-[75%] mr-auto max-w-sm">
+                      {/* Player Avatar with Headbutt animation */}
+                      <div className="ml-6 mb-1.5 flex h-[70px] items-end justify-start">
+                        <div className={`transition-all duration-150 ${gymState.playerAttackAnim ? 'translate-x-12 scale-110 rotate-6 z-10 filter brightness-110' : ''}`}>
+                          <VazzamonAvatar breed={gymState.playerVazzamon!.breed} rarity={gymState.playerVazzamon!.rarity} className="w-16 h-16 filter drop-shadow-[0_4px_12px_rgba(16,185,129,0.25)]" />
+                          <div className="w-16 h-1 rounded-full bg-slate-900/60 blur-[2px] mt-0.5 mx-auto"></div>
+                        </div>
+                      </div>
+
+                      <div className="bg-slate-900 p-3 rounded-2xl border border-slate-850 w-full relative overflow-hidden flex flex-col gap-1.5 shadow-md">
+                        {/* Elite level/Name info */}
+                        <div className="flex justify-between items-center text-xs font-mono font-bold pb-1 text-slate-200">
+                          <span className="text-emerald-400 leading-none truncate max-w-[130px] flex items-center gap-1">
+                            🐮 {gymState.playerVazzamon?.name}
+                          </span>
+                          <span className="text-[10px] bg-emerald-950 border border-emerald-900 text-emerald-300 px-1 py-0.2 rounded font-black text-right scale-95 uppercase">
+                            LV {gymState.playerVazzamon?.level}
+                          </span>
+                        </div>
+
+                        {/* Health slider block */}
+                        <div className="space-y-1">
+                          <div className="flex justify-between text-[9px] font-mono text-slate-400">
+                            <span>Resistenza Buddy (HP)</span>
+                            <span className="font-bold text-slate-300">{gymState.playerHp} / {gymState.playerMaxHp}</span>
+                          </div>
+                          
+                          {/* Animated bar using percentage thresholds */}
+                          <div className="w-full bg-slate-950 rounded-full h-2 overflow-hidden border border-slate-800 shadow-inner">
+                            <div 
+                              className={`h-full rounded-full transition-all duration-300 ${
+                                (gymState.playerHp / gymState.playerMaxHp) >= 0.5 ? 'bg-emerald-500' :
+                                (gymState.playerHp / gymState.playerMaxHp) >= 0.2 ? 'bg-amber-400' : 'bg-red-500'
+                              }`} 
+                              style={{ width: `${(gymState.playerHp / gymState.playerMaxHp) * 100}%` }} 
+                            />
+                          </div>
+                        </div>
+
+                        {/* Special energy slider block */}
+                        <div className="space-y-0.5 pt-0.5">
+                          <div className="flex justify-between text-[8px] font-mono text-slate-500">
+                            <span>Mossa Speciale</span>
+                            <span className={`font-bold ${gymState.energy >= 100 ? 'text-sky-300 animate-pulse font-black' : 'text-slate-400'}`}>
+                              {gymState.energy >= 100 ? '🌟 ADRENALINA PRONTA!' : `${gymState.energy}% / 100%`}
+                            </span>
+                          </div>
+                          <div className="w-full bg-slate-950 rounded-full h-1.5 overflow-hidden border border-slate-920">
+                            <div 
+                              className={`h-full rounded-full transition-all duration-200 bg-gradient-to-r ${
+                                gymState.energy >= 100 
+                                  ? 'from-blue-400 via-sky-400 to-indigo-500 animate-pulse' 
+                                  : 'from-blue-600 to-cyan-500'
+                              }`}
+                              style={{ width: `${gymState.energy}%` }} 
+                            />
+                          </div>
+                        </div>
+
+                        {/* State & passive buff tags */}
+                        <div className="flex flex-wrap gap-1 items-center text-[8.5px] font-mono text-slate-500 pt-0.5 border-t border-slate-850/50 mt-0.5">
+                          <span>Buff:</span>
+                          {(gymState.playerDefenseBuff || 0) > 0 && (
+                            <span className="text-amber-400 bg-amber-950/20 border border-amber-900/60 px-1 py-0.1 rounded-sm">
+                              🛡️ Difesa +{Math.round((gymState.playerDefenseBuff || 0) * 100)}%
+                            </span>
+                          )}
+                          {(gymState.arenaId === 'morgex' || (gymState.playerEvasionBuff || 0) > 0) && (
+                            <span className="text-purple-400 bg-purple-950/20 border border-purple-900/60 px-1 py-0.1 rounded-sm">
+                              💨 Evasione +{Math.round(((gymState.playerEvasionBuff || 0) + (gymState.arenaId === 'morgex' ? 0.2 : 0)) * 100)}%
+                            </span>
+                          )}
+                          {((gymState.playerDefenseBuff || 0) === 0 && (gymState.arenaId !== 'morgex' && (gymState.playerEvasionBuff || 0) === 0)) && (
+                            <span className="text-slate-600 italic">Nessun potenziamento attivo</span>
+                          )}
+                        </div>
+
+                      </div>
+                    </div>
+
+                  </div>
+                </div>
+
+                {/* RIGHT COLUMN: ACTION RADAR + BATTLE LOGS */}
+                <div className="flex flex-col justify-between gap-4">
+                  
+                  {/* UPPER PIECE: SCROLLABLE REAL-TIME ARENA CONSOLE LOGGER */}
+                  <div className="bg-slate-950 border border-slate-850 rounded-3xl p-4 text-left shadow-lg flex-1 flex flex-col justify-between min-h-[160px] max-h-[190px]">
+                    <div className="flex justify-between items-center border-b border-slate-900 pb-1.5 mb-1.5">
+                      <span className="text-[9px] uppercase tracking-wider text-slate-500 font-extrabold font-mono block">📜 Registro Scontro</span>
+                      <span className="text-[8.5px] font-mono text-slate-600">{gymState.history.length}/100 logs</span>
+                    </div>
+
+                    <div className="font-mono text-[10px] text-slate-300 leading-relaxed overflow-y-auto no-scrollbar space-y-1.5 flex-1 pr-1">
+                      {gymState.history.map((line, idx) => {
+                        let colorClass = 'text-slate-300';
+                        if (line.includes('⚔️') || line.includes('Vittoria') || line.includes('🏆') || line.includes('RELLA')) colorClass = 'text-emerald-400';
+                        if (line.includes('💥') || line.includes('💀') || line.includes('Boss') || line.includes('Boss:')) colorClass = 'text-red-400 font-medium';
+                        if (line.includes('🍼') || line.includes('🍀') || line.includes('Mela') || line.includes('Recupera') || line.includes('HP')) colorClass = 'text-amber-400';
+                        if (line.includes('🛡️') || line.includes('Posizione')) colorClass = 'text-blue-400';
+                        if (line.includes('💨') || line.includes('schiva')) colorClass = 'text-purple-400 font-bold';
+                        
+                        return (
+                          <div key={idx} className={`p-1.5 bg-slate-900/40 rounded-lg border border-slate-920 leading-snug flex items-start gap-1 ${colorClass}`}>
+                            <span className="text-slate-600 font-light select-none">›</span>
+                            <span>{line}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* LOWER PIECE: POKÉMON DUAL COMMAND COMMAND PAD */}
+                  <div className="bg-slate-950 border border-slate-850 rounded-3xl p-5 shadow-lg flex flex-col justify-between min-h-[250px]">
+                    
+                    {/* Command Tabs Selection */}
+                    <div className="grid grid-cols-3 border-b border-slate-900 pb-3 gap-2">
+                      <button
+                        onClick={() => { playClickSfx(); setBattleActionTab('moves'); }}
+                        className={`py-2 px-1 text-[11px] font-mono font-black rounded-xl transition-all uppercase flex items-center justify-center gap-1 cursor-pointer ${
+                          battleActionTab === 'moves' 
+                            ? 'bg-red-500 text-slate-950 shadow-md shadow-red-500/10' 
+                            : 'bg-slate-900 text-slate-400 hover:bg-slate-850'
+                        }`}
+                      >
+                        <Swords className="w-3 h-3" />
+                        Attacco
+                      </button>
+
+                      <button
+                        onClick={() => { playClickSfx(); setBattleActionTab('bag'); }}
+                        className={`py-2 px-1 text-[11px] font-mono font-black rounded-xl transition-all uppercase flex items-center justify-center gap-1 cursor-pointer ${
+                          battleActionTab === 'bag' 
+                            ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/10' 
+                            : 'bg-slate-900 text-slate-400 hover:bg-slate-850'
+                        }`}
+                      >
+                        <ShoppingBag className="w-3 h-3" />
+                        Zaino
+                      </button>
+
+                      <button
+                        onClick={() => { playClickSfx(); setBattleActionTab('swap'); }}
+                        className={`py-2 px-1 text-[11px] font-mono font-black rounded-xl transition-all uppercase flex items-center justify-center gap-1 cursor-pointer ${
+                          battleActionTab === 'swap' 
+                            ? 'bg-purple-550 text-slate-950 shadow-md shadow-purple-500/10' 
+                            : 'bg-slate-900 text-slate-400 hover:bg-slate-850'
+                        }`}
+                      >
+                        <RotateCw className="w-3 h-3 animate-spin-slow" />
+                        Reine
+                      </button>
+                    </div>
+
+                    {/* Tab Panels Contents */}
+                    <div className="flex-grow flex flex-col justify-center py-4">
+                      
+                      {gymState.status === 'ended' ? (
+                        <div className="text-center space-y-4 py-2">
+                          <span className="text-4xl block animate-bounce">{gymState.winner === 'player' ? '🏆' : '💀'}</span>
+                          <div>
+                            <h3 className={`text-lg font-mono font-black uppercase ${
+                              gymState.winner === 'player' ? 'text-green-400' : 'text-rose-500'
+                            }`}>
+                              {gymState.winner === 'player' ? 'Scontro Concluso: VITTORIA!' : 'Scontro Concluso: SCONFITTA'}
+                            </h3>
+                            <p className="text-xs text-slate-400 mt-1 max-w-xs mx-auto leading-relaxed">
+                              {gymState.winner === 'player' 
+                                ? 'Complimenti! Hai sbaragliato il Boss della Regina. Ricevi ricompense leggendarie d\'alpeggio.' 
+                                : 'Il tuo fedele amico si è stremato lungo i pendii dell\'arena Valtellina. Sali di livello o usa attacchi diversificati!'}
+                            </p>
+                          </div>
+
+                          <div className="pt-2">
+                            <button
+                              onClick={() => { playClickSfx(); setGymState(prev => ({ ...prev, status: 'idle' })); }}
+                              className="bg-slate-900 hover:bg-slate-850 border border-slate-800 hover:border-slate-700 text-yellow-400 font-mono font-bold text-xs py-2.5 px-6 rounded-xl shadow cursor-pointer uppercase transition-all"
+                            >
+                              Torna d'Alpeggio 🎒
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        
+                        /* ACTIVE INTERACTIVE CHOICE TILES */
+                        <div className="w-full">
+                          
+                          {/* 1. MOVES TAB PANEL */}
+                          {battleActionTab === 'moves' && (
+                            <div className="grid grid-cols-2 gap-3" id="moves-panel">
+                              {/* 1. Basic strike */}
+                              <button
+                                onClick={() => handleExecutePlayerMove('headbutt')}
+                                disabled={gymState.activeTurn !== 'player'}
+                                className="bg-slate-900 hover:bg-slate-850 disabled:opacity-40 border border-slate-800 p-3 rounded-2xl text-left hover:border-red-500/20 cursor-pointer flex flex-col justify-between h-20 transition-all text-slate-200"
+                              >
+                                <div className="flex justify-between items-center w-full">
+                                  <span className="text-[11px] font-mono font-black text-rose-300">💥 Testata Alpina</span>
+                                  <span className="text-[8px] bg-red-950 text-red-400 px-1 rounded-sm border border-red-950 leading-none">ATT</span>
+                                </div>
+                                <span className="text-[9px] text-slate-400 leading-snug">Base | CP rating. Ricarica mossa speciale (+18 E)</span>
+                              </button>
+
+                              {/* 2. Defensive block */}
+                              <button
+                                onClick={() => handleExecutePlayerMove('shield')}
+                                disabled={gymState.activeTurn !== 'player'}
+                                className="bg-slate-900 hover:bg-slate-850 disabled:opacity-40 border border-slate-800 p-3 rounded-2xl text-left hover:border-blue-500/20 cursor-pointer flex flex-col justify-between h-20 transition-all text-slate-200"
+                              >
+                                <div className="flex justify-between items-center w-full">
+                                  <span className="text-[11px] font-mono font-black text-sky-300">🛡️ Corno Protettivo</span>
+                                  <span className="text-[8px] bg-slate-950 text-slate-400 px-1 rounded-sm border border-slate-900 leading-none">DIF</span>
+                                </div>
+                                <span className="text-[9px] text-slate-400 leading-snug">Rinfianco +35% Difesa per il duello (+12 E)</span>
+                              </button>
+
+                              {/* 3. Healing milk uses */}
+                              <button
+                                onClick={() => handleExecutePlayerMove('healing')}
+                                disabled={gymState.activeTurn !== 'player' || milkLickUses <= 0}
+                                className="bg-slate-900 hover:bg-slate-850 disabled:opacity-40 border border-slate-800 p-3 rounded-2xl text-left hover:border-amber-500/20 cursor-pointer flex flex-col justify-between h-20 transition-all text-slate-200 relative overflow-hidden"
+                              >
+                                <div className="flex justify-between items-center w-full">
+                                  <span className="text-[11px] font-mono font-black text-amber-300">🍼 Latte Reale</span>
+                                  <span className="text-[9px] font-mono font-bold text-yellow-500">Usabili: {milkLickUses}/3</span>
+                                </div>
+                                <span className="text-[9px] text-slate-400 leading-snug">Rigenera alto HP d'emergenza (+30 HP Bonus a Cogne)</span>
+                              </button>
+
+                              {/* 4. Special strike - Incornata Divina */}
+                              <button
+                                onClick={() => handleExecutePlayerMove('special')}
+                                disabled={gymState.activeTurn !== 'player' || gymState.energy < 100}
+                                className={`p-3 rounded-2xl text-left flex flex-col justify-between h-20 transition-all relative overflow-hidden cursor-pointer ${
+                                  gymState.energy >= 100 
+                                    ? 'bg-gradient-to-r from-blue-900 to-indigo-900 border-2 border-sky-400 shadow-md text-white' 
+                                    : 'bg-slate-900/60 border border-slate-850 text-slate-500 opacity-50 cursor-not-allowed'
+                                }`}
+                              >
+                                {gymState.energy >= 100 && (
+                                  <div className="absolute top-0 right-0 w-8 h-8 bg-sky-400/20 rounded-full blur animate-pulse pointer-events-none"></div>
+                                )}
+                                <div className="flex justify-between items-center w-full">
+                                  <span className={`text-[11px] font-mono font-black ${gymState.energy >= 100 ? 'text-sky-300' : 'text-slate-500'}`}>
+                                    🔱 INCORNATA SUPREMA
+                                  </span>
+                                  <span className="text-[8px] bg-blue-950 text-blue-300 px-1 rounded-sm border border-blue-900 leading-none">SPEC</span>
+                                </div>
+                                <span className={`text-[9px] leading-snug ${gymState.energy >= 100 ? 'text-slate-200' : 'text-slate-500'}`}>
+                                  Consuma 100% Energia. Danno raddoppiato insormontabile!
+                                </span>
+                              </button>
+                            </div>
+                          )}
+
+                          {/* 2. BAG TAB PANEL */}
+                          {battleActionTab === 'bag' && (
+                            <div className="space-y-2.5" id="battle-backpack-items">
+                              {backpack.filter(item => ['item-apple', 'item-potion', 'item-hay'].includes(item.id)).map(item => {
+                                const count = item.quantity || 0;
+                                return (
+                                  <div 
+                                    key={item.id}
+                                    className="bg-slate-900 p-2.5 rounded-2xl border border-slate-850 flex items-center justify-between gap-3"
+                                  >
+                                    <div className="flex items-center gap-2.5 text-left flex-1 min-w-0">
+                                      <span className="text-xl flex-shrink-0">
+                                        {item.id === 'item-apple' ? '🍎' : item.id === 'item-potion' ? '🥚' : '🌾'}
+                                      </span>
+                                      <div className="min-w-0">
+                                        <h4 className="font-mono font-bold text-xs text-slate-200 leading-tight flex items-center gap-1">
+                                          {item.name}
+                                          <span className="text-[10px] text-amber-400 font-extrabold font-mono">({count})</span>
+                                        </h4>
+                                        <p className="text-[9px] text-slate-450 truncate">{item.description}</p>
+                                      </div>
+                                    </div>
+
+                                    <button
+                                      disabled={count <= 0 || gymState.activeTurn !== 'player'}
+                                      onClick={() => handleUseBackpackItemInCombat(item.id)}
+                                      className="py-1.5 px-3.5 bg-amber-500 hover:bg-amber-400 disabled:opacity-30 rounded-xl font-mono text-[9px] font-black text-slate-950 uppercase cursor-pointer transition-colors"
+                                    >
+                                      Usa
+                                    </button>
+                                  </div>
+                                );
+                              })}
+                              {backpack.filter(item => ['item-apple', 'item-potion', 'item-hay'].includes(item.id)).length === 0 && (
+                                <p className="text-xs text-slate-500 italic text-center">Nessun oggetto consumabile da combattimento nello zaino!</p>
+                              )}
+                            </div>
+                          )}
+
+                          {/* 3. SWAP REINE COMBATANT TAB PANEL */}
+                          {battleActionTab === 'swap' && (
+                            <div className="space-y-2.5 max-h-[160px] overflow-y-auto no-scrollbar" id="partner-switchboard">
+                              <span className="text-[8.5px] font-mono text-slate-500 uppercase font-black block tracking-wider text-left border-b border-slate-900 pb-1 mb-1.5">Sostituzione rapida combattente</span>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                {vazzadex.map(buddy => {
+                                  const isCurrentFighter = gymState.playerVazzamon?.id === buddy.id;
+                                  return (
+                                    <button
+                                      key={buddy.id}
+                                      disabled={isCurrentFighter || gymState.activeTurn !== 'player'}
+                                      onClick={() => handleSwapCombatBuddy(buddy)}
+                                      className={`p-2 rounded-2xl border flex items-center justify-between text-left transition-all ${
+                                        isCurrentFighter 
+                                          ? 'bg-emerald-950/20 border-emerald-500/40 opacity-70 cursor-not-allowed' 
+                                          : 'bg-slate-900 border-slate-850 hover:bg-slate-850 hover:border-slate-800 cursor-pointer text-slate-200'
+                                      }`}
+                                    >
+                                      <div className="flex items-center gap-2">
+                                        <VazzamonAvatar breed={buddy.breed} rarity={buddy.rarity} className="w-8 h-8" />
+                                        <div className="leading-tight">
+                                          <h5 className="font-mono font-bold text-[10px] text-slate-300 truncate max-w-[80px]">{buddy.name}</h5>
+                                          <span className="text-[9px] font-mono text-slate-500 block">LV {buddy.level} | CP {buddy.cp}</span>
+                                        </div>
+                                      </div>
+                                      <span className={`text-[8px] font-mono font-black ${
+                                        isCurrentFighter ? 'text-emerald-400' : 'text-slate-500'
+                                      }`}>
+                                        {isCurrentFighter ? 'IN CAMPO' : 'SWAP'}
+                                      </span>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+
+                        </div>
+                      )}
+
+                    </div>
+
+                  </div>
+
+                </div>
+
+              </div>
+            )}
+
           </div>
         )}
 
