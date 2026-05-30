@@ -29,6 +29,7 @@ import {
 import { Vazzamon, Hotspot, BackpackItem, Egg, Trainer, BattleState, RarityType } from './types';
 import { VazzamonAvatar } from './components/VazzamonAvatar';
 import { CowVisual } from './components/CowVisual';
+import { CowCard } from './components/CowCard';
 import { soundEngine } from './utils/audio';
 import { generateVazzamonClient } from './lib/generate';
 import { REAL_COWS, REAL_TOTAL, REAL_CASERE } from './data/realCows';
@@ -2158,96 +2159,18 @@ export default function App() {
 
         {/* DETAILS POPUP MODAL SCREEN FOR SINGLE SELECTED VAZZAMON */}
         {selectedVazzamon && (
-          <div className="fixed inset-0 bg-slate-950/90 z-50 flex items-center justify-center p-4 backdrop-blur-xs animate-fade-in" id="details-modal">
-            <div className="bg-slate-900 border-2 border-slate-800 rounded-3xl max-w-md w-full p-6 text-center space-y-4 shadow-2xl relative overflow-hidden">
-              
+          <div className="fixed inset-0 bg-slate-950/90 z-50 flex items-center justify-center p-4 backdrop-blur-xs animate-fade-in overflow-y-auto" id="details-modal">
+            <div className="bg-slate-900 border-2 border-slate-800 rounded-3xl max-w-md w-full p-5 text-center space-y-4 shadow-2xl relative my-auto">
+
               <button
                 onClick={() => { playClickSfx(); setSelectedVazzamon(null); }}
-                className="absolute top-4 right-4 text-slate-400 hover:text-slate-200 transition-colors p-1"
+                className="absolute top-3 right-3 z-20 text-slate-400 hover:text-slate-200 transition-colors p-1 bg-slate-950/60 rounded-full"
               >
                 <X className="w-6 h-6" />
               </button>
 
-              {/* Glowing aura frame matching rarity */}
-              <div className="pt-2">
-                <span className={`text-[10px] bg-slate-950 border font-mono font-black tracking-widest px-3 py-1 rounded-full uppercase ${
-                  selectedVazzamon.rarity === 'Leggendaria' ? 'text-amber-400 border-amber-500/20' :
-                  selectedVazzamon.rarity === 'Epica' ? 'text-purple-400 border-purple-500/20' :
-                  selectedVazzamon.rarity === 'Rara' ? 'text-blue-400 border-blue-500/20' : 'text-slate-400 border-slate-800'
-                }`}>
-                  Bovina {selectedVazzamon.rarity}
-                </span>
-              </div>
-
-              {/* CP & level display */}
-              <div className="space-y-1">
-                <div className="text-[10px] text-slate-500 font-mono tracking-wider">REGISTRO GENOMA</div>
-                <h1 className="text-3xl font-mono font-black text-[#F5F5DC] tracking-tight leading-none uppercase">CP {selectedVazzamon.cp}</h1>
-                <div className="text-xs text-slate-400 font-mono">Livello {selectedVazzamon.level} • Razza: {selectedVazzamon.breed}</div>
-              </div>
-
-              {/* Massive Center Avatar View with Rarity representation classes */}
-              <div className="py-4 flex justify-center relative">
-                <div className={`absolute inset-4 rounded-full pointer-events-none filter blur-xl ${
-                  selectedVazzamon.rarity === 'Leggendaria' ? 'legendary-glow opacity-30' :
-                  selectedVazzamon.rarity === 'Epica' ? 'epic-glow opacity-25' :
-                  selectedVazzamon.rarity === 'Rara' ? 'rare-glow opacity-20' : 'opacity-0'
-                }`}></div>
-                <CowVisual cow={selectedVazzamon} className="w-32 h-32 relative z-10 animate-float" />
-              </div>
-
-              {/* RPG Stats curved gauges bars */}
-              <div className="grid grid-cols-3 gap-2 py-2 bg-slate-950 rounded-2xl border border-slate-850">
-                <div>
-                  <span className="block font-mono font-black text-sm text-amber-400">{selectedVazzamon.stats.strength}</span>
-                  <span className="text-[9.5px] text-slate-400 uppercase font-mono">Forza 🏋️‍♂️</span>
-                </div>
-                <div>
-                  <span className="block font-mono font-black text-sm text-blue-400">{selectedVazzamon.stats.defense}</span>
-                  <span className="text-[9.5px] text-slate-400 uppercase font-mono">Difesa 🛡️</span>
-                </div>
-                <div>
-                  <span className="block font-mono font-black text-sm text-emerald-400">{selectedVazzamon.stats.agility}</span>
-                  <span className="text-[9.5px] text-slate-400 uppercase font-mono">Agilità ⚡</span>
-                </div>
-              </div>
-
-              {/* Dati REALI: 4 statistiche delle Batailles + provenienza */}
-              {selectedVazzamon.isReal && selectedVazzamon.stats4 && (
-                <div className="bg-emerald-950/30 border border-emerald-900 rounded-2xl p-3 text-left space-y-2">
-                  <div className="text-[9px] font-mono font-black text-emerald-400 uppercase tracking-widest">Scheda reale · 4 statistiche</div>
-                  {([['STAZZA', 'stazza', '#3b82f6'], ['CORNA', 'corna', '#ef4444'], ['TESTA', 'testa', '#22c55e'], ['GRINTA', 'grinta', '#eab308']] as const).map(([lbl, key, col]) => (
-                    <div key={key}>
-                      <div className="flex justify-between text-[10px] font-mono font-bold text-slate-300"><span>{lbl}</span><span>{selectedVazzamon.stats4![key]}</span></div>
-                      <div className="h-1.5 rounded-full bg-slate-800 overflow-hidden">
-                        <div className="h-full rounded-full" style={{ width: `${Math.min(100, (selectedVazzamon.stats4![key] / 120) * 100)}%`, background: col }} />
-                      </div>
-                    </div>
-                  ))}
-                  <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[10px] font-mono text-slate-400 pt-1">
-                    <div>Potenza: <b className="text-slate-200">{selectedVazzamon.potenza}</b></div>
-                    <div>Comune: <b className="text-slate-200">{selectedVazzamon.comune}</b></div>
-                    <div>Riconosc.: <b className="text-slate-200">{selectedVazzamon.riconoscimento}</b></div>
-                    <div>Peso: <b className="text-slate-200">{selectedVazzamon.peso_kg} kg</b></div>
-                    <div>Allevatore: <b className="text-slate-200">{selectedVazzamon.allevatore || '—'}</b></div>
-                    {selectedVazzamon.matricola && <div>Matricola: <b className="text-slate-200">{selectedVazzamon.matricola}</b></div>}
-                  </div>
-                </div>
-              )}
-
-              {/* Bio lore snippets */}
-              <p className="text-xs text-slate-300 italic px-4 leading-relaxed bg-slate-950/40 p-3 rounded-xl border border-slate-850">
-                "{selectedVazzamon.lore}"
-              </p>
-
-              {/* Eco tracker sustainable tip */}
-              <div className="bg-emerald-950/40 border-2 border-emerald-900 p-3 rounded-2xl text-left flex gap-1.5">
-                <ShieldAlert className="w-4 h-4 text-emerald-400 flex-shrink-0 mt-0.5" />
-                <div className="space-y-0.5">
-                  <h4 className="text-[10px] font-mono font-black text-emerald-400 uppercase tracking-wide leading-none">Safari Eco-Tip</h4>
-                  <p className="text-[10px] text-slate-300 leading-normal">{selectedVazzamon.eco_tip}</p>
-                </div>
-              </div>
+              {/* Scheda "carta Pokémon" (componente dedicato) */}
+              <CowCard cow={selectedVazzamon} />
 
               {/* Pokemon GO Action: Power Up and Transfers */}
               <div className="border-t border-slate-850 pt-3 flex gap-2">

@@ -79,6 +79,19 @@
   background: radial-gradient(circle, rgba(239, 246, 255, 1) 0%, rgba(147, 197, 253, 0.4) 65%, rgba(0, 0, 0, 0) 100%);
 }
 
+/* Holographic Pokémon-style card sheen */
+@keyframes holo-shift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+.holo-sheen {
+  background: linear-gradient(115deg, transparent 20%, rgba(255,255,255,0.18) 40%, rgba(125,211,252,0.12) 50%, rgba(255,255,255,0.18) 60%, transparent 80%);
+  background-size: 220% 220%;
+  animation: holo-shift 5s ease-in-out infinite;
+  mix-blend-mode: screen;
+}
+
 /* Smooth hide scrollbars */
 .no-scrollbar::-webkit-scrollbar {
   display: none;
