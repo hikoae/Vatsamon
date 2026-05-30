@@ -92,6 +92,27 @@ note(`catalogo reali 0/73: ${cat}`);
 if (!cat) problems.push("manca la card catalogo reali X/73");
 await page.screenshot({ path: `${OUT}/v2int-3-dex.png` });
 
+// Quiz "Scuola d'Alpeggio": completa il flusso fino al risultato
+await page.locator("nav button", { hasText: "Scuola" }).first().click();
+await page.waitForTimeout(400);
+let quizGuard = 0;
+while (quizGuard++ < 15) {
+  const finished = await page.locator("text=Scuola d'Alpeggio completata").isVisible().catch(() => false);
+  if (finished) break;
+  // scegli un'opzione (la prima disponibile) poi avanza
+  await page.locator("#quiz-tab-view button.text-left").first().click().catch(() => {});
+  await page.waitForTimeout(150);
+  const nextBtn = page.locator("#quiz-next-btn");
+  if (await nextBtn.isVisible().catch(() => false)) {
+    await nextBtn.click();
+    await page.waitForTimeout(150);
+  }
+}
+const quizDone = await page.locator("text=Scuola d'Alpeggio completata").isVisible().catch(() => false);
+note(`quiz completato: ${quizDone}`);
+if (!quizDone) problems.push("quiz non arriva al risultato");
+await page.screenshot({ path: `${OUT}/v2int-6-quiz.png` });
+
 // AR Scan → upload → cattura interattiva (master ball garantita)
 await clickTab(page, "AR Scan");
 await page.waitForTimeout(300);

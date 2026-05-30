@@ -24,7 +24,8 @@ import {
   ShoppingBag,
   Gift,
   Footprints,
-  Plus
+  Plus,
+  GraduationCap
 } from 'lucide-react';
 import { Vazzamon, Hotspot, BackpackItem, Egg, Trainer, BattleState, RarityType } from './types';
 import { VazzamonAvatar } from './components/VazzamonAvatar';
@@ -32,6 +33,7 @@ import { CowVisual } from './components/CowVisual';
 import { CowCard } from './components/CowCard';
 import { TrailOverlay } from './components/TrailOverlay';
 import { VALDOSTAN_TRAILS } from './data/trails';
+import { QuizScreen } from './components/QuizScreen';
 import { soundEngine } from './utils/audio';
 import { generateVazzamonClient } from './lib/generate';
 import { REAL_COWS, REAL_TOTAL, REAL_CASERE } from './data/realCows';
@@ -172,7 +174,12 @@ export default function App() {
   useEffect(() => { localStorage.setItem('vazzamon_waypoint_progress', String(waypointProgress)); }, [waypointProgress]);
 
   // ---- 2. VIEW NAVIGATION ----
-  const [activeTab, setActiveTab] = useState<'map' | 'scanner' | 'eggs' | 'vazzadex' | 'battle'>('map');
+  const [activeTab, setActiveTab] = useState<'map' | 'scanner' | 'eggs' | 'vazzadex' | 'battle' | 'quiz'>('map');
+  // Quiz "Scuola d'Alpeggio": miglior punteggio persistito.
+  const [quizBest, setQuizBest] = useState<number>(() => {
+    const saved = localStorage.getItem('vazzamon_quiz_go');
+    return saved ? parseInt(saved, 10) : 0;
+  });
   const [soundEnabled, setSoundEnabled] = useState(true);
 
   // Overworld spawned wild Vazzamons
@@ -1330,7 +1337,7 @@ export default function App() {
 
       {/* 🧭 PRIMARY MAIN TABS NAVIGATION 🧭 */}
       <nav className="bg-slate-950/90 border-b border-slate-850 sticky top-[73px] z-40 shadow-inner">
-        <div className="max-w-md mx-auto grid grid-cols-5 gap-0.5 p-1 text-[11px] font-extrabold">
+        <div className="max-w-md mx-auto grid grid-cols-6 gap-0.5 p-1 text-[11px] font-extrabold">
           <button
             onClick={() => { playClickSfx(); setActiveTab('map'); }}
             className={`flex flex-col items-center py-2 rounded-xl transition-all ${activeTab === 'map' ? 'bg-emerald-500 text-slate-950' : 'text-slate-400 hover:bg-slate-900'}`}
@@ -1375,6 +1382,14 @@ export default function App() {
           >
             <Swords className="w-4 h-4 mb-0.5" />
             <span>Gym</span>
+          </button>
+
+          <button
+            onClick={() => { playClickSfx(); setActiveTab('quiz'); }}
+            className={`flex flex-col items-center py-2 rounded-xl transition-all ${activeTab === 'quiz' ? 'bg-emerald-500 text-slate-950' : 'text-slate-400 hover:bg-slate-900'}`}
+          >
+            <GraduationCap className="w-4 h-4 mb-0.5" />
+            <span>Scuola</span>
           </button>
         </div>
       </nav>
@@ -2294,6 +2309,31 @@ export default function App() {
               </div>
 
             </div>
+          </div>
+        )}
+
+        {/* VIEW 6: SCUOLA D'ALPEGGIO (QUIZ EDUCATIVO) */}
+        {activeTab === 'quiz' && (
+          <div className="space-y-4" id="quiz-tab-view">
+            <div className="bg-slate-950 border border-slate-850 rounded-3xl p-5 text-center">
+              <h2 className="text-lg font-mono font-black text-emerald-400 flex items-center justify-center gap-1.5 uppercase">
+                <GraduationCap className="w-5 h-5" /> Scuola d'Alpeggio
+              </h2>
+              <p className="text-xs text-slate-400 mt-1">Metti alla prova il tuo rispetto per montagna, bovine e tradizioni. Ogni risposta giusta vale monete e XP!</p>
+            </div>
+            <QuizScreen
+              bestScore={quizBest}
+              onFinish={(correct, totale) => {
+                const coinsWon = correct * 10;
+                setTrainer(prev => ({ ...prev, coins: prev.coins + coinsWon }));
+                addTrainerXp(correct * 30);
+                if (correct > quizBest) {
+                  setQuizBest(correct);
+                  localStorage.setItem('vazzamon_quiz_go', String(correct));
+                }
+                setTrekkingFeed(prev => [`🎓 Scuola d'Alpeggio: ${correct}/${totale} risposte giuste (+${coinsWon} 🪙)`, ...prev.slice(0, 8)]);
+              }}
+            />
           </div>
         )}
 
