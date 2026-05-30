@@ -32,6 +32,13 @@ export interface Vazzamon {
   // 4 statistiche reali dai pesi (oltre alle 3 di gioco)
   stats4?: { stazza: number; corna: number; testa: number; grinta: number };
   potenza?: number;
+  // Illustrazione stile Pokémon (per nome o razza), risolta come URL statico.
+  illustration?: string | null;
+  // Campi extra opzionali importati da vatsamon (additivi, non rompono nulla).
+  categoria?: string;
+  attack?: number;
+  defense4?: number;
+  funFact?: string;
 }
 
 export interface Hotspot {

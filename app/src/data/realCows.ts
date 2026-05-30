@@ -1,5 +1,6 @@
 import raw from "./vazzadex.json";
 import { Vazzamon, RarityType } from "../types";
+import { resolveIllustration } from "./illustrations";
 
 interface RawBovina {
   id: string; nome: string; razza: string; tipo: string; categoria: string;
@@ -57,6 +58,8 @@ function convert(b: RawBovina): Vazzamon {
     lng: b.lng,
     stats4: b.stats,
     potenza: b.potenza,
+    illustration: resolveIllustration(b.nome, b.razza),
+    categoria: b.categoria,
   };
 }
 
