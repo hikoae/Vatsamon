@@ -1,5 +1,4 @@
 import type { Bovina } from "../data/types";
-import { getPascolo } from "../data/db";
 import { rarityColor, stelle } from "../lib/rarity";
 import { CowImage } from "./CowImage";
 import { StatBars } from "./StatBars";
@@ -13,7 +12,6 @@ export function CowDetail({
   onClose: () => void;
   catturata: boolean;
 }) {
-  const pascolo = getPascolo(bovina.pascolo);
   return (
     <div className="overlay" onClick={onClose}>
       <div className="sheet" onClick={(e) => e.stopPropagation()}>
@@ -54,12 +52,8 @@ export function CowDetail({
             <span>{bovina.riconoscimento}</span>
           </div>
           <div className="kv">
-            <b>Comune</b>
+            <b>Comune / zona</b>
             <span>{bovina.comune}</span>
-          </div>
-          <div className="kv">
-            <b>Pascolo</b>
-            <span>{pascolo?.nome ?? bovina.pascolo}</span>
           </div>
           <div className="kv">
             <b>Allevatore</b>

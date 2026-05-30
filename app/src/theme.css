@@ -317,11 +317,13 @@ button {
 
 /* ---- Mappa ---- */
 .map-wrap {
+  position: relative;
   height: 100%;
 }
 .leaflet-container {
   height: 100%;
   width: 100%;
+  background: #aadaff;
 }
 .pin {
   background: var(--verde);
@@ -339,6 +341,98 @@ button {
 .pin span {
   transform: rotate(45deg);
   font-size: 16px;
+}
+.pin.far {
+  background: #9aa6a0;
+  filter: grayscale(0.5);
+  opacity: 0.85;
+}
+
+/* giocatore */
+.player-dot {
+  width: 18px;
+  height: 18px;
+  background: #2b7fff;
+  border: 3px solid #fff;
+  border-radius: 50%;
+  box-shadow: 0 0 0 4px rgba(43, 127, 255, 0.3);
+  animation: pulse 1.8s ease-out infinite;
+}
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(43, 127, 255, 0.45);
+  }
+  100% {
+    box-shadow: 0 0 0 16px rgba(43, 127, 255, 0);
+  }
+}
+
+/* HUD sopra la mappa */
+.map-hud-top {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1200;
+  max-width: 92%;
+}
+.hud-pill {
+  display: inline-block;
+  background: #fff;
+  color: var(--testo);
+  font-size: 13px;
+  font-weight: 700;
+  padding: 9px 14px;
+  border-radius: 999px;
+  box-shadow: var(--ombra);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+.hud-pill.ok {
+  background: var(--verde);
+  color: #fff;
+}
+.map-hud-bottom {
+  position: absolute;
+  bottom: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1200;
+  display: flex;
+  gap: 8px;
+}
+.hud-btn {
+  background: #fff;
+  color: var(--testo);
+  font-weight: 700;
+  font-size: 14px;
+  padding: 11px 16px;
+  border-radius: 999px;
+  box-shadow: var(--ombra);
+}
+.hud-btn.primary {
+  background: var(--verde);
+  color: #fff;
+}
+.hud-btn.active {
+  background: #2b7fff;
+  color: #fff;
+}
+.map-hint {
+  position: absolute;
+  bottom: 70px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1200;
+  background: rgba(27, 42, 29, 0.85);
+  color: #fff;
+  font-size: 12px;
+  padding: 7px 13px;
+  border-radius: 999px;
+  white-space: nowrap;
+  box-shadow: var(--ombra);
 }
 
 .banner {

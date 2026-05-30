@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Navbar, type Tab } from "./components/Navbar";
 import { MapScreen } from "./screens/MapScreen";
 import { VazzadexScreen } from "./screens/VazzadexScreen";
@@ -6,13 +6,24 @@ import { BattleScreen } from "./screens/BattleScreen";
 import { ProfileScreen } from "./screens/ProfileScreen";
 import { EncounterScreen } from "./screens/EncounterScreen";
 import { useGame } from "./store/game";
-import type { Pascolo } from "./data/types";
+import { BOVINE } from "./data/db";
+import { centro, type LatLng } from "./lib/geo";
+import type { Bovina } from "./data/types";
 
 export default function App() {
-  const { punti } = useGame();
+  const { punti, captured } = useGame();
   const [tab, setTab] = useState<Tab>("mappa");
-  const [encounter, setEncounter] = useState<Pascolo | null>(null);
+  const [encounter, setEncounter] = useState<Bovina | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+
+  // posizione iniziale del giocatore: vicino al gruppo di bovine ancora libere
+  const startPos = useMemo<LatLng>(() => {
+    const libere = BOVINE.filter((b) => !captured.has(b.id));
+    return centro((libere.length ? libere : BOVINE).map((b) => ({ lat: b.lat, lng: b.lng })));
+    // solo all'avvio
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const [player, setPlayer] = useState<LatLng>(startPos);
 
   useEffect(() => {
     if (!toast) return;
@@ -31,7 +42,12 @@ export default function App() {
       {/* La mappa va tenuta montata a tutta altezza; le altre schermate scrollano */}
       {tab === "mappa" ? (
         <div className="screen" style={{ padding: 0, overflow: "hidden" }}>
-          <MapScreen onEncounter={(p) => setEncounter(p)} />
+          <MapScreen
+            player={player}
+            setPlayer={setPlayer}
+            onEncounter={(b) => setEncounter(b)}
+            onToast={setToast}
+          />
         </div>
       ) : tab === "vazzadex" ? (
         <VazzadexScreen />
@@ -45,7 +61,7 @@ export default function App() {
 
       {encounter && (
         <EncounterScreen
-          pascolo={encounter}
+          target={encounter}
           onClose={() => setEncounter(null)}
           onToast={setToast}
         />

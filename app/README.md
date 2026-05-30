@@ -1,10 +1,20 @@
 # 🐮 Vazzamon — PWA
 
 La Vazzadex delle **Reines reali** delle Bataille de Reines valdostane.
-Stile Pokémon GO, ma con mucche vere: mappa dei pascoli → incontro → cattura
-(riconoscimento razza) → scheda → Vazzadex → Bataille amichevole.
+Vero gameplay **stile Pokémon GO**: cammini (GPS reale o demo) lungo i sentieri,
+ti avvicini alle bovine sparse nei loro **comuni reali**, e puoi catturarle solo
+quando sei nel raggio → riconoscimento razza → scheda → Vazzadex → Bataille.
 
 > Hackathon **BuildWithAI – GDG Valle d'Aosta**.
+
+## Gameplay (mappa)
+- Ogni bovina è geolocalizzata nel **comune/zona reale** di provenienza
+  (`scripts/place_bovine.py` assegna lat/lng + jitter, 0 fuori dalla VdA).
+- Marker del **giocatore** + cerchio del **raggio di cattura** (150 m).
+- Bovine **verdi** se a portata, **grigie** se lontane (tap → distanza).
+- **📍 GPS reale** (`watchPosition`) per giocare all'aperto.
+- **Demo al chiuso**: tocca la mappa per "camminare" verso le 🐮, oppure
+  il bottone **🥾 Avvicinati**. I metri percorsi diventano passi e punti.
 
 ## Stack
 - **Vite + React + TypeScript** (PWA installabile, offline-ready via `vite-plugin-pwa`)

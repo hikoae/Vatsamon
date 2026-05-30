@@ -45,6 +45,8 @@ export interface ManualeInput {
   razza: Bovina["razza"];
   note: string;
   pascolo: string;
+  lat: number;
+  lng: number;
 }
 
 interface GameContextValue extends GameState {
@@ -53,6 +55,7 @@ interface GameContextValue extends GameState {
   cattura: (id: string) => boolean; // true se nuova cattura
   aggiungiManuale: (input: ManualeInput) => Bovina;
   cammina: () => void;
+  camminaMetri: (metri: number) => void;
   vinciBattaglia: () => void;
   reset: () => void;
 }
@@ -105,6 +108,9 @@ export function GameProvider({ children }: { children: ReactNode }) {
       foto: null,
       descrizione: input.note.trim() || "Bovina aggiunta manualmente alla Vazzadex.",
       pascolo: input.pascolo,
+      lat: input.lat,
+      lng: input.lng,
+      zona_tipo: "manuale",
     };
     setState((s) => {
       if (s.capturedIds.includes(id)) return s;
@@ -120,6 +126,16 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
   const cammina = useCallback(() => {
     setState((s) => ({ ...s, passi: s.passi + 100, punti: s.punti + 1 }));
+  }, []);
+
+  // ~0.75 m a passo; +1 punto ogni 200 passi camminati
+  const camminaMetri = useCallback((metri: number) => {
+    if (metri <= 0) return;
+    setState((s) => {
+      const passi = s.passi + Math.round(metri / 0.75);
+      const puntiNuovi = Math.floor(passi / 200) - Math.floor(s.passi / 200);
+      return { ...s, passi, punti: s.punti + Math.max(0, puntiNuovi) };
+    });
   }, []);
 
   const vinciBattaglia = useCallback(() => {
@@ -139,6 +155,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     cattura,
     aggiungiManuale,
     cammina,
+    camminaMetri,
     vinciBattaglia,
     reset,
   };

@@ -1,6 +1,5 @@
-import { useMemo, useRef, useState } from "react";
-import type { Bovina, Pascolo, Razza } from "../data/types";
-import { scegliIncontro } from "../data/db";
+import { useRef, useState } from "react";
+import type { Bovina, Razza } from "../data/types";
 import { useGame } from "../store/game";
 import { riconosci, riconosciNonMucca, type Riconoscimento } from "../lib/recognition";
 import { CowImage } from "../components/CowImage";
@@ -13,39 +12,24 @@ type Phase = "incontro" | "analisi" | "scheda" | "nonmucca" | "manuale";
 const RAZZE: Razza[] = ["Castana", "Pezzata Rossa", "Pezzata Nera", "Sconosciuta"];
 
 export function EncounterScreen({
-  pascolo,
+  target,
   onClose,
   onToast,
 }: {
-  pascolo: Pascolo;
+  target: Bovina;
   onClose: () => void;
   onToast: (msg: string) => void;
 }) {
-  const { captured, cattura, aggiungiManuale } = useGame();
-  const [seed] = useState(() => Math.floor(Math.random() * 100000));
-  const target = useMemo<Bovina | undefined>(
-    () => scegliIncontro(pascolo.id, captured, seed),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [pascolo.id, seed],
-  );
-
+  const { cattura, aggiungiManuale } = useGame();
   const [phase, setPhase] = useState<Phase>("incontro");
   const [ric, setRic] = useState<Riconoscimento | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  if (!target) {
-    return (
-      <Sheet onClose={onClose}>
-        <p>Nessuna bovina in questo pascolo.</p>
-      </Sheet>
-    );
-  }
-
   async function avviaAnalisi() {
     setPhase("analisi");
-    const r = await riconosci(target!);
+    const r = await riconosci(target);
     setRic(r);
-    const nuova = cattura(target!.id);
+    const nuova = cattura(target.id);
     setPhase("scheda");
     onToast(nuova ? "Catturata! +10 punti 🎉" : "Già nella tua Vazzadex");
   }
@@ -62,7 +46,7 @@ export function EncounterScreen({
       {phase === "incontro" && (
         <div style={{ textAlign: "center" }}>
           <div className="banner" style={{ marginBottom: 12 }}>
-            📍 {pascolo.nome}
+            📍 {target.comune}
           </div>
           <p className="muted" style={{ marginTop: 0 }}>
             Una Reina selvatica è apparsa! Scatta o carica una foto per identificarla.
@@ -70,7 +54,7 @@ export function EncounterScreen({
           <CowImage bovina={target} className="hero-img" forceSilhouette />
           <h2 style={{ margin: "12px 0 2px" }}>???</h2>
           <div className="muted" style={{ marginBottom: 16 }}>
-            Bovina sconosciuta · {pascolo.comune}
+            Bovina sconosciuta · {target.comune}
           </div>
 
           <input
@@ -117,7 +101,7 @@ export function EncounterScreen({
       )}
 
       {phase === "scheda" && ric && (
-        <Reveal bovina={target} ric={ric} pascolo={pascolo} onClose={onClose} />
+        <Reveal bovina={target} ric={ric} onClose={onClose} />
       )}
 
       {phase === "nonmucca" && (
@@ -140,7 +124,12 @@ export function EncounterScreen({
           razze={RAZZE.filter((r) => r !== "Sconosciuta")}
           onCancel={() => setPhase("incontro")}
           onSave={(input) => {
-            aggiungiManuale({ ...input, pascolo: pascolo.id });
+            aggiungiManuale({
+              ...input,
+              pascolo: target.pascolo,
+              lat: target.lat,
+              lng: target.lng,
+            });
             onToast("Aggiunta alla Vazzadex! +10 punti");
             onClose();
           }}
@@ -153,15 +142,13 @@ export function EncounterScreen({
 function Reveal({
   bovina,
   ric,
-  pascolo,
   onClose,
 }: {
   bovina: Bovina;
   ric: Riconoscimento;
-  pascolo: Pascolo;
   onClose: () => void;
 }) {
-  const consiglio = consiglioCasuale(bovina.nome.length + pascolo.id.length);
+  const consiglio = consiglioCasuale(bovina.nome.length + bovina.comune.length);
   return (
     <div>
       <div className="banner" style={{ marginBottom: 12 }}>

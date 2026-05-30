@@ -28,6 +28,11 @@ export interface Bovina {
   foto: string | null;
   descrizione: string;
   pascolo: string;
+  /** coordinate reali nel comune/zona di provenienza */
+  lat: number;
+  lng: number;
+  /** "comune" | "zona" | "alpeggio" */
+  zona_tipo: string;
 }
 
 export interface Pascolo {

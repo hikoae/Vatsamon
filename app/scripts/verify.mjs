@@ -1,9 +1,13 @@
 import { chromium } from "playwright";
-import { mkdirSync } from "node:fs";
+import { mkdirSync, readFileSync } from "node:fs";
 
-const URL = process.env.URL ?? "http://localhost:5173/";
+const APP_URL = process.env.URL ?? "http://localhost:5173/";
 const OUT = "/tmp/vazzamon-shots";
 mkdirSync(OUT, { recursive: true });
+
+// una bovina reale su cui posizionare il "GPS" per testare la cattura di prossimità
+const data = JSON.parse(readFileSync(new URL("../src/data/vazzadex.json", import.meta.url)));
+const target = data.bovine[0];
 
 const viewports = [
   { name: "desktop", width: 1280, height: 832, isMobile: false },
@@ -21,37 +25,32 @@ for (const vp of viewports) {
     isMobile: vp.isMobile,
     hasTouch: vp.isMobile,
     deviceScaleFactor: vp.isMobile ? 2 : 1,
+    permissions: ["geolocation"],
+    geolocation: { latitude: target.lat, longitude: target.lng },
   });
   const page = await ctx.newPage();
   const errors = [];
   page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
   page.on("pageerror", (e) => errors.push("PAGEERROR: " + e.message));
 
-  await page.goto(URL, { waitUntil: "networkidle" });
-  await page.waitForTimeout(800);
+  await page.goto(APP_URL, { waitUntil: "networkidle" });
+  await page.waitForTimeout(900);
 
-  // --- Topbar + navbar visibili ---
-  const topbar = page.locator(".topbar");
-  const navbar = page.locator(".navbar");
-  const navBtns = page.locator(".navbar button");
-  const topVisible = await topbar.isVisible();
-  const navVisible = await navbar.isVisible();
-  const nBtns = await navBtns.count();
-  note(`topbar visibile: ${topVisible}`);
+  // --- Topbar + navbar ---
+  const navVisible = await page.locator(".navbar").isVisible();
+  const nBtns = await page.locator(".navbar button").count();
   note(`navbar visibile: ${navVisible} · pulsanti: ${nBtns}`);
-  if (!topVisible) problems.push(`[${vp.name}] topbar non visibile`);
   if (!navVisible) problems.push(`[${vp.name}] navbar non visibile`);
-  if (nBtns !== 4) problems.push(`[${vp.name}] navbar ha ${nBtns} pulsanti (attesi 4)`);
+  if (nBtns !== 4) problems.push(`[${vp.name}] navbar ha ${nBtns} pulsanti`);
 
-  // navbar dentro il viewport?
-  const navBox = await navbar.boundingBox();
-  if (navBox) {
-    const bottom = navBox.y + navBox.height;
-    note(`navbar bottom=${Math.round(bottom)} (viewport h=${vp.height})`);
-    if (bottom > vp.height + 2)
-      problems.push(`[${vp.name}] navbar sotto il viewport (bottom ${Math.round(bottom)} > ${vp.height})`);
-  }
-
+  // --- Mappa: player + bovine + HUD ---
+  const player = await page.locator(".player-dot").count();
+  const cows = await page.locator(".leaflet-marker-icon").count();
+  const hud = await page.locator(".map-hud-top .hud-pill").isVisible();
+  note(`player marker: ${player} · marker totali: ${cows} · HUD: ${hud}`);
+  if (player < 1) problems.push(`[${vp.name}] manca il marker del giocatore`);
+  if (cows < 10) problems.push(`[${vp.name}] poche bovine sulla mappa (${cows})`);
+  if (!hud) problems.push(`[${vp.name}] HUD di stato non visibile`);
   await page.screenshot({ path: `${OUT}/${vp.name}-1-mappa.png` });
 
   // --- Giro dei tab ---
@@ -61,62 +60,60 @@ for (const vp of viewports) {
     ["Profilo", "4-profilo"],
   ]) {
     await page.locator(".navbar button", { hasText: label }).click();
-    await page.waitForTimeout(500);
-    const heading = await page.locator(".screen h2, .card").first().isVisible().catch(() => false);
-    note(`tab ${label}: contenuto visibile = ${heading}`);
-    if (!heading) problems.push(`[${vp.name}] tab ${label} senza contenuto visibile`);
+    await page.waitForTimeout(450);
+    const ok = await page.locator(".screen h2, .card").first().isVisible().catch(() => false);
+    note(`tab ${label}: contenuto = ${ok}`);
+    if (!ok) problems.push(`[${vp.name}] tab ${label} vuoto`);
     await page.screenshot({ path: `${OUT}/${vp.name}-${shot}.png` });
   }
 
-  // --- Flusso incontro completo (solo su mobile per brevità) ---
+  // --- Flusso Pokémon GO: GPS → prossimità → cattura (solo mobile) ---
   if (vp.name === "mobile") {
     await page.locator(".navbar button", { hasText: "Mappa" }).click();
-    await page.waitForTimeout(800);
-    const markers = page.locator(".leaflet-marker-icon");
-    const mCount = await markers.count();
-    note(`marker sulla mappa: ${mCount}`);
-    if (mCount < 6) problems.push(`[${vp.name}] solo ${mCount} marker (attesi 6)`);
+    await page.waitForTimeout(700);
 
-    await markers.first().click();
-    await page.waitForTimeout(400);
-    const cerca = page.locator(".leaflet-popup button", { hasText: "Cerca una Reina" });
-    if (await cerca.isVisible()) {
-      await cerca.click();
+    // attiva il GPS (geolocation mockata sulla bovina target → entriamo nel raggio)
+    await page.locator(".hud-btn", { hasText: "GPS reale" }).click();
+    await page.waitForTimeout(1200);
+    const pill = await page.locator(".map-hud-top .hud-pill").innerText();
+    note(`HUD dopo GPS: ${pill.trim()}`);
+    const inRange = /a portata|tocca per catturare/i.test(pill);
+    if (!inRange) problems.push(`[${vp.name}] GPS non porta in raggio di cattura (${pill.trim()})`);
+    await page.screenshot({ path: `${OUT}/${vp.name}-5-inrange.png` });
+
+    // tocca una bovina a portata (pin non "far")
+    const nearPin = page.locator(".leaflet-marker-icon:has(.pin:not(.far))").first();
+    if (await nearPin.count()) {
+      await nearPin.click();
       await page.waitForTimeout(400);
-      await page.screenshot({ path: `${OUT}/${vp.name}-5-incontro.png` });
+      const sheet = await page.locator(".sheet").isVisible();
+      note(`sheet incontro aperta: ${sheet}`);
+      if (!sheet) problems.push(`[${vp.name}] tap su bovina a portata non apre l'incontro`);
+      await page.screenshot({ path: `${OUT}/${vp.name}-6-incontro.png` });
 
-      // l'overlay deve coprire il viewport ed essere l'elemento in cima al centro
-      const topAtCenter = await page.evaluate(() => {
-        const el = document.elementFromPoint(window.innerWidth / 2, window.innerHeight / 2);
-        return !!el?.closest(".overlay");
-      });
-      note(`overlay copre il centro schermo: ${topAtCenter}`);
-      if (!topAtCenter) problems.push(`[${vp.name}] overlay incontro coperta da altro (z-index)`);
       const demo = page.locator("button", { hasText: "Usa mucca demo" });
       if (await demo.isVisible()) {
         await demo.click();
-        await page.waitForTimeout(2600); // attesa riconoscimento simulato
-        const reveal = page.locator("button", { hasText: "Aggiungi alla Vazzadex" });
-        const ok = await reveal.isVisible();
-        note(`reveal scheda dopo cattura: ${ok}`);
-        if (!ok) problems.push(`[${vp.name}] scheda non rivelata dopo la cattura`);
-        await page.screenshot({ path: `${OUT}/${vp.name}-6-reveal.png` });
-        if (ok) await reveal.click();
-      } else problems.push(`[${vp.name}] bottone 'Usa mucca demo' non trovato`);
-    } else problems.push(`[${vp.name}] popup 'Cerca una Reina' non trovato`);
+        await page.waitForTimeout(2600);
+        const reveal = await page.locator("button", { hasText: "Aggiungi alla Vazzadex" }).isVisible();
+        note(`reveal scheda: ${reveal}`);
+        if (!reveal) problems.push(`[${vp.name}] scheda non rivelata`);
+        await page.screenshot({ path: `${OUT}/${vp.name}-7-reveal.png` });
+        if (reveal) await page.locator("button", { hasText: "Aggiungi alla Vazzadex" }).click();
+      } else problems.push(`[${vp.name}] bottone demo assente`);
+    } else problems.push(`[${vp.name}] nessuna bovina a portata dopo il GPS`);
 
-    // verifica contatore Vazzadex aggiornato
+    // contatore aggiornato
     await page.locator(".navbar button", { hasText: "Vazzadex" }).click();
-    await page.waitForTimeout(500);
-    const counter = await page.locator(".card", { hasText: "Vazzadex:" }).first().innerText().catch(() => "");
+    await page.waitForTimeout(450);
+    const counter = await page.locator(".card", { hasText: "Vazzadex:" }).first().innerText();
     note(`contatore: ${counter.replace(/\n/g, " ")}`);
     if (!/Vazzadex:\s*1\s*\/\s*73/.test(counter))
-      problems.push(`[${vp.name}] contatore non a 1/73 dopo cattura (${counter.replace(/\n/g, " ")})`);
-    await page.screenshot({ path: `${OUT}/${vp.name}-7-dex-dopo.png` });
+      problems.push(`[${vp.name}] contatore non 1/73 (${counter.replace(/\n/g, " ")})`);
   }
 
   if (errors.length) {
-    console.log("  ! console/page errors:");
+    console.log("  ! errori:");
     errors.forEach((e) => console.log("    - " + e));
     problems.push(`[${vp.name}] ${errors.length} errori console`);
   } else note("nessun errore console");

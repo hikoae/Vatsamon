@@ -3,7 +3,8 @@
     "versione": "0.3",
     "fonte": "Calendario Batailles 2026 - Association régionale Amis des Batailles de Reines",
     "note": "Nomi proprietari ridotti a iniziali. Pesi senza valore reale sono stimati per categoria. Razza = default Castana (da verificare), Pezzata Rossa per 'Regina del latte'.",
-    "foto": "35 bovine con foto reale ritagliata dal calendario (vincitrici di categoria). Crediti fotografi: Artaz, Noussan, Pallais, Ramires, Ronco, Tucci (Association). Uso pubblico da autorizzare."
+    "foto": "35 bovine con foto reale ritagliata dal calendario (vincitrici di categoria). Crediti fotografi: Artaz, Noussan, Pallais, Ramires, Ronco, Tucci (Association). Uso pubblico da autorizzare.",
+    "geocoding": "Coordinate assegnate per comune VdA + jitter deterministico (demo). Bovine senza comune piazzate negli alpeggi di alta quota."
   },
   "bovine": [
     {
@@ -29,7 +30,10 @@
       "potenza": 347,
       "foto": "photos/ALLEGRA.jpg",
       "descrizione": "5ª-8ª di 1ª categoria, da Donnas. Razza Castana.",
-      "pascolo": "P6"
+      "pascolo": "P6",
+      "zona_tipo": "comune",
+      "lat": 45.59405,
+      "lng": 7.7808
     },
     {
       "id": "VZ002",
@@ -54,7 +58,10 @@
       "potenza": 347,
       "foto": null,
       "descrizione": "Reine Régionale di 2ª categoria, da Donnas. Razza Castana.",
-      "pascolo": "P6"
+      "pascolo": "P6",
+      "zona_tipo": "comune",
+      "lat": 45.59603,
+      "lng": 7.77035
     },
     {
       "id": "VZ061",
@@ -65,7 +72,7 @@
       "rarita": "Rara",
       "stelle": 3,
       "riconoscimento": "Vincitrice di categoria",
-      "comune": "Challand-St-Anselme",
+      "comune": "Challand-Saint-Anselme",
       "allevatore": "C.M.",
       "matricola": "",
       "peso_kg": 649,
@@ -79,7 +86,10 @@
       "potenza": 319,
       "foto": "photos/AMOUREUSE.jpg",
       "descrizione": "Vincitrice di 2ª categoria, da Challand-St-Anselme. Razza Castana.",
-      "pascolo": "P3"
+      "pascolo": "P3",
+      "zona_tipo": "comune",
+      "lat": 45.69504,
+      "lng": 7.72892
     },
     {
       "id": "VZ003",
@@ -90,7 +100,7 @@
       "rarita": "Epica",
       "stelle": 4,
       "riconoscimento": "Vacca più pesante",
-      "comune": "",
+      "comune": "Alpeggi di Gressoney",
       "allevatore": "",
       "matricola": "",
       "peso_kg": 758,
@@ -104,7 +114,10 @@
       "potenza": 353,
       "foto": null,
       "descrizione": "Vacca più pesante di 1ª categoria. Razza Castana.",
-      "pascolo": "P3"
+      "pascolo": "P3",
+      "zona_tipo": "alpeggio",
+      "lat": 45.77862,
+      "lng": 7.83896
     },
     {
       "id": "VZ004",
@@ -115,7 +128,7 @@
       "rarita": "Rara",
       "stelle": 3,
       "riconoscimento": "2ª classificata",
-      "comune": "Saint",
+      "comune": "Saint-Vincent",
       "allevatore": "C.A.",
       "matricola": "",
       "peso_kg": 588,
@@ -129,7 +142,10 @@
       "potenza": 281,
       "foto": null,
       "descrizione": "2ª classificata di 3ª categoria, da Saint. Razza Castana.",
-      "pascolo": "P4"
+      "pascolo": "P4",
+      "zona_tipo": "comune",
+      "lat": 45.74524,
+      "lng": 7.64158
     },
     {
       "id": "VZ068",
@@ -154,7 +170,10 @@
       "potenza": 319,
       "foto": "photos/BARONNE.jpg",
       "descrizione": "Vincitrice di 2ª categoria, da Saint-Christophe. Razza Castana.",
-      "pascolo": "P6"
+      "pascolo": "P6",
+      "zona_tipo": "comune",
+      "lat": 45.75815,
+      "lng": 7.36002
     },
     {
       "id": "VZ005",
@@ -165,7 +184,7 @@
       "rarita": "Rara",
       "stelle": 3,
       "riconoscimento": "2ª classificata",
-      "comune": "Mont Emilius",
+      "comune": "Charvensod (Mont Emilius)",
       "allevatore": "M.A.",
       "matricola": "",
       "peso_kg": 575,
@@ -179,7 +198,10 @@
       "potenza": 276,
       "foto": null,
       "descrizione": "2ª classificata di 3ª categoria, da Mont Emilius. Razza Castana.",
-      "pascolo": "P5"
+      "pascolo": "P5",
+      "zona_tipo": "zona",
+      "lat": 45.70812,
+      "lng": 7.35327
     },
     {
       "id": "VZ058",
@@ -204,7 +226,10 @@
       "potenza": 345,
       "foto": "photos/BATICHA.jpg",
       "descrizione": "Vincitrice di 1ª categoria, da Valpelline. Razza Castana.",
-      "pascolo": "P2"
+      "pascolo": "P2",
+      "zona_tipo": "comune",
+      "lat": 45.81859,
+      "lng": 7.31846
     },
     {
       "id": "VZ006",
@@ -229,7 +254,10 @@
       "potenza": 275,
       "foto": null,
       "descrizione": "2ª classificata di 3ª categoria, da Brissogne. Razza Castana.",
-      "pascolo": "P6"
+      "pascolo": "P6",
+      "zona_tipo": "comune",
+      "lat": 45.7145,
+      "lng": 7.39996
     },
     {
       "id": "VZ007",
@@ -254,7 +282,10 @@
       "potenza": 286,
       "foto": null,
       "descrizione": "Migliore 2º parto di 3ª categoria, da Pollein. Razza Castana.",
-      "pascolo": "P1"
+      "pascolo": "P1",
+      "zona_tipo": "comune",
+      "lat": 45.71871,
+      "lng": 7.35532
     },
     {
       "id": "VZ008",
@@ -279,7 +310,10 @@
       "potenza": 283,
       "foto": "photos/BELVA.jpg",
       "descrizione": "5ª-8ª di 3ª categoria, da Quart. Razza Castana.",
-      "pascolo": "P2"
+      "pascolo": "P2",
+      "zona_tipo": "comune",
+      "lat": 45.73135,
+      "lng": 7.38835
     },
     {
       "id": "VZ009",
@@ -304,7 +338,10 @@
       "potenza": 324,
       "foto": null,
       "descrizione": "2ª classificata di 2ª categoria, da Aosta. Razza Castana.",
-      "pascolo": "P3"
+      "pascolo": "P3",
+      "zona_tipo": "comune",
+      "lat": 45.7379,
+      "lng": 7.30924
     },
     {
       "id": "VZ073",
@@ -329,7 +366,10 @@
       "potenza": 325,
       "foto": "photos/BESKIADA.jpg",
       "descrizione": "Vincitrice di 2ª categoria, da Perloz. Razza Castana.",
-      "pascolo": "P1"
+      "pascolo": "P1",
+      "zona_tipo": "comune",
+      "lat": 45.60218,
+      "lng": 7.78852
     },
     {
       "id": "VZ010",
@@ -340,7 +380,7 @@
       "rarita": "Epica",
       "stelle": 4,
       "riconoscimento": "Vacca più pesante",
-      "comune": "",
+      "comune": "Alpeggi di Rhêmes",
       "allevatore": "",
       "matricola": "",
       "peso_kg": 720,
@@ -354,7 +394,10 @@
       "potenza": 368,
       "foto": "photos/BRIGANDA.jpg",
       "descrizione": "Vacca più pesante di 1ª categoria. Razza Castana.",
-      "pascolo": "P4"
+      "pascolo": "P4",
+      "zona_tipo": "alpeggio",
+      "lat": 45.61072,
+      "lng": 7.15289
     },
     {
       "id": "VZ011",
@@ -379,7 +422,10 @@
       "potenza": 277,
       "foto": null,
       "descrizione": "4ª di 3ª categoria, da Verrayes. Razza Castana.",
-      "pascolo": "P5"
+      "pascolo": "P5",
+      "zona_tipo": "comune",
+      "lat": 45.74244,
+      "lng": 7.51774
     },
     {
       "id": "VZ012",
@@ -404,7 +450,10 @@
       "potenza": 354,
       "foto": null,
       "descrizione": "4ª di 1ª categoria, da Donnas. Razza Castana.",
-      "pascolo": "P6"
+      "pascolo": "P6",
+      "zona_tipo": "comune",
+      "lat": 45.61513,
+      "lng": 7.78009
     },
     {
       "id": "VZ013",
@@ -429,7 +478,10 @@
       "potenza": 353,
       "foto": null,
       "descrizione": "5ª-8ª di 2ª categoria, da Gressan. Razza Castana.",
-      "pascolo": "P3"
+      "pascolo": "P3",
+      "zona_tipo": "comune",
+      "lat": 45.72016,
+      "lng": 7.29879
     },
     {
       "id": "VZ014",
@@ -440,7 +492,7 @@
       "rarita": "Rara",
       "stelle": 3,
       "riconoscimento": "4ª",
-      "comune": "Evançon",
+      "comune": "Brusson (Evançon)",
       "allevatore": "H.I.",
       "matricola": "",
       "peso_kg": 603,
@@ -454,7 +506,10 @@
       "potenza": 297,
       "foto": null,
       "descrizione": "4ª di 3ª categoria, da Evançon. Razza Castana.",
-      "pascolo": "P2"
+      "pascolo": "P2",
+      "zona_tipo": "zona",
+      "lat": 45.76555,
+      "lng": 7.71934
     },
     {
       "id": "VZ067",
@@ -479,7 +534,10 @@
       "potenza": 345,
       "foto": "photos/COQUINE.jpg",
       "descrizione": "Vincitrice di 1ª categoria, da Pré-Saint-Didier. Razza Castana.",
-      "pascolo": "P1"
+      "pascolo": "P1",
+      "zona_tipo": "comune",
+      "lat": 45.76692,
+      "lng": 6.99932
     },
     {
       "id": "VZ059",
@@ -490,7 +548,7 @@
       "rarita": "Rara",
       "stelle": 3,
       "riconoscimento": "Vincitrice di categoria",
-      "comune": "",
+      "comune": "Alpeggi di Valpelline",
       "allevatore": "",
       "matricola": "",
       "peso_kg": 576,
@@ -504,7 +562,10 @@
       "potenza": 272,
       "foto": "photos/DIABLE.jpg",
       "descrizione": "Vincitrice di 3ª categoria. Razza Castana.",
-      "pascolo": "P2"
+      "pascolo": "P2",
+      "zona_tipo": "alpeggio",
+      "lat": 45.82644,
+      "lng": 7.30696
     },
     {
       "id": "VZ057",
@@ -529,7 +590,10 @@
       "potenza": 316,
       "foto": "photos/DRAPEAU.jpg",
       "descrizione": "Vincitrice di 2ª categoria, da Brissogne. Razza Castana.",
-      "pascolo": "P3"
+      "pascolo": "P3",
+      "zona_tipo": "comune",
+      "lat": 45.71483,
+      "lng": 7.38952
     },
     {
       "id": "VZ054",
@@ -554,7 +618,10 @@
       "potenza": 323,
       "foto": "photos/FARCA.jpg",
       "descrizione": "Vincitrice di 2ª categoria, da Pré-Saint-Didier. Razza Castana.",
-      "pascolo": "P4"
+      "pascolo": "P4",
+      "zona_tipo": "comune",
+      "lat": 45.75254,
+      "lng": 6.98845
     },
     {
       "id": "VZ015",
@@ -579,7 +646,10 @@
       "potenza": 294,
       "foto": null,
       "descrizione": "Reine Régionale di 3ª categoria, da Nus. Razza Castana.",
-      "pascolo": "P5"
+      "pascolo": "P5",
+      "zona_tipo": "comune",
+      "lat": 45.72545,
+      "lng": 7.47086
     },
     {
       "id": "VZ016",
@@ -604,7 +674,10 @@
       "potenza": 328,
       "foto": null,
       "descrizione": "4ª di 2ª categoria, da Verrayes. Razza Castana.",
-      "pascolo": "P4"
+      "pascolo": "P4",
+      "zona_tipo": "comune",
+      "lat": 45.75254,
+      "lng": 7.52776
     },
     {
       "id": "VZ017",
@@ -629,7 +702,10 @@
       "potenza": 352,
       "foto": "photos/FERONDA.jpg",
       "descrizione": "4ª di 1ª categoria, da Cogne. Razza Castana.",
-      "pascolo": "P1"
+      "pascolo": "P1",
+      "zona_tipo": "comune",
+      "lat": 45.61453,
+      "lng": 7.34279
     },
     {
       "id": "VZ018",
@@ -654,7 +730,10 @@
       "potenza": 295,
       "foto": null,
       "descrizione": "5ª-8ª di 3ª categoria, da Pontey. Razza Castana.",
-      "pascolo": "P6"
+      "pascolo": "P6",
+      "zona_tipo": "comune",
+      "lat": 45.73263,
+      "lng": 7.54162
     },
     {
       "id": "VZ019",
@@ -679,7 +758,10 @@
       "potenza": 311,
       "foto": "photos/FURIE.jpg",
       "descrizione": "2ª classificata di 2ª categoria, da Cogne. Razza Castana.",
-      "pascolo": "P1"
+      "pascolo": "P1",
+      "zona_tipo": "comune",
+      "lat": 45.60103,
+      "lng": 7.35196
     },
     {
       "id": "VZ020",
@@ -690,7 +772,7 @@
       "rarita": "Epica",
       "stelle": 4,
       "riconoscimento": "Vacca più pesante",
-      "comune": "",
+      "comune": "Alpeggi di Valtournenche",
       "allevatore": "",
       "matricola": "",
       "peso_kg": 680,
@@ -704,7 +786,10 @@
       "potenza": 344,
       "foto": null,
       "descrizione": "Vacca più pesante di 1ª categoria. Razza Castana.",
-      "pascolo": "P2"
+      "pascolo": "P2",
+      "zona_tipo": "alpeggio",
+      "lat": 45.88544,
+      "lng": 7.63991
     },
     {
       "id": "VZ021",
@@ -715,7 +800,7 @@
       "rarita": "Epica",
       "stelle": 4,
       "riconoscimento": "Vacca più pesante",
-      "comune": "",
+      "comune": "Alpeggi di Ollomont",
       "allevatore": "",
       "matricola": "",
       "peso_kg": 801,
@@ -729,7 +814,10 @@
       "potenza": 358,
       "foto": "photos/GLORIEUSE.jpg",
       "descrizione": "Vacca più pesante di 1ª categoria. Razza Castana.",
-      "pascolo": "P3"
+      "pascolo": "P3",
+      "zona_tipo": "alpeggio",
+      "lat": 45.88379,
+      "lng": 7.30109
     },
     {
       "id": "VZ022",
@@ -754,7 +842,10 @@
       "potenza": 286,
       "foto": null,
       "descrizione": "Regina del latte di 3ª categoria, da Pollein. Razza Pezzata Rossa.",
-      "pascolo": "P4"
+      "pascolo": "P4",
+      "zona_tipo": "comune",
+      "lat": 45.7399,
+      "lng": 7.34812
     },
     {
       "id": "VZ055",
@@ -765,7 +856,7 @@
       "rarita": "Rara",
       "stelle": 3,
       "riconoscimento": "Vincitrice di categoria",
-      "comune": "",
+      "comune": "Alpeggi di Valpelline",
       "allevatore": "",
       "matricola": "",
       "peso_kg": 712,
@@ -779,7 +870,10 @@
       "potenza": 355,
       "foto": "photos/GUIZZA.jpg",
       "descrizione": "Vincitrice di 1ª categoria. Razza Castana.",
-      "pascolo": "P1"
+      "pascolo": "P1",
+      "zona_tipo": "alpeggio",
+      "lat": 45.83654,
+      "lng": 7.31671
     },
     {
       "id": "VZ023",
@@ -790,7 +884,7 @@
       "rarita": "Rara",
       "stelle": 3,
       "riconoscimento": "2ª classificata",
-      "comune": "Grand Combin",
+      "comune": "Valpelline (Grand Combin)",
       "allevatore": "P.F.",
       "matricola": "",
       "peso_kg": 577,
@@ -804,7 +898,10 @@
       "potenza": 273,
       "foto": null,
       "descrizione": "2ª classificata di 3ª categoria, da Grand Combin. Razza Castana.",
-      "pascolo": "P5"
+      "pascolo": "P5",
+      "zona_tipo": "zona",
+      "lat": 45.82017,
+      "lng": 7.32362
     },
     {
       "id": "VZ064",
@@ -829,7 +926,10 @@
       "potenza": 271,
       "foto": "photos/JAMAICA.jpg",
       "descrizione": "Vincitrice di 3ª categoria, da Pré-Saint-Didier. Razza Castana.",
-      "pascolo": "P3"
+      "pascolo": "P3",
+      "zona_tipo": "comune",
+      "lat": 45.77889,
+      "lng": 6.99325
     },
     {
       "id": "VZ071",
@@ -854,7 +954,10 @@
       "potenza": 328,
       "foto": "photos/JARDIN.jpg",
       "descrizione": "Vincitrice di 2ª categoria, da Verrès. Razza Castana.",
-      "pascolo": "P4"
+      "pascolo": "P4",
+      "zona_tipo": "comune",
+      "lat": 45.65496,
+      "lng": 7.68035
     },
     {
       "id": "VZ024",
@@ -879,7 +982,10 @@
       "potenza": 278,
       "foto": null,
       "descrizione": "4ª di 3ª categoria, da Pollein. Razza Castana.",
-      "pascolo": "P6"
+      "pascolo": "P6",
+      "zona_tipo": "comune",
+      "lat": 45.71849,
+      "lng": 7.37028
     },
     {
       "id": "VZ025",
@@ -890,7 +996,7 @@
       "rarita": "Rara",
       "stelle": 3,
       "riconoscimento": "4ª",
-      "comune": "Pont",
+      "comune": "Pont-Saint-Martin",
       "allevatore": "C.M.",
       "matricola": "",
       "peso_kg": 636,
@@ -904,7 +1010,10 @@
       "potenza": 316,
       "foto": null,
       "descrizione": "4ª di 2ª categoria, da Pont. Razza Castana.",
-      "pascolo": "P1"
+      "pascolo": "P1",
+      "zona_tipo": "comune",
+      "lat": 45.61102,
+      "lng": 7.78998
     },
     {
       "id": "VZ026",
@@ -929,7 +1038,10 @@
       "potenza": 285,
       "foto": null,
       "descrizione": "Regina del latte di 3ª categoria, da Aymavilles. Razza Pezzata Rossa.",
-      "pascolo": "P2"
+      "pascolo": "P2",
+      "zona_tipo": "comune",
+      "lat": 45.70273,
+      "lng": 7.241
     },
     {
       "id": "VZ027",
@@ -954,7 +1066,10 @@
       "potenza": 365,
       "foto": "photos/MALIBU.jpg",
       "descrizione": "Reine Régionale di 1ª categoria, da Aosta. Razza Castana.",
-      "pascolo": "P3"
+      "pascolo": "P3",
+      "zona_tipo": "comune",
+      "lat": 45.74658,
+      "lng": 7.33648
     },
     {
       "id": "VZ028",
@@ -979,7 +1094,10 @@
       "potenza": 293,
       "foto": "photos/MALIZIA.jpg",
       "descrizione": "Reine Régionale di 3ª categoria, da Morgex. Razza Castana.",
-      "pascolo": "P4"
+      "pascolo": "P4",
+      "zona_tipo": "comune",
+      "lat": 45.75895,
+      "lng": 7.02353
     },
     {
       "id": "VZ060",
@@ -1004,7 +1122,10 @@
       "potenza": 272,
       "foto": "photos/MANDA.jpg",
       "descrizione": "Vincitrice di 3ª categoria, da Saint-Christophe. Razza Castana.",
-      "pascolo": "P4"
+      "pascolo": "P4",
+      "zona_tipo": "comune",
+      "lat": 45.74145,
+      "lng": 7.35536
     },
     {
       "id": "VZ029",
@@ -1029,7 +1150,10 @@
       "potenza": 366,
       "foto": "photos/MARMOTTA.jpg",
       "descrizione": "2ª classificata di 1ª categoria, da Châtillon. Razza Castana.",
-      "pascolo": "P5"
+      "pascolo": "P5",
+      "zona_tipo": "comune",
+      "lat": 45.74258,
+      "lng": 7.59761
     },
     {
       "id": "VZ063",
@@ -1054,7 +1178,10 @@
       "potenza": 279,
       "foto": "photos/MAUDITE.jpg",
       "descrizione": "Vincitrice di 3ª categoria, da Gressan. Razza Castana.",
-      "pascolo": "P3"
+      "pascolo": "P3",
+      "zona_tipo": "comune",
+      "lat": 45.71719,
+      "lng": 7.30006
     },
     {
       "id": "VZ072",
@@ -1079,7 +1206,10 @@
       "potenza": 305,
       "foto": "photos/MERLITTA.jpg",
       "descrizione": "Vincitrice di 2ª categoria, da Jovençan. Razza Castana.",
-      "pascolo": "P1"
+      "pascolo": "P1",
+      "zona_tipo": "comune",
+      "lat": 45.69729,
+      "lng": 7.26111
     },
     {
       "id": "VZ056",
@@ -1104,7 +1234,10 @@
       "potenza": 326,
       "foto": "photos/MICCIA.jpg",
       "descrizione": "Vincitrice di 2ª categoria, da Antey-Saint-André. Razza Castana.",
-      "pascolo": "P2"
+      "pascolo": "P2",
+      "zona_tipo": "comune",
+      "lat": 45.79947,
+      "lng": 7.58387
     },
     {
       "id": "VZ030",
@@ -1115,7 +1248,7 @@
       "rarita": "Epica",
       "stelle": 4,
       "riconoscimento": "Vacca più pesante",
-      "comune": "",
+      "comune": "Alpeggi di Valtournenche",
       "allevatore": "",
       "matricola": "",
       "peso_kg": 768,
@@ -1129,7 +1262,10 @@
       "potenza": 355,
       "foto": null,
       "descrizione": "Vacca più pesante di 1ª categoria. Razza Castana.",
-      "pascolo": "P6"
+      "pascolo": "P6",
+      "zona_tipo": "alpeggio",
+      "lat": 45.89082,
+      "lng": 7.66518
     },
     {
       "id": "VZ031",
@@ -1140,7 +1276,7 @@
       "rarita": "Rara",
       "stelle": 3,
       "riconoscimento": "4ª",
-      "comune": "Mont Emilius",
+      "comune": "Charvensod (Mont Emilius)",
       "allevatore": "A.A.V.",
       "matricola": "",
       "peso_kg": 591,
@@ -1154,7 +1290,10 @@
       "potenza": 285,
       "foto": null,
       "descrizione": "4ª di 3ª categoria, da Mont Emilius. Razza Castana.",
-      "pascolo": "P1"
+      "pascolo": "P1",
+      "zona_tipo": "zona",
+      "lat": 45.70033,
+      "lng": 7.36061
     },
     {
       "id": "VZ032",
@@ -1179,7 +1318,10 @@
       "potenza": 351,
       "foto": null,
       "descrizione": "5ª-8ª di 1ª categoria, da Nus. Razza Castana.",
-      "pascolo": "P5"
+      "pascolo": "P5",
+      "zona_tipo": "comune",
+      "lat": 45.70645,
+      "lng": 7.44968
     },
     {
       "id": "VZ033",
@@ -1204,7 +1346,10 @@
       "potenza": 320,
       "foto": "photos/MOTEILA.jpg",
       "descrizione": "Reine Régionale di 3ª categoria, da Perloz. Razza Castana.",
-      "pascolo": "P3"
+      "pascolo": "P3",
+      "zona_tipo": "comune",
+      "lat": 45.6069,
+      "lng": 7.77892
     },
     {
       "id": "VZ069",
@@ -1229,7 +1374,10 @@
       "potenza": 281,
       "foto": "photos/MOUSTIQUE.jpg",
       "descrizione": "Vincitrice di 3ª categoria, da Morgex. Razza Castana.",
-      "pascolo": "P1"
+      "pascolo": "P1",
+      "zona_tipo": "comune",
+      "lat": 45.75225,
+      "lng": 7.05106
     },
     {
       "id": "VZ034",
@@ -1254,7 +1402,10 @@
       "potenza": 273,
       "foto": null,
       "descrizione": "4ª di 3ª categoria, da Verrès. Razza Castana.",
-      "pascolo": "P4"
+      "pascolo": "P4",
+      "zona_tipo": "comune",
+      "lat": 45.66035,
+      "lng": 7.70449
     },
     {
       "id": "VZ065",
@@ -1279,7 +1430,10 @@
       "potenza": 333,
       "foto": "photos/NEGRO.jpg",
       "descrizione": "Vincitrice di 2ª categoria, da Valtournenche. Razza Castana.",
-      "pascolo": "P2"
+      "pascolo": "P2",
+      "zona_tipo": "comune",
+      "lat": 45.87235,
+      "lng": 7.62962
     },
     {
       "id": "VZ035",
@@ -1304,7 +1458,10 @@
       "potenza": 360,
       "foto": "photos/PAISON.jpg",
       "descrizione": "5ª-8ª di 1ª categoria, da Nus. Razza Castana.",
-      "pascolo": "P5"
+      "pascolo": "P5",
+      "zona_tipo": "comune",
+      "lat": 45.71755,
+      "lng": 7.46507
     },
     {
       "id": "VZ036",
@@ -1329,7 +1486,10 @@
       "potenza": 290,
       "foto": null,
       "descrizione": "2ª classificata di 3ª categoria, da Fontainemore. Razza Castana.",
-      "pascolo": "P6"
+      "pascolo": "P6",
+      "zona_tipo": "comune",
+      "lat": 45.65564,
+      "lng": 7.86475
     },
     {
       "id": "VZ037",
@@ -1354,7 +1514,10 @@
       "potenza": 272,
       "foto": null,
       "descrizione": "2ª classificata di 3ª categoria, da Aosta. Razza Castana.",
-      "pascolo": "P1"
+      "pascolo": "P1",
+      "zona_tipo": "comune",
+      "lat": 45.73834,
+      "lng": 7.32716
     },
     {
       "id": "VZ038",
@@ -1365,7 +1528,7 @@
       "rarita": "Epica",
       "stelle": 4,
       "riconoscimento": "Vacca più pesante",
-      "comune": "",
+      "comune": "Alpeggi di Gressoney",
       "allevatore": "",
       "matricola": "",
       "peso_kg": 758,
@@ -1379,7 +1542,10 @@
       "potenza": 355,
       "foto": null,
       "descrizione": "Vacca più pesante di 1ª categoria. Razza Castana.",
-      "pascolo": "P2"
+      "pascolo": "P2",
+      "zona_tipo": "alpeggio",
+      "lat": 45.77016,
+      "lng": 7.84066
     },
     {
       "id": "VZ039",
@@ -1404,7 +1570,10 @@
       "potenza": 328,
       "foto": null,
       "descrizione": "5ª-8ª di 2ª categoria, da Gressan. Razza Castana.",
-      "pascolo": "P3"
+      "pascolo": "P3",
+      "zona_tipo": "comune",
+      "lat": 45.70182,
+      "lng": 7.27352
     },
     {
       "id": "VZ040",
@@ -1415,7 +1584,7 @@
       "rarita": "Leggendaria",
       "stelle": 5,
       "riconoscimento": "Reine Régionale",
-      "comune": "Saint",
+      "comune": "Saint-Vincent",
       "allevatore": "B.D.",
       "matricola": "",
       "peso_kg": 658,
@@ -1429,7 +1598,10 @@
       "potenza": 354,
       "foto": null,
       "descrizione": "Reine Régionale di 2ª categoria, da Saint. Razza Castana.",
-      "pascolo": "P4"
+      "pascolo": "P4",
+      "zona_tipo": "comune",
+      "lat": 45.75764,
+      "lng": 7.63819
     },
     {
       "id": "VZ041",
@@ -1440,7 +1612,7 @@
       "rarita": "Epica",
       "stelle": 4,
       "riconoscimento": "Vacca più pesante",
-      "comune": "",
+      "comune": "Alpeggi di Rhêmes",
       "allevatore": "",
       "matricola": "",
       "peso_kg": 786,
@@ -1454,7 +1626,10 @@
       "potenza": 351,
       "foto": null,
       "descrizione": "Vacca più pesante di 1ª categoria. Razza Castana.",
-      "pascolo": "P5"
+      "pascolo": "P5",
+      "zona_tipo": "alpeggio",
+      "lat": 45.62291,
+      "lng": 7.15572
     },
     {
       "id": "VZ042",
@@ -1465,7 +1640,7 @@
       "rarita": "Leggendaria",
       "stelle": 5,
       "riconoscimento": "Reine Régionale",
-      "comune": "Valle d’Aosta",
+      "comune": "Aosta",
       "allevatore": "F.C.",
       "matricola": "",
       "peso_kg": 566,
@@ -1479,7 +1654,10 @@
       "potenza": 298,
       "foto": null,
       "descrizione": "Reine Régionale di 3ª categoria, da Valle d’Aosta. Razza Castana.",
-      "pascolo": "P6"
+      "pascolo": "P6",
+      "zona_tipo": "comune",
+      "lat": 45.7345,
+      "lng": 7.3146
     },
     {
       "id": "VZ070",
@@ -1504,7 +1682,10 @@
       "potenza": 271,
       "foto": "photos/SHAKIRA.jpg",
       "descrizione": "Vincitrice di 3ª categoria, da Gressan. Razza Castana.",
-      "pascolo": "P3"
+      "pascolo": "P3",
+      "zona_tipo": "comune",
+      "lat": 45.71522,
+      "lng": 7.30062
     },
     {
       "id": "VZ062",
@@ -1529,7 +1710,10 @@
       "potenza": 353,
       "foto": "photos/SIRENA.jpg",
       "descrizione": "Vincitrice di 1ª categoria, da Pont-Saint-Martin. Razza Castana.",
-      "pascolo": "P1"
+      "pascolo": "P1",
+      "zona_tipo": "comune",
+      "lat": 45.60685,
+      "lng": 7.77967
     },
     {
       "id": "VZ043",
@@ -1554,7 +1738,10 @@
       "potenza": 320,
       "foto": null,
       "descrizione": "Reine Régionale di 3ª categoria, da Arvier. Razza Castana.",
-      "pascolo": "P1"
+      "pascolo": "P1",
+      "zona_tipo": "comune",
+      "lat": 45.69075,
+      "lng": 7.15974
     },
     {
       "id": "VZ044",
@@ -1565,7 +1752,7 @@
       "rarita": "Rara",
       "stelle": 3,
       "riconoscimento": "5ª-8ª",
-      "comune": "Challand",
+      "comune": "Challand-Saint-Anselme",
       "allevatore": "B.N.",
       "matricola": "",
       "peso_kg": 580,
@@ -1579,7 +1766,10 @@
       "potenza": 280,
       "foto": "photos/TACCON.jpg",
       "descrizione": "5ª-8ª di 3ª categoria, da Challand. Razza Castana.",
-      "pascolo": "P2"
+      "pascolo": "P2",
+      "zona_tipo": "comune",
+      "lat": 45.68614,
+      "lng": 7.72539
     },
     {
       "id": "VZ045",
@@ -1604,7 +1794,10 @@
       "potenza": 279,
       "foto": null,
       "descrizione": "Migliore 2º parto di 3ª categoria, da Nus. Razza Castana.",
-      "pascolo": "P5"
+      "pascolo": "P5",
+      "zona_tipo": "comune",
+      "lat": 45.72402,
+      "lng": 7.44206
     },
     {
       "id": "VZ066",
@@ -1629,7 +1822,10 @@
       "potenza": 290,
       "foto": "photos/TIGRO.jpg",
       "descrizione": "Vincitrice di 3ª categoria, da Antey-Saint-André. Razza Castana.",
-      "pascolo": "P5"
+      "pascolo": "P5",
+      "zona_tipo": "comune",
+      "lat": 45.80529,
+      "lng": 7.59615
     },
     {
       "id": "VZ046",
@@ -1640,7 +1836,7 @@
       "rarita": "Epica",
       "stelle": 4,
       "riconoscimento": "Vacca più pesante",
-      "comune": "",
+      "comune": "Alpeggi di Ollomont",
       "allevatore": "",
       "matricola": "",
       "peso_kg": 763,
@@ -1654,7 +1850,10 @@
       "potenza": 363,
       "foto": null,
       "descrizione": "Vacca più pesante di 1ª categoria. Razza Castana.",
-      "pascolo": "P4"
+      "pascolo": "P4",
+      "zona_tipo": "alpeggio",
+      "lat": 45.87654,
+      "lng": 7.33131
     },
     {
       "id": "VZ047",
@@ -1679,7 +1878,10 @@
       "potenza": 275,
       "foto": null,
       "descrizione": "2ª classificata di 3ª categoria, da Jovençan. Razza Castana.",
-      "pascolo": "P5"
+      "pascolo": "P5",
+      "zona_tipo": "comune",
+      "lat": 45.71387,
+      "lng": 7.28567
     },
     {
       "id": "VZ048",
@@ -1690,7 +1892,7 @@
       "rarita": "Epica",
       "stelle": 4,
       "riconoscimento": "Vacca più pesante",
-      "comune": "",
+      "comune": "Alpeggi di Rhêmes",
       "allevatore": "",
       "matricola": "",
       "peso_kg": 708,
@@ -1704,7 +1906,10 @@
       "potenza": 351,
       "foto": null,
       "descrizione": "Vacca più pesante di 1ª categoria. Razza Castana.",
-      "pascolo": "P6"
+      "pascolo": "P6",
+      "zona_tipo": "alpeggio",
+      "lat": 45.6284,
+      "lng": 7.13892
     },
     {
       "id": "VZ049",
@@ -1729,7 +1934,10 @@
       "potenza": 295,
       "foto": "photos/VEDETTE.jpg",
       "descrizione": "5ª-8ª di 3ª categoria, da Brissogne. Razza Castana.",
-      "pascolo": "P1"
+      "pascolo": "P1",
+      "zona_tipo": "comune",
+      "lat": 45.73339,
+      "lng": 7.40858
     },
     {
       "id": "VZ050",
@@ -1754,7 +1962,10 @@
       "potenza": 295,
       "foto": null,
       "descrizione": "Reine Régionale di 3ª categoria, da Quart. Razza Castana.",
-      "pascolo": "P2"
+      "pascolo": "P2",
+      "zona_tipo": "comune",
+      "lat": 45.74935,
+      "lng": 7.37353
     },
     {
       "id": "VZ051",
@@ -1779,7 +1990,10 @@
       "potenza": 350,
       "foto": "photos/VICTOIRE.jpg",
       "descrizione": "Reine Régionale di 1ª categoria, da Gressan. Razza Castana.",
-      "pascolo": "P3"
+      "pascolo": "P3",
+      "zona_tipo": "comune",
+      "lat": 45.72082,
+      "lng": 7.30458
     },
     {
       "id": "VZ052",
@@ -1790,7 +2004,7 @@
       "rarita": "Rara",
       "stelle": 3,
       "riconoscimento": "5ª-8ª",
-      "comune": "Aoste",
+      "comune": "Aosta",
       "allevatore": "G.D.",
       "matricola": "",
       "peso_kg": 655,
@@ -1804,7 +2018,10 @@
       "potenza": 319,
       "foto": null,
       "descrizione": "5ª-8ª di 2ª categoria, da Aoste. Razza Castana.",
-      "pascolo": "P4"
+      "pascolo": "P4",
+      "zona_tipo": "comune",
+      "lat": 45.74581,
+      "lng": 7.33846
     },
     {
       "id": "VZ053",
@@ -1829,7 +2046,10 @@
       "potenza": 303,
       "foto": "photos/ZARA.jpg",
       "descrizione": "Reine Régionale di 3ª categoria, da Verrès. Razza Castana.",
-      "pascolo": "P5"
+      "pascolo": "P5",
+      "zona_tipo": "comune",
+      "lat": 45.66518,
+      "lng": 7.69405
     }
   ],
   "pascoli": [
