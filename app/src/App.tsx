@@ -30,6 +30,8 @@ import { Vazzamon, Hotspot, BackpackItem, Egg, Trainer, BattleState, RarityType 
 import { VazzamonAvatar } from './components/VazzamonAvatar';
 import { CowVisual } from './components/CowVisual';
 import { CowCard } from './components/CowCard';
+import { TrailOverlay } from './components/TrailOverlay';
+import { VALDOSTAN_TRAILS } from './data/trails';
 import { soundEngine } from './utils/audio';
 import { generateVazzamonClient } from './lib/generate';
 import { REAL_COWS, REAL_TOTAL, REAL_CASERE } from './data/realCows';
@@ -201,6 +203,11 @@ export default function App() {
 
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const leafletMapRef = useRef<L.Map | null>(null);
+  // Istanza Leaflet esposta come stato per l'overlay sentieri (re-render al cambio).
+  const [mapInstance, setMapInstance] = useState<L.Map | null>(null);
+  // Sentiero reale selezionato (null = "Esplora libera").
+  const [selectedTrailId, setSelectedTrailId] = useState<string | null>(null);
+  const selectedTrail = VALDOSTAN_TRAILS.find(t => t.id === selectedTrailId) ?? null;
   const leafletMarkersRef = useRef<L.Marker[]>([]);
   const leafletPlayerMarkerRef = useRef<L.Marker | null>(null);
   const leafletPolylineRef = useRef<L.Polyline | null>(null);
@@ -238,6 +245,7 @@ export default function App() {
         });
 
         leafletMapRef.current = initMap;
+        setMapInstance(initMap);
       } else {
         // Pan dynamically on simulated steps
         leafletMapRef.current.setView([effLat, effLng], leafletMapRef.current.getZoom(), { animate: true });
@@ -401,6 +409,7 @@ export default function App() {
       if (leafletMapRef.current) {
         leafletMapRef.current.remove();
         leafletMapRef.current = null;
+        setMapInstance(null);
         leafletPlayerMarkerRef.current = null;
         leafletPolylineRef.current = null;
         leafletRadiusRef.current = null;
@@ -1534,6 +1543,80 @@ export default function App() {
                 </div>
               )}
 
+            </div>
+
+            {/* Overlay sentieri reali (disegna su Leaflet, non rende nulla nel DOM) */}
+            <TrailOverlay map={mapInstance} trail={selectedTrail} />
+
+            {/* SELETTORE SENTIERI REALI (trekking responsabile) */}
+            <div className="bg-slate-950 border border-slate-850 rounded-3xl p-4 space-y-3" id="trail-selector">
+              <h4 className="text-xs font-mono font-extrabold uppercase text-slate-300 tracking-wider flex items-center gap-1.5">
+                <MapPin className="w-4 h-4 text-amber-400" />
+                Sentieri reali della Valle d'Aosta
+              </h4>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() => { playClickSfx(); setSelectedTrailId(null); }}
+                  className={`text-[10px] font-mono font-bold px-3 py-1.5 rounded-full border transition-all ${selectedTrailId === null ? 'bg-emerald-500 text-slate-950 border-emerald-400' : 'bg-slate-900 text-slate-300 border-slate-800 hover:bg-slate-850'}`}
+                >
+                  🧭 Esplora libera
+                </button>
+                {VALDOSTAN_TRAILS.map((t) => (
+                  <button
+                    key={t.id}
+                    onClick={() => { playClickSfx(); setMapMode('real'); setSelectedTrailId(t.id); }}
+                    className={`text-[10px] font-mono font-bold px-3 py-1.5 rounded-full border transition-all ${selectedTrailId === t.id ? 'bg-amber-500 text-slate-950 border-amber-400' : 'bg-slate-900 text-amber-200 border-amber-700/40 hover:bg-slate-850'}`}
+                  >
+                    {t.location}
+                  </button>
+                ))}
+              </div>
+
+              {selectedTrail && (
+                <div className="bg-slate-900/60 border border-amber-700/30 rounded-2xl p-3 space-y-3" id="trail-panel">
+                  <div>
+                    <div className="text-sm font-mono font-black text-amber-300">{selectedTrail.name}</div>
+                    <p className="text-[10px] text-slate-400 leading-relaxed mt-0.5">{selectedTrail.description}</p>
+                  </div>
+
+                  <div className="grid grid-cols-4 gap-2 text-center">
+                    <div className="bg-slate-950 rounded-xl border border-slate-850 py-1.5">
+                      <div className="text-[9px] text-slate-500 font-mono uppercase">Difficoltà</div>
+                      <div className="text-[11px] font-mono font-black text-slate-100">{selectedTrail.difficulty}</div>
+                    </div>
+                    <div className="bg-slate-950 rounded-xl border border-slate-850 py-1.5">
+                      <div className="text-[9px] text-slate-500 font-mono uppercase">Lunghezza</div>
+                      <div className="text-[11px] font-mono font-black text-slate-100">{selectedTrail.lengthKm} km</div>
+                    </div>
+                    <div className="bg-slate-950 rounded-xl border border-slate-850 py-1.5">
+                      <div className="text-[9px] text-slate-500 font-mono uppercase">Durata</div>
+                      <div className="text-[11px] font-mono font-black text-slate-100">{selectedTrail.durationHours} h</div>
+                    </div>
+                    <div className="bg-slate-950 rounded-xl border border-slate-850 py-1.5">
+                      <div className="text-[9px] text-slate-500 font-mono uppercase">Dislivello</div>
+                      <div className="text-[11px] font-mono font-black text-slate-100">{selectedTrail.altitudeGain} m</div>
+                    </div>
+                  </div>
+
+                  <div className="bg-emerald-950/30 border border-emerald-900 rounded-2xl p-3 space-y-1.5">
+                    <div className="text-[10px] font-mono font-black text-emerald-400 uppercase tracking-widest flex items-center gap-1">
+                      <ShieldAlert className="w-3.5 h-3.5" /> Trekking responsabile
+                    </div>
+                    <ul className="space-y-1">
+                      {selectedTrail.responsibleTips.map((tip, i) => (
+                        <li key={i} className="flex items-start gap-1.5 text-[10px] text-slate-300 leading-snug">
+                          <span className="text-emerald-500 mt-0.5">✓</span>
+                          <span>{tip}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  <div className="text-[9.5px] text-slate-500 font-mono">
+                    Incontri tipici: <span className="text-amber-200">{selectedTrail.cowsToEncounter.join(' · ')}</span>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* LIVE TREKKING ACTIVITY FEED LOG */}

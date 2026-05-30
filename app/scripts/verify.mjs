@@ -54,6 +54,22 @@ note(`marker REALE: ${reali} · player: ${player}`);
 if (reali < 10) problems.push(`poche bovine reali sulla mappa (${reali})`);
 await page.screenshot({ path: `${OUT}/v2int-1-mappa.png` });
 
+// Sentieri reali: seleziona un sentiero → pannello con consigli responsabili
+const trailChip = page.locator("#trail-selector button", { hasText: "Val Ferret" }).first();
+if (await trailChip.count()) {
+  await trailChip.click();
+  await page.waitForTimeout(700);
+  const panel = await page.locator("#trail-panel").isVisible().catch(() => false);
+  const tips = await page.locator("#trail-panel li").count();
+  note(`sentiero selezionato · pannello: ${panel} · tips: ${tips}`);
+  if (!panel) problems.push("pannello sentiero non compare");
+  if (tips < 3) problems.push(`pochi consigli responsabili (${tips})`);
+  await page.screenshot({ path: `${OUT}/v2int-1b-trail.png` });
+  // torna a esplora libera per non alterare i check successivi
+  await page.locator("#trail-selector button", { hasText: "Esplora libera" }).first().click();
+  await page.waitForTimeout(400);
+} else problems.push("selettore sentieri assente");
+
 // GPS reale (geolocation mockata vicino a una bovina reale)
 await page.locator("#gps-btn").click();
 await page.waitForTimeout(1200);
