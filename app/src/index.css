@@ -160,7 +160,7 @@
 .aurora-bg {
   position: fixed;
   inset: -20%;
-  z-index: 0;
+  z-index: -1;
   pointer-events: none;
   background:
     radial-gradient(44% 44% at 16% 16%, rgba(215, 38, 72, 0.18), transparent 68%),
@@ -171,12 +171,14 @@
   animation: aurora 18s ease-in-out infinite;
 }
 
-/* Transizione d'ingresso di ogni schermata (cambio tab) */
+/* Transizione d'ingresso di ogni schermata (cambio tab).
+   NB: solo opacità — niente transform, altrimenti i figli `position: fixed`
+   (modali di cattura/dettaglio) verrebbero ingabbiati e non coprirebbero header. */
 @keyframes view-in {
-  from { opacity: 0; transform: translateY(10px) scale(0.99); }
-  to   { opacity: 1; transform: translateY(0) scale(1); }
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
-.view-in { animation: view-in 0.4s cubic-bezier(0.22, 1, 0.36, 1); }
+.view-in { animation: view-in 0.35s ease; }
 
 /* Titolo con gradiente animato stile logo Pokémon */
 @keyframes gradient-pan {

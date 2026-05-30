@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <rect width="200" height="200" fill="#e3ebe0"/>
+  <g fill="#9fb39a">
+    <!-- testa mucca stilizzata, centrata -->
+    <!-- orecchie -->
+    <ellipse cx="58" cy="92" rx="20" ry="13" transform="rotate(-22 58 92)"/>
+    <ellipse cx="142" cy="92" rx="20" ry="13" transform="rotate(22 142 92)"/>
+    <!-- corna -->
+    <path d="M70 70 Q52 40 76 46 Q80 56 86 66 Z"/>
+    <path d="M130 70 Q148 40 124 46 Q120 56 114 66 Z"/>
+    <!-- muso -->
+    <ellipse cx="100" cy="108" rx="52" ry="46"/>
+  </g>
+  <!-- museruola -->
+  <ellipse cx="100" cy="132" rx="34" ry="22" fill="#cfd9ca"/>
+  <circle cx="87" cy="131" r="5" fill="#9fb39a"/>
+  <circle cx="113" cy="131" r="5" fill="#9fb39a"/>
+  <!-- occhi -->
+  <circle cx="80" cy="100" r="6" fill="#e3ebe0"/>
+  <circle cx="120" cy="100" r="6" fill="#e3ebe0"/>
+</svg>

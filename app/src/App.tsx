@@ -1487,7 +1487,7 @@ export default function App() {
       </nav>
 
       {/* 🗺️ ACTIVE VIEW DISPLAY 🗺️ */}
-      <main className="flex-grow p-4 md:p-6 max-w-4xl w-full mx-auto relative z-10" id="app-viewport">
+      <main className="flex-grow p-4 md:p-6 max-w-4xl w-full mx-auto" id="app-viewport">
         <div key={activeTab} className="view-in">
         
         {/* VIEW 1: INTERACTIVE MAP OVERWORLD */}
@@ -1907,9 +1907,9 @@ export default function App() {
 
         {/* WILD CAPTURE / AR WILD ENCOUNTER SCREEN */}
         {isCapturingMode && encounterCow && (
-          <div className="fixed inset-0 bg-slate-950/95 z-50 flex items-center justify-center p-4 animate-scale-in" id="encounter-screen">
+          <div className="fixed inset-0 bg-slate-950/95 z-50 flex items-center justify-center p-3 sm:p-4 animate-scale-in overflow-y-auto" id="encounter-screen">
             <div className="encounter-flash" aria-hidden="true" />
-            <div className="bg-gradient-to-b from-sky-950 via-emerald-950 to-slate-900 border-2 border-emerald-500/50 rounded-3xl max-w-lg w-full aspect-[3/4] p-5 flex flex-col justify-between shadow-2xl relative overflow-hidden">
+            <div className="bg-gradient-to-b from-sky-950 via-emerald-950 to-slate-900 border-2 border-emerald-500/50 rounded-3xl max-w-lg w-full p-4 sm:p-5 flex flex-col gap-3 sm:gap-4 shadow-2xl relative max-h-[94dvh] overflow-y-auto overflow-x-hidden no-scrollbar my-auto">
               
               {/* Back out button */}
               <button
