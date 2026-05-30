@@ -408,23 +408,31 @@ export default function App() {
       wildCows.forEach(wc => {
         const wcLat = wc.lat ?? playerLat;
         const wcLng = wc.lng ?? playerLng;
+        const isRealWild = !!wc.vatsa.realPhoto || wc.vatsa.isReal;
         const emoji = wc.vatsa.breed.toLowerCase().includes('pezza') ? '🐮' : '🐄';
+        const ringCol = isRealWild ? 'border-emerald-400' : 'border-amber-500';
+        const photoStyle = wc.vatsa.realPhoto
+          ? `background-image:url('${wc.vatsa.realPhoto}');background-size:cover;background-position:center;`
+          : '';
+        const inner = wc.vatsa.realPhoto ? '' : `<span class="text-xl animate-float">${emoji}</span>`;
+        const label = isRealWild ? `REALE · ${wc.vatsa.rarity}` : wc.vatsa.rarity;
+        const labelCls = isRealWild ? 'bg-emerald-900/90 border-emerald-700 text-emerald-200' : 'bg-[#211b3a] border-amber-550/40 text-yellow-300';
 
         const cowHtmlIcon = L.divIcon({
           className: 'custom-leaflet-marker',
           html: `<div class="flex flex-col items-center">
-                   <div class="w-10 h-10 rounded-full bg-[#211b3a] border-2 border-amber-500 flex items-center justify-center shadow-lg relative cursor-pointer hover:scale-110 transition-transform" style="transform: translateY(-8px);">
-                     <span class="text-xl animate-float">${emoji}</span>
+                   <div class="w-11 h-11 rounded-full bg-[#211b3a] border-2 ${ringCol} flex items-center justify-center shadow-lg relative cursor-pointer hover:scale-110 transition-transform overflow-hidden" style="transform: translateY(-8px);${photoStyle}">
+                     ${inner}
                      <span class="absolute -top-1 -right-1 bg-amber-500 text-[#0b0820] font-mono text-[7px] font-black px-1 rounded-full leading-tight">
                        CP${wc.vatsa.cp}
                      </span>
                    </div>
-                   <div class="px-1 py-0.2 rounded bg-[#211b3a] border border-amber-550/40 text-[7px] text-yellow-300 font-mono font-bold whitespace-nowrap shadow-sm" style="transform: translateY(-10px);">
-                     ${wc.vatsa.rarity}
+                   <div class="px-1 py-0.2 rounded border text-[7px] font-mono font-bold whitespace-nowrap shadow-sm ${labelCls}" style="transform: translateY(-10px);">
+                     ${label}
                    </div>
                  </div>`,
-          iconSize: [40, 50],
-          iconAnchor: [20, 25]
+          iconSize: [44, 54],
+          iconAnchor: [22, 27]
         });
 
         const cowMarker = L.marker([wcLat, wcLng], { icon: cowHtmlIcon })
@@ -439,7 +447,8 @@ export default function App() {
 
       // ===== Bovine REALI (Batailles) non ancora catturate, nei comuni veri =====
       const capturedIds = new Set(vatsadex.map(c => c.id));
-      REAL_COWS.filter(rc => !capturedIds.has(rc.id) && rc.lat != null && rc.lng != null).forEach(rc => {
+      const roamingIds = new Set(wildCows.map(w => w.vatsa.id));
+      REAL_COWS.filter(rc => !capturedIds.has(rc.id) && !roamingIds.has(rc.id) && rc.lat != null && rc.lng != null).forEach(rc => {
         const d = distanza({ lat: effLat, lng: effLng }, { lat: rc.lat!, lng: rc.lng! });
         const inRange = d <= RAGGIO_CATTURA;
         const ring = inRange ? 'border-emerald-400' : 'border-slate-500';
@@ -601,7 +610,25 @@ export default function App() {
 
 
   // ---- 4. OVERWORLD PROCEDURAL GENERATOR ----
-  const spawnWildCowAtRandom = (customLat?: number, customLng?: number) => {
+  const spawnWildCowAtRandom = (customLat?: number, customLng?: number, exclude?: Set<string>): WildCow => {
+    // Posizione roaming vicino al giocatore
+    const originLat = customLat !== undefined ? customLat : playerLat;
+    const originLng = customLng !== undefined ? customLng : playerLng;
+    const latOff = (Math.random() - 0.5) * 0.024;
+    const lngOff = (Math.random() - 0.5) * 0.036;
+    const cLat = originLat + latOff;
+    const cLng = originLng + lngOff;
+    const svg = getSvgCoords(cLat, cLng);
+
+    // 🐄 80%: una VERA Reina non ancora catturata (così le reali dominano sulle inventate).
+    const capturedIds = new Set(vatsadex.map(c => c.id));
+    const roaming = exclude ?? new Set(wildCows.map(w => w.vatsa.id));
+    const realPool = REAL_COWS.filter(c => !capturedIds.has(c.id) && !roaming.has(c.id));
+    if (realPool.length > 0 && Math.random() < 0.8) {
+      const real = realPool[Math.floor(Math.random() * realPool.length)];
+      return { id: real.id, vatsa: real, lat: cLat, lng: cLng, x: svg.x, y: svg.y, angle: Math.random() * 360 };
+    }
+
     const randBreed = WILD_BREEDS[Math.floor(Math.random() * WILD_BREEDS.length)];
     const randName = WILD_NAMES[Math.floor(Math.random() * WILD_NAMES.length)] + " Selvatico";
     const rarities: RarityType[] = ['Comune', 'Comune', 'Rara', 'Rara', 'Epica', 'Leggendaria'];
@@ -629,36 +656,104 @@ export default function App() {
       level: 15
     };
 
-    // Spawn relative to baseLat if custom is provided, otherwise relative to current player positions
-    const originLat = customLat !== undefined ? customLat : playerLat;
-    const originLng = customLng !== undefined ? customLng : playerLng;
-
-    const latOffset = (Math.random() - 0.5) * 0.024; // +-0.012 lat (approx 1-2km)
-    const lngOffset = (Math.random() - 0.5) * 0.036; // +-0.018 lng (approx 1-2km)
-    const cowLat = originLat + latOffset;
-    const cowLng = originLng + lngOffset;
-
-    const svgCoords = getSvgCoords(cowLat, cowLng);
-
     return {
       id: generated.id,
       vatsa: generated,
-      lat: cowLat,
-      lng: cowLng,
-      x: svgCoords.x,
-      y: svgCoords.y,
+      lat: cLat,
+      lng: cLng,
+      x: svg.x,
+      y: svg.y,
       angle: Math.random() * 360
     };
   };
 
-  // Pre-spawn some wild cows around the screen if none exist
+  // Pannello Profilo / Salvataggio (export-import, rifornimento test)
+  const [showProfile, setShowProfile] = useState(false);
+  const [importText, setImportText] = useState("");
+  const [profileMsg, setProfileMsg] = useState("");
+
+  // Rifornimento "modalità test": scorte abbondanti, monete e livello per provare tutto.
+  const restockResources = () => {
+    playClickSfx();
+    setBackpack(prev => {
+      const want: Record<string, number> = {
+        'item-bell-std': 50, 'item-bell-giga': 30, 'item-bell-iper': 20, 'item-bell-master': 15,
+        'item-apple': 30, 'item-hay': 50,
+      };
+      const next = prev.map(it => ({ ...it, quantity: Math.max(it.quantity, want[it.id] ?? it.quantity) }));
+      DEFAULT_BAG.forEach(def => { if (!next.find(n => n.id === def.id)) next.push({ ...def, quantity: want[def.id] ?? def.quantity }); });
+      return next;
+    });
+    setTrainer(prev => ({ ...prev, coins: prev.coins + 2000, level: Math.max(prev.level, 12), xpToNextLevel: Math.max(prev.xpToNextLevel, 1000) }));
+    setProfileMsg("Rifornimento completato: +2000 🪙, scorte piene, livello ≥ 12 (arene sbloccate).");
+  };
+
+  // Raccoglie tutte le chiavi di salvataggio (prefisso vazzamon_).
+  const collectSave = () => {
+    const data: Record<string, string> = {};
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith('vazzamon_')) data[k] = localStorage.getItem(k) ?? "";
+    }
+    return JSON.stringify({ app: "vatsamon", v: 1, ts: new Date().toISOString(), data });
+  };
+  const encodeSave = () => btoa(unescape(encodeURIComponent(collectSave())));
+
+  const copySaveCode = async () => {
+    playClickSfx();
+    const code = encodeSave();
+    try { await navigator.clipboard.writeText(code); setProfileMsg("Codice di salvataggio copiato negli appunti ✅"); }
+    catch { setImportText(code); setProfileMsg("Copia non disponibile: codice mostrato qui sotto, selezionalo a mano."); }
+  };
+
+  const downloadSave = () => {
+    playClickSfx();
+    const blob = new Blob([collectSave()], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = "vatsamon-salvataggio.json"; a.click();
+    URL.revokeObjectURL(url);
+    setProfileMsg("File di salvataggio scaricato 💾");
+  };
+
+  const importSave = () => {
+    playClickSfx();
+    const raw = importText.trim();
+    if (!raw) { setProfileMsg("Incolla prima un codice o un JSON di salvataggio."); return; }
+    try {
+      let json = raw;
+      if (!raw.startsWith("{")) json = decodeURIComponent(escape(atob(raw))); // codice base64
+      const obj = JSON.parse(json);
+      const data = obj.data ?? obj;
+      Object.entries(data).forEach(([k, v]) => { if (k.startsWith('vazzamon_')) localStorage.setItem(k, String(v)); });
+      setProfileMsg("Salvataggio importato! Ricarico il gioco…");
+      setTimeout(() => window.location.reload(), 700);
+    } catch {
+      setProfileMsg("Codice non valido. Controlla di averlo incollato per intero.");
+    }
+  };
+
+  const resetAll = () => {
+    playClickSfx();
+    if (!window.confirm("Azzerare TUTTI i progressi? L'operazione non è reversibile.")) return;
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith('vazzamon_')) localStorage.removeItem(k);
+    }
+    window.location.reload();
+  };
+
+  // Pre-spawn some wild cows around the screen if none exist (senza duplicati)
   useEffect(() => {
     if (wildCows.length === 0) {
-      setWildCows([
-        spawnWildCowAtRandom(playerLat, playerLng),
-        spawnWildCowAtRandom(playerLat, playerLng),
-        spawnWildCowAtRandom(playerLat, playerLng)
-      ]);
+      const ex = new Set<string>();
+      const arr: WildCow[] = [];
+      for (let i = 0; i < 4; i++) {
+        const w = spawnWildCowAtRandom(playerLat, playerLng, ex);
+        ex.add(w.vatsa.id);
+        arr.push(w);
+      }
+      setWildCows(arr);
     }
   }, []);
 
@@ -781,7 +876,7 @@ export default function App() {
 
     // Spawn another wild Vatsamon nearby
     if (Math.random() > 0.3) {
-      setWildCows(prev => [...prev.slice(-3), spawnWildCowAtRandom(nextLat, nextLng)]); // keep maximum 4 wild cows roaming
+      setWildCows(prev => [...prev.slice(-3), spawnWildCowAtRandom(nextLat, nextLng, new Set(prev.map(w => w.vatsa.id)))]); // max 4 roaming, niente doppioni
     }
 
     // Update the live feed list
@@ -1378,7 +1473,7 @@ export default function App() {
           
           {/* Trainer Avatar Info */}
           <div className="flex items-center gap-3">
-            <div className="relative cursor-pointer" onClick={() => { playClickSfx(); alert("Sei un fiero Allevatore e Trekker della Valle d'Aosta! Cammina nei pascoli per completare lo svezzamento dei vitellini e collezionare le Regine."); }}>
+            <div className="relative cursor-pointer" title="Profilo & Salvataggio" onClick={() => { playClickSfx(); setProfileMsg(""); setShowProfile(true); }}>
               <div className="w-12 h-12 rounded-full border-2 border-emerald-500 bg-slate-850 flex items-center justify-center overflow-hidden shadow-inner">
                 <span className="text-2xl">👨‍🌾</span>
               </div>
@@ -2638,6 +2733,59 @@ export default function App() {
         </div>
 
       </main>
+
+      {/* PROFILO & SALVATAGGIO (risorse di test, export/import progressi) */}
+      {showProfile && (
+        <div className="fixed inset-0 bg-slate-950/95 z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto" id="profile-modal" onClick={() => setShowProfile(false)}>
+          <div className="bg-slate-900 border-2 border-emerald-500/40 rounded-3xl max-w-md w-full p-5 space-y-4 shadow-2xl my-auto max-h-[94dvh] overflow-y-auto no-scrollbar" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-mono font-black text-emerald-400 flex items-center gap-2">👨‍🌾 Profilo & Salvataggio</h3>
+              <button onClick={() => setShowProfile(false)} className="text-slate-400 hover:text-slate-200 p-1"><X className="w-5 h-5" /></button>
+            </div>
+
+            {/* riepilogo */}
+            <div className="grid grid-cols-3 gap-2 text-center">
+              <div className="bg-slate-950 rounded-xl border border-slate-850 py-2"><div className="text-[9px] text-slate-500 font-mono uppercase">Reines</div><div className="text-sm font-mono font-black text-emerald-300">{vatsadex.length}</div></div>
+              <div className="bg-slate-950 rounded-xl border border-slate-850 py-2"><div className="text-[9px] text-slate-500 font-mono uppercase">Livello</div><div className="text-sm font-mono font-black text-amber-300">{trainer.level}</div></div>
+              <div className="bg-slate-950 rounded-xl border border-slate-850 py-2"><div className="text-[9px] text-slate-500 font-mono uppercase">Monete</div><div className="text-sm font-mono font-black text-amber-300">{trainer.coins}</div></div>
+            </div>
+
+            {/* risorse di test */}
+            <div className="space-y-2">
+              <div className="text-[10px] font-mono font-black text-slate-300 uppercase tracking-widest">🎒 Risorse di test</div>
+              <button onClick={restockResources} className="w-full bg-emerald-600 hover:bg-emerald-500 text-[#0b0820] font-mono font-black text-xs py-3 rounded-xl border-b-4 border-emerald-800">
+                RIFORNISCI TUTTO (balls, +2000 🪙, Lv ≥ 12)
+              </button>
+            </div>
+
+            {/* salvataggio */}
+            <div className="space-y-2">
+              <div className="text-[10px] font-mono font-black text-slate-300 uppercase tracking-widest">💾 Salva i progressi</div>
+              <p className="text-[10px] text-slate-400 leading-snug">Copia il codice o scarica il file: serve a riportare i progressi su un altro dispositivo o dopo un nuovo deploy (i salvataggi sono per-browser).</p>
+              <div className="grid grid-cols-2 gap-2">
+                <button onClick={copySaveCode} className="bg-slate-950 hover:bg-slate-850 border border-slate-800 text-slate-200 font-mono font-bold text-[11px] py-2.5 rounded-xl">📋 Copia codice</button>
+                <button onClick={downloadSave} className="bg-slate-950 hover:bg-slate-850 border border-slate-800 text-slate-200 font-mono font-bold text-[11px] py-2.5 rounded-xl">💾 Scarica file</button>
+              </div>
+            </div>
+
+            {/* ripristino */}
+            <div className="space-y-2">
+              <div className="text-[10px] font-mono font-black text-slate-300 uppercase tracking-widest">📥 Ripristina</div>
+              <textarea
+                value={importText}
+                onChange={(e) => setImportText(e.target.value)}
+                placeholder="Incolla qui il codice di salvataggio…"
+                className="w-full h-20 bg-slate-950 border border-slate-800 rounded-xl p-2 text-[10px] font-mono text-slate-200 resize-none no-scrollbar"
+              />
+              <button onClick={importSave} className="w-full bg-blue-600 hover:bg-blue-500 text-white font-mono font-black text-xs py-2.5 rounded-xl border-b-4 border-blue-800">IMPORTA SALVATAGGIO</button>
+            </div>
+
+            {profileMsg && <div className="text-[11px] font-mono text-emerald-300 bg-emerald-950/40 border border-emerald-900 rounded-xl p-2">{profileMsg}</div>}
+
+            <button onClick={resetAll} className="w-full text-[10px] font-mono text-rose-400 hover:text-rose-300 underline pt-1">Azzera tutti i progressi</button>
+          </div>
+        </div>
+      )}
 
       {/* FOOTER GENERAL LEGALS AND RESET ACCENTS */}
       <footer className="bg-slate-950 text-slate-500 text-[10px] text-center py-4 px-6 border-t border-slate-850 mt-12 gap-2 flex flex-col items-center relative z-10">
