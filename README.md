@@ -1,39 +1,43 @@
-# 🐮 Vazzamon — la Vazzadex delle Reines valdostane
+# Vazzamon - la Vazzadex delle Reines valdostane
 
-App **stile Pokémon GO** con le **mucche reali** delle Bataille de Reines della
-Valle d'Aosta. Cammini (GPS reale o demo) lungo i sentieri, incontri le bovine
-nei loro **comuni veri**, le catturi con un mini-gioco, le collezioni nel
-Vazzadex e le fai sfidare nell'arena. Uno scanner IA conia inoltre Vazzamon
-bonus dalle tue foto.
+Vazzamon e una PWA in stile Pokemon GO dedicata alle Reines reali delle Bataille
+de Reines della Valle d'Aosta. La versione attuale riparte dalla base **AI Studio
+v2** e la rende una build web statica, innestando il database reale delle bovine,
+le foto disponibili e la geolocalizzazione nei comuni corretti.
 
-> Hackathon **BuildWithAI – GDG Valle d'Aosta**.
-> Fusione del prototipo "dati reali" + del prototipo di gioco AI Studio (v2),
-> in un'unica build web statica.
+> Hackathon BuildWithAI - GDG Valle d'Aosta.
 
 ## Struttura della repo
-```
+
+```text
 .
-├─ app/          ← LA build: PWA Vite + React + TS (questa è l'app)
-└─ materiali/    ← sorgenti e riferimenti (kit dati, foto, v2 originale, challenge)
+├─ app/          <- app attiva: Vite + React + TypeScript + PWA
+└─ materiali/    <- archivio sorgenti/riferimenti, non app attiva
 ```
 
+`app/` e la build da sviluppare, verificare e pubblicare. `materiali/` contiene
+dataset, prototipi originali, prompt, foto e challenge usati come riferimento o
+fonte storica; non va trattata come codice runtime della PWA.
+
 ## Avvio
+
 ```bash
 cd app
 npm install
-npm run dev       # http://localhost:5173
-npm run build     # build statica in app/dist
-npm run verify    # test automatico nel browser (Playwright)
+npm run dev        # http://localhost:5173
+npm run typecheck  # controllo TypeScript
+npm run build      # typecheck + build statica in app/dist
+npm run verify     # test Playwright sul flusso principale
 ```
 
-## Cosa c'è dentro (il meglio dei due prototipi)
-- **73 bovine reali** con 35 foto vere, geolocalizzate nei **comuni corretti**, 4 statistiche dai pesi reali.
-- **Scanner IA** (simulato, offline) che genera Vazzamon **bonus** dalle foto.
-- **Mappa Pokémon GO**: player + GPS reale + demo a piedi, raggio di cattura, sentiero reale, **Casere** (PokéStop) con ruota premi.
-- **Cattura interattiva**: mira, campanacci/ball, mela, oscillazione.
-- **Uova** che si schiudono camminando.
-- **Bataille de Reines**: arena in tempo reale (attacca / schiva / super).
-- **Allenatore**: livello, XP, monete, zaino; **audio** sintetizzato; animazioni.
-- **PWA** installabile, build **statica** (niente server, niente chiavi).
+## Stato attuale
 
-Dettagli tecnici e deploy: vedi [app/README.md](app/README.md).
+- Base v2: UI scura/neon, animazioni, audio, capture minigame, Casere, uova,
+  allenatore e arena Gym.
+- Dati reali: 73 bovine del calendario 2026, 35 foto vere, comuni reali,
+  coordinate, statistiche e schede convertite nel modello di gioco.
+- Scanner: simulato lato client, senza server e senza chiavi API.
+- Deploy: GitHub Pages tramite `.github/workflows/deploy.yml`, con build da
+  `app/` e base Vite `/vazzamon/`.
+
+Per dettagli tecnici e workflow applicativo vedi [app/README.md](app/README.md).
