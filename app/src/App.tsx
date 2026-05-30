@@ -1036,8 +1036,8 @@ export default function App() {
           const nextPlayerHp = Math.max(0, prev.playerHp - finalDmg);
           const nextOpponentEnergy = isSuperReady ? 0 : Math.min(100, prev.opponentEnergy + 20);
 
-          let status = prev.status;
-          let winner = prev.winner;
+          let status: BattleState['status'] = prev.status;
+          let winner: BattleState['winner'] = prev.winner;
           if (nextPlayerHp <= 0) {
             status = 'ended';
             winner = 'opponent';
@@ -1091,8 +1091,8 @@ export default function App() {
       const logs = [...prev.history];
       logs.push(`⚔️ ${prev.playerVazzamon.name} attacca infliggendo ${dmg} danni!`);
 
-      let status = prev.status;
-      let winner = prev.winner;
+      let status: BattleState['status'] = prev.status;
+      let winner: BattleState['winner'] = prev.winner;
       if (nextOppHp <= 0) {
         status = 'ended';
         winner = 'player';
@@ -1141,8 +1141,8 @@ export default function App() {
       const logs = [...prev.history];
       logs.push(`🌟✨ SPECTACULAR STRIKE! ${prev.playerVazzamon?.name} sferra "RUGITO DELLA COGNE" infliggendo ${critDmg} danni devastanti!`);
 
-      let status = prev.status;
-      let winner = prev.winner;
+      let status: BattleState['status'] = prev.status;
+      let winner: BattleState['winner'] = prev.winner;
       if (nextOppHp <= 0) {
         status = 'ended';
         winner = 'player';
