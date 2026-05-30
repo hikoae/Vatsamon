@@ -30,7 +30,7 @@ export default function App() {
 
       {/* La mappa va tenuta montata a tutta altezza; le altre schermate scrollano */}
       {tab === "mappa" ? (
-        <div className="screen" style={{ padding: 0 }}>
+        <div className="screen" style={{ padding: 0, overflow: "hidden" }}>
           <MapScreen onEncounter={(p) => setEncounter(p)} />
         </div>
       ) : tab === "vazzadex" ? (
