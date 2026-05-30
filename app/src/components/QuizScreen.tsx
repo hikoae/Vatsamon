@@ -1,13 +1,26 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { GraduationCap, Check, X as XIcon, RotateCw } from "lucide-react";
-import { QUIZ_QUESTIONS } from "../data/quiz";
+import { QUIZ_QUESTIONS, QuizQuestion } from "../data/quiz";
 
 const DIFF_COLOR: Record<string, string> = {
   Facile: "text-emerald-400",
   Medio: "text-amber-400",
   Difficile: "text-rose-400",
 };
+
+/** Quante domande per partita (sottoinsieme casuale per non essere ripetitivi). */
+const PER_GAME = 8;
+
+/** Pesca PER_GAME domande casuali distinte dalla banca. */
+function drawQuestions(): QuizQuestion[] {
+  const pool = [...QUIZ_QUESTIONS];
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+  return pool.slice(0, Math.min(PER_GAME, pool.length));
+}
 
 /**
  * Scuola d'Alpeggio: quiz educativo a punti (rispetto animali/sentieri/Fontina/
@@ -21,13 +34,14 @@ export function QuizScreen({
   bestScore: number;
   onFinish: (correct: number, total: number) => void;
 }) {
-  const total = QUIZ_QUESTIONS.length;
+  const [questions, setQuestions] = useState<QuizQuestion[]>(drawQuestions);
+  const total = questions.length;
   const [index, setIndex] = useState(0);
   const [picked, setPicked] = useState<number | null>(null);
   const [score, setScore] = useState(0);
   const [done, setDone] = useState(false);
 
-  const q = QUIZ_QUESTIONS[index];
+  const q = questions[index];
 
   const choose = (i: number) => {
     if (picked !== null) return;
@@ -46,6 +60,7 @@ export function QuizScreen({
   };
 
   const restart = () => {
+    setQuestions(drawQuestions());
     setIndex(0);
     setPicked(null);
     setScore(0);
@@ -83,7 +98,7 @@ export function QuizScreen({
             <GraduationCap className="w-5 h-5" /> Scuola d'Alpeggio
           </h2>
           <span className="text-[10px] font-mono font-bold text-slate-400">
-            {index + 1}/{total} · <span className={DIFF_COLOR[q.difficulty]}>{q.difficulty}</span>
+            {index + 1}/{total} · <span className="text-sky-300">{q.category}</span> · <span className={DIFF_COLOR[q.difficulty]}>{q.difficulty}</span>
           </span>
         </div>
 
