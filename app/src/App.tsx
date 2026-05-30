@@ -38,6 +38,7 @@ import { BattleTurnBased } from './components/BattleTurnBased';
 import { ArenaBattle } from './components/ArenaBattle';
 import { ARENAS, ArenaId } from './data/arenas';
 import { TREK_ROUTES } from './data/routes';
+import { Challenges } from './components/Challenges';
 import { soundEngine } from './utils/audio';
 import { generateVatsamonClient } from './lib/generate';
 import { REAL_COWS, REAL_TOTAL, REAL_CASERE, SHOWCASE_BY_RARITY } from './data/realCows';
@@ -134,18 +135,31 @@ function catchDifficulty(p: number): { color: string; label: string } {
   return { color: '#ef4444', label: 'ARDUA' };
 }
 
+/** Collezione iniziale "demo-ready": alcune Reines reali già catturate, con varietà
+ *  di rarità e foto. Usata solo al primo avvio (nessun salvataggio presente). */
+function SEED_COLLECTION(): Vatsamon[] {
+  const withPhoto = REAL_COWS.filter(c => c.realPhoto);
+  const byR = (r: string) => withPhoto.filter(c => c.rarity === r);
+  const picks = [
+    ...byR('Leggendaria').slice(0, 2),
+    ...byR('Epica').slice(0, 2),
+    ...byR('Rara').slice(0, 4),
+  ];
+  return picks.map(c => ({ ...c, capturedAt: '2026-05-29' }));
+}
+
 export default function App() {
   // ---- 1. PERSISTENT STATS ----
   const [vatsadex, setVatsadex] = useState<Vatsamon[]>(() => {
-    const cached = localStorage.getItem('vatsamon_collection_go');
+    const cached = localStorage.getItem('vazzamon_collection_go');
     if (cached) {
       try { return JSON.parse(cached); } catch (e) { console.error(e); }
     }
-    return []; // si parte da Vatsadex vuota: tutte le 73 reali da catturare
+    return SEED_COLLECTION(); // stato demo-ready: alcune Reines già catturate
   });
 
   const [backpack, setBackpack] = useState<BackpackItem[]>(() => {
-    const cached = localStorage.getItem('vatsamon_bag_go');
+    const cached = localStorage.getItem('vazzamon_bag_go');
     if (cached) {
       try {
         const parsed: BackpackItem[] = JSON.parse(cached);
@@ -161,7 +175,7 @@ export default function App() {
   });
 
   const [eggs, setEggs] = useState<Egg[]>(() => {
-    const cached = localStorage.getItem('vatsamon_eggs_go');
+    const cached = localStorage.getItem('vazzamon_eggs_go');
     if (cached) {
       try { return JSON.parse(cached); } catch (e) { console.error(e); }
     }
@@ -172,42 +186,42 @@ export default function App() {
   });
 
   const [trainer, setTrainer] = useState<Trainer>(() => {
-    const cached = localStorage.getItem('vatsamon_trainer_go');
+    const cached = localStorage.getItem('vazzamon_trainer_go');
     if (cached) {
       try { return JSON.parse(cached); } catch (e) { console.error(e); }
     }
     return {
       name: "TrekkerGO",
-      level: 1,
-      xp: 0,
+      level: 6,
+      xp: 420,
       xpToNextLevel: 1000,
-      capturedCount: 0,
-      kmTraveled: 0,
-      coins: 120
+      capturedCount: 8,
+      kmTraveled: 18,
+      coins: 360
     };
   });
 
   // Keep all persistent items secure in localStorage
-  useEffect(() => { localStorage.setItem('vatsamon_collection_go', JSON.stringify(vatsadex)); }, [vatsadex]);
-  useEffect(() => { localStorage.setItem('vatsamon_bag_go', JSON.stringify(backpack)); }, [backpack]);
-  useEffect(() => { localStorage.setItem('vatsamon_eggs_go', JSON.stringify(eggs)); }, [eggs]);
-  useEffect(() => { localStorage.setItem('vatsamon_trainer_go', JSON.stringify(trainer)); }, [trainer]);
+  useEffect(() => { localStorage.setItem('vazzamon_collection_go', JSON.stringify(vatsadex)); }, [vatsadex]);
+  useEffect(() => { localStorage.setItem('vazzamon_bag_go', JSON.stringify(backpack)); }, [backpack]);
+  useEffect(() => { localStorage.setItem('vazzamon_eggs_go', JSON.stringify(eggs)); }, [eggs]);
+  useEffect(() => { localStorage.setItem('vazzamon_trainer_go', JSON.stringify(trainer)); }, [trainer]);
 
   // Trekking Waypoints coordinates tracking
   const [currentWaypointIndex, setCurrentWaypointIndex] = useState<number>(() => {
-    const cached = localStorage.getItem('vatsamon_waypoint_idx');
+    const cached = localStorage.getItem('vazzamon_waypoint_idx');
     return cached ? Number(cached) : 0; // si parte dalla prima tappa del percorso
   });
   const [waypointProgress, setWaypointProgress] = useState<number>(() => {
-    const cached = localStorage.getItem('vatsamon_waypoint_progress');
+    const cached = localStorage.getItem('vazzamon_waypoint_progress');
     return cached ? Number(cached) : 0;
   });
 
   // Percorso di trekking attivo (3 itinerari selezionabili).
   const [activeRouteId, setActiveRouteId] = useState<string>(() => {
-    return localStorage.getItem('vatsamon_active_route_id') || TREK_ROUTES[0].id;
+    return localStorage.getItem('vazzamon_active_route_id') || TREK_ROUTES[0].id;
   });
-  useEffect(() => { localStorage.setItem('vatsamon_active_route_id', activeRouteId); }, [activeRouteId]);
+  useEffect(() => { localStorage.setItem('vazzamon_active_route_id', activeRouteId); }, [activeRouteId]);
   const activeRoute = TREK_ROUTES.find(r => r.id === activeRouteId) ?? TREK_ROUTES[0];
   const activeTrail = activeRoute.coords;
   // Cambia percorso: riparte dalla prima tappa.
@@ -225,24 +239,32 @@ export default function App() {
     "Bussola sintonizzata: sei attualmente ad Aosta Centro 🏰."
   ]);
 
-  useEffect(() => { localStorage.setItem('vatsamon_waypoint_idx', String(currentWaypointIndex)); }, [currentWaypointIndex]);
-  useEffect(() => { localStorage.setItem('vatsamon_waypoint_progress', String(waypointProgress)); }, [waypointProgress]);
+  useEffect(() => { localStorage.setItem('vazzamon_waypoint_idx', String(currentWaypointIndex)); }, [currentWaypointIndex]);
+  useEffect(() => { localStorage.setItem('vazzamon_waypoint_progress', String(waypointProgress)); }, [waypointProgress]);
 
   // ---- 2. VIEW NAVIGATION ----
   const [activeTab, setActiveTab] = useState<'map' | 'scanner' | 'eggs' | 'vatsadex' | 'battle' | 'quiz'>('map');
   // Quiz "Scuola d'Alpeggio": miglior punteggio persistito.
   const [quizBest, setQuizBest] = useState<number>(() => {
-    const saved = localStorage.getItem('vatsamon_quiz_go');
+    const saved = localStorage.getItem('vazzamon_quiz_go');
     return saved ? parseInt(saved, 10) : 0;
   });
   // Medaglie delle Arene conquistate (bonus permanenti).
   const [trainerBadges, setTrainerBadges] = useState<ArenaId[]>(() => {
-    const saved = localStorage.getItem('vatsamon_badges');
+    const saved = localStorage.getItem('vazzamon_badges');
+    return saved ? JSON.parse(saved) : ['cogne', 'gran_paradiso'];
+  });
+  useEffect(() => {
+    localStorage.setItem('vazzamon_badges', JSON.stringify(trainerBadges));
+  }, [trainerBadges]);
+  // Sfide riscosse (per non riscuotere due volte la ricompensa).
+  const [claimedChallenges, setClaimedChallenges] = useState<string[]>(() => {
+    const saved = localStorage.getItem('vazzamon_challenges_go');
     return saved ? JSON.parse(saved) : [];
   });
   useEffect(() => {
-    localStorage.setItem('vatsamon_badges', JSON.stringify(trainerBadges));
-  }, [trainerBadges]);
+    localStorage.setItem('vazzamon_challenges_go', JSON.stringify(claimedChallenges));
+  }, [claimedChallenges]);
   const [soundEnabled, setSoundEnabled] = useState(true);
 
   // Overworld spawned wild Vatsamons
@@ -362,7 +384,7 @@ export default function App() {
                      <span class="text-base">🍼</span>
                      ${cooldownActive ? '' : '<span class="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-yellow-400 rounded-full border border-white animate-ping"></span>'}
                    </div>
-                   <div class="px-1.5 py-0.5 rounded bg-slate-950/95 border border-slate-800 text-[8px] text-white font-mono font-bold whitespace-nowrap shadow-sm" style="transform: translateY(-12px);">
+                   <div class="px-1.5 py-0.5 rounded bg-[#211b3a]/95 border border-[#3a3460] text-[8px] text-white font-mono font-bold whitespace-nowrap shadow-sm" style="transform: translateY(-12px);">
                      ${hp.name.substring(0, 10)}...
                    </div>
                  </div>`,
@@ -391,13 +413,13 @@ export default function App() {
         const cowHtmlIcon = L.divIcon({
           className: 'custom-leaflet-marker',
           html: `<div class="flex flex-col items-center">
-                   <div class="w-10 h-10 rounded-full bg-slate-950 border-2 border-amber-500 flex items-center justify-center shadow-lg relative cursor-pointer hover:scale-110 transition-transform" style="transform: translateY(-8px);">
+                   <div class="w-10 h-10 rounded-full bg-[#211b3a] border-2 border-amber-500 flex items-center justify-center shadow-lg relative cursor-pointer hover:scale-110 transition-transform" style="transform: translateY(-8px);">
                      <span class="text-xl animate-float">${emoji}</span>
                      <span class="absolute -top-1 -right-1 bg-amber-500 text-[#0b0820] font-mono text-[7px] font-black px-1 rounded-full leading-tight">
                        CP${wc.vatsa.cp}
                      </span>
                    </div>
-                   <div class="px-1 py-0.2 rounded bg-slate-900 border border-amber-550/20 text-[7px] text-yellow-400 font-mono font-bold whitespace-nowrap shadow-sm" style="transform: translateY(-10px);">
+                   <div class="px-1 py-0.2 rounded bg-[#211b3a] border border-amber-550/40 text-[7px] text-yellow-300 font-mono font-bold whitespace-nowrap shadow-sm" style="transform: translateY(-10px);">
                      ${wc.vatsa.rarity}
                    </div>
                  </div>`,
@@ -428,7 +450,7 @@ export default function App() {
         const realIcon = L.divIcon({
           className: 'custom-leaflet-marker',
           html: `<div class="flex flex-col items-center ${inRange ? '' : 'opacity-70'}">
-                   <div class="w-11 h-11 rounded-full border-2 ${ring} bg-slate-950 flex items-center justify-center shadow-lg overflow-hidden relative" style="${photo}">
+                   <div class="w-11 h-11 rounded-full border-2 ${ring} bg-[#211b3a] flex items-center justify-center shadow-lg overflow-hidden relative" style="${photo}">
                      ${inner}
                      <span class="absolute -top-1 -right-1 bg-emerald-500 text-[#0b0820] font-mono text-[7px] font-black px-1 rounded-full">CP${rc.cp}</span>
                    </div>
@@ -1345,13 +1367,13 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-violet-800 via-indigo-700 to-fuchsia-800 flex flex-col font-sans text-slate-100 antialiased selection:bg-emerald-500 selection:text-white relative overflow-x-hidden" id="vatsamon-go-app">
+    <div className="min-h-screen bg-gradient-to-br from-violet-100 via-rose-50 to-sky-100 flex flex-col font-sans text-slate-100 antialiased selection:bg-emerald-500 selection:text-white relative overflow-x-hidden" id="vatsamon-go-app">
 
       {/* Sfondo aurora animato (tema Pokémon moderno) */}
       <div className="aurora-bg" aria-hidden="true" />
 
       {/* 🎒 MAIN HUD STATUS BAR (POKEMON GO STYLE) 🎒 */}
-      <header className="bg-slate-950 border-b border-emerald-900/60 p-3 sticky top-0 z-50 shadow-md">
+      <header className="bg-slate-950 border-b-2 border-[#c8102e] p-3 sticky top-0 z-50 shadow-md">
         <div className="max-w-4xl mx-auto flex items-center justify-between gap-4">
           
           {/* Trainer Avatar Info */}
@@ -1410,7 +1432,7 @@ export default function App() {
         <div className="max-w-md mx-auto grid grid-cols-6 gap-0.5 p-1 text-[11px] font-extrabold">
           <button
             onClick={() => { playClickSfx(); setActiveTab('map'); }}
-            className={`flex flex-col items-center py-2 rounded-xl transition-all ${activeTab === 'map' ? 'nav-active text-[#0b0820]' : 'text-slate-400 hover:bg-slate-900 hover:-translate-y-0.5'}`}
+            className={`flex flex-col items-center py-2 rounded-xl transition-all ${activeTab === 'map' ? 'nav-active text-white' : 'text-slate-400 hover:bg-slate-900 hover:-translate-y-0.5'}`}
           >
             <Compass className="w-4 h-4 mb-0.5" />
             <span>Mappa</span>
@@ -1418,7 +1440,7 @@ export default function App() {
 
           <button
             onClick={() => { playClickSfx(); setActiveTab('scanner'); }}
-            className={`flex flex-col items-center py-2 rounded-xl transition-all ${activeTab === 'scanner' ? 'nav-active text-[#0b0820]' : 'text-slate-400 hover:bg-slate-900 hover:-translate-y-0.5'}`}
+            className={`flex flex-col items-center py-2 rounded-xl transition-all ${activeTab === 'scanner' ? 'nav-active text-white' : 'text-slate-400 hover:bg-slate-900 hover:-translate-y-0.5'}`}
           >
             <Camera className="w-4 h-4 mb-0.5" />
             <span>AR Scan</span>
@@ -1426,7 +1448,7 @@ export default function App() {
 
           <button
             onClick={() => { playClickSfx(); setActiveTab('eggs'); }}
-            className={`flex flex-col items-center py-2 rounded-xl transition-all relative ${activeTab === 'eggs' ? 'nav-active text-[#0b0820]' : 'text-slate-400 hover:bg-slate-900 hover:-translate-y-0.5'}`}
+            className={`flex flex-col items-center py-2 rounded-xl transition-all relative ${activeTab === 'eggs' ? 'nav-active text-white' : 'text-slate-400 hover:bg-slate-900 hover:-translate-y-0.5'}`}
           >
             <Gift className="w-4 h-4 mb-0.5" />
             <span>Vitelli</span>
@@ -1435,7 +1457,7 @@ export default function App() {
 
           <button
             onClick={() => { playClickSfx(); setActiveTab('vatsadex'); }}
-            className={`flex flex-col items-center py-2 rounded-xl transition-all relative ${activeTab === 'vatsadex' ? 'nav-active text-[#0b0820]' : 'text-slate-400 hover:bg-slate-900 hover:-translate-y-0.5'}`}
+            className={`flex flex-col items-center py-2 rounded-xl transition-all relative ${activeTab === 'vatsadex' ? 'nav-active text-white' : 'text-slate-400 hover:bg-slate-900 hover:-translate-y-0.5'}`}
           >
             <BookOpen className="w-4 h-4 mb-0.5" />
             <span>Vatsadex</span>
@@ -1448,7 +1470,7 @@ export default function App() {
 
           <button
             onClick={() => { playClickSfx(); setActiveTab('battle'); }}
-            className={`flex flex-col items-center py-2 rounded-xl transition-all ${activeTab === 'battle' ? 'nav-active text-[#0b0820]' : 'text-slate-400 hover:bg-slate-900 hover:-translate-y-0.5'}`}
+            className={`flex flex-col items-center py-2 rounded-xl transition-all ${activeTab === 'battle' ? 'nav-active text-white' : 'text-slate-400 hover:bg-slate-900 hover:-translate-y-0.5'}`}
           >
             <Swords className="w-4 h-4 mb-0.5" />
             <span>Gym</span>
@@ -1456,7 +1478,7 @@ export default function App() {
 
           <button
             onClick={() => { playClickSfx(); setActiveTab('quiz'); }}
-            className={`flex flex-col items-center py-2 rounded-xl transition-all ${activeTab === 'quiz' ? 'nav-active text-[#0b0820]' : 'text-slate-400 hover:bg-slate-900 hover:-translate-y-0.5'}`}
+            className={`flex flex-col items-center py-2 rounded-xl transition-all ${activeTab === 'quiz' ? 'nav-active text-white' : 'text-slate-400 hover:bg-slate-900 hover:-translate-y-0.5'}`}
           >
             <GraduationCap className="w-4 h-4 mb-0.5" />
             <span>Scuola</span>
@@ -1471,6 +1493,28 @@ export default function App() {
         {/* VIEW 1: INTERACTIVE MAP OVERWORLD */}
         {activeTab === 'map' && (
           <div className="space-y-6" id="overworld-view">
+
+            {/* SFIDE DEL GIOCATORE */}
+            <div className="bg-slate-950 border border-rose-700/30 rounded-3xl p-4">
+              <Challenges
+                stats={{
+                  capturedReal: vatsadex.filter(c => c.isReal).length,
+                  badges: trainerBadges.length,
+                  quizBest,
+                  km: trainer.kmTraveled,
+                  level: trainer.level,
+                }}
+                claimed={claimedChallenges}
+                onClaim={(id, coins, xp) => {
+                  if (claimedChallenges.includes(id)) return;
+                  playClickSfx();
+                  setClaimedChallenges(prev => [...prev, id]);
+                  setTrainer(prev => ({ ...prev, coins: prev.coins + coins }));
+                  addTrainerXp(xp);
+                  setTrekkingFeed(prev => [`🎯 Sfida completata! +${coins} 🪙 +${xp} XP`, ...prev.slice(0, 8)]);
+                }}
+              />
+            </div>
 
             {/* SELETTORE PERCORSO (3 grandi itinerari valdostani) */}
             <div className="bg-slate-950 border border-slate-850 rounded-3xl p-4 space-y-3" id="route-selector">
@@ -2424,7 +2468,7 @@ export default function App() {
                           </div>
 
                           <div className="space-y-1 flex flex-col items-center">
-                            <h4 className="font-mono font-extrabold text-[#F5F5DC] text-xs truncate max-w-full leading-none">
+                            <h4 className="font-mono font-extrabold text-[#211b3a] text-xs truncate max-w-full leading-none">
                               {cow.name}
                             </h4>
                             <span className="text-[9px] bg-slate-950 font-mono font-black text-yellow-400 border border-slate-800 px-1.5 py-0.5 rounded-md mt-1 shadow-sm uppercase">
@@ -2516,7 +2560,7 @@ export default function App() {
                 addTrainerXp(correct * 30);
                 if (correct > quizBest) {
                   setQuizBest(correct);
-                  localStorage.setItem('vatsamon_quiz_go', String(correct));
+                  localStorage.setItem('vazzamon_quiz_go', String(correct));
                 }
                 setTrekkingFeed(prev => [`🎓 Scuola d'Alpeggio: ${correct}/${totale} risposte giuste (+${coinsWon} 🪙)`, ...prev.slice(0, 8)]);
               }}

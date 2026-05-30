@@ -33,10 +33,10 @@ export function TrailOverlay({ map, trail }: { map: L.Map | null; trail: Valdost
       const icon = L.divIcon({
         className: "custom-leaflet-marker",
         html: `<div class="flex flex-col items-center">
-                 <div class="w-8 h-8 rounded-full border-2 border-amber-400 bg-slate-950 flex items-center justify-center shadow-lg" style="transform: translateY(-6px);">
+                 <div class="w-8 h-8 rounded-full border-2 border-amber-400 bg-[#211b3a] flex items-center justify-center shadow-lg" style="transform: translateY(-6px);">
                    <span class="text-base">${lm.iconEmoji}</span>
                  </div>
-                 <div class="px-1.5 py-0.5 rounded bg-slate-950/95 border border-amber-700 text-[8px] text-amber-200 font-mono font-bold whitespace-nowrap" style="transform: translateY(-8px);">${lm.name}</div>
+                 <div class="px-1.5 py-0.5 rounded bg-[#211b3a]/95 border border-amber-700 text-[8px] text-amber-100 font-mono font-bold whitespace-nowrap" style="transform: translateY(-8px);">${lm.name}</div>
                </div>`,
         iconSize: [40, 46],
         iconAnchor: [20, 23],

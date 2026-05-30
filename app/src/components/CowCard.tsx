@@ -19,7 +19,7 @@ const RARITY: Record<
   Leggendaria: {
     frame: "border-amber-400/70",
     bg: "from-amber-500/20 via-amber-900/10 to-slate-950",
-    text: "text-amber-300",
+    text: "text-amber-600",
     gem: "bg-amber-400",
     ring: "shadow-[0_0_28px_rgba(245,158,11,0.35)]",
     holo: 1,
@@ -29,7 +29,7 @@ const RARITY: Record<
   Epica: {
     frame: "border-purple-400/70",
     bg: "from-purple-500/20 via-purple-900/10 to-slate-950",
-    text: "text-purple-300",
+    text: "text-purple-600",
     gem: "bg-purple-400",
     ring: "shadow-[0_0_24px_rgba(168,85,247,0.3)]",
     holo: 0.7,
@@ -39,7 +39,7 @@ const RARITY: Record<
   Rara: {
     frame: "border-blue-400/60",
     bg: "from-blue-500/15 via-blue-900/10 to-slate-950",
-    text: "text-blue-300",
+    text: "text-blue-600",
     gem: "bg-blue-400",
     ring: "shadow-[0_0_18px_rgba(59,130,246,0.25)]",
     holo: 0.4,
@@ -103,9 +103,9 @@ export function CowCard({ cow }: { cow: Vatsamon }) {
 
       {/* nome + CP/livello + tipo */}
       <div className="relative text-center space-y-0.5">
-        <h1 className="text-2xl font-mono font-black text-[#F5F5DC] tracking-tight leading-none uppercase">{cow.name}</h1>
+        <h1 className="text-2xl font-mono font-black text-[#211b3a] tracking-tight leading-none uppercase">{cow.name}</h1>
         <div className="text-xs text-slate-400 font-mono">
-          CP <b className="text-amber-300">{cow.cp}</b> • Lv {cow.level} • {cow.breed}
+          CP <b className="text-amber-600">{cow.cp}</b> • Lv {cow.level} • {cow.breed}
           {cow.categoria ? ` • ${cow.categoria}` : ""}
         </div>
       </div>
@@ -180,7 +180,7 @@ export function CowCard({ cow }: { cow: Vatsamon }) {
               <div className="text-[8.5px] text-slate-500 leading-tight truncate">{m.desc}</div>
             </div>
             <span className="flex-shrink-0 text-right font-mono leading-none">
-              <span className="block text-xs font-black text-[#F5F5DC]">{m.value}</span>
+              <span className="block text-xs font-black text-[#211b3a]">{m.value}</span>
               <span className="block text-[7px] text-slate-500 uppercase">{m.unit}</span>
             </span>
           </div>

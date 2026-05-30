@@ -87,8 +87,8 @@ for (const t of TABS) {
 
 // Vatsadex: card catalogo reali X/73
 await clickTab(page, "Vatsadex");
-const cat = await page.locator("text=/Reines reali:\\s*0\\/73/").isVisible().catch(() => false);
-note(`catalogo reali 0/73: ${cat}`);
+const cat = await page.locator("text=/Reines reali:\\s*\\d+\\/73/").isVisible().catch(() => false);
+note(`catalogo reali X/73: ${cat}`);
 if (!cat) problems.push("manca la card catalogo reali X/73");
 await page.screenshot({ path: `${OUT}/v2int-3-dex.png` });
 

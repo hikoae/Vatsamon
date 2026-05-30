@@ -9,40 +9,51 @@
   --animate-radar: ping-radar 3s cubic-bezier(0, 0, 0.2, 1) infinite;
   --animate-shake: shake 0.3s ease-in-out;
 
-  /* ===== PALETTE "POKÉMON" PIÙ CHIARA (twilight viola luminoso) =====
-     Stessa direzione (numeri alti = superfici, bassi = testo chiaro) ma le
-     superfici sono molto più chiare di prima: da quasi-nero a viola medio
-     luminoso. Testo e accenti restano chiari → nulla perde leggibilità. */
-  --color-slate-950: #322e57; /* superficie principale (era #020617) */
-  --color-slate-900: #3c3768; /* card */
-  --color-slate-855: #453f78;
-  --color-slate-850: #4a4480;
-  --color-slate-800: #564f93; /* bordi/superfici tenui */
-  --color-slate-700: #6a63ad; /* bordi */
-  --color-slate-600: #847dc6;
-  --color-slate-500: #9f99d8; /* testo attenuato */
-  --color-slate-450: #b3aee3;
-  --color-slate-400: #c5c1ed; /* testo attenuato */
-  --color-slate-300: #dad7f5;
-  --color-slate-200: #e9e7fb;
-  --color-slate-100: #f5f3ff; /* testo primario chiaro */
-  --color-slate-50:  #fbfaff;
+  /* ===== PALETTE "POKÉMON" CHIARA & PASTELLO (accenti valdostani rosso/nero) =====
+     La scala slate è INVERTITA: numeri alti (950/900/850) = superfici CHIARE
+     pastello, numeri bassi (100/200/300) = inchiostro SCURO. Look luminoso e
+     soffuso, con rosso/nero della Valle d'Aosta come accenti. */
+  --color-slate-950: #f5f3fb; /* superficie più chiara (lavanda pastello) */
+  --color-slate-900: #ece8f6; /* card */
+  --color-slate-855: #e6e1f2;
+  --color-slate-850: #e0dbef;
+  --color-slate-800: #d2cce6; /* bordi/superfici tenui */
+  --color-slate-700: #bcb4da; /* bordi */
+  --color-slate-600: #9d94c4;
+  --color-slate-500: #7d75a6; /* testo attenuato */
+  --color-slate-450: #6a6293;
+  --color-slate-400: #574f7e; /* testo attenuato (leggibile su chiaro) */
+  --color-slate-300: #423a64; /* testo secondario */
+  --color-slate-200: #2f2849; /* testo */
+  --color-slate-100: #211b3a; /* inchiostro primario */
+  --color-slate-50:  #120e26;
 
-  /* Accenti vivaci (neon) — restano brillanti sulle superfici medie */
-  --color-emerald-400: #22f5a8;
-  --color-emerald-500: #10e29a;
-  --color-amber-400: #ffc31a;
-  --color-amber-500: #ff9d00;
-  --color-rose-500: #ff3d68;
-  --color-rose-600: #ec2c5a;
-  --color-sky-400: #3ad8ff;
-  --color-blue-400: #4aa8ff;
-  --color-purple-400: #c478ff;
+  /* Accenti pastello ma leggibili su superfici chiare (rosso valdostano incluso) */
+  --color-emerald-400: #0c9f6a;
+  --color-emerald-500: #10b981;
+  --color-emerald-600: #059669;
+  --color-sky-400: #2596d4;
+  --color-blue-400: #3b7fe0;
+  --color-amber-400: #b9740c;
+  --color-amber-500: #e08a0a;
+  --color-rose-500: #d72648; /* rosso valdostano */
+  --color-rose-600: #b81d39;
+  --color-purple-400: #8b46d6;
+  --color-yellow-400: #9a7400;
 
-  /* Shade custom usati nel markup (prima non resi) */
-  --color-red-650: #ff3355;
-  --color-amber-550: #ff8e0a;
-  --color-amber-450: #ffb01f;
+  /* Pannelli tenui colorati (-950 con opacità) → pastelli chiari */
+  --color-emerald-950: #e1f6ec;
+  --color-rose-950: #ffe2e7;
+  --color-blue-950: #e6edff;
+  --color-amber-950: #fcf1da;
+  --color-purple-950: #f1e7fb;
+  --color-sky-950: #e4f3fd;
+  --color-red-950: #ffe1e4;
+
+  /* Shade custom (accenti valdostani rosso/nero) */
+  --color-red-650: #c8102e; /* rosso bandiera Valle d'Aosta */
+  --color-amber-550: #e08a0a;
+  --color-amber-450: #d9920a;
 }
 
 @keyframes wobble {
@@ -152,13 +163,12 @@
   z-index: 0;
   pointer-events: none;
   background:
-    radial-gradient(44% 44% at 16% 16%, rgba(16, 226, 154, 0.55), transparent 68%),
-    radial-gradient(50% 50% at 84% 10%, rgba(58, 216, 255, 0.52), transparent 68%),
-    radial-gradient(54% 54% at 70% 90%, rgba(255, 157, 0, 0.44), transparent 68%),
-    radial-gradient(48% 48% at 10% 84%, rgba(196, 120, 255, 0.50), transparent 68%),
-    radial-gradient(42% 42% at 50% 48%, rgba(255, 61, 140, 0.34), transparent 70%);
-  filter: blur(20px) saturate(1.7);
-  animation: aurora 16s ease-in-out infinite;
+    radial-gradient(44% 44% at 16% 16%, rgba(215, 38, 72, 0.18), transparent 68%),
+    radial-gradient(50% 50% at 84% 10%, rgba(139, 70, 214, 0.16), transparent 68%),
+    radial-gradient(54% 54% at 70% 90%, rgba(224, 138, 10, 0.16), transparent 68%),
+    radial-gradient(48% 48% at 10% 84%, rgba(37, 150, 212, 0.16), transparent 68%);
+  filter: blur(26px) saturate(1.2);
+  animation: aurora 18s ease-in-out infinite;
 }
 
 /* Transizione d'ingresso di ogni schermata (cambio tab) */
@@ -174,13 +184,13 @@
   50% { background-position: 100% 50%; }
 }
 .title-gradient {
-  background: linear-gradient(90deg, #ff3d8b, #3ad8ff, #ffc31a, #22f5a8, #c478ff, #ff3d8b);
-  background-size: 320% 100%;
+  /* Rosso/nero valdostano */
+  background: linear-gradient(90deg, #c8102e, #1a1626, #c8102e, #1a1626);
+  background-size: 300% 100%;
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
-  filter: drop-shadow(0 0 6px rgba(58, 216, 255, 0.35));
-  animation: gradient-pan 5s ease infinite;
+  animation: gradient-pan 7s ease infinite;
 }
 
 /* Tab attivo: pillola lucida con bagliore e pop */
@@ -190,8 +200,9 @@
   100% { transform: scale(1); }
 }
 .nav-active {
-  background-image: linear-gradient(160deg, #22f5a8 0%, #10e29a 45%, #3ad8ff 100%);
-  box-shadow: 0 6px 18px -3px rgba(16, 226, 154, 0.7), 0 0 0 1px rgba(58,216,255,0.35), inset 0 1px 0 rgba(255,255,255,0.45);
+  /* Rosso valdostano */
+  background-image: linear-gradient(160deg, #e11d3a 0%, #c8102e 55%, #9b0f23 100%);
+  box-shadow: 0 6px 16px -3px rgba(200, 16, 46, 0.55), inset 0 1px 0 rgba(255,255,255,0.4);
   animation: tab-pop 0.32s ease;
 }
 
