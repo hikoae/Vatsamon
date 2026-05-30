@@ -1,0 +1,16 @@
+Campo,Tipo,Fonte,Descrizione / Logica proposta
+ID,string,generato,"Chiave primaria, es. VZ001"
+Nome,string,calendario reale,Nome della Reine (es. GLORIEUSE)
+Proprietario,string,calendario reale,Allevatore / azienda
+Comune,string,calendario reale,Comune di provenienza
+Riconoscimento,enum,calendario reale,Reine Régionale / 2º / 3º-4º / Plus lourde / Finalista
+Peso_kg,int,calendario (parziale),Solo per le 'vache plus lourde'; resto da integrare
+Razza,enum,DA CLASSIFICARE,Castana / Pezzata Nera / Pezzata Rossa
+Rarità,enum,derivata,"Da Riconoscimento: Régionale=Leggendaria, 2º=Epica, ecc."
+Forza_Corna,int 1-100,derivata,"Proposta: f(Peso, categoria). Es. (Peso-550)/3 + bonus cat."
+Temperamento,int 1-100,derivata/IA,Da razza + premio combattività
+Stamina,int 1-100,derivata,"f(categoria, peso)"
+Attacco,int 1-100,derivata,media pesata Forza_Corna+Temperamento
+Difesa,int 1-100,derivata,"f(Peso, Stamina)"
+Matricola,string,calendario (alberi),ID ufficiale IT/CH per i finalisti regionali
+"NOTA v0.1: estrazione automatica dal testo del PDF. Nomi/proprietari da validare; categoria e piazzamento esatti per ogni bataille richiedono la lettura visiva pagina-per-pagina (prossimo step). Fonte: CALENDARIO BATAILLES 2026, Association régionale Amis des Batailles de Reines.",,,
