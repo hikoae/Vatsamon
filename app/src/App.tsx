@@ -35,6 +35,8 @@ import { TrailOverlay } from './components/TrailOverlay';
 import { VALDOSTAN_TRAILS } from './data/trails';
 import { QuizScreen } from './components/QuizScreen';
 import { BattleTurnBased } from './components/BattleTurnBased';
+import { ArenaBattle } from './components/ArenaBattle';
+import { ARENAS, ArenaId } from './data/arenas';
 import { soundEngine } from './utils/audio';
 import { generateVazzamonClient } from './lib/generate';
 import { REAL_COWS, REAL_TOTAL, REAL_CASERE, SHOWCASE_BY_RARITY } from './data/realCows';
@@ -181,6 +183,14 @@ export default function App() {
     const saved = localStorage.getItem('vazzamon_quiz_go');
     return saved ? parseInt(saved, 10) : 0;
   });
+  // Medaglie delle Arene conquistate (bonus permanenti).
+  const [trainerBadges, setTrainerBadges] = useState<ArenaId[]>(() => {
+    const saved = localStorage.getItem('vazzamon_badges');
+    return saved ? JSON.parse(saved) : [];
+  });
+  useEffect(() => {
+    localStorage.setItem('vazzamon_badges', JSON.stringify(trainerBadges));
+  }, [trainerBadges]);
   const [soundEnabled, setSoundEnabled] = useState(true);
 
   // Overworld spawned wild Vazzamons
@@ -2406,203 +2416,36 @@ export default function App() {
               )}
             </div>
 
-            <div className="bg-slate-950 border border-slate-850 rounded-3xl p-5 text-center space-y-4">
-              
-              <div className="flex justify-center">
-                <div className="p-3 bg-red-950 rounded-full border border-red-500/20 text-red-400">
-                  <Swords className="w-8 h-8 fill-current" />
-                </div>
+            {/* ARENE A TURNI (4 Palestre) — vs vere Reines boss, con medaglie */}
+            <div className="bg-slate-950 border border-rose-700/30 rounded-3xl p-5 space-y-4" id="arena-card">
+              <div className="text-center">
+                <h2 className="text-2xl font-mono font-black text-rose-400 uppercase tracking-tight flex items-center justify-center gap-2">
+                  <Swords className="w-6 h-6 fill-current" /> Arene · Bataille de Reines 🏆
+                </h2>
+                <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">Conquista le 4 Palestre della Valle: combattimento a turni con scelta delle mosse, barra Adrenalina e medaglie con bonus permanenti.</p>
+                {trainerBadges.length > 0 && (
+                  <div className="mt-2 text-sm">{trainerBadges.map((id) => ARENAS.find(a => a.id === id)?.badgeEmoji).join(' ')}</div>
+                )}
               </div>
-
-              <div>
-                <h2 className="text-2xl font-mono font-black text-emerald-400 uppercase tracking-tight">Bataille de Reines Arena 🏆</h2>
-                <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">La famosa giostra d'alpeggio valdostana non cruenta. Prepara il coraggio del tuo compagno!</p>
-              </div>
-
-              {gymState.status === 'idle' ? (
-                <div className="py-8 bg-slate-900/40 rounded-3xl border border-slate-850 max-w-md mx-auto space-y-4">
-                  <span className="text-[10px] font-mono text-slate-400 uppercase tracking-widest">Allenatore Champion Buddy</span>
-                  
-                  {vazzadex.length > 0 ? (
-                    <div className="flex flex-col items-center space-y-4">
-                      
-                      {/* Active combat buddy display */}
-                      <div className="bg-slate-950 rounded-2xl p-4 border border-slate-850 flex items-center gap-4 w-[80%]">
-                        <CowVisual cow={(vazzadex.find(c => c.id === activeCombatantId) || vazzadex[0])} className="w-16 h-16" />
-                        <div className="text-left">
-                          <h4 className="font-mono font-black text-slate-200">{(vazzadex.find(c => c.id === activeCombatantId) || vazzadex[0]).name}</h4>
-                          <span className="text-[10px] bg-slate-900 border border-slate-800 text-yellow-400 py-0.5 px-2 rounded font-mono font-bold">
-                            CP {(vazzadex.find(c => c.id === activeCombatantId) || vazzadex[0]).cp}
-                          </span>
-                        </div>
-                      </div>
-
-                      <button
-                        onClick={handleInitiateGymMatch}
-                        className="bg-red-650 hover:bg-rose-700 hover:shadow-red-200 shadow-lg text-white font-mono font-black text-xs py-3 px-8 rounded-xl border-b-4 border-rose-800 transition-all cursor-pointer uppercase flex items-center gap-1.5"
-                        id="challenge-arena-btn"
-                      >
-                        <Swords className="w-3.5 h-3.5" />
-                        Sfida Boss dell'Arena
-                      </button>
-
-                    </div>
-                  ) : (
-                    <div className="p-4 space-y-2">
-                      <p className="text-xs text-slate-500">Nessuna Reina sbloccata per combattere!</p>
-                      <button onClick={() => setActiveTab('map')} className="bg-emerald-500 text-slate-950 font-mono font-black text-xs px-4 py-2 rounded-xl">Spicca volo</button>
-                    </div>
-                  )}
-
-                </div>
+              {vazzadex.length > 0 ? (
+                <ArenaBattle
+                  playerCow={vazzadex.find(c => c.id === activeCombatantId) || vazzadex[0]}
+                  trainerLevel={trainer.level}
+                  badges={trainerBadges}
+                  playClick={playClickSfx}
+                  onWin={(arena, xp, coins, newBadge) => {
+                    addTrainerXp(xp);
+                    setTrainer(prev => ({ ...prev, coins: prev.coins + coins }));
+                    if (newBadge) setTrainerBadges(prev => prev.includes(arena.id) ? prev : [...prev, arena.id]);
+                    setTrekkingFeed(prev => [`🏆 Arena ${arena.badgeEmoji} ${arena.name} conquistata! +${xp} XP · +${coins} 🪙`, ...prev.slice(0, 8)]);
+                  }}
+                />
               ) : (
-                
-                // MAIN COMBAT ACTIVE STAGE
-                <div className="space-y-4 text-slate-100" id="battleground">
-                  
-                  {/* BATTLEGROUND MATRIX DOCK */}
-                  <div className="grid grid-cols-1 md:grid-cols-5 bg-slate-950/80 border border-slate-850 rounded-3xl p-5 items-center gap-4 relative overflow-hidden shadow-2xl">
-                    
-                    {/* Visual active gym floor background */}
-                    <div className="absolute inset-x-0 bottom-0 top-[60%] bg-[#1c3a1c]/15 border-t border-emerald-500/5 pointer-events-none"></div>
-
-                    {/* Left: Player Side */}
-                    <div className="md:col-span-2 bg-slate-900 rounded-2xl p-4 border border-slate-800 relative space-y-2 text-center overflow-hidden">
-                      <span className="absolute -top-1 left-2 bg-emerald-500 text-slate-950 text-[8px] font-mono font-bold px-1.5 rounded uppercase font-black">La tua Reina</span>
-                      
-                      <div className={`transition-all duration-150 flex justify-center ${gymState.playerAttackAnim ? 'translate-x-6 scale-110 rotate-3 z-10' : ''} ${activeDodgeEffect ? '-translate-y-4 filter blur-xs duration-75' : ''}`}>
-                        <CowVisual cow={gymState.playerVazzamon!} className="w-20 h-20" />
-                      </div>
-
-                      <h4 className="font-mono font-black text-yellow-300 text-xs truncate uppercase leading-none mt-1">{gymState.playerVazzamon!.name}</h4>
-                      
-                      <div className="space-y-1 text-left">
-                        <div className="flex justify-between text-[9px] font-mono text-slate-400 leading-none">
-                          <span>Tenacia (HP)</span>
-                          <span className="font-bold text-slate-200">{gymState.playerHp} / {gymState.playerMaxHp}</span>
-                        </div>
-                        <div className="w-full bg-slate-950 rounded-full h-1.5 overflow-hidden">
-                          <div className="bg-gradient-to-r from-emerald-500 to-green-400 h-1.5 rounded-full" style={{ width: `${(gymState.playerHp / gymState.playerMaxHp) * 100}%` }} />
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Middle control module */}
-                    <div className="flex flex-col items-center gap-2 py-2">
-                      <div className="w-10 h-10 rounded-full bg-red-600 border border-red-500 font-mono font-black italic shadow text-white text-xs flex items-center justify-center animate-pulse">VS</div>
-                      
-                      {gymState.status === 'intro' && (
-                        <button
-                          onClick={() => setGymState(prev => ({ ...prev, status: 'active' }))}
-                          className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-mono font-black text-xs py-2 px-4 rounded-xl cursor-pointer"
-                        >
-                          COMBATTI!
-                        </button>
-                      )}
-
-                      {gymState.status === 'active' && (
-                        <div className="space-y-2 w-full">
-                          
-                          {/* Big circular tapping strike pad */}
-                          <button
-                            onClick={handlePlayerTapAttack}
-                            className="w-20 h-20 rounded-full bg-gradient-to-r from-red-600 to-rose-600 hover:scale-105 active:scale-95 border-4 border-slate-100 flex flex-col items-center justify-center shadow-lg cursor-pointer transform transition-all group mx-auto"
-                          >
-                            <span className="text-xl group-hover:scale-110 transition-transform">⚔️</span>
-                            <span className="text-[7.5px] font-mono font-black text-rose-100 tracking-wider">TAP STRIKE!</span>
-                          </button>
-
-                          {/* Action quick dogde button */}
-                          <button
-                            onClick={handlePlayerDodge}
-                            disabled={activeDodgeEffect}
-                            className="w-full bg-slate-800 hover:bg-slate-750 disabled:opacity-50 text-[10px] font-mono font-black text-emerald-400 py-1.5 rounded-xl border border-slate-700/80 cursor-pointer flex items-center justify-center gap-1"
-                          >
-                            <span>⚡</span> SCHIVA DESTRA
-                          </button>
-                          
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Right: Opponent Side */}
-                    <div className="md:col-span-2 bg-slate-900 rounded-2xl p-4 border border-slate-800 relative space-y-2 text-center overflow-hidden">
-                      <span className="absolute -top-1 right-2 bg-rose-600 text-white text-[8px] font-mono font-bold px-1.5 rounded uppercase font-black">Sfidante Elite</span>
-                      
-                      <div className={`transition-all duration-150 flex justify-center ${gymState.opponentAttackAnim ? '-translate-x-6 scale-110 -rotate-3 z-10' : ''}`}>
-                        <CowVisual cow={gymState.opponentVazzamon!} className="w-20 h-20" />
-                      </div>
-
-                      <h4 className="font-mono font-black text-red-400 text-xs truncate uppercase leading-none mt-1">{gymState.opponentVazzamon!.name}</h4>
-                      
-                      <div className="space-y-1 text-left">
-                        <div className="flex justify-between text-[9px] font-mono text-slate-400 leading-none">
-                          <span>Tenacia Sfidante</span>
-                          <span className="font-bold text-slate-200">{gymState.opponentHp} / {gymState.opponentMaxHp}</span>
-                        </div>
-                        <div className="w-full bg-slate-950 rounded-full h-1.5 overflow-hidden">
-                          <div className="bg-red-500 h-1.5 rounded-full" style={{ width: `${(gymState.opponentHp / gymState.opponentMaxHp) * 100}%` }} />
-                        </div>
-                      </div>
-                    </div>
-
-                  </div>
-
-                  {/* SUPER SPECIAL ATTACK TRIGGER ACTION */}
-                  {gymState.status === 'active' && (
-                    <div className="bg-slate-950 p-3 rounded-2xl border border-slate-850 flex items-center justify-between gap-4">
-                      
-                      <div className="flex-grow space-y-1 text-left">
-                        <div className="flex justify-between text-[9px] font-mono text-slate-400">
-                          <span>Energia Mossa Speciale</span>
-                          <span className="font-bold text-blue-400">{gymState.energy}% / 100%</span>
-                        </div>
-                        <div className="bg-slate-900 rounded-full h-2 overflow-hidden border border-slate-800 shadow-inner">
-                          <div className="bg-gradient-to-r from-blue-500 to-cyan-400 h-2 rounded-full transition-all duration-150" style={{ width: `${gymState.energy}%` }}></div>
-                        </div>
-                      </div>
-
-                      <button
-                        onClick={handlePlayerSuperAttack}
-                        disabled={gymState.energy < 100}
-                        className="bg-amber-500 hover:bg-amber-400 disabled:opacity-40 text-slate-950 font-mono font-black text-xs py-2 px-5 rounded-xl border-b-4 border-amber-700 cursor-pointer tracking-wider flex items-center gap-1 select-none animate-pulse"
-                      >
-                        🌟 SPECIAL STRIKE!
-                      </button>
-
-                    </div>
-                  )}
-
-                  {/* BATTLE GROUND MATRIX HISTORY FEED */}
-                  <div className="bg-slate-900/40 border border-slate-850 rounded-2xl p-4 text-left font-mono text-[10.5px] text-green-300 space-y-2 shadow-inner">
-                    <span className="text-[9px] uppercase tracking-wider text-slate-500 font-extrabold block">REGISTRO ARENA</span>
-                    <div className="space-y-1.5 max-h-36 overflow-y-auto no-scrollbar">
-                      {gymState.history.map((line, idx) => (
-                        <p key={idx} className="leading-normal">{line}</p>
-                      ))}
-                    </div>
-
-                    {gymState.status === 'ended' && (
-                      <div className="pt-3 border-t border-slate-850 flex flex-col sm:flex-row items-center justify-between gap-3">
-                        <div className="flex items-center gap-1.5 text-xs text-slate-200">
-                          <span>Esito scontro:</span>
-                          <strong className={gymState.winner === 'player' ? 'text-green-400' : 'text-red-400'}>
-                            {gymState.winner === 'player' ? 'Vittoria Epica! +60🪙' : 'Buddy Stremato'}
-                          </strong>
-                        </div>
-                        <button
-                          onClick={() => setGymState(prev => ({ ...prev, status: 'idle' }))}
-                          className="bg-slate-850 hover:bg-slate-800 text-yellow-400 py-1.5 px-4 rounded-xl border border-slate-700 cursor-pointer font-bold"
-                        >
-                          Sfida di Nuovo!
-                        </button>
-                      </div>
-                    )}
-                  </div>
-
+                <div className="text-center py-6 space-y-2">
+                  <p className="text-xs text-slate-500">Cattura una Reina per sfidare le arene!</p>
+                  <button onClick={() => setActiveTab('map')} className="bg-emerald-500 text-slate-950 font-mono font-black text-xs px-4 py-2 rounded-xl">Vai alla mappa</button>
                 </div>
               )}
-
             </div>
           </div>
         )}

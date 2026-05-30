@@ -166,6 +166,30 @@ if (await startTurn.count()) {
   await page.screenshot({ path: `${OUT}/v2int-7-turnbattle.png` });
 } else problems.push("bataille a turni: selezione pastore assente");
 
+// Arena a turni: scegli la palestra di Cogne (Lv 1) e combatti fino all'esito
+const arenaBtn = page.locator("#arena-select button:not([disabled])").first();
+if (await arenaBtn.count()) {
+  await arenaBtn.click();
+  await page.waitForTimeout(300);
+  await page.locator("#arena-start").click().catch(() => {});
+  await page.waitForTimeout(300);
+  let arGuard = 0;
+  while (arGuard++ < 160) {
+    const ended = await page.locator("#arena-arena .font-mono.font-black", { hasText: /conquistato|Sconfitta/ }).first().isVisible().catch(() => false);
+    if (ended) break;
+    // preferisci la Suprema se carica, altrimenti Testata
+    const special = page.locator("#arena-moves button:not([disabled])", { hasText: "Incornata" }).first();
+    const testata = page.locator("#arena-moves button:not([disabled])", { hasText: "Testata" }).first();
+    if (await special.count()) await special.click().catch(() => {});
+    else if (await testata.count()) await testata.click().catch(() => {});
+    await page.waitForTimeout(300);
+  }
+  const arDone = await page.locator("text=/Hai conquistato la|Sconfitta in arena/").isVisible().catch(() => false);
+  note(`arena a turni conclusa: ${arDone}`);
+  if (!arDone) problems.push("l'arena a turni non si conclude");
+  await page.screenshot({ path: `${OUT}/v2int-8-arena.png` });
+} else problems.push("arena: selezione palestra assente");
+
 if (errors.length) {
   console.log("  ! errori console:");
   errors.slice(0, 6).forEach((e) => console.log("    - " + e));
