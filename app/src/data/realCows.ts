@@ -66,15 +66,21 @@ function clamp(n: number) { return Math.max(10, Math.min(100, Math.round(n))); }
 export const REAL_COWS: Vazzamon[] = data.bovine.map(convert);
 export const REAL_TOTAL = REAL_COWS.length;
 
-/** Casere (PokéStop) sui pascoli reali. */
+// coordinate per la mappa "radar" SVG (stessi bound di v2)
+function svgXY(lat: number, lng: number) {
+  const x = 5 + ((lng - 6.9) / (7.85 - 6.9)) * 90;
+  const y = 5 + ((45.95 - lat) / (45.95 - 45.55)) * 90;
+  return { x: Math.max(5, Math.min(95, x)), y: Math.max(5, Math.min(95, y)) };
+}
+
+/** Casere (PokéStop) sui 6 pascoli REALI della Valle d'Aosta. */
 export const REAL_CASERE = data.pascoli.map((p) => ({
   id: `casera-${p.id}`,
   name: p.nome,
   valley: p.comune,
   lat: p.lat,
   lng: p.lng,
-  x: 50,
-  y: 50,
+  ...svgXY(p.lat, p.lng),
   difficulty: "Facile" as const,
-  description: `Casera d'alpeggio a ${p.comune}.`,
+  description: `Pascolo reale di ${p.comune}: rifornisciti di campanacci e mele alpine prima di cercare le Reines.`,
 }));

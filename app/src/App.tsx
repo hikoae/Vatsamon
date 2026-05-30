@@ -30,9 +30,8 @@ import { Vazzamon, Hotspot, BackpackItem, Egg, Trainer, BattleState, RarityType 
 import { VazzamonAvatar } from './components/VazzamonAvatar';
 import { CowVisual } from './components/CowVisual';
 import { soundEngine } from './utils/audio';
-import { INITIAL_VAZZADEX, DEMO_PREMIUM_COWS, HP_LOCATIONS } from './data/mockVazzamon';
 import { generateVazzamonClient } from './lib/generate';
-import { REAL_COWS, REAL_TOTAL } from './data/realCows';
+import { REAL_COWS, REAL_TOTAL, REAL_CASERE } from './data/realCows';
 import { distanza, fmtDist, RAGGIO_CATTURA } from './lib/geo';
 
 // Real geographic trail route in Valle d'Aosta (Cammino dei Pascoli & Castelli)
@@ -100,7 +99,7 @@ export default function App() {
     if (cached) {
       try { return JSON.parse(cached); } catch (e) { console.error(e); }
     }
-    return INITIAL_VAZZADEX;
+    return []; // si parte da Vazzadex vuota: tutte le 73 reali da catturare
   });
 
   const [backpack, setBackpack] = useState<BackpackItem[]>(() => {
@@ -136,9 +135,9 @@ export default function App() {
     return {
       name: "TrekkerGO",
       level: 1,
-      xp: 150,
+      xp: 0,
       xpToNextLevel: 1000,
-      capturedCount: 2,
+      capturedCount: 0,
       kmTraveled: 0,
       coins: 120
     };
@@ -269,8 +268,8 @@ export default function App() {
       leafletMarkersRef.current.forEach(m => m.remove());
       leafletMarkersRef.current = [];
 
-      // Add Casera Checkpoints (PokéStops)
-      HP_LOCATIONS.forEach(hp => {
+      // Add Casera Checkpoints (PokéStops) — pascoli REALI
+      REAL_CASERE.forEach(hp => {
         const hpLat = hp.lat ?? playerLat;
         const hpLng = hp.lng ?? playerLng;
         const cooldownActive = caseraCooldowns[hp.id] && caseraCooldowns[hp.id] > Date.now();
@@ -965,7 +964,9 @@ export default function App() {
       return;
     }
 
-    const opponentCowPool = DEMO_PREMIUM_COWS;
+    // Avversari = vere Reines (preferendo le più forti) per una sfida autentica
+    const bosses = REAL_COWS.filter(c => c.rarity === 'Leggendaria' || c.rarity === 'Epica');
+    const opponentCowPool = bosses.length ? bosses : REAL_COWS;
     const opponentModel = opponentCowPool[Math.floor(Math.random() * opponentCowPool.length)];
     
     // Scale opponent matching user level
@@ -1482,8 +1483,8 @@ export default function App() {
                     </span>
                   </div>
 
-                  {/* POKESTOPS: Traditional Dairy Casere */}
-                  {HP_LOCATIONS.map((hp) => {
+                  {/* POKESTOPS: Traditional Dairy Casere — pascoli reali */}
+                  {REAL_CASERE.map((hp) => {
                     const onCooldown = caseraCooldowns[hp.id] && caseraCooldowns[hp.id] > Date.now();
                     return (
                       <button
