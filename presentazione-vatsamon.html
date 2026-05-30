@@ -200,6 +200,26 @@
       color: var(--ink);
     }
 
+    .origin {
+      display: inline-grid;
+      gap: 4px;
+      margin-top: 20px;
+      padding: 14px 16px;
+      border-left: 5px solid var(--green);
+      background: rgba(255, 255, 255, 0.72);
+      border-radius: 8px;
+      max-width: 620px;
+    }
+    .origin b {
+      font-size: 18px;
+      color: var(--ink);
+    }
+    .origin span {
+      font-size: 17px;
+      color: var(--muted);
+      line-height: 1.25;
+    }
+
     .phone {
       width: 300px;
       height: 610px;
@@ -292,6 +312,18 @@
     .dot.warn { background: var(--amber); }
     .dot.risk { background: var(--rose); }
 
+    .callout {
+      border-radius: 8px;
+      padding: 18px 20px;
+      border: 1px solid rgba(32, 123, 86, 0.22);
+      background: rgba(32, 123, 86, 0.08);
+    }
+    .callout p {
+      color: #274133;
+      font-size: 20px;
+      line-height: 1.32;
+    }
+
     .footer {
       position: absolute;
       z-index: 2;
@@ -361,12 +393,16 @@
 </head>
 <body>
   <main class="deck" id="deck">
-    <section class="slide active" data-notes="Aprite con una frase semplice: Vatsamon rende giocabile una tradizione valdostana, senza trasformarla in una caricatura. Il punto forte e l'unione tra dati reali, territorio e comportamento responsabile.">
+    <section class="slide active" data-notes="Aprite con una frase semplice: Vatsamon rende giocabile una tradizione valdostana, senza trasformarla in una caricatura. Precisate subito il cambio nome: Vatsa e la radice corretta, quindi il progetto ora si chiama Vatsamon e il catalogo Vatsadex.">
       <div class="content hero">
         <div>
           <div class="kicker">Build With AI - Challenge 1</div>
           <h1>Vatsamon</h1>
           <p style="max-width:760px;font-size:28px;color:#2c3442;">La Vatsadex delle Reines valdostane: esplorazione, cultura alpina e IA in una PWA installabile.</p>
+          <div class="origin">
+            <b>Perche Vatsa?</b>
+            <span>Abbiamo corretto il naming: Vatsa e la radice corretta del concept. Da qui nascono Vatsamon, Vatsadex e Vatsa-ball.</span>
+          </div>
           <div class="tags" style="margin-top:18px;">
             <span class="tag">PWA</span>
             <span class="tag">Mappa reale</span>
@@ -381,7 +417,7 @@
       <div class="footer"><span>Vatsamon pitch deck</span><span>1 / 12</span></div>
     </section>
 
-    <section class="slide" data-notes="Qui agganciate la challenge: non bastava fare un gioco, serviva valorizzare turismo, ambiente e tradizione. Vatsamon usa la familiarita del monster-catching per avvicinare persone nuove alle Reines.">
+    <section class="slide" data-notes="Qui agganciate la challenge: non bastava fare un gioco, serviva valorizzare turismo, ambiente e tradizione. Il nuovo naming rende il progetto piu preciso e piu presentabile.">
       <div class="content split-note">
         <div>
           <div class="kicker">Il problema</div>
@@ -390,7 +426,7 @@
         </div>
         <div class="cards">
           <div class="card"><strong>Turismo</strong><p>Scoprire comuni, pascoli e sentieri reali con una motivazione ludica.</p></div>
-          <div class="card"><strong>Cultura</strong><p>Raccontare Reines, allevatori, razze e tradizioni con dati concreti.</p></div>
+          <div class="card"><strong>Cultura</strong><p>Raccontare Reines, allevatori, razze e tradizioni con dati concreti e un nome corretto.</p></div>
           <div class="card"><strong>Ambiente</strong><p>Premiare comportamenti corretti: distanza, cancelli, rifiuti, sentieri.</p></div>
         </div>
       </div>
@@ -407,7 +443,7 @@
           <div class="metric"><div class="num">34</div><div class="label">comuni rappresentati</div></div>
           <div class="metric"><div class="num">6</div><div class="label">pascoli/Casere usati come punti gioco</div></div>
         </div>
-        <p>Il gioco non inventa un mondo fittizio: usa Reines, luoghi e comportamenti reali come materiale narrativo e didattico.</p>
+        <div class="callout"><p>Il gioco non inventa un mondo fittizio: usa Reines, luoghi e comportamenti reali come materiale narrativo e didattico.</p></div>
       </div>
       <div class="footer"><span>Proposta di valore</span><span>3 / 12</span></div>
     </section>
@@ -479,7 +515,7 @@
       <div class="footer"><span>Trekking responsabile</span><span>6 / 12</span></div>
     </section>
 
-    <section class="slide" data-notes="Siate trasparenti: lo scanner e simulato lato client. Per un hackathon e una scelta utile: demo robusta, niente chiavi, niente backend. La roadmap puo portarlo su Gemini/Vertex.">
+    <section class="slide" data-notes="Siate trasparenti: lo scanner e simulato lato client. Per un hackathon e una scelta utile: demo robusta, niente chiavi, niente backend. Il collegamento a Google e IA resta chiaro: AI Studio per la base/prototipazione, Gemini o Vertex come prossimo step reale.">
       <div class="content split-note">
         <div>
           <div class="kicker">Scanner IA</div>
@@ -487,8 +523,9 @@
           <p>Lo scanner accetta immagini o camera, simula l'analisi e genera un Vatsamon coerente con razza, rarita, lore ed eco-tip. E stato progettato per funzionare in una build statica senza server e senza chiavi API.</p>
         </div>
         <div class="cards">
-          <div class="card"><strong>Oggi</strong><p>Generazione locale simulata in `src/lib/generate.ts`, ideale per demo affidabile.</p></div>
-          <div class="card"><strong>Domani</strong><p>Backend sicuro con Gemini/Vertex AI per riconoscimento reale di razza, contesto e paesaggio.</p></div>
+          <div class="card"><strong>Oggi</strong><p>Generazione locale simulata in `src/lib/generate.ts`, ideale per una demo affidabile e senza rete.</p></div>
+          <div class="card"><strong>Google / IA</strong><p>Base e prompt nati in AI Studio; integrazione reale prevista con Gemini o Vertex AI.</p></div>
+          <div class="card"><strong>Domani</strong><p>Riconoscimento reale di razza, contesto e paesaggio tramite backend sicuro.</p></div>
         </div>
       </div>
       <div class="footer"><span>Modelli IA integrati</span><span>7 / 12</span></div>
@@ -527,10 +564,12 @@
           <span class="tag">Workbox</span>
           <span class="tag">localStorage</span>
           <span class="tag">GitHub Pages</span>
+          <span class="tag">AI Studio</span>
+          <span class="tag">Gemini ready</span>
         </div>
         <div class="grid-3 cards">
           <div class="card"><strong>Frontend</strong><p>React + componenti custom per mappa, cattura, Vatsadex, quiz e battaglie.</p></div>
-          <div class="card"><strong>Dati</strong><p>JSON statico convertito in modello Vatsamon, con foto servite da `public/photos`.</p></div>
+          <div class="card"><strong>Dati</strong><p>`vatsadex.json` statico convertito in modello Vatsamon, con foto servite da `public/photos`.</p></div>
           <div class="card"><strong>PWA</strong><p>Manifest, icone, cache asset e tile OSM per una demo installabile.</p></div>
         </div>
       </div>
@@ -544,15 +583,15 @@
           <h2>Un monolite funzionale con moduli dati e logiche isolate.</h2>
           <div class="audit-list">
             <div class="audit-item"><span class="dot"></span><span>`App.tsx`: orchestrazione viste, stato, persistenza e flussi principali.</span></div>
-            <div class="audit-item"><span class="dot"></span><span>`data/realCows.ts`: conversione dataset reale in modello di gioco.</span></div>
+            <div class="audit-item"><span class="dot"></span><span>`data/realCows.ts`: conversione `vatsadex.json` in modello di gioco.</span></div>
             <div class="audit-item"><span class="dot"></span><span>`lib/geo.ts`: distanza, raggio cattura e movimento verso target.</span></div>
             <div class="audit-item"><span class="dot"></span><span>`components/*`: avatar, visual bovine, quiz, battaglie e overlay sentieri.</span></div>
             <div class="audit-item"><span class="dot warn"></span><span>Punto di miglioramento: spezzare `App.tsx` in feature module e hook.</span></div>
           </div>
         </div>
         <div class="cards">
-          <div class="metric"><div class="num">2683</div><div class="label">righe in `App.tsx`: MVP veloce, refactor consigliato</div></div>
-          <div class="metric"><div class="num">6124</div><div class="label">righe audit nei file principali letti</div></div>
+          <div class="metric"><div class="num">2727</div><div class="label">righe in `App.tsx`: MVP veloce, refactor consigliato</div></div>
+          <div class="metric"><div class="num">6168</div><div class="label">righe audit nei file principali letti</div></div>
         </div>
       </div>
       <div class="footer"><span>Struttura e logica prompt</span><span>10 / 12</span></div>
@@ -563,8 +602,8 @@
         <div class="kicker">Rapporto uomo-IA</div>
         <h2>L'IA ha accelerato la costruzione; il lavoro umano ha dato verita, contesto e direzione.</h2>
         <div class="grid-2 cards">
-          <div class="card"><strong>Lavoro accelerato dall'IA</strong><p>Base AI Studio v2, prototipi, prompt, testi ludici, logiche procedurali, struttura iniziale dell'esperienza.</p></div>
-          <div class="card"><strong>Tocco umano</strong><p>Dataset reale, foto, comuni, pascoli, scelte di prodotto, audit, PWA statica, demo robusta e racconto coerente con la cultura valdostana.</p></div>
+          <div class="card"><strong>Lavoro accelerato dall'IA</strong><p>Base AI Studio v2, prototipi, prompt, testi ludici, logiche procedurali e struttura iniziale dell'esperienza.</p></div>
+          <div class="card"><strong>Tocco umano</strong><p>Dataset reale, foto, comuni, pascoli, naming Vatsa, scelte di prodotto, audit, PWA statica e demo robusta.</p></div>
         </div>
         <p>La scelta chiave e stata usare l'IA non per sostituire il territorio, ma per renderlo esplorabile.</p>
       </div>
@@ -582,7 +621,7 @@
           </div>
           <div class="card">
             <strong>Prossimi passi</strong>
-            <p>Riconoscimento IA reale via backend sicuro, refactor architetturale, test/screenshot automatici, QR code pubblico e partnership turistiche.</p>
+            <p>Riconoscimento IA reale via backend sicuro, refactor architetturale, test/screenshot automatici, QR code pubblico su `/vatsamon/` e partnership turistiche.</p>
           </div>
         </div>
         <p style="font-size:30px;color:var(--ink);font-weight:850;">Vatsamon e una porta d'ingresso giocabile alla Valle d'Aosta: catturi una Reina, impari a rispettare l'alpeggio.</p>
