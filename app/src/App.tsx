@@ -27,8 +27,8 @@ import {
   Plus,
   GraduationCap
 } from 'lucide-react';
-import { Vazzamon, Hotspot, BackpackItem, Egg, Trainer, BattleState, RarityType } from './types';
-import { VazzamonAvatar } from './components/VazzamonAvatar';
+import { Vatsamon, Hotspot, BackpackItem, Egg, Trainer, BattleState, RarityType } from './types';
+import { VatsamonAvatar } from './components/VatsamonAvatar';
 import { CowVisual } from './components/CowVisual';
 import { CowCard } from './components/CowCard';
 import { TrailOverlay } from './components/TrailOverlay';
@@ -39,7 +39,7 @@ import { ArenaBattle } from './components/ArenaBattle';
 import { ARENAS, ArenaId } from './data/arenas';
 import { TREK_ROUTES } from './data/routes';
 import { soundEngine } from './utils/audio';
-import { generateVazzamonClient } from './lib/generate';
+import { generateVatsamonClient } from './lib/generate';
 import { REAL_COWS, REAL_TOTAL, REAL_CASERE, SHOWCASE_BY_RARITY } from './data/realCows';
 import { distanza, fmtDist, RAGGIO_CATTURA } from './lib/geo';
 
@@ -83,7 +83,7 @@ const LORE_POOL = [
   "Leggerissima nei movimenti, si camuffa tra i banchi di nebbia per sorprendere i trekker pigri con simpatici baccani."
 ];
 
-// ===== Linea "Vazza-ball": i campanacci-cattura in stile Poké Ball =====
+// ===== Linea "Vatsa-ball": i campanacci-cattura in stile Poké Ball =====
 // Tre potenze crescenti + la Master garantita. `mult` moltiplica il tasso di
 // cattura base; `mult: null` = cattura garantita (100%). Colori inline per
 // evitare il purge di Tailwind sui nomi di classe dinamici.
@@ -92,21 +92,21 @@ interface BallMeta {
   mult: number | null; color: string; bestFor: string;
 }
 const BALL_META: Record<string, BallMeta> = {
-  'item-bell-std':    { short: 'Vazza-ball',        full: 'Vazza-ball',         emoji: '🔔', mult: 1.0,  color: '#f59e0b', bestFor: 'Comuni · Rare',        description: 'Campanaccio in ottone risonante. Il rintocco base per le catture ordinarie.' },
-  'item-bell-giga':   { short: 'Super Vazza-ball',  full: 'Super Vazza-ball',   emoji: '🛎️', mult: 2.2,  color: '#38bdf8', bestFor: 'Rare · Epiche',        description: 'Campana d\'acciaio dal rintocco profondo. Più che raddoppia la presa: ideale sulle Epiche.' },
-  'item-bell-iper':   { short: 'Iper Vazza-ball',   full: 'Iper Vazza-ball',    emoji: '⚜️', mult: 4.0,  color: '#a78bfa', bestFor: 'Epiche · Leggendarie', description: 'Bronzo runico d\'alta quota. Risonanza ipnotica che doma anche le Reines Leggendarie.' },
-  'item-bell-master': { short: 'Master Vazza-ball', full: 'Master Vazza-ball',  emoji: '⭐', mult: null, color: '#fb7185', bestFor: 'Cattura garantita',    description: 'Manufatto in platino della tradizione. Cattura garantita al 100%: usala con saggezza.' },
+  'item-bell-std':    { short: 'Vatsa-ball',        full: 'Vatsa-ball',         emoji: '🔔', mult: 1.0,  color: '#f59e0b', bestFor: 'Comuni · Rare',        description: 'Campanaccio in ottone risonante. Il rintocco base per le catture ordinarie.' },
+  'item-bell-giga':   { short: 'Super Vatsa-ball',  full: 'Super Vatsa-ball',   emoji: '🛎️', mult: 2.2,  color: '#38bdf8', bestFor: 'Rare · Epiche',        description: 'Campana d\'acciaio dal rintocco profondo. Più che raddoppia la presa: ideale sulle Epiche.' },
+  'item-bell-iper':   { short: 'Iper Vatsa-ball',   full: 'Iper Vatsa-ball',    emoji: '⚜️', mult: 4.0,  color: '#a78bfa', bestFor: 'Epiche · Leggendarie', description: 'Bronzo runico d\'alta quota. Risonanza ipnotica che doma anche le Reines Leggendarie.' },
+  'item-bell-master': { short: 'Master Vatsa-ball', full: 'Master Vatsa-ball',  emoji: '⭐', mult: null, color: '#fb7185', bestFor: 'Cattura garantita',    description: 'Manufatto in platino della tradizione. Cattura garantita al 100%: usala con saggezza.' },
 };
 const BALL_ORDER = ['item-bell-std', 'item-bell-giga', 'item-bell-iper', 'item-bell-master'];
 
-// Backpack di partenza: la linea completa di Vazza-ball a scorte decrescenti.
+// Backpack di partenza: la linea completa di Vatsa-ball a scorte decrescenti.
 const DEFAULT_BAG: BackpackItem[] = [
-  { id: 'item-bell-std',    name: 'Vazza-ball',        description: BALL_META['item-bell-std'].description,    quantity: 20, type: 'ball' },
-  { id: 'item-bell-giga',   name: 'Super Vazza-ball',  description: BALL_META['item-bell-giga'].description,   quantity: 8,  type: 'ball' },
-  { id: 'item-bell-iper',   name: 'Iper Vazza-ball',   description: BALL_META['item-bell-iper'].description,   quantity: 3,  type: 'ball' },
-  { id: 'item-bell-master', name: 'Master Vazza-ball', description: BALL_META['item-bell-master'].description, quantity: 1,  type: 'ball' },
-  { id: 'item-apple', name: 'Mela Alpina d\'Oro', description: 'Frutto profumatissimo. Addolcisce i Vazzamon selvatici del 50%.', quantity: 6, type: 'food' },
-  { id: 'item-hay', name: 'Fieno delle Vette', description: 'Nutriente speciale usato per aumentare il livello e CP dei Vazzamon.', quantity: 12, type: 'candy' },
+  { id: 'item-bell-std',    name: 'Vatsa-ball',        description: BALL_META['item-bell-std'].description,    quantity: 20, type: 'ball' },
+  { id: 'item-bell-giga',   name: 'Super Vatsa-ball',  description: BALL_META['item-bell-giga'].description,   quantity: 8,  type: 'ball' },
+  { id: 'item-bell-iper',   name: 'Iper Vatsa-ball',   description: BALL_META['item-bell-iper'].description,   quantity: 3,  type: 'ball' },
+  { id: 'item-bell-master', name: 'Master Vatsa-ball', description: BALL_META['item-bell-master'].description, quantity: 1,  type: 'ball' },
+  { id: 'item-apple', name: 'Mela Alpina d\'Oro', description: 'Frutto profumatissimo. Addolcisce i Vatsamon selvatici del 50%.', quantity: 6, type: 'food' },
+  { id: 'item-hay', name: 'Fieno delle Vette', description: 'Nutriente speciale usato per aumentare il livello e CP dei Vatsamon.', quantity: 12, type: 'candy' },
 ];
 
 // Tasso di cattura base per rarità (prima di ball / mela / precisione del lancio).
@@ -136,21 +136,21 @@ function catchDifficulty(p: number): { color: string; label: string } {
 
 export default function App() {
   // ---- 1. PERSISTENT STATS ----
-  const [vazzadex, setVazzadex] = useState<Vazzamon[]>(() => {
-    const cached = localStorage.getItem('vazzamon_collection_go');
+  const [vatsadex, setVatsadex] = useState<Vatsamon[]>(() => {
+    const cached = localStorage.getItem('vatsamon_collection_go');
     if (cached) {
       try { return JSON.parse(cached); } catch (e) { console.error(e); }
     }
-    return []; // si parte da Vazzadex vuota: tutte le 73 reali da catturare
+    return []; // si parte da Vatsadex vuota: tutte le 73 reali da catturare
   });
 
   const [backpack, setBackpack] = useState<BackpackItem[]>(() => {
-    const cached = localStorage.getItem('vazzamon_bag_go');
+    const cached = localStorage.getItem('vatsamon_bag_go');
     if (cached) {
       try {
         const parsed: BackpackItem[] = JSON.parse(cached);
-        // Migrazione: assicura che esista l'intera linea di Vazza-ball anche per
-        // i salvataggi vecchi (es. nuova Iper Vazza-ball), senza azzerare le scorte.
+        // Migrazione: assicura che esista l'intera linea di Vatsa-ball anche per
+        // i salvataggi vecchi (es. nuova Iper Vatsa-ball), senza azzerare le scorte.
         DEFAULT_BAG.forEach(def => {
           if (!parsed.find(p => p.id === def.id)) parsed.push({ ...def });
         });
@@ -161,7 +161,7 @@ export default function App() {
   });
 
   const [eggs, setEggs] = useState<Egg[]>(() => {
-    const cached = localStorage.getItem('vazzamon_eggs_go');
+    const cached = localStorage.getItem('vatsamon_eggs_go');
     if (cached) {
       try { return JSON.parse(cached); } catch (e) { console.error(e); }
     }
@@ -172,7 +172,7 @@ export default function App() {
   });
 
   const [trainer, setTrainer] = useState<Trainer>(() => {
-    const cached = localStorage.getItem('vazzamon_trainer_go');
+    const cached = localStorage.getItem('vatsamon_trainer_go');
     if (cached) {
       try { return JSON.parse(cached); } catch (e) { console.error(e); }
     }
@@ -188,26 +188,26 @@ export default function App() {
   });
 
   // Keep all persistent items secure in localStorage
-  useEffect(() => { localStorage.setItem('vazzamon_collection_go', JSON.stringify(vazzadex)); }, [vazzadex]);
-  useEffect(() => { localStorage.setItem('vazzamon_bag_go', JSON.stringify(backpack)); }, [backpack]);
-  useEffect(() => { localStorage.setItem('vazzamon_eggs_go', JSON.stringify(eggs)); }, [eggs]);
-  useEffect(() => { localStorage.setItem('vazzamon_trainer_go', JSON.stringify(trainer)); }, [trainer]);
+  useEffect(() => { localStorage.setItem('vatsamon_collection_go', JSON.stringify(vatsadex)); }, [vatsadex]);
+  useEffect(() => { localStorage.setItem('vatsamon_bag_go', JSON.stringify(backpack)); }, [backpack]);
+  useEffect(() => { localStorage.setItem('vatsamon_eggs_go', JSON.stringify(eggs)); }, [eggs]);
+  useEffect(() => { localStorage.setItem('vatsamon_trainer_go', JSON.stringify(trainer)); }, [trainer]);
 
   // Trekking Waypoints coordinates tracking
   const [currentWaypointIndex, setCurrentWaypointIndex] = useState<number>(() => {
-    const cached = localStorage.getItem('vazzamon_waypoint_idx');
+    const cached = localStorage.getItem('vatsamon_waypoint_idx');
     return cached ? Number(cached) : 0; // si parte dalla prima tappa del percorso
   });
   const [waypointProgress, setWaypointProgress] = useState<number>(() => {
-    const cached = localStorage.getItem('vazzamon_waypoint_progress');
+    const cached = localStorage.getItem('vatsamon_waypoint_progress');
     return cached ? Number(cached) : 0;
   });
 
   // Percorso di trekking attivo (3 itinerari selezionabili).
   const [activeRouteId, setActiveRouteId] = useState<string>(() => {
-    return localStorage.getItem('vazzamon_active_route_id') || TREK_ROUTES[0].id;
+    return localStorage.getItem('vatsamon_active_route_id') || TREK_ROUTES[0].id;
   });
-  useEffect(() => { localStorage.setItem('vazzamon_active_route_id', activeRouteId); }, [activeRouteId]);
+  useEffect(() => { localStorage.setItem('vatsamon_active_route_id', activeRouteId); }, [activeRouteId]);
   const activeRoute = TREK_ROUTES.find(r => r.id === activeRouteId) ?? TREK_ROUTES[0];
   const activeTrail = activeRoute.coords;
   // Cambia percorso: riparte dalla prima tappa.
@@ -225,30 +225,30 @@ export default function App() {
     "Bussola sintonizzata: sei attualmente ad Aosta Centro 🏰."
   ]);
 
-  useEffect(() => { localStorage.setItem('vazzamon_waypoint_idx', String(currentWaypointIndex)); }, [currentWaypointIndex]);
-  useEffect(() => { localStorage.setItem('vazzamon_waypoint_progress', String(waypointProgress)); }, [waypointProgress]);
+  useEffect(() => { localStorage.setItem('vatsamon_waypoint_idx', String(currentWaypointIndex)); }, [currentWaypointIndex]);
+  useEffect(() => { localStorage.setItem('vatsamon_waypoint_progress', String(waypointProgress)); }, [waypointProgress]);
 
   // ---- 2. VIEW NAVIGATION ----
-  const [activeTab, setActiveTab] = useState<'map' | 'scanner' | 'eggs' | 'vazzadex' | 'battle' | 'quiz'>('map');
+  const [activeTab, setActiveTab] = useState<'map' | 'scanner' | 'eggs' | 'vatsadex' | 'battle' | 'quiz'>('map');
   // Quiz "Scuola d'Alpeggio": miglior punteggio persistito.
   const [quizBest, setQuizBest] = useState<number>(() => {
-    const saved = localStorage.getItem('vazzamon_quiz_go');
+    const saved = localStorage.getItem('vatsamon_quiz_go');
     return saved ? parseInt(saved, 10) : 0;
   });
   // Medaglie delle Arene conquistate (bonus permanenti).
   const [trainerBadges, setTrainerBadges] = useState<ArenaId[]>(() => {
-    const saved = localStorage.getItem('vazzamon_badges');
+    const saved = localStorage.getItem('vatsamon_badges');
     return saved ? JSON.parse(saved) : [];
   });
   useEffect(() => {
-    localStorage.setItem('vazzamon_badges', JSON.stringify(trainerBadges));
+    localStorage.setItem('vatsamon_badges', JSON.stringify(trainerBadges));
   }, [trainerBadges]);
   const [soundEnabled, setSoundEnabled] = useState(true);
 
-  // Overworld spawned wild Vazzamons
+  // Overworld spawned wild Vatsamons
   interface WildCow {
     id: string;
-    vazza: Vazzamon;
+    vatsa: Vatsamon;
     lat?: number;
     lng?: number;
     x: number; // coordinates relative to map width
@@ -386,19 +386,19 @@ export default function App() {
       wildCows.forEach(wc => {
         const wcLat = wc.lat ?? playerLat;
         const wcLng = wc.lng ?? playerLng;
-        const emoji = wc.vazza.breed.toLowerCase().includes('pezza') ? '🐮' : '🐄';
+        const emoji = wc.vatsa.breed.toLowerCase().includes('pezza') ? '🐮' : '🐄';
 
         const cowHtmlIcon = L.divIcon({
           className: 'custom-leaflet-marker',
           html: `<div class="flex flex-col items-center">
                    <div class="w-10 h-10 rounded-full bg-slate-950 border-2 border-amber-500 flex items-center justify-center shadow-lg relative cursor-pointer hover:scale-110 transition-transform" style="transform: translateY(-8px);">
                      <span class="text-xl animate-float">${emoji}</span>
-                     <span class="absolute -top-1 -right-1 bg-amber-500 text-slate-950 font-mono text-[7px] font-black px-1 rounded-full leading-tight">
-                       CP${wc.vazza.cp}
+                     <span class="absolute -top-1 -right-1 bg-amber-500 text-[#0b0820] font-mono text-[7px] font-black px-1 rounded-full leading-tight">
+                       CP${wc.vatsa.cp}
                      </span>
                    </div>
                    <div class="px-1 py-0.2 rounded bg-slate-900 border border-amber-550/20 text-[7px] text-yellow-400 font-mono font-bold whitespace-nowrap shadow-sm" style="transform: translateY(-10px);">
-                     ${wc.vazza.rarity}
+                     ${wc.vatsa.rarity}
                    </div>
                  </div>`,
           iconSize: [40, 50],
@@ -416,7 +416,7 @@ export default function App() {
       });
 
       // ===== Bovine REALI (Batailles) non ancora catturate, nei comuni veri =====
-      const capturedIds = new Set(vazzadex.map(c => c.id));
+      const capturedIds = new Set(vatsadex.map(c => c.id));
       REAL_COWS.filter(rc => !capturedIds.has(rc.id) && rc.lat != null && rc.lng != null).forEach(rc => {
         const d = distanza({ lat: effLat, lng: effLng }, { lat: rc.lat!, lng: rc.lng! });
         const inRange = d <= RAGGIO_CATTURA;
@@ -430,7 +430,7 @@ export default function App() {
           html: `<div class="flex flex-col items-center ${inRange ? '' : 'opacity-70'}">
                    <div class="w-11 h-11 rounded-full border-2 ${ring} bg-slate-950 flex items-center justify-center shadow-lg overflow-hidden relative" style="${photo}">
                      ${inner}
-                     <span class="absolute -top-1 -right-1 bg-emerald-500 text-slate-950 font-mono text-[7px] font-black px-1 rounded-full">CP${rc.cp}</span>
+                     <span class="absolute -top-1 -right-1 bg-emerald-500 text-[#0b0820] font-mono text-[7px] font-black px-1 rounded-full">CP${rc.cp}</span>
                    </div>
                    <div class="px-1 rounded bg-emerald-900/90 border border-emerald-700 text-[7px] text-emerald-200 font-mono font-bold whitespace-nowrap mt-0.5">REALE · ${rc.rarity}</div>
                  </div>`,
@@ -442,7 +442,7 @@ export default function App() {
             playClickSfx();
             const dist = distanza({ lat: effLat, lng: effLng }, { lat: rc.lat!, lng: rc.lng! });
             if (dist <= RAGGIO_CATTURA) {
-              initiateCatchWild({ id: rc.id, vazza: rc, lat: rc.lat!, lng: rc.lng!, x: 0, y: 0, angle: 0 });
+              initiateCatchWild({ id: rc.id, vatsa: rc, lat: rc.lat!, lng: rc.lng!, x: 0, y: 0, angle: 0 });
             } else {
               setTrekkingFeed(prev => [`🧭 ${rc.name} (${rc.comune}) è a ${fmtDist(dist)}: cammina verso di lei!`, ...prev.slice(0, 8)]);
             }
@@ -487,7 +487,7 @@ export default function App() {
         leafletMarkersRef.current = [];
       }
     }
-  }, [activeTab, mapMode, effLat, effLng, wildCows, caseraCooldowns, vazzadex, activeRouteId]);
+  }, [activeTab, mapMode, effLat, effLng, wildCows, caseraCooldowns, vatsadex, activeRouteId]);
 
   // GPS reale: attiva/disattiva il tracciamento della posizione vera
   const toggleGps = () => {
@@ -520,7 +520,7 @@ export default function App() {
 
   // Capture mode variables
   const [isCapturingMode, setIsCapturingMode] = useState(false);
-  const [encounterCow, setEncounterCow] = useState<Vazzamon | null>(null);
+  const [encounterCow, setEncounterCow] = useState<Vatsamon | null>(null);
   const [selectedBallId, setSelectedBallId] = useState<string>('item-bell-std');
   const [targetRingScale, setTargetRingScale] = useState(1);
   const [hasFedApple, setHasFedApple] = useState(false);
@@ -539,10 +539,10 @@ export default function App() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   // Backpack general item utility drawer
-  const [selectedVazzamon, setSelectedVazzamon] = useState<Vazzamon | null>(null);
+  const [selectedVatsamon, setSelectedVatsamon] = useState<Vatsamon | null>(null);
   const [dexSearch, setDexSearch] = useState('');
   const [dexRarityFilter, setDexRarityFilter] = useState<string>('All');
-  const [activeCombatantId, setActiveCombatantId] = useState<string>(() => vazzadex[0]?.id || "");
+  const [activeCombatantId, setActiveCombatantId] = useState<string>(() => vatsadex[0]?.id || "");
 
   // Level Up overlay reward popup
   const [levelUpAward, setLevelUpAward] = useState<number | null>(null);
@@ -552,8 +552,8 @@ export default function App() {
 
   // Interactive Bataille de Reines gym-fighter active state
   const [gymState, setGymState] = useState<BattleState>({
-    playerVazzamon: null,
-    opponentVazzamon: null,
+    playerVatsamon: null,
+    opponentVatsamon: null,
     playerHp: 100,
     opponentHp: 100,
     playerMaxHp: 100,
@@ -594,7 +594,7 @@ export default function App() {
 
     const cp = Math.floor((str * 2 + def + agl) * (1.1 + (randRarity === 'Leggendaria' ? 1.0 : randRarity === 'Epica' ? 0.5 : randRarity === 'Rara' ? 0.2 : 0)));
 
-    const generated: Vazzamon = {
+    const generated: Vatsamon = {
       id: "wild-" + Date.now() + "-" + Math.floor(Math.random() * 1000),
       breed: randBreed,
       name: randName,
@@ -620,7 +620,7 @@ export default function App() {
 
     return {
       id: generated.id,
-      vazza: generated,
+      vatsa: generated,
       lat: cowLat,
       lng: cowLng,
       x: svgCoords.x,
@@ -757,7 +757,7 @@ export default function App() {
     const nextLat = baseWp.lat + (afterWp.lat - baseWp.lat) * (actualProgress / 100);
     const nextLng = baseWp.lng + (afterWp.lng - baseWp.lng) * (actualProgress / 100);
 
-    // Spawn another wild Vazzamon nearby
+    // Spawn another wild Vatsamon nearby
     if (Math.random() > 0.3) {
       setWildCows(prev => [...prev.slice(-3), spawnWildCowAtRandom(nextLat, nextLng)]); // keep maximum 4 wild cows roaming
     }
@@ -781,7 +781,7 @@ export default function App() {
     
     const cp = Math.floor((str * 2 + def + agl) * (1.3 + (rarity === 'Leggendaria' ? 1.0 : rarity === 'Epica' ? 0.5 : 0.2)));
 
-    const hatchedCow: Vazzamon = {
+    const hatchedCow: Vatsamon = {
       id: "hatch-" + Date.now(),
       breed,
       name: "Baby " + breed.split(" ")[0],
@@ -796,7 +796,7 @@ export default function App() {
 
     setHatchingEgg(egg);
     // Add to collection
-    setVazzadex(prev => [hatchedCow, ...prev]);
+    setVatsadex(prev => [hatchedCow, ...prev]);
     // Replace egg in hatchery list with a fresh one
     setEggs(prev => {
       const remaining = prev.filter(e => e.id !== egg.id);
@@ -825,7 +825,7 @@ export default function App() {
       const odds = Math.random();
 
       // Normal base items
-      looted.push("+4 Vazza-ball");
+      looted.push("+4 Vatsa-ball");
       setBackpack(prev => prev.map(item => item.id === 'item-bell-std' ? { ...item, quantity: item.quantity + 4 } : item));
       
       if (odds > 0.4) {
@@ -833,11 +833,11 @@ export default function App() {
         setBackpack(prev => prev.map(item => item.id === 'item-apple' ? { ...item, quantity: item.quantity + 2 } : item));
       }
       if (odds > 0.7) {
-        looted.push("+1 Super Vazza-ball");
+        looted.push("+1 Super Vatsa-ball");
         setBackpack(prev => prev.map(item => item.id === 'item-bell-giga' ? { ...item, quantity: item.quantity + 1 } : item));
       }
       if (odds > 0.88) {
-        looted.push("+1 Iper Vazza-ball");
+        looted.push("+1 Iper Vatsa-ball");
         setBackpack(prev => prev.map(item => item.id === 'item-bell-iper' ? { ...item, quantity: item.quantity + 1 } : item));
       }
       if (odds > 0.9) {
@@ -866,7 +866,7 @@ export default function App() {
   // ---- 8. CATCHING INTERACTIVE CAPTURE LOGIC ----
   const initiateCatchWild = (wild: WildCow) => {
     playClickSfx();
-    setEncounterCow(wild.vazza);
+    setEncounterCow(wild.vatsa);
     setIsCapturingMode(true);
     setCaptureStep('aiming');
     setHasFedApple(false);
@@ -934,11 +934,11 @@ export default function App() {
     }, 2200);
 
     setTimeout(() => {
-      // Tasso finale: rarità base × potenza della Vazza-ball × mela × precisione lancio.
+      // Tasso finale: rarità base × potenza della Vatsa-ball × mela × precisione lancio.
       const ballMeta = BALL_META[selectedBallId];
       let captureChance: number;
       if (ballMeta && ballMeta.mult === null) {
-        captureChance = 1.0; // Master Vazza-ball: cattura garantita
+        captureChance = 1.0; // Master Vatsa-ball: cattura garantita
       } else {
         captureChance = BASE_CATCH[encounterCow?.rarity ?? 'Comune'];
         captureChance *= ballMeta?.mult ?? 1;       // potenza della ball
@@ -955,7 +955,7 @@ export default function App() {
         playVictorySfx();
 
         // Add to permanent collection
-        setVazzadex(prev => [encounterCow, ...prev]);
+        setVatsadex(prev => [encounterCow, ...prev]);
         setActiveCombatantId(encounterCow.id);
         
         // Remove from overworld spawns
@@ -981,7 +981,7 @@ export default function App() {
   };
 
   // ---- 9. DETAILED CARD POWER UP & TRANSFERS ----
-  const handlePowerUpCow = (cow: Vazzamon) => {
+  const handlePowerUpCow = (cow: Vatsamon) => {
     // Costs 10 coins and 1 Fieno delle Vette
     const hasHayObj = backpack.find(item => item.id === 'item-hay' && item.quantity > 0);
     if (trainer.coins < 15 || !hasHayObj) {
@@ -996,7 +996,7 @@ export default function App() {
     setBackpack(prev => prev.map(item => item.id === 'item-hay' ? { ...item, quantity: item.quantity - 1 } : item));
 
     // Empower stats
-    setVazzadex(prev => {
+    setVatsadex(prev => {
       return prev.map(c => {
         if (c.id === cow.id) {
           const nextLevel = c.level + 1;
@@ -1007,7 +1007,7 @@ export default function App() {
             agility: Math.min(c.stats.agility + 1, 100)
           };
           const updated = { ...c, level: nextLevel, cp: nextCp, stats: nextStats };
-          setSelectedVazzamon(updated); // Update detail view
+          setSelectedVatsamon(updated); // Update detail view
           return updated;
         }
         return c;
@@ -1015,9 +1015,9 @@ export default function App() {
     });
   };
 
-  const handleTransferCow = (cow: Vazzamon) => {
-    if (vazzadex.length <= 1) {
-      alert("Non puoi liberare la tua unica Regina al pascolo! Devi tenere almeno un Vazzamon.");
+  const handleTransferCow = (cow: Vatsamon) => {
+    if (vatsadex.length <= 1) {
+      alert("Non puoi liberare la tua unica Regina al pascolo! Devi tenere almeno un Vatsamon.");
       return;
     }
     playClickSfx();
@@ -1025,7 +1025,7 @@ export default function App() {
     if (!confirmed) return;
 
     // Filter out
-    setVazzadex(prev => {
+    setVatsadex(prev => {
       const filtered = prev.filter(c => c.id !== cow.id);
       if (activeCombatantId === cow.id) {
         setActiveCombatantId(filtered[0]?.id || "");
@@ -1035,16 +1035,16 @@ export default function App() {
 
     // Reward fodder
     setBackpack(prev => prev.map(item => item.id === 'item-hay' ? { ...item, quantity: item.quantity + 5 } : item));
-    setSelectedVazzamon(null);
+    setSelectedVatsamon(null);
     alert(`${cow.name} è tornata felice nell'alpeggio d'alta quota! Ricevuti +5 fieni.`);
   };
 
   // ---- 10. REAL-TIME TAP-AND-DODGE GYM BATTLES ----
   const handleInitiateGymMatch = () => {
     playClickSfx();
-    const activeBuddy = vazzadex.find(c => c.id === activeCombatantId) || vazzadex[0];
+    const activeBuddy = vatsadex.find(c => c.id === activeCombatantId) || vatsadex[0];
     if (!activeBuddy) {
-      alert("Sblocca un Vazzamon prima di sfidare l'arena!");
+      alert("Sblocca un Vatsamon prima di sfidare l'arena!");
       return;
     }
 
@@ -1055,7 +1055,7 @@ export default function App() {
     
     // Scale opponent matching user level
     const oppPowerMult = 1.0 + (trainer.level * 0.1);
-    const scaledOpponent: Vazzamon = {
+    const scaledOpponent: Vatsamon = {
       ...opponentModel,
       id: "opponent-boss",
       name: `${opponentModel.name} Boss`,
@@ -1063,8 +1063,8 @@ export default function App() {
     };
 
     setGymState({
-      playerVazzamon: activeBuddy,
-      opponentVazzamon: scaledOpponent,
+      playerVatsamon: activeBuddy,
+      opponentVatsamon: scaledOpponent,
       playerHp: 300 + activeBuddy.level * 15,
       opponentHp: 280 + scaledOpponent.level * 25,
       playerMaxHp: 300 + activeBuddy.level * 15,
@@ -1095,7 +1095,7 @@ export default function App() {
 
           // Decide if AI casts standard attack or super move
           const isSuperReady = prev.opponentEnergy >= 100;
-          let dmg = Math.floor(12 + (prev.opponentVazzamon?.stats.strength || 50) * 0.15 + (Math.random() * 8));
+          let dmg = Math.floor(12 + (prev.opponentVatsamon?.stats.strength || 50) * 0.15 + (Math.random() * 8));
           let actionName = "Spallata";
 
           if (isSuperReady) {
@@ -1114,8 +1114,8 @@ export default function App() {
           const logs = [...prev.history];
           logs.push(
             isDodged 
-              ? `⚡ ${prev.opponentVazzamon?.name} lancia ${actionName}, MA HAI SCHIVATO CON SUCCESSO! Subito solo ${finalDmg} danni!`
-              : `💥 ${prev.opponentVazzamon?.name} sferra ${actionName} infliggendo ${finalDmg} danni!`
+              ? `⚡ ${prev.opponentVatsamon?.name} lancia ${actionName}, MA HAI SCHIVATO CON SUCCESSO! Subito solo ${finalDmg} danni!`
+              : `💥 ${prev.opponentVatsamon?.name} sferra ${actionName} infliggendo ${finalDmg} danni!`
           );
 
           const nextPlayerHp = Math.max(0, prev.playerHp - finalDmg);
@@ -1126,7 +1126,7 @@ export default function App() {
           if (nextPlayerHp <= 0) {
             status = 'ended';
             winner = 'opponent';
-            logs.push(`💀 Il tuo Vazzamon ha ceduto! Sconfitta dignitosa. Sali di livello nel Vazzadex per riprovare.`);
+            logs.push(`💀 Il tuo Vatsamon ha ceduto! Sconfitta dignitosa. Sali di livello nel Vatsadex per riprovare.`);
             if (battleLoopRef.current) clearInterval(battleLoopRef.current);
           }
 
@@ -1168,20 +1168,20 @@ export default function App() {
     playHitSfx();
     
     setGymState(prev => {
-      if (prev.status !== 'active' || !prev.playerVazzamon) return prev;
+      if (prev.status !== 'active' || !prev.playerVatsamon) return prev;
 
-      const dmg = Math.floor(8 + prev.playerVazzamon.stats.strength * 0.12 + Math.random() * 6);
+      const dmg = Math.floor(8 + prev.playerVatsamon.stats.strength * 0.12 + Math.random() * 6);
       const nextOppHp = Math.max(0, prev.opponentHp - dmg);
       const nextEnergy = Math.min(100, prev.energy + 10);
       const logs = [...prev.history];
-      logs.push(`⚔️ ${prev.playerVazzamon.name} attacca infliggendo ${dmg} danni!`);
+      logs.push(`⚔️ ${prev.playerVatsamon.name} attacca infliggendo ${dmg} danni!`);
 
       let status: BattleState['status'] = prev.status;
       let winner: BattleState['winner'] = prev.winner;
       if (nextOppHp <= 0) {
         status = 'ended';
         winner = 'player';
-        logs.push(`🏆 EPIC WIN! ${prev.playerVazzamon.name} si laurea Reina indiscussa dell'Arena! Sbloccati premi favolosi.`);
+        logs.push(`🏆 EPIC WIN! ${prev.playerVatsamon.name} si laurea Reina indiscussa dell'Arena! Sbloccati premi favolosi.`);
         if (battleLoopRef.current) clearInterval(battleLoopRef.current);
 
         // Award resources to Trainer
@@ -1217,21 +1217,21 @@ export default function App() {
   };
 
   const handlePlayerSuperAttack = () => {
-    if (gymState.status !== 'active' || gymState.energy < 100 || !gymState.playerVazzamon) return;
+    if (gymState.status !== 'active' || gymState.energy < 100 || !gymState.playerVatsamon) return;
     playVictorySfx();
 
     setGymState(prev => {
-      const critDmg = Math.floor((15 + (prev.playerVazzamon?.stats.strength || 50) * 0.2) * 2.5);
+      const critDmg = Math.floor((15 + (prev.playerVatsamon?.stats.strength || 50) * 0.2) * 2.5);
       const nextOppHp = Math.max(0, prev.opponentHp - critDmg);
       const logs = [...prev.history];
-      logs.push(`🌟✨ SPECTACULAR STRIKE! ${prev.playerVazzamon?.name} sferra "RUGITO DELLA COGNE" infliggendo ${critDmg} danni devastanti!`);
+      logs.push(`🌟✨ SPECTACULAR STRIKE! ${prev.playerVatsamon?.name} sferra "RUGITO DELLA COGNE" infliggendo ${critDmg} danni devastanti!`);
 
       let status: BattleState['status'] = prev.status;
       let winner: BattleState['winner'] = prev.winner;
       if (nextOppHp <= 0) {
         status = 'ended';
         winner = 'player';
-        logs.push(`🏆 EPIC WIN! ${prev.playerVazzamon?.name} ha sconfitto il Boss!`);
+        logs.push(`🏆 EPIC WIN! ${prev.playerVatsamon?.name} ha sconfitto il Boss!`);
         if (battleLoopRef.current) clearInterval(battleLoopRef.current);
         addTrainerXp(500);
         setTrainer(t => ({ ...t, coins: t.coins + 60 }));
@@ -1274,7 +1274,7 @@ export default function App() {
 
     try {
       // Build statica: generazione client (niente server), stesso schema.
-      const parsed: Vazzamon = await generateVazzamonClient(imgBase64, false);
+      const parsed: Vatsamon = await generateVatsamonClient(imgBase64, false);
 
       clearInterval(timer);
       setScanProgress(100);
@@ -1286,7 +1286,7 @@ export default function App() {
       const agl = parsed.stats.agility;
       const calculatedCp = Math.floor((str * 2 + def + agl) * (1.1 + (parsed.rarity === 'Leggendaria' ? 1.0 : parsed.rarity === 'Epica' ? 0.5 : parsed.rarity === 'Rara' ? 0.2 : 0)));
 
-      const fullySynthesized: Vazzamon = {
+      const fullySynthesized: Vatsamon = {
         ...parsed,
         cp: calculatedCp,
         level: 15
@@ -1345,7 +1345,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-violet-950 via-indigo-950 to-fuchsia-950 flex flex-col font-sans text-slate-100 antialiased selection:bg-emerald-500 selection:text-white relative overflow-x-hidden" id="vazzamon-go-app">
+    <div className="min-h-screen bg-gradient-to-br from-violet-800 via-indigo-700 to-fuchsia-800 flex flex-col font-sans text-slate-100 antialiased selection:bg-emerald-500 selection:text-white relative overflow-x-hidden" id="vatsamon-go-app">
 
       {/* Sfondo aurora animato (tema Pokémon moderno) */}
       <div className="aurora-bg" aria-hidden="true" />
@@ -1360,13 +1360,13 @@ export default function App() {
               <div className="w-12 h-12 rounded-full border-2 border-emerald-500 bg-slate-850 flex items-center justify-center overflow-hidden shadow-inner">
                 <span className="text-2xl">👨‍🌾</span>
               </div>
-              <div className="absolute -bottom-1 -right-1 bg-emerald-500 text-slate-950 text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow">
+              <div className="absolute -bottom-1 -right-1 bg-emerald-500 text-[#0b0820] text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow">
                 {trainer.level}
               </div>
             </div>
             <div>
               <div className="flex items-center gap-1.5">
-                <span className="font-mono font-black text-sm tracking-wide title-gradient">VAZZAMON GO</span>
+                <span className="font-mono font-black text-sm tracking-wide title-gradient">VATSAMON GO</span>
                 <span className="text-[9px] bg-emerald-950/80 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-full font-bold uppercase">
                   Valle d'Aosta
                 </span>
@@ -1410,7 +1410,7 @@ export default function App() {
         <div className="max-w-md mx-auto grid grid-cols-6 gap-0.5 p-1 text-[11px] font-extrabold">
           <button
             onClick={() => { playClickSfx(); setActiveTab('map'); }}
-            className={`flex flex-col items-center py-2 rounded-xl transition-all ${activeTab === 'map' ? 'nav-active text-slate-950' : 'text-slate-400 hover:bg-slate-900 hover:-translate-y-0.5'}`}
+            className={`flex flex-col items-center py-2 rounded-xl transition-all ${activeTab === 'map' ? 'nav-active text-[#0b0820]' : 'text-slate-400 hover:bg-slate-900 hover:-translate-y-0.5'}`}
           >
             <Compass className="w-4 h-4 mb-0.5" />
             <span>Mappa</span>
@@ -1418,7 +1418,7 @@ export default function App() {
 
           <button
             onClick={() => { playClickSfx(); setActiveTab('scanner'); }}
-            className={`flex flex-col items-center py-2 rounded-xl transition-all ${activeTab === 'scanner' ? 'nav-active text-slate-950' : 'text-slate-400 hover:bg-slate-900 hover:-translate-y-0.5'}`}
+            className={`flex flex-col items-center py-2 rounded-xl transition-all ${activeTab === 'scanner' ? 'nav-active text-[#0b0820]' : 'text-slate-400 hover:bg-slate-900 hover:-translate-y-0.5'}`}
           >
             <Camera className="w-4 h-4 mb-0.5" />
             <span>AR Scan</span>
@@ -1426,7 +1426,7 @@ export default function App() {
 
           <button
             onClick={() => { playClickSfx(); setActiveTab('eggs'); }}
-            className={`flex flex-col items-center py-2 rounded-xl transition-all relative ${activeTab === 'eggs' ? 'nav-active text-slate-950' : 'text-slate-400 hover:bg-slate-900 hover:-translate-y-0.5'}`}
+            className={`flex flex-col items-center py-2 rounded-xl transition-all relative ${activeTab === 'eggs' ? 'nav-active text-[#0b0820]' : 'text-slate-400 hover:bg-slate-900 hover:-translate-y-0.5'}`}
           >
             <Gift className="w-4 h-4 mb-0.5" />
             <span>Vitelli</span>
@@ -1434,21 +1434,21 @@ export default function App() {
           </button>
 
           <button
-            onClick={() => { playClickSfx(); setActiveTab('vazzadex'); }}
-            className={`flex flex-col items-center py-2 rounded-xl transition-all relative ${activeTab === 'vazzadex' ? 'nav-active text-slate-950' : 'text-slate-400 hover:bg-slate-900 hover:-translate-y-0.5'}`}
+            onClick={() => { playClickSfx(); setActiveTab('vatsadex'); }}
+            className={`flex flex-col items-center py-2 rounded-xl transition-all relative ${activeTab === 'vatsadex' ? 'nav-active text-[#0b0820]' : 'text-slate-400 hover:bg-slate-900 hover:-translate-y-0.5'}`}
           >
             <BookOpen className="w-4 h-4 mb-0.5" />
-            <span>Vazzadex</span>
-            {vazzadex.length > 0 && (
-              <span className="absolute top-1 right-2 bg-amber-500 text-slate-950 text-[9px] px-1.5 rounded-full font-black">
-                {vazzadex.length}
+            <span>Vatsadex</span>
+            {vatsadex.length > 0 && (
+              <span className="absolute top-1 right-2 bg-amber-500 text-[#0b0820] text-[9px] px-1.5 rounded-full font-black">
+                {vatsadex.length}
               </span>
             )}
           </button>
 
           <button
             onClick={() => { playClickSfx(); setActiveTab('battle'); }}
-            className={`flex flex-col items-center py-2 rounded-xl transition-all ${activeTab === 'battle' ? 'nav-active text-slate-950' : 'text-slate-400 hover:bg-slate-900 hover:-translate-y-0.5'}`}
+            className={`flex flex-col items-center py-2 rounded-xl transition-all ${activeTab === 'battle' ? 'nav-active text-[#0b0820]' : 'text-slate-400 hover:bg-slate-900 hover:-translate-y-0.5'}`}
           >
             <Swords className="w-4 h-4 mb-0.5" />
             <span>Gym</span>
@@ -1456,7 +1456,7 @@ export default function App() {
 
           <button
             onClick={() => { playClickSfx(); setActiveTab('quiz'); }}
-            className={`flex flex-col items-center py-2 rounded-xl transition-all ${activeTab === 'quiz' ? 'nav-active text-slate-950' : 'text-slate-400 hover:bg-slate-900 hover:-translate-y-0.5'}`}
+            className={`flex flex-col items-center py-2 rounded-xl transition-all ${activeTab === 'quiz' ? 'nav-active text-[#0b0820]' : 'text-slate-400 hover:bg-slate-900 hover:-translate-y-0.5'}`}
           >
             <GraduationCap className="w-4 h-4 mb-0.5" />
             <span>Scuola</span>
@@ -1512,7 +1512,7 @@ export default function App() {
                     <Compass className="w-5 h-5 text-emerald-500" />
                     Sentiero d'Alta Quota
                   </h2>
-                  <p className="text-xs text-slate-400">Esplora la Valle d'Aosta reale. Tocca le casere o cattura i Vazzamon sul cammino!</p>
+                  <p className="text-xs text-slate-400">Esplora la Valle d'Aosta reale. Tocca le casere o cattura i Vatsamon sul cammino!</p>
                 </div>
 
                 {/* Map Mode Toggle & Simulated Walk in flex */}
@@ -1521,13 +1521,13 @@ export default function App() {
                   <div className="flex items-center gap-1 bg-slate-900 border border-slate-800 p-1 rounded-xl">
                     <button
                       onClick={() => { playClickSfx(); setMapMode('real'); }}
-                      className={`font-mono text-[10px] font-bold px-2.5 py-1.5 rounded-lg transition-all ${mapMode === 'real' ? 'bg-emerald-500 text-slate-950 font-black' : 'text-slate-400 hover:bg-slate-850'}`}
+                      className={`font-mono text-[10px] font-bold px-2.5 py-1.5 rounded-lg transition-all ${mapMode === 'real' ? 'bg-emerald-500 text-[#0b0820] font-black' : 'text-slate-400 hover:bg-slate-850'}`}
                     >
                       Mappa OSM Reale
                     </button>
                     <button
                       onClick={() => { playClickSfx(); setMapMode('radar'); }}
-                      className={`font-mono text-[10px] font-bold px-2.5 py-1.5 rounded-lg transition-all ${mapMode === 'radar' ? 'bg-emerald-500 text-slate-950 font-black' : 'text-slate-400 hover:bg-slate-850'}`}
+                      className={`font-mono text-[10px] font-bold px-2.5 py-1.5 rounded-lg transition-all ${mapMode === 'radar' ? 'bg-emerald-500 text-[#0b0820] font-black' : 'text-slate-400 hover:bg-slate-850'}`}
                     >
                       Radar Sonar
                     </button>
@@ -1536,7 +1536,7 @@ export default function App() {
                   {/* Hike Button */}
                   <button
                     onClick={handleSimulatedWalk}
-                    className="bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-400 hover:to-green-400 text-slate-950 font-black text-xs py-2.5 px-4 rounded-xl shadow active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer border-b-2 border-emerald-700 ml-auto sm:ml-0"
+                    className="bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-400 hover:to-green-400 text-[#0b0820] font-black text-xs py-2.5 px-4 rounded-xl shadow active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer border-b-2 border-emerald-700 ml-auto sm:ml-0"
                     id="simulate-walk-btn"
                   >
                     <Footprints className="w-4 h-4 fill-current animate-bounce" />
@@ -1633,7 +1633,7 @@ export default function App() {
                     );
                   })}
 
-                  {/* WILD ROAMING VAZZAMONS POPPING OUT */}
+                  {/* WILD ROAMING VATSAMONS POPPING OUT */}
                   {wildCows.map((wc) => (
                     <button
                       key={wc.id}
@@ -1645,10 +1645,10 @@ export default function App() {
                         <div className="relative">
                           {/* Sparkly pointer background */}
                           <div className="absolute -inset-1.5 bg-yellow-500/20 rounded-full animate-ping opacity-60"></div>
-                          <VazzamonAvatar breed={wc.vazza.breed} rarity={wc.vazza.rarity} className="w-14 h-14 bg-slate-950/40 rounded-full border border-amber-500/30 p-1 backdrop-blur-xs transition-transform group-hover/cow:scale-125" />
+                          <VatsamonAvatar breed={wc.vatsa.breed} rarity={wc.vatsa.rarity} className="w-14 h-14 bg-slate-950/40 rounded-full border border-amber-500/30 p-1 backdrop-blur-xs transition-transform group-hover/cow:scale-125" />
                         </div>
                         <span className="text-[8px] font-mono font-black bg-slate-950/95 text-yellow-400 border border-amber-500/20 px-1.5 py-0.5 rounded shadow">
-                          CP {wc.vazza.cp}
+                          CP {wc.vatsa.cp}
                         </span>
                       </div>
                     </button>
@@ -1656,7 +1656,7 @@ export default function App() {
 
                   {/* Bottom instructions ribbon */}
                   <div className="absolute bottom-2 left-1/2 -translate-x-1/2 bg-slate-950/80 border border-slate-800/80 rounded-full py-1 px-4 text-[10px] text-slate-400 font-mono tracking-tight text-center whitespace-nowrap backdrop-blur-xs">
-                    🐮 Sintonizzati {wildCows.length} Vazzamon selvatici nelle vicinanze
+                    🐮 Sintonizzati {wildCows.length} Vatsamon selvatici nelle vicinanze
                   </div>
                 </div>
               )}
@@ -1675,7 +1675,7 @@ export default function App() {
               <div className="flex flex-wrap gap-2">
                 <button
                   onClick={() => { playClickSfx(); setSelectedTrailId(null); }}
-                  className={`text-[10px] font-mono font-bold px-3 py-1.5 rounded-full border transition-all ${selectedTrailId === null ? 'bg-emerald-500 text-slate-950 border-emerald-400' : 'bg-slate-900 text-slate-300 border-slate-800 hover:bg-slate-850'}`}
+                  className={`text-[10px] font-mono font-bold px-3 py-1.5 rounded-full border transition-all ${selectedTrailId === null ? 'bg-emerald-500 text-[#0b0820] border-emerald-400' : 'bg-slate-900 text-slate-300 border-slate-800 hover:bg-slate-850'}`}
                 >
                   🧭 Esplora libera
                 </button>
@@ -1683,7 +1683,7 @@ export default function App() {
                   <button
                     key={t.id}
                     onClick={() => { playClickSfx(); setMapMode('real'); setSelectedTrailId(t.id); }}
-                    className={`text-[10px] font-mono font-bold px-3 py-1.5 rounded-full border transition-all ${selectedTrailId === t.id ? 'bg-amber-500 text-slate-950 border-amber-400' : 'bg-slate-900 text-amber-200 border-amber-700/40 hover:bg-slate-850'}`}
+                    className={`text-[10px] font-mono font-bold px-3 py-1.5 rounded-full border transition-all ${selectedTrailId === t.id ? 'bg-amber-500 text-[#0b0820] border-amber-400' : 'bg-slate-900 text-amber-200 border-amber-700/40 hover:bg-slate-850'}`}
                   >
                     {t.location}
                   </button>
@@ -1761,14 +1761,14 @@ export default function App() {
             <div className="bg-slate-950 border border-slate-850 rounded-3xl p-4">
               <h4 className="text-xs font-mono font-extrabold uppercase text-slate-400 tracking-wider mb-2 flex items-center gap-1.5">
                 <Sparkles className="w-3.5 h-3.5 text-amber-550" />
-                Vazzamon Selvatici Vicini (Sospetti)
+                Vatsamon Selvatici Vicini (Sospetti)
               </h4>
               <div className="grid grid-cols-4 gap-3">
                 {WILD_BREEDS.map((breed, idx) => (
                   <div key={idx} className="bg-slate-900 border border-slate-800 rounded-2xl p-3 flex flex-col items-center justify-center text-center relative overflow-hidden group">
                     <div className="absolute top-1 left-2 text-[9px] font-mono text-slate-500">{(idx + 1) * 150}m</div>
                     <div className="w-14 h-14 brightness-0 opacity-40 group-hover:opacity-60 transition-opacity">
-                      <VazzamonAvatar breed={breed} rarity="Comune" className="w-12 h-12" />
+                      <VatsamonAvatar breed={breed} rarity="Comune" className="w-12 h-12" />
                     </div>
                     <span className="text-[9px] font-mono text-slate-400 mt-1 truncate max-w-full">{breed}</span>
                   </div>
@@ -2009,7 +2009,7 @@ export default function App() {
                       </div>
                     </div>
 
-                    {/* Selettore Vazza-ball in stile Poké Ball: una tessera per potenza */}
+                    {/* Selettore Vatsa-ball in stile Poké Ball: una tessera per potenza */}
                     <div id="ball-selector" className="space-y-1">
                       <div className="flex items-center justify-between text-[9px] font-mono uppercase tracking-wider text-slate-400">
                         <span>Scegli il campanaccio</span>
@@ -2034,14 +2034,14 @@ export default function App() {
                             >
                               {/* badge quantità */}
                               <span
-                                className="absolute -top-1.5 -right-1.5 min-w-4 h-4 px-1 rounded-full text-[8px] font-mono font-black flex items-center justify-center text-slate-950"
+                                className="absolute -top-1.5 -right-1.5 min-w-4 h-4 px-1 rounded-full text-[8px] font-mono font-black flex items-center justify-center text-[#0b0820]"
                                 style={{ backgroundColor: meta.color }}
                               >
                                 {qty}
                               </span>
                               <span className="text-lg leading-none">{meta.emoji}</span>
                               <span className="text-[8px] font-mono font-bold mt-1 leading-tight" style={{ color: selected ? meta.color : '#cbd5e1' }}>
-                                {meta.short.replace('Vazza-ball', '').trim() || 'Base'}
+                                {meta.short.replace('Vatsa-ball', '').trim() || 'Base'}
                               </span>
                               <span className="text-[8px] font-mono font-black mt-0.5" style={{ color: meta.color }}>
                                 {meta.mult === null ? '100%' : `×${meta.mult}`}
@@ -2068,12 +2068,12 @@ export default function App() {
                       {/* Launch Trigger Button */}
                       <button
                         onClick={executeThrow}
-                        className="text-slate-950 font-mono font-black text-sm px-2 rounded-xl border-b-4 flex flex-col items-center justify-center text-center active:scale-95 cursor-pointer"
+                        className="text-[#0b0820] font-mono font-black text-sm px-2 rounded-xl border-b-4 flex flex-col items-center justify-center text-center active:scale-95 cursor-pointer"
                         style={{ backgroundColor: selMeta?.color ?? '#f59e0b', borderColor: 'rgba(0,0,0,0.35)' }}
                         id="throw-btn"
                       >
                         <span className="text-lg">{selMeta?.emoji ?? '📢'}</span>
-                        <span>LANCIA {selMeta?.short.replace('Vazza-ball', '').trim() || ''}</span>
+                        <span>LANCIA {selMeta?.short.replace('Vatsa-ball', '').trim() || ''}</span>
                       </button>
                     </div>
 
@@ -2106,7 +2106,7 @@ export default function App() {
                 <Camera className="w-5 h-5" />
                 Sintesi DNA Spaziale Valdostana
               </h2>
-              <p className="text-xs text-slate-400 mt-1">Carica uno scatto dei pascoli, dei monti vette o di un fiero bovino alpino. Gemini 3.5-flash leggerà i segnali biogeografici della vallata per estrapolare un Vazzamon esclusivo!</p>
+              <p className="text-xs text-slate-400 mt-1">Carica uno scatto dei pascoli, dei monti vette o di un fiero bovino alpino. Gemini 3.5-flash leggerà i segnali biogeografici della vallata per estrapolare un Vatsamon esclusivo!</p>
 
               {!isScanning && (
                 <div className="mt-5 border-2 border-dashed border-slate-800 bg-slate-900/40 rounded-3xl p-8 flex flex-col items-center justify-center text-center space-y-4">
@@ -2121,7 +2121,7 @@ export default function App() {
                       <div className="flex gap-2">
                         <button
                           onClick={() => processImageScanGo(null)}
-                          className="flex-grow bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-mono font-bold text-xs py-2.5 rounded-xl transition-all cursor-pointer shadow border-b-2 border-emerald-700"
+                          className="flex-grow bg-emerald-500 hover:bg-emerald-400 text-[#0b0820] font-mono font-bold text-xs py-2.5 rounded-xl transition-all cursor-pointer shadow border-b-2 border-emerald-700"
                         >
                           Sintonizza Immagine
                         </button>
@@ -2146,7 +2146,7 @@ export default function App() {
                       <div className="flex flex-col sm:flex-row items-center justify-center gap-2 pt-2">
                         <button
                           onClick={() => fileInputRef.current?.click()}
-                          className="w-full sm:w-auto bg-[#10b981] hover:bg-emerald-400 text-slate-950 font-mono font-bold text-xs py-2.5 px-4 rounded-xl transition-colors cursor-pointer"
+                          className="w-full sm:w-auto bg-[#10b981] hover:bg-emerald-400 text-[#0b0820] font-mono font-bold text-xs py-2.5 px-4 rounded-xl transition-colors cursor-pointer"
                         >
                           Carica File No-Limits
                         </button>
@@ -2170,7 +2170,7 @@ export default function App() {
                         onClick={() => processImageScanGo(null)}
                         className="w-full bg-slate-900 hover:bg-slate-850 border border-slate-850 py-2 rounded-xl text-yellow-400 font-mono text-xs font-bold transition-all cursor-pointer shadow active:scale-95"
                       >
-                        🔮 Catalizza Vazzamon Misterioso Subito!
+                        🔮 Catalizza Vatsamon Misterioso Subito!
                       </button>
                     </div>
                   )}
@@ -2277,16 +2277,16 @@ export default function App() {
           </div>
         )}
 
-        {/* VIEW 4: DETAILS/VAZZADEX SHEET LIST */}
-        {activeTab === 'vazzadex' && (
-          <div className="space-y-6" id="vazzadex-tab-view">
+        {/* VIEW 4: DETAILS/VATSADEX SHEET LIST */}
+        {activeTab === 'vatsadex' && (
+          <div className="space-y-6" id="vatsadex-tab-view">
             
             {/* Quick interactive Bell soundboard bar */}
             <div className="bg-slate-950 border border-slate-850 rounded-3xl p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
               <div>
                 <h2 className="text-xl font-mono font-black text-emerald-400 flex items-center gap-1.5 uppercase">
                   <BookOpen className="w-5 h-5 text-emerald-500" />
-                  Vazzadex Collezione
+                  Vatsadex Collezione
                 </h2>
                 <p className="text-xs text-slate-400">Archivio biometrico del genoma delle bovine sintonizzate durante le tue scalate.</p>
               </div>
@@ -2305,8 +2305,8 @@ export default function App() {
 
             {/* Avanzamento catalogo REALI (Batailles de Reines) */}
             {(() => {
-              const realiPrese = vazzadex.filter(c => c.isReal).length;
-              const bonus = vazzadex.filter(c => !c.isReal).length;
+              const realiPrese = vatsadex.filter(c => c.isReal).length;
+              const bonus = vatsadex.filter(c => !c.isReal).length;
               return (
                 <div className="bg-gradient-to-br from-emerald-950 to-slate-950 border border-emerald-800/50 rounded-3xl p-5">
                   <div className="flex items-center justify-between mb-2">
@@ -2340,7 +2340,7 @@ export default function App() {
                   return (
                     <button
                       key={cow.id}
-                      onClick={() => { playClickSfx(); setSelectedVazzamon(cow); }}
+                      onClick={() => { playClickSfx(); setSelectedVatsamon(cow); }}
                       className={`relative bg-gradient-to-b to-slate-950 border-2 ${tone} rounded-2xl p-2 flex flex-col items-center gap-1.5 transition-transform hover:-translate-y-1 overflow-hidden`}
                     >
                       <div className="holo-sheen absolute inset-0 pointer-events-none opacity-50 rounded-2xl" />
@@ -2376,7 +2376,7 @@ export default function App() {
                     <button
                       key={rarity}
                       onClick={() => setDexRarityFilter(rarity)}
-                      className={`flex-1 sm:flex-none py-1.5 px-2.5 rounded-lg border font-bold transition-all whitespace-nowrap cursor-pointer ${dexRarityFilter === rarity ? 'bg-amber-500 border-amber-500 text-slate-950' : 'bg-slate-900 border-slate-800 text-slate-400'}`}
+                      className={`flex-1 sm:flex-none py-1.5 px-2.5 rounded-lg border font-bold transition-all whitespace-nowrap cursor-pointer ${dexRarityFilter === rarity ? 'bg-amber-500 border-amber-500 text-[#0b0820]' : 'bg-slate-900 border-slate-800 text-slate-400'}`}
                     >
                       {rarity}
                     </button>
@@ -2385,13 +2385,13 @@ export default function App() {
               </div>
 
               {/* Grid cards collection display */}
-              {vazzadex.length === 0 ? (
+              {vatsadex.length === 0 ? (
                 <div className="text-center py-10 bg-slate-900/10 border border-slate-850 rounded-2xl p-6">
                   <p className="text-slate-500 text-xs font-mono">Nessuna Regina sintonizzata corrispondente ai criteri.</p>
                 </div>
               ) : (
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3 bg-slate-950" id="collection-grid">
-                  {vazzadex
+                  {vatsadex
                     .filter(cow => {
                       const textMatch = cow.name.toLowerCase().includes(dexSearch.toLowerCase()) || cow.breed.toLowerCase().includes(dexSearch.toLowerCase());
                       const rarityMatch = dexRarityFilter === 'All' || cow.rarity === dexRarityFilter;
@@ -2407,7 +2407,7 @@ export default function App() {
                       return (
                         <div
                           key={cow.id}
-                          onClick={() => { playClickSfx(); setSelectedVazzamon(cow); }}
+                          onClick={() => { playClickSfx(); setSelectedVatsamon(cow); }}
                           className={`relative bg-slate-900 border-2 rounded-2xl p-3 text-center cursor-pointer transition-all hover:-translate-y-1 overflow-hidden group shadow ${edgeColor}`}
                         >
                           {isActiveBuddy && (
@@ -2442,20 +2442,20 @@ export default function App() {
           </div>
         )}
 
-        {/* DETAILS POPUP MODAL SCREEN FOR SINGLE SELECTED VAZZAMON */}
-        {selectedVazzamon && (
+        {/* DETAILS POPUP MODAL SCREEN FOR SINGLE SELECTED VATSAMON */}
+        {selectedVatsamon && (
           <div className="fixed inset-0 bg-slate-950/90 z-50 flex items-center justify-center p-4 backdrop-blur-xs animate-fade-in overflow-y-auto" id="details-modal">
             <div className="bg-slate-900 border-2 border-slate-800 rounded-3xl max-w-md w-full p-5 text-center space-y-4 shadow-2xl relative my-auto">
 
               <button
-                onClick={() => { playClickSfx(); setSelectedVazzamon(null); }}
+                onClick={() => { playClickSfx(); setSelectedVatsamon(null); }}
                 className="absolute top-3 right-3 z-20 text-slate-400 hover:text-slate-200 transition-colors p-1 bg-slate-950/60 rounded-full"
               >
                 <X className="w-6 h-6" />
               </button>
 
               {/* Scheda "carta Pokémon" (componente dedicato) */}
-              <CowCard cow={selectedVazzamon} />
+              <CowCard cow={selectedVatsamon} />
 
               {/* Pokemon GO Action: Power Up and Transfers */}
               <div className="border-t border-slate-850 pt-3 flex gap-2">
@@ -2464,29 +2464,29 @@ export default function App() {
                 <button
                   onClick={() => {
                     playClickSfx();
-                    setActiveCombatantId(selectedVazzamon.id);
-                    setSelectedVazzamon(null);
+                    setActiveCombatantId(selectedVatsamon.id);
+                    setSelectedVatsamon(null);
                   }}
                   className={`flex-1 text-[11px] font-mono font-bold py-2.5 px-3 rounded-xl transition-all shadow ${
-                    activeCombatantId === selectedVazzamon.id 
+                    activeCombatantId === selectedVatsamon.id 
                       ? 'bg-rose-950 text-rose-400 border border-rose-500/30' 
                       : 'bg-rose-600 hover:bg-rose-500 text-white'
                   }`}
                 >
-                  {activeCombatantId === selectedVazzamon.id ? 'BUDDY ATTIVO 👑' : 'IMPOSTA COMPAGNO'}
+                  {activeCombatantId === selectedVatsamon.id ? 'BUDDY ATTIVO 👑' : 'IMPOSTA COMPAGNO'}
                 </button>
 
                 {/* Power Up */}
                 <button
-                  onClick={() => handlePowerUpCow(selectedVazzamon)}
-                  className="flex-1 bg-amber-500 hover:bg-amber-400 text-slate-950 font-mono font-black text-[11px] py-2.5 px-3 rounded-xl transition-all cursor-pointer shadow border-b-4 border-amber-700 flex items-center justify-center gap-1"
+                  onClick={() => handlePowerUpCow(selectedVatsamon)}
+                  className="flex-1 bg-amber-500 hover:bg-amber-400 text-[#0b0820] font-mono font-black text-[11px] py-2.5 px-3 rounded-xl transition-all cursor-pointer shadow border-b-4 border-amber-700 flex items-center justify-center gap-1"
                 >
                   🔋 NOCCIOLO CP (+75)
                 </button>
 
                 {/* Transfer */}
                 <button
-                  onClick={() => handleTransferCow(selectedVazzamon)}
+                  onClick={() => handleTransferCow(selectedVatsamon)}
                   className="bg-slate-950 hover:bg-slate-850 border border-slate-800 text-slate-500 hover:text-slate-300 transition-colors py-2 px-3 rounded-xl"
                   title="Libera al pascolo"
                 >
@@ -2516,7 +2516,7 @@ export default function App() {
                 addTrainerXp(correct * 30);
                 if (correct > quizBest) {
                   setQuizBest(correct);
-                  localStorage.setItem('vazzamon_quiz_go', String(correct));
+                  localStorage.setItem('vatsamon_quiz_go', String(correct));
                 }
                 setTrekkingFeed(prev => [`🎓 Scuola d'Alpeggio: ${correct}/${totale} risposte giuste (+${coinsWon} 🪙)`, ...prev.slice(0, 8)]);
               }}
@@ -2536,9 +2536,9 @@ export default function App() {
                 </h2>
                 <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">Sfida i Pastori in una spinta a turni: 4 mosse dalle statistiche reali della tua Reina.</p>
               </div>
-              {vazzadex.length > 0 ? (
+              {vatsadex.length > 0 ? (
                 <BattleTurnBased
-                  playerCow={vazzadex.find(c => c.id === activeCombatantId) || vazzadex[0]}
+                  playerCow={vatsadex.find(c => c.id === activeCombatantId) || vatsadex[0]}
                   playClick={playClickSfx}
                   onResult={(won, xp, coins) => {
                     if (won) {
@@ -2553,7 +2553,7 @@ export default function App() {
               ) : (
                 <div className="text-center py-6 space-y-2">
                   <p className="text-xs text-slate-500">Cattura una Reina per combattere a turni!</p>
-                  <button onClick={() => setActiveTab('map')} className="bg-emerald-500 text-slate-950 font-mono font-black text-xs px-4 py-2 rounded-xl">Vai alla mappa</button>
+                  <button onClick={() => setActiveTab('map')} className="bg-emerald-500 text-[#0b0820] font-mono font-black text-xs px-4 py-2 rounded-xl">Vai alla mappa</button>
                 </div>
               )}
             </div>
@@ -2569,9 +2569,9 @@ export default function App() {
                   <div className="mt-2 text-sm">{trainerBadges.map((id) => ARENAS.find(a => a.id === id)?.badgeEmoji).join(' ')}</div>
                 )}
               </div>
-              {vazzadex.length > 0 ? (
+              {vatsadex.length > 0 ? (
                 <ArenaBattle
-                  playerCow={vazzadex.find(c => c.id === activeCombatantId) || vazzadex[0]}
+                  playerCow={vatsadex.find(c => c.id === activeCombatantId) || vatsadex[0]}
                   trainerLevel={trainer.level}
                   badges={trainerBadges}
                   playClick={playClickSfx}
@@ -2585,7 +2585,7 @@ export default function App() {
               ) : (
                 <div className="text-center py-6 space-y-2">
                   <p className="text-xs text-slate-500">Cattura una Reina per sfidare le arene!</p>
-                  <button onClick={() => setActiveTab('map')} className="bg-emerald-500 text-slate-950 font-mono font-black text-xs px-4 py-2 rounded-xl">Vai alla mappa</button>
+                  <button onClick={() => setActiveTab('map')} className="bg-emerald-500 text-[#0b0820] font-mono font-black text-xs px-4 py-2 rounded-xl">Vai alla mappa</button>
                 </div>
               )}
             </div>
@@ -2597,11 +2597,11 @@ export default function App() {
 
       {/* FOOTER GENERAL LEGALS AND RESET ACCENTS */}
       <footer className="bg-slate-950 text-slate-500 text-[10px] text-center py-4 px-6 border-t border-slate-850 mt-12 gap-2 flex flex-col items-center relative z-10">
-        <p>© 2026 Vazzamon GO - Un'esplorazione virtuale ecologica della Valle d'Aosta.</p>
+        <p>© 2026 Vatsamon GO - Un'esplorazione virtuale ecologica della Valle d'Aosta.</p>
         <div className="flex gap-4">
           <button
             onClick={() => {
-              const confirmReset = window.confirm("Cancellare tutti i progressi memorizzati nel Vazzadex?");
+              const confirmReset = window.confirm("Cancellare tutti i progressi memorizzati nel Vatsadex?");
               if (confirmReset) {
                 localStorage.clear();
                 window.location.reload();
@@ -2630,7 +2630,7 @@ export default function App() {
               <h5 className="text-[10px] font-mono text-slate-400 uppercase tracking-wide">Premi Sbloccati d'alta quota</h5>
               <div className="flex justify-center gap-4 text-xs font-mono font-bold text-amber-300 mt-2">
                 <span>+50 Monete 🪙</span>
-                <span>+5 Super Vazza-ball 🛎️</span>
+                <span>+5 Super Vatsa-ball 🛎️</span>
               </div>
             </div>
 
@@ -2641,7 +2641,7 @@ export default function App() {
                 setBackpack(prev => prev.map(item => item.id === 'item-bell-giga' ? { ...item, quantity: item.quantity + 5 } : item));
                 setLevelUpAward(null);
               }}
-              className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-mono font-bold text-xs py-2.5 rounded-xl border-b-4 border-emerald-700 cursor-pointer"
+              className="w-full bg-emerald-500 hover:bg-emerald-400 text-[#0b0820] font-mono font-bold text-xs py-2.5 rounded-xl border-b-4 border-emerald-700 cursor-pointer"
             >
               RITIRA RICOMPENSE!
             </button>
@@ -2662,7 +2662,7 @@ export default function App() {
             <div className="bg-slate-950/80 p-5 rounded-2xl border border-slate-850 space-y-3">
               <span className="text-[10px] font-mono text-emerald-400 uppercase tracking-widest block">È Nata una Nuova Regina!</span>
               <div className="my-2 flex justify-center text-5xl animate-float">🐮</div>
-              <p className="text-xs text-slate-300">Un dolcissimo vitellino {hatchingEgg.rarity} è cresciuto sano e forte nei nostri pascoli ed è entrato ufficialmente nel tuo **Vazzadex**!</p>
+              <p className="text-xs text-slate-300">Un dolcissimo vitellino {hatchingEgg.rarity} è cresciuto sano e forte nei nostri pascoli ed è entrato ufficialmente nel tuo **Vatsadex**!</p>
             </div>
 
             <button
@@ -2670,7 +2670,7 @@ export default function App() {
                 playMooSfx();
                 setHatchingEgg(null);
               }}
-              className="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-mono font-bold text-xs py-2.5 rounded-xl border-b-4 border-amber-700 cursor-pointer"
+              className="w-full bg-amber-500 hover:bg-amber-400 text-[#0b0820] font-mono font-bold text-xs py-2.5 rounded-xl border-b-4 border-amber-700 cursor-pointer"
             >
               ACCOGLI IN STALLA! 🌾
             </button>

@@ -9,25 +9,26 @@
   --animate-radar: ping-radar 3s cubic-bezier(0, 0, 0.2, 1) infinite;
   --animate-shake: shake 0.3s ease-in-out;
 
-  /* ===== PALETTE "POKÉMON" — base viola-indaco elettrica =====
-     Ridefinendo la scala slate, TUTTA l'interfaccia (sfondi/bordi/testi che usano
-     slate-*) diventa più colorata e vivace in un colpo solo. */
-  --color-slate-950: #0b0820;
-  --color-slate-900: #15102e;
-  --color-slate-855: #1c1542;
-  --color-slate-850: #20184a;
-  --color-slate-800: #2c2168;
-  --color-slate-700: #41318f;
-  --color-slate-600: #5b46b3;
-  --color-slate-500: #8a7fd6;
-  --color-slate-450: #a99fe4;
-  --color-slate-400: #bcb4ef;
-  --color-slate-300: #d6d1f7;
-  --color-slate-200: #e9e6fc;
-  --color-slate-100: #f4f2ff;
+  /* ===== PALETTE "POKÉMON" PIÙ CHIARA (twilight viola luminoso) =====
+     Stessa direzione (numeri alti = superfici, bassi = testo chiaro) ma le
+     superfici sono molto più chiare di prima: da quasi-nero a viola medio
+     luminoso. Testo e accenti restano chiari → nulla perde leggibilità. */
+  --color-slate-950: #322e57; /* superficie principale (era #020617) */
+  --color-slate-900: #3c3768; /* card */
+  --color-slate-855: #453f78;
+  --color-slate-850: #4a4480;
+  --color-slate-800: #564f93; /* bordi/superfici tenui */
+  --color-slate-700: #6a63ad; /* bordi */
+  --color-slate-600: #847dc6;
+  --color-slate-500: #9f99d8; /* testo attenuato */
+  --color-slate-450: #b3aee3;
+  --color-slate-400: #c5c1ed; /* testo attenuato */
+  --color-slate-300: #dad7f5;
+  --color-slate-200: #e9e7fb;
+  --color-slate-100: #f5f3ff; /* testo primario chiaro */
   --color-slate-50:  #fbfaff;
 
-  /* Accenti più sgargianti (neon) */
+  /* Accenti vivaci (neon) — restano brillanti sulle superfici medie */
   --color-emerald-400: #22f5a8;
   --color-emerald-500: #10e29a;
   --color-amber-400: #ffc31a;

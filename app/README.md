@@ -1,11 +1,11 @@
-# 🐮 Vazzamon — PWA (base v2 + dati reali)
+# 🐮 Vatsamon — PWA (base v2 + dati reali)
 
 Costruita **a partire dal progetto v2 (AI Studio)** — stile scuro/neon, animazioni,
 audio, capture minigame, casere, uova, arena Gym — reso **statico** (niente server)
 e arricchito con il **database reale** delle Bataille de Reines.
 
 ## Cosa è di v2 (~80%)
-Stile e UI originali, 5 schermate (Mappa / AR Scan / Vitelli / Vazzadex / Gym),
+Stile e UI originali, 5 schermate (Mappa / AR Scan / Vitelli / Vatsadex / Gym),
 mini-gioco di cattura (gauge + campanacci + mela), Casere/PokéStop, uova, allenatore
 (livello/XP/monete), audio sintetizzato, scanner DNA.
 
@@ -14,7 +14,7 @@ mini-gioco di cattura (gauge + campanacci + mela), Casere/PokéStop, uova, allen
   4 statistiche reali dai pesi → convertite nel modello di v2 (`src/data/realCows.ts`).
 - **Bovine reali sulla mappa** nei loro **comuni veri**, catturabili col mini-gioco di v2.
 - **GPS reale di prossimità** + raggio di cattura (250 m); demo: tocca la mappa per camminare.
-- **Vazzadex**: catalogo **X/73** con foto reali e 4 statistiche reali nella scheda.
+- **Vatsadex**: catalogo **X/73** con foto reali e 4 statistiche reali nella scheda.
 - **Scanner statico**: generazione client simulata (niente server, niente chiavi).
 - **PWA** installabile/offline.
 
@@ -31,10 +31,10 @@ npm run verify    # Playwright: tab, mappa reali, GPS, catalogo, scanner→cattu
 ```
 
 ## Dati
-- `src/data/vazzadex.json` — 73 bovine + 6 pascoli (lat/lng nei comuni reali).
+- `src/data/vatsadex.json` — 73 bovine + 6 pascoli (lat/lng nei comuni reali).
 - `scripts/place_bovine.py` — geocoding/pulizia comuni.
 - Foto reali in `public/photos/`.
 
 ## Deploy GitHub Pages
-Repo chiamato **`vazzamon`** (base `/vazzamon/` in `vite.config.ts`).
+Repo chiamato **`vatsamon`** (base `/vatsamon/` in `vite.config.ts`).
 Push su `main` → la Action `.github/workflows/deploy.yml` builda e pubblica.

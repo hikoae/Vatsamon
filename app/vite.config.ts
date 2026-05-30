@@ -5,7 +5,7 @@ import { defineConfig } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
 
 export default defineConfig(({ mode }) => ({
-  base: mode === "development" ? "/" : "/vazzamon/",
+  base: mode === "development" ? "/" : "/vatsamon/",
   plugins: [
     react(),
     tailwindcss(),
@@ -13,8 +13,8 @@ export default defineConfig(({ mode }) => ({
       registerType: "autoUpdate",
       includeAssets: ["favicon.svg", "apple-touch-icon.png", "cow-silhouette.svg", "photos/*.jpg"],
       manifest: {
-        name: "Vazzamon — la Vazzadex delle Reines",
-        short_name: "Vazzamon",
+        name: "Vatsamon — la Vatsadex delle Reines",
+        short_name: "Vatsamon",
         description: "Cattura le mucche reali delle Bataille de Reines valdostane.",
         lang: "it",
         theme_color: "#0f172a",

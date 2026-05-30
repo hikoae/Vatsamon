@@ -1,5 +1,5 @@
 import { motion } from "motion/react";
-import { Vazzamon, RarityType } from "../types";
+import { Vatsamon, RarityType } from "../types";
 import { CowVisual } from "./CowVisual";
 import { cowMoves, MOVE_KIND_STYLE } from "../data/moves";
 
@@ -70,7 +70,7 @@ const REAL_STATS = [
  * (cornice/sfondo/gemme/holo), illustrazione o foto reale, 4 statistiche reali
  * animate, provenienza, e l'elenco delle MOSSE disponibili in stile carta.
  */
-export function CowCard({ cow }: { cow: Vazzamon }) {
+export function CowCard({ cow }: { cow: Vatsamon }) {
   const r = RARITY[cow.rarity];
   const stars = RARITY_STARS[cow.rarity];
   const moves = cowMoves(cow);

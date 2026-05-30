@@ -1,5 +1,5 @@
-import raw from "./vazzadex.json";
-import { Vazzamon, RarityType } from "../types";
+import raw from "./vatsadex.json";
+import { Vatsamon, RarityType } from "../types";
 import { resolveIllustration } from "./illustrations";
 
 interface RawBovina {
@@ -24,8 +24,8 @@ function mapRarity(r: string): RarityType {
   return "Rara"; // "Non comune" e altri → Rara
 }
 
-/** Converte una bovina reale nel modello Vazzamon di v2 (con campi reali extra). */
-function convert(b: RawBovina): Vazzamon {
+/** Converte una bovina reale nel modello Vatsamon di v2 (con campi reali extra). */
+function convert(b: RawBovina): Vatsamon {
   const rarity = mapRarity(b.rarita);
   // mappa le 4 stat reali → 3 stat di gioco
   const strength = clamp(b.stats.corna);
@@ -66,17 +66,17 @@ function convert(b: RawBovina): Vazzamon {
 function clamp(n: number) { return Math.max(10, Math.min(100, Math.round(n))); }
 
 /** Le 73 bovine reali, nel modello di v2. */
-export const REAL_COWS: Vazzamon[] = data.bovine.map(convert);
+export const REAL_COWS: Vatsamon[] = data.bovine.map(convert);
 export const REAL_TOTAL = REAL_COWS.length;
 
 /**
  * Vetrina "una Reina per tipologia": per ogni rarità presente, la prima bovina
- * CON FOTO REALE. Usata nel Vazzadex come galleria delle carte rappresentative.
+ * CON FOTO REALE. Usata nel Vatsadex come galleria delle carte rappresentative.
  */
 const RARITY_ORDER: RarityType[] = ["Leggendaria", "Epica", "Rara", "Comune"];
-export const SHOWCASE_BY_RARITY: Vazzamon[] = RARITY_ORDER
+export const SHOWCASE_BY_RARITY: Vatsamon[] = RARITY_ORDER
   .map((rar) => REAL_COWS.find((c) => c.rarity === rar && c.realPhoto))
-  .filter((c): c is Vazzamon => Boolean(c));
+  .filter((c): c is Vatsamon => Boolean(c));
 
 // coordinate per la mappa "radar" SVG (stessi bound di v2)
 function svgXY(lat: number, lng: number) {

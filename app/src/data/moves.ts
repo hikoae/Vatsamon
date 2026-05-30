@@ -1,4 +1,4 @@
-import { Vazzamon } from "../types";
+import { Vatsamon } from "../types";
 
 /**
  * Le 4 mosse "firma" delle Reines, in stile carta Pokémon.
@@ -22,7 +22,7 @@ export interface CowMove {
   requiresEnergy?: boolean;
 }
 
-function s4(cow: Vazzamon) {
+function s4(cow: Vatsamon) {
   const f = cow.stats4;
   return {
     stazza: f ? f.stazza : cow.stats.defense,
@@ -33,7 +33,7 @@ function s4(cow: Vazzamon) {
 }
 
 /** Calcola le 4 mosse disponibili per una specifica Reina. */
-export function cowMoves(cow: Vazzamon): CowMove[] {
+export function cowMoves(cow: Vatsamon): CowMove[] {
   const { stazza, corna, testa, grinta } = s4(cow);
   return [
     {

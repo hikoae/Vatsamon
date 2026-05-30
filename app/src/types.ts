@@ -1,6 +1,6 @@
 export type RarityType = 'Comune' | 'Rara' | 'Epica' | 'Leggendaria';
 
-export interface Vazzamon {
+export interface Vatsamon {
   id: string;
   breed: string;
   name: string;
@@ -51,7 +51,7 @@ export interface Hotspot {
   lng?: number;
   difficulty: 'Facile' | 'Medio' | 'Difficile';
   description: string;
-  activeEncounter?: Vazzamon;
+  activeEncounter?: Vatsamon;
 }
 
 export interface BackpackItem {
@@ -81,8 +81,8 @@ export interface Trainer {
 }
 
 export interface BattleState {
-  playerVazzamon: Vazzamon | null;
-  opponentVazzamon: Vazzamon | null;
+  playerVatsamon: Vatsamon | null;
+  opponentVatsamon: Vatsamon | null;
   playerHp: number;
   opponentHp: number;
   playerMaxHp: number;

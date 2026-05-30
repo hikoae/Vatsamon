@@ -1,9 +1,9 @@
-import { Vazzamon } from "../types";
+import { Vatsamon } from "../types";
 import { REAL_COWS } from "./realCows";
 
 /**
  * Arene (Palestre) della Valle d'Aosta per il combattimento a turni.
- * Portate da `materiali/vazzamon_arene`: ogni arena ha un boss, un livello
+ * Portate da `materiali/vatsamon_arene`: ogni arena ha un boss, un livello
  * richiesto, una medaglia con bonus permanente e bonus ambientali.
  * I BOSS sono vere Reines Epiche/Leggendarie del nostro dataset, scalate.
  */
@@ -87,7 +87,7 @@ export const ARENAS: Arena[] = [
 ];
 
 /** Pool di boss reali per rarità (con foto quando disponibile, ordinati per CP). */
-function bossPool(rarity: "Epica" | "Leggendaria"): Vazzamon[] {
+function bossPool(rarity: "Epica" | "Leggendaria"): Vatsamon[] {
   const pool = REAL_COWS.filter((c) => c.rarity === rarity);
   const withPhoto = pool.filter((c) => c.realPhoto);
   const base = withPhoto.length ? withPhoto : pool;
@@ -96,9 +96,9 @@ function bossPool(rarity: "Epica" | "Leggendaria"): Vazzamon[] {
 
 /**
  * Sceglie la vera Reina boss per un'arena (deterministico per arena),
- * scalata al livello del giocatore. Ritorna un Vazzamon "boss".
+ * scalata al livello del giocatore. Ritorna un Vatsamon "boss".
  */
-export function arenaBoss(arena: Arena, playerLevel: number): Vazzamon {
+export function arenaBoss(arena: Arena, playerLevel: number): Vatsamon {
   const pool = bossPool(arena.preferRarity);
   const fallback = REAL_COWS.filter((c) => c.rarity === "Epica" || c.rarity === "Leggendaria");
   const list = pool.length ? pool : (fallback.length ? fallback : REAL_COWS);

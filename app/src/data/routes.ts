@@ -1,5 +1,5 @@
 /**
- * Percorsi di trekking selezionabili (da `materiali/vazzamon_arene`).
+ * Percorsi di trekking selezionabili (da `materiali/vatsamon_arene`).
  * Sostituiscono il singolo sentiero a 21 tappe: 3 grandi itinerari valdostani
  * con selettore. Le bovine reali, GPS, Casere e l'overlay sentieri T3 restano.
  */

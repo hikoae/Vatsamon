@@ -462,7 +462,7 @@ async function startServer() {
   // PORT 3000 is strictly reserved and required by reverse-proxy
   const PORT = 3000;
   app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Vazzadex Server fully listening on http://0.0.0.0:${PORT}`);
+    console.log(`Vatsadex Server fully listening on http://0.0.0.0:${PORT}`);
   });
 }
 

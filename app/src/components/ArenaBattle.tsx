@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import { motion } from "motion/react";
-import { Vazzamon } from "../types";
+import { Vatsamon } from "../types";
 import { ARENAS, Arena, ArenaId, arenaBoss } from "../data/arenas";
 import { CowVisual } from "./CowVisual";
 
@@ -27,7 +27,7 @@ export function ArenaBattle({
   onWin,
   playClick,
 }: {
-  playerCow: Vazzamon;
+  playerCow: Vatsamon;
   trainerLevel: number;
   badges: ArenaId[];
   onWin: (arena: Arena, xp: number, coins: number, newBadge: boolean) => void;
@@ -41,7 +41,7 @@ export function ArenaBattle({
   const [pAnim, setPAnim] = useState(false);
   const [oAnim, setOAnim] = useState(false);
 
-  const bossRef = useRef<Vazzamon | null>(null);
+  const bossRef = useRef<Vatsamon | null>(null);
   const stRef = useRef<Snap>({ pHp: 0, pMax: 0, oHp: 0, oMax: 0, energy: 0, oEnergy: 0, pDef: 0, oDef: 0, milk: 3 });
   const [, force] = useState(0);
   const rerender = () => force((n) => n + 1);

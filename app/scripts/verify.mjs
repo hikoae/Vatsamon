@@ -2,10 +2,10 @@ import { chromium } from "playwright";
 import { mkdirSync, readFileSync } from "node:fs";
 
 const APP_URL = process.env.URL ?? "http://localhost:5173/";
-const OUT = "/tmp/vazzamon-shots";
+const OUT = "/tmp/vatsamon-shots";
 mkdirSync(OUT, { recursive: true });
 
-const data = JSON.parse(readFileSync(new URL("../src/data/vazzadex.json", import.meta.url)));
+const data = JSON.parse(readFileSync(new URL("../src/data/vatsadex.json", import.meta.url)));
 const target = data.bovine[0];
 
 // PNG 1x1 per simulare un upload allo scanner
@@ -14,7 +14,7 @@ const PNG = Buffer.from(
   "base64",
 );
 
-const TABS = ["Mappa", "AR Scan", "Vitelli", "Vazzadex", "Gym"];
+const TABS = ["Mappa", "AR Scan", "Vitelli", "Vatsadex", "Gym"];
 const problems = [];
 const note = (m) => console.log("  • " + m);
 
@@ -40,9 +40,9 @@ await page.goto(APP_URL, { waitUntil: "networkidle" });
 await page.waitForTimeout(1500);
 
 // header + tab
-const header = await page.locator("header", { hasText: "VAZZAMON" }).isVisible().catch(() => false);
+const header = await page.locator("header", { hasText: "VATSAMON" }).isVisible().catch(() => false);
 const nNav = await page.locator("nav button").count();
-note(`header VAZZAMON GO: ${header} · tab: ${nNav}`);
+note(`header VATSAMON GO: ${header} · tab: ${nNav}`);
 if (!header) problems.push("header assente");
 if (nNav < 5) problems.push(`nav ha ${nNav} tab`);
 
@@ -85,8 +85,8 @@ for (const t of TABS) {
   note(`tab ${t}: ${ok}`);
 }
 
-// Vazzadex: card catalogo reali X/73
-await clickTab(page, "Vazzadex");
+// Vatsadex: card catalogo reali X/73
+await clickTab(page, "Vatsadex");
 const cat = await page.locator("text=/Reines reali:\\s*0\\/73/").isVisible().catch(() => false);
 note(`catalogo reali 0/73: ${cat}`);
 if (!cat) problems.push("manca la card catalogo reali X/73");
@@ -125,7 +125,7 @@ if (await fileInput.count()) {
   if (!capturing) problems.push("scanner non porta alla cattura");
   await page.screenshot({ path: `${OUT}/v2int-4-cattura.png` });
   if (capturing) {
-    // selettore Vazza-ball in stile Poké Ball: scegli la Master (cattura garantita)
+    // selettore Vatsa-ball in stile Poké Ball: scegli la Master (cattura garantita)
     const chanceVisible = await page.locator("#catch-chance").isVisible().catch(() => false);
     note(`indicatore probabilità cattura: ${chanceVisible}`);
     if (!chanceVisible) problems.push("manca l'indicatore di probabilità di cattura");

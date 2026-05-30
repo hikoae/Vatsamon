@@ -1,4 +1,4 @@
-# Piano di merge — Vazzamon (`app/`) ⨉ Vatsamon
+# Piano di merge — Vatsamon (`app/`) ⨉ Vatsamon
 
 > **Per una NUOVA chat a contesto pulito.** Questo file contiene tutto il
 > necessario per unire i due progetti **senza perdere pezzi né rompere nulla**.
@@ -18,12 +18,12 @@
 
 ### Base — `app/` (da tenere)
 React 19 · Vite 6 · Tailwind v4 · `motion` · `lucide-react` · **Leaflet imperativo** · PWA · **statica**.
-- Monolite `app/src/App.tsx`. Stato in `useState`+localStorage (chiavi `vazzamon_*_go`, `vazzamon_waypoint_*`).
-- 5 tab: **map / scanner / eggs / vazzadex / battle**.
-- 73 bovine reali (`app/src/data/vazzadex.json`) con foto (`app/public/photos/`), geocodate nei comuni (`app/scripts/place_bovine.py`), modello `Vazzamon` (4 stat reali: `stats4{stazza,corna,testa,grinta}` + `stats{strength,defense,agility}` di gioco, `cp`, `level`, `isReal`, `realPhoto`, `comune`, ecc. — vedi `app/src/types.ts`).
+- Monolite `app/src/App.tsx`. Stato in `useState`+localStorage (chiavi `vatsamon_*_go`, `vatsamon_waypoint_*`).
+- 5 tab: **map / scanner / eggs / vatsadex / battle**.
+- 73 bovine reali (`app/src/data/vatsadex.json`) con foto (`app/public/photos/`), geocodate nei comuni (`app/scripts/place_bovine.py`), modello `Vatsamon` (4 stat reali: `stats4{stazza,corna,testa,grinta}` + `stats{strength,defense,agility}` di gioco, `cp`, `level`, `isReal`, `realPhoto`, `comune`, ecc. — vedi `app/src/types.ts`).
 - Mappa: bovine reali catturabili per **prossimità** (raggio 250 m), **GPS reale** + tap‑to‑move, **Casere = 6 pascoli reali**, selvatiche IA, uova, **scanner client simulato** (`app/src/lib/generate.ts`).
-- Vazzadex: catalogo **X/73** + scheda con 4 stat reali. Battaglia: arena **tap‑and‑dodge** (real‑time).
-- Convertitore reale→modello: `app/src/data/realCows.ts`. Visual: `app/src/components/CowVisual.tsx` (foto reale → avatar `VazzamonAvatar`).
+- Vatsadex: catalogo **X/73** + scheda con 4 stat reali. Battaglia: arena **tap‑and‑dodge** (real‑time).
+- Convertitore reale→modello: `app/src/data/realCows.ts`. Visual: `app/src/components/CowVisual.tsx` (foto reale → avatar `VatsamonAvatar`).
 
 ### Sorgente — `materiali/vatsamon/` (già copiata qui)
 Stesso base v2 ma **con server+Gemini+GoogleMaps** (NON portare). Valore da estrarre:
@@ -43,7 +43,7 @@ Stesso base v2 ma **con server+Gemini+GoogleMaps** (NON portare). Valore da estr
 ## 2. Mappatura ai punti della Challenge (obiettivo: coprirli quasi tutti)
 | Punto Challenge | Stato base `app/` | Cosa aggiunge il merge |
 |---|---|---|
-| 1. Vazzadex (scan & riconoscimento) | ✅ scanner simulato | — (resta) |
+| 1. Vatsadex (scan & riconoscimento) | ✅ scanner simulato | — (resta) |
 | 2. Database bovino | ✅ 73 reali | + categoria/attacco/difesa/funFact opzionali |
 | 3. **Mappa sentieri (trekking responsabile)** | ⚠️ solo pascoli+GPS | **+ 3 sentieri reali con tracciato, landmark e `responsibleTips`** |
 | 4. **Gamification & Educazione (quiz/rispetto)** | ⚠️ solo eco‑tip | **+ Quiz educativo a punti + consigli responsabili** |
@@ -57,7 +57,7 @@ I PNG vanno copiati in `app/public/illustrations/`. Logica di scelta immagine (i
 1. **foto reale** (`realPhoto`, le 35 in `public/photos/`) → priorità massima.
 2. **illustrazione specifica** per nome, se esiste: solo **`TORMENTA`** e **`VICTOIRE`** combaciano coi nostri 73.
 3. **illustrazione per razza** (jolly grafico, copre TUTTE le 73): `Castana → castana.png`, `Pezzata Rossa → pezzata_rossa.png`, (`Pezzata Nera → pezzata_nera.png` se aggiungerai cow di quella razza).
-4. avatar procedurale `VazzamonAvatar` come ultimo fallback.
+4. avatar procedurale `VatsamonAvatar` come ultimo fallback.
 
 > Le altre 6 illustrazioni (`amara,bijou,contessa,guerra,liban,malice`) NON hanno una bovina corrispondente nei nostri 73 (sono extra di vatsamon). **Opzione T6**: aggiungerle come 6 bovine **leggendarie illustrate** bonus (espandendo a 79) — vedi tappa opzionale.
 
@@ -70,11 +70,11 @@ I PNG vanno copiati in `app/public/illustrations/`. Logica di scelta immagine (i
 - Crea `app/src/data/illustrations.ts`: mappa `byName` (`TORMENTA→…`, `VICTOIRE→…`) e `byBreed` (`Castana→castana.png`, `Pezzata Rossa→pezzata_rossa.png`, `Pezzata Nera→pezzata_nera.png`), risolvendo l'URL con `import.meta.env.BASE_URL`.
 - In `realCows.ts` aggiungi a ogni cow un campo `illustration` (nome→razza fallback).
 - In `CowVisual.tsx` applica la priorità del §3 (foto > illustrazione > avatar).
-- **Effetto**: ogni Reina senza foto mostra una bella illustrazione di razza invece dell'avatar grigio. Verifica visiva su mappa/Vazzadex/cattura/arena.
+- **Effetto**: ogni Reina senza foto mostra una bella illustrazione di razza invece dell'avatar grigio. Verifica visiva su mappa/Vatsadex/cattura/arena.
 
-### T2 — Vazzadex: scheda dettaglio "carta Pokémon"
+### T2 — Vatsadex: scheda dettaglio "carta Pokémon"
 - Nuovo componente `app/src/components/CowCard.tsx` (NON dentro App.tsx): cornice olografica per rarità (riusa le classi `.legendary-glow/.epic-glow/.rare-glow` già in `app/src/index.css`), illustrazione grande, **4 barre stat reali** (stazza/corna/testa/grinta) animate, badge rarità/stelle, **categoria** + **comune** + **peso** + **funFact**, CP/livello.
-- Sostituisci/avvolgi il modale dettaglio attuale del tab `vazzadex` con `CowCard` (mantieni i bottoni Potenzia/Libera/Compagno esistenti).
+- Sostituisci/avvolgi il modale dettaglio attuale del tab `vatsadex` con `CowCard` (mantieni i bottoni Potenzia/Libera/Compagno esistenti).
 - (Opz.) effetto tilt/holographic con `motion`. Mantieni la griglia X/73 e la ricerca.
 
 ### T3 — Sentieri reali (trekking responsabile, punto #3)
@@ -100,8 +100,8 @@ I PNG vanno copiati in `app/public/illustrations/`. Logica di scelta immagine (i
 ---
 
 ## 5. Conflitti & decisioni da rispettare
-- **Modello stat**: la base usa 4 stat reali `stats4{stazza,corna,testa,grinta}` (verità) + 3 di gioco. Vatsamon usa `{strength,resistance,agility,spirit}` + attack/defense. **Mantieni le nostre**; eventualmente **aggiungi** campi extra opzionali (`categoria`, `attack`, `defense`, `funFact`) al tipo `Vazzamon` senza rompere nulla. Non rinominare i campi esistenti.
-- **localStorage**: NON cambiare le chiavi attuali (`vazzamon_*_go`, `vazzamon_waypoint_*`). Quiz/battaglie a turni possono aggiungere chiavi nuove (`vazzamon_quiz_go`, ecc.).
+- **Modello stat**: la base usa 4 stat reali `stats4{stazza,corna,testa,grinta}` (verità) + 3 di gioco. Vatsamon usa `{strength,resistance,agility,spirit}` + attack/defense. **Mantieni le nostre**; eventualmente **aggiungi** campi extra opzionali (`categoria`, `attack`, `defense`, `funFact`) al tipo `Vatsamon` senza rompere nulla. Non rinominare i campi esistenti.
+- **localStorage**: NON cambiare le chiavi attuali (`vatsamon_*_go`, `vatsamon_waypoint_*`). Quiz/battaglie a turni possono aggiungere chiavi nuove (`vatsamon_quiz_go`, ecc.).
 - **Privacy**: la base usa **iniziali** allevatore; vatsamon ha nomi interi → se importi cow/dati, **converti in iniziali** (es. "BUSSO PIERO" → "B.P.").
 - **Mappa**: resta **Leaflet**; ignora `@vis.gl/react-google-maps`. Nessuna chiave Google.
 - **Static**: niente server. Quiz/opponents/trails diventano **dati statici** in `app/src/data/`.
@@ -121,15 +121,15 @@ npm run verify         # Playwright: tab, mappa reali, GPS, catalogo, scanner→
 ```
 Aggiorna/estendi `app/scripts/verify.mjs` con i nuovi flussi (quiz risponde, battaglia a turni conclude, trail si disegna, illustrazione presente). **Checklist "non rompere"**: 5 tab esistenti funzionanti, 73 reali sulla mappa, GPS, cattura reale → contatore +1, scanner, Casere reali, 0 errori console.
 
-Commit piccoli e descrittivi su branch dedicato; merge su `main` solo a tappa verde. Push: `git@github.com:hikoae/vazzamon.git`.
+Commit piccoli e descrittivi su branch dedicato; merge su `main` solo a tappa verde. Push: `git@github.com:hikoae/vatsamon.git`.
 
 ---
 
 ## 7. Dove trovi tutto
 - Base app: `app/` (vedi `STATO_ATTUALE.md`).
 - Sorgente da unire: **`materiali/vatsamon/`** (sorgenti + 11 PNG + 35 jpg + `server.ts` con quiz).
-- Dataset reale: `app/src/data/vazzadex.json` (73 bovine, 6 pascoli). Foto: `app/public/photos/`.
-- v2 originale di riferimento: `materiali/vazzamon_v2/`.
+- Dataset reale: `app/src/data/vatsadex.json` (73 bovine, 6 pascoli). Foto: `app/public/photos/`.
+- v2 originale di riferimento: `materiali/vatsamon_v2/`.
 
 ## 8. Ordine consigliato
 T1 (illustrazioni) → T2 (carte Pokémon) → T3 (sentieri+tips) → T4 (quiz) → T5 (battaglia a turni) → T6 (bonus, opz.).

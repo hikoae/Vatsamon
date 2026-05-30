@@ -1,4 +1,4 @@
-name: Deploy Vazzamon su GitHub Pages
+name: Deploy Vatsamon su GitHub Pages
 
 on:
   push:

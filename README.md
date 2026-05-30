@@ -1,6 +1,6 @@
-# Vazzamon - la Vazzadex delle Reines valdostane
+# Vatsamon - la Vatsadex delle Reines valdostane
 
-Vazzamon e una PWA in stile Pokemon GO dedicata alle Reines reali delle Bataille
+Vatsamon e una PWA in stile Pokemon GO dedicata alle Reines reali delle Bataille
 de Reines della Valle d'Aosta. La versione attuale riparte dalla base **AI Studio
 v2** e la rende una build web statica, innestando il database reale delle bovine,
 le foto disponibili e la geolocalizzazione nei comuni corretti.
@@ -38,6 +38,6 @@ npm run verify     # test Playwright sul flusso principale
   coordinate, statistiche e schede convertite nel modello di gioco.
 - Scanner: simulato lato client, senza server e senza chiavi API.
 - Deploy: GitHub Pages tramite `.github/workflows/deploy.yml`, con build da
-  `app/` e base Vite `/vazzamon/`.
+  `app/` e base Vite `/vatsamon/`.
 
 Per dettagli tecnici e workflow applicativo vedi [app/README.md](app/README.md).

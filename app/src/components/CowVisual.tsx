@@ -1,5 +1,5 @@
-import { Vazzamon } from "../types";
-import { VazzamonAvatar } from "./VazzamonAvatar";
+import { Vatsamon } from "../types";
+import { VatsamonAvatar } from "./VatsamonAvatar";
 import { resolveIllustration } from "../data/illustrations";
 
 /**
@@ -11,7 +11,7 @@ export function CowVisual({
   className = "w-32 h-32",
   isAttacking = false,
 }: {
-  cow: Pick<Vazzamon, "breed" | "rarity" | "realPhoto" | "name">;
+  cow: Pick<Vatsamon, "breed" | "rarity" | "realPhoto" | "name">;
   className?: string;
   isAttacking?: boolean;
 }) {
@@ -38,5 +38,5 @@ export function CowVisual({
     );
   }
 
-  return <VazzamonAvatar breed={cow.breed} rarity={cow.rarity} className={className} isAttacking={isAttacking} />;
+  return <VatsamonAvatar breed={cow.breed} rarity={cow.rarity} className={className} isAttacking={isAttacking} />;
 }

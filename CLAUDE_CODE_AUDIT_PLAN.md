@@ -19,7 +19,7 @@
 - `README.md` root descriveva ancora parte della fusione precedente; andava riallineato alla base v2 + dati reali.
 - `npm run build` eseguiva solo `vite build`; mancava un controllo TypeScript esplicito.
 - `app/src/App.tsx` e un monolite da circa 2584 righe: accettabile come snapshot, ma da non espandere ulteriormente senza refactor guidato.
-- Nessun segreto reale rilevato; solo placeholder `GEMINI_API_KEY` in `materiali/vazzamon_v2/.env.example`.
+- Nessun segreto reale rilevato; solo placeholder `GEMINI_API_KEY` in `materiali/vatsamon_v2/.env.example`.
 
 ## Piano Operativo Applicato
 

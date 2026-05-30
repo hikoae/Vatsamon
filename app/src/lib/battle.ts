@@ -1,4 +1,4 @@
-import { Vazzamon } from "../types";
+import { Vatsamon } from "../types";
 import { Pastore } from "../data/opponents";
 
 /** Le 4 mosse, derivate dalle 4 statistiche reali (stazza/corna/testa/grinta). */
@@ -29,8 +29,8 @@ export interface Fighter {
   def: number; // testa / resistance
   agi: number; // grinta / agility
   maxHp: number;
-  /** Vazzamon di supporto per la grafica (CowVisual). */
-  visual: Pick<Vazzamon, "breed" | "rarity" | "realPhoto" | "name">;
+  /** Vatsamon di supporto per la grafica (CowVisual). */
+  visual: Pick<Vatsamon, "breed" | "rarity" | "realPhoto" | "name">;
 }
 
 function clamp(n: number, lo = 10, hi = 120) {
@@ -38,7 +38,7 @@ function clamp(n: number, lo = 10, hi = 120) {
 }
 
 /** Costruisce il combattente del giocatore dalla sua Reina. */
-export function buildPlayerFighter(cow: Vazzamon): Fighter {
+export function buildPlayerFighter(cow: Vatsamon): Fighter {
   const s4 = cow.stats4;
   const atk = clamp(s4 ? s4.corna : cow.stats.strength);
   const def = clamp(s4 ? s4.testa : cow.stats.defense);

@@ -33,7 +33,7 @@ import { OpenSourceTrailMap } from './components/OpenSourceTrailMap';
 
 import {
   VALDOSTANO_TRAILS,
-  INITIAL_VAZZADEX,
+  INITIAL_VATSADEX,
   DEMO_COWS,
   INITIAL_ACHIEVEMENTS,
   type Cow,
@@ -107,28 +107,28 @@ const NPC_OPPONENTS = [
 
 export default function App() {
   // --- Persistent State ---
-  const [vazzadex, setVazzadex] = useState<Cow[]>(() => {
-    const saved = localStorage.getItem('vazzadex_cows');
-    return saved ? JSON.parse(saved) : INITIAL_VAZZADEX;
+  const [vatsadex, setVatsadex] = useState<Cow[]>(() => {
+    const saved = localStorage.getItem('vatsadex_cows');
+    return saved ? JSON.parse(saved) : INITIAL_VATSADEX;
   });
 
   const [distanceWalked, setDistanceWalked] = useState<number>(() => {
-    const saved = localStorage.getItem('vazzadex_km');
+    const saved = localStorage.getItem('vatsadex_km');
     return saved ? parseFloat(saved) : 12.4;
   });
 
   const [explorerXp, setExplorerXp] = useState<number>(() => {
-    const saved = localStorage.getItem('vazzadex_xp');
+    const saved = localStorage.getItem('vatsadex_xp');
     return saved ? parseInt(saved, 10) : 340;
   });
 
   const [achievements, setAchievements] = useState<Achievement[]>(() => {
-    const saved = localStorage.getItem('vazzadex_achievements');
+    const saved = localStorage.getItem('vatsadex_achievements');
     return saved ? JSON.parse(saved) : INITIAL_ACHIEVEMENTS;
   });
 
   const [activeLeaderboard, setActiveLeaderboard] = useState<{ name: string; title: string; score: number; cow: string; isUser?: boolean }[]>(() => {
-    const saved = localStorage.getItem('vazzadex_leaderboard');
+    const saved = localStorage.getItem('vatsadex_leaderboard');
     if (saved) return JSON.parse(saved);
     return [
       { name: 'Marco Alpino', title: 'Alpeggiatore di Cogne', score: 2450, cow: 'Bimba' },
@@ -138,21 +138,21 @@ export default function App() {
   });
 
   const [pastureTreats, setPastureTreats] = useState<number>(() => {
-    const saved = localStorage.getItem('vazzadex_treats');
+    const saved = localStorage.getItem('vatsadex_treats');
     return saved ? parseInt(saved, 10) : 3;
   });
 
   // --- UI/Tab/Local State ---
-  const [activeTab, setActiveTab] = useState<'radar' | 'camera' | 'vazzadex' | 'bataille' | 'quiz'>('radar');
+  const [activeTab, setActiveTab] = useState<'radar' | 'camera' | 'vatsadex' | 'bataille' | 'quiz'>('radar');
   const [selectedTrail, setSelectedTrail] = useState<ValdostanTrail>(VALDOSTANO_TRAILS[0]);
   const [scannedCowResult, setScannedCowResult] = useState<any | null>(null);
   
   // Last captured cow display in sidebar
-  const lastCapturedCow = vazzadex[vazzadex.length - 1] || null;
+  const lastCapturedCow = vatsadex[vatsadex.length - 1] || null;
 
   // Active champion for battles (default is the first cow)
-  const [championId, setChampionId] = useState<string>(vazzadex[0]?.id || 'pre-captured-1');
-  const activeChampion = vazzadex.find(c => c.id === championId) || vazzadex[0] || INITIAL_VAZZADEX[0];
+  const [championId, setChampionId] = useState<string>(vatsadex[0]?.id || 'pre-captured-1');
+  const activeChampion = vatsadex.find(c => c.id === championId) || vatsadex[0] || INITIAL_VATSADEX[0];
 
   // Map & Walk simulation states
   const [isWalking, setIsWalking] = useState(false);
@@ -191,8 +191,8 @@ export default function App() {
   const [correctAnswersCount, setCorrectAnswersCount] = useState(0);
   const [quizCompleted, setQuizCompleted] = useState(false);
 
-  // --- Vazzadex Registry States ---
-  const [vazzadexSubTab, setVazzadexSubTab] = useState<'my_cows' | 'registry'>('my_cows');
+  // --- Vatsadex Registry States ---
+  const [vatsadexSubTab, setVatsadexSubTab] = useState<'my_cows' | 'registry'>('my_cows');
   const [registrySearchQuery, setRegistrySearchQuery] = useState('');
   const [registryCategoryFilter, setRegistryCategoryFilter] = useState<'All' | '1ª Categoria' | '2ª Categoria' | '3ª Categoria' | 'Manze (Génisses)'>('All');
   const [registryBreedFilter, setRegistryBreedFilter] = useState<'All' | 'Castana Valdostana' | 'Pezzata Nera Valdostana' | 'Pezzata Rossa Valdostana'>('All');
@@ -212,27 +212,27 @@ export default function App() {
 
   // Sync state with LocalStorage
   useEffect(() => {
-    localStorage.setItem('vazzadex_cows', JSON.stringify(vazzadex));
-  }, [vazzadex]);
+    localStorage.setItem('vatsadex_cows', JSON.stringify(vatsadex));
+  }, [vatsadex]);
 
   useEffect(() => {
-    localStorage.setItem('vazzadex_km', distanceWalked.toFixed(1));
+    localStorage.setItem('vatsadex_km', distanceWalked.toFixed(1));
   }, [distanceWalked]);
 
   useEffect(() => {
-    localStorage.setItem('vazzadex_xp', explorerXp.toString());
+    localStorage.setItem('vatsadex_xp', explorerXp.toString());
   }, [explorerXp]);
 
   useEffect(() => {
-    localStorage.setItem('vazzadex_achievements', JSON.stringify(achievements));
+    localStorage.setItem('vatsadex_achievements', JSON.stringify(achievements));
   }, [achievements]);
 
   useEffect(() => {
-    localStorage.setItem('vazzadex_leaderboard', JSON.stringify(activeLeaderboard));
+    localStorage.setItem('vatsadex_leaderboard', JSON.stringify(activeLeaderboard));
   }, [activeLeaderboard]);
 
   useEffect(() => {
-    localStorage.setItem('vazzadex_treats', pastureTreats.toString());
+    localStorage.setItem('vatsadex_treats', pastureTreats.toString());
   }, [pastureTreats]);
 
   // Rotator tips timer
@@ -304,7 +304,7 @@ export default function App() {
         setPastureTreats(prev => prev + 1);
 
         // Level up the winning cow
-        setVazzadex(prev => prev.map(c => {
+        setVatsadex(prev => prev.map(c => {
           if (c.id === championId) {
             return { ...c, level: c.level + 1, combatStats: {
               strength: Math.min(99, c.combatStats.strength + 2),
@@ -504,7 +504,7 @@ export default function App() {
         playSynthSound('muggito');
         setTimeout(() => playSynthSound('success'), 600);
 
-        // Add newly identified cow to the Vazzadex if she is a cow!
+        // Add newly identified cow to the Vatsadex if she is a cow!
         if (data.result.isCow) {
           const newCow: Cow = {
             id: `cow-${Date.now()}`,
@@ -525,7 +525,7 @@ export default function App() {
           };
 
           // Append to state, prevent duplicates of the exact breed if we want but PokemonGO allows collecting multiple!
-          setVazzadex(prev => [...prev, newCow]);
+          setVatsadex(prev => [...prev, newCow]);
           // Automatically set as active champion if player wants
           setChampionId(newCow.id);
 
@@ -548,7 +548,7 @@ export default function App() {
   // --- Change cows name ---
   const handleRenameCow = (cowId: string) => {
     if (!newCowName.trim()) return;
-    setVazzadex(prev => prev.map(c => {
+    setVatsadex(prev => prev.map(c => {
       if (c.id === cowId) {
         return { ...c, name: newCowName.trim() };
       }
@@ -563,7 +563,7 @@ export default function App() {
   const handleFeedTreast = (cowId: string) => {
     if (pastureTreats <= 0) return;
     setPastureTreats(p => p - 1);
-    setVazzadex(prev => prev.map(c => {
+    setVatsadex(prev => prev.map(c => {
       if (c.id === cowId) {
         playSynthSound('levelUp');
         return {
@@ -583,7 +583,7 @@ export default function App() {
   };
 
   const handleAdoptHistoricCow = (hc: HistoricCow) => {
-    const alreadyCaptured = vazzadex.some(c => c.name.toLowerCase() === hc.name.toLowerCase() && c.breed === hc.breed);
+    const alreadyCaptured = vatsadex.some(c => c.name.toLowerCase() === hc.name.toLowerCase() && c.breed === hc.breed);
     if (alreadyCaptured) {
       alert(`Hai già ${hc.name} nel tuo alpeggio personale!`);
       return;
@@ -623,7 +623,7 @@ export default function App() {
       '/src/assets/images/pezzata_rossa.png'
     );
 
-    setVazzadex(prev => [...prev, newCow]);
+    setVatsadex(prev => [...prev, newCow]);
     setChampionId(newCow.id); // Automatically set as champion!
     playSynthSound('success');
   };
@@ -729,17 +729,17 @@ export default function App() {
   };
 
   return (
-    <div id="vazzadec-root" className="w-full min-h-screen bg-[#f5f5f0] text-[#2d2d2a] font-sans flex flex-col overflow-x-hidden">
+    <div id="vatsadec-root" className="w-full min-h-screen bg-[#f5f5f0] text-[#2d2d2a] font-sans flex flex-col overflow-x-hidden">
       
       {/* Top Header / Bar styled according to theme */}
-      <nav id="vazzadec-navbar" className="bg-[#5A5A40] text-white py-4 px-6 md:px-8 flex flex-col md:flex-row items-center justify-between shadow-md gap-4 relative z-10 border-b-2 border-[#4a4a34]">
+      <nav id="vatsadec-navbar" className="bg-[#5A5A40] text-white py-4 px-6 md:px-8 flex flex-col md:flex-row items-center justify-between shadow-md gap-4 relative z-10 border-b-2 border-[#4a4a34]">
         <div className="flex items-center gap-4">
           <div className="w-14 h-14 bg-[#d4a373] rounded-full border-2 border-white flex items-center justify-center shadow-md animate-bounce">
             <span className="text-3xl">🐮</span>
           </div>
           <div>
             <h1 className="text-2xl font-serif font-black tracking-tight flex items-center gap-2">
-              VAZZADEX <span className="text-[#e9edc9] italic text-base font-normal">BovineGO!</span>
+              VATSADEX <span className="text-[#e9edc9] italic text-base font-normal">BovineGO!</span>
             </h1>
             <p className="text-xs text-[#e9edc9] opacity-90 uppercase tracking-widest font-mono">
               Valle d'Aosta • {selectedTrail.location}
@@ -769,8 +769,8 @@ export default function App() {
               <span className="font-serif font-bold text-lg text-white">{distanceWalked.toFixed(1)}</span>
             </div>
             <div className="bg-[#4a4a34] px-4 py-2 rounded-xl text-center min-w-[70px] border border-[#e9edc9]/20 shadow-inner">
-              <span className="block text-[10px] uppercase opacity-60 font-bold">Vazzadex</span>
-              <span className="font-serif font-bold text-lg text-[#faedcd]">{vazzadex.length} Unità</span>
+              <span className="block text-[10px] uppercase opacity-60 font-bold">Vatsadex</span>
+              <span className="font-serif font-bold text-lg text-[#faedcd]">{vatsadex.length} Unità</span>
             </div>
             <div className="bg-[#4a4a34] px-4 py-2 rounded-xl text-center min-w-[70px] border border-[#e9edc9]/20 shadow-inner">
               <span className="block text-[10px] uppercase opacity-60 font-bold text-[#fefae0]">Biscotti 🍪</span>
@@ -809,14 +809,14 @@ export default function App() {
               <Camera size={16} /> SCANNER IA 📷
             </button>
             <button
-              onClick={() => { setActiveTab('vazzadex'); playSynthSound('clink'); }}
+              onClick={() => { setActiveTab('vatsadex'); playSynthSound('clink'); }}
               className={`flex-1 min-w-[120px] transition-all duration-200 py-3 px-4 rounded-xl font-serif italic text-sm flex items-center justify-center gap-2 ${
-                activeTab === 'vazzadex' 
+                activeTab === 'vatsadex' 
                   ? 'bg-[#5A5A40] text-white shadow-md' 
                   : 'bg-white/20 text-[#5A5A40] hover:bg-white/50'
               }`}
             >
-              <Grid size={16} /> VAZZADEX
+              <Grid size={16} /> VATSADEX
             </button>
             <button
               onClick={() => { setActiveTab('bataille'); playSynthSound('clink'); }}
@@ -1103,7 +1103,7 @@ export default function App() {
                           L'IA di Gemini ha analizzato l'immagine ma non ha riscontrato alcun bovino al pascolo. 
                         </p>
                         <p className="text-xs text-stone-500 mt-1 italic">
-                          Suggerimento educativo: Evita di fotografare insetti ravvicinati, rocce sagomate o i vostri panini di viaggio! Per sbloccare la Vazzadex devi focalizzarti su una vera mucca d'alpeggio.
+                          Suggerimento educativo: Evita di fotografare insetti ravvicinati, rocce sagomate o i vostri panini di viaggio! Per sbloccare la Vatsadex devi focalizzarti su una vera mucca d'alpeggio.
                         </p>
                       </div>
                     </div>
@@ -1216,13 +1216,13 @@ export default function App() {
             </div>
           )}
 
-          {/* TAB 3: COLLEZIONE VAZZADEX */}
-          {activeTab === 'vazzadex' && (
+          {/* TAB 3: COLLEZIONE VATSADEX */}
+          {activeTab === 'vatsadex' && (
             <div className="bg-white rounded-[32px] p-6 shadow-sm border border-[#e5e5db] flex flex-col gap-6">
               
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#f5f5f0] pb-4">
                 <div>
-                  <h3 className="font-serif italic font-bold text-2xl text-[#5A5A40]">La Vazzadex & Registro Storico</h3>
+                  <h3 className="font-serif italic font-bold text-2xl text-[#5A5A40]">La Vatsadex & Registro Storico</h3>
                   <p className="text-xs text-stone-600 mt-1">
                     Esplora la collezione personale delle tue regine alpine o sfoglia il Registro Storico ufficiale della Valle d'Aosta.
                   </p>
@@ -1240,20 +1240,20 @@ export default function App() {
               <div className="flex bg-[#f5f5f0] p-1 rounded-2xl self-start gap-1 border border-stone-200">
                 <button
                   type="button"
-                  onClick={() => { setVazzadexSubTab('my_cows'); playSynthSound('clink'); }}
+                  onClick={() => { setVatsadexSubTab('my_cows'); playSynthSound('clink'); }}
                   className={`px-4 py-2 text-xs font-serif italic font-bold rounded-xl transition-all ${
-                    vazzadexSubTab === 'my_cows'
+                    vatsadexSubTab === 'my_cows'
                       ? 'bg-[#5A5A40] text-white shadow'
                       : 'text-[#5A5A40] hover:bg-stone-200/50'
                   }`}
                 >
-                  🍀 Il Mio Pascolo ({vazzadex.length})
+                  🍀 Il Mio Pascolo ({vatsadex.length})
                 </button>
                 <button
                   type="button"
-                  onClick={() => { setVazzadexSubTab('registry'); playSynthSound('clink'); }}
+                  onClick={() => { setVatsadexSubTab('registry'); playSynthSound('clink'); }}
                   className={`px-4 py-2 text-xs font-serif italic font-bold rounded-xl transition-all ${
-                    vazzadexSubTab === 'registry'
+                    vatsadexSubTab === 'registry'
                       ? 'bg-[#5A5A40] text-white shadow'
                       : 'text-[#5A5A40] hover:bg-stone-200/50'
                   }`}
@@ -1262,9 +1262,9 @@ export default function App() {
                 </button>
               </div>
 
-              {vazzadexSubTab === 'my_cows' ? (
+              {vatsadexSubTab === 'my_cows' ? (
                 <div>
-                  {vazzadex.length === 0 ? (
+                  {vatsadex.length === 0 ? (
                     <div className="text-center py-12 bg-stone-50 rounded-2xl border border-dashed border-stone-300">
                       <span className="text-4xl block mb-2">🐄</span>
                       <h4 className="font-serif italic font-bold text-lg text-stone-700">Il tuo pascolo è vuoto!</h4>
@@ -1275,7 +1275,7 @@ export default function App() {
                   ) : (
                     /* Grid of captured bovids */
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {vazzadex.map((cow) => {
+                      {vatsadex.map((cow) => {
                         const isRenaming = renamingCowId === cow.id;
                         const isChampion = championId === cow.id;
 
@@ -1483,7 +1483,7 @@ export default function App() {
                     return (
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {filteredRegistry.map((cow) => {
-                          const isAlreadyCow = vazzadex.some(
+                          const isAlreadyCow = vatsadex.some(
                             c => c.name.toLowerCase() === cow.name.toLowerCase() && c.breed === cow.breed
                           );
 
@@ -1675,7 +1675,7 @@ export default function App() {
                       </div>
                     </div>
                     <button
-                      onClick={() => { setActiveTab('vazzadex'); playSynthSound('clink'); }}
+                      onClick={() => { setActiveTab('vatsadex'); playSynthSound('clink'); }}
                       className="text-xs bg-white text-[#5A5A40] hover:bg-stone-50 border border-stone-300 font-serif font-bold italic py-2 px-3 rounded-xl shadow-sm"
                     >
                       Scegli Altra mucca
@@ -1980,7 +1980,7 @@ export default function App() {
                     Hai superato il quiz della pastorizia sostenibile della Valle d'Aosta! Risposte corrette: <span className="font-black text-lg">{correctAnswersCount}</span> / 5.
                   </p>
                   <p className="text-xs text-stone-600 font-medium">
-                    Il presidio ti premia con <span className="font-bold text-[#8a5a00]">{correctAnswersCount} biscotti dell'alpeggio</span> utili per potenziare i livelli della tua mandria nella Vazzadex!
+                    Il presidio ti premia con <span className="font-bold text-[#8a5a00]">{correctAnswersCount} biscotti dell'alpeggio</span> utili per potenziare i livelli della tua mandria nella Vatsadex!
                   </p>
 
                   <button
@@ -1997,7 +1997,7 @@ export default function App() {
         </div>
 
         {/* RIGHT SIDEBAR PANEL: Styled identically to Natural Tones */}
-        <div id="vazzadec-sidebar" className="lg:col-span-4 flex flex-col gap-6">
+        <div id="vatsadec-sidebar" className="lg:col-span-4 flex flex-col gap-6">
           
           {/* Recent capture Polarid Style */}
           <div className="bg-white rounded-[32px] p-5 shadow-sm border border-[#e5e5db]">
@@ -2130,7 +2130,7 @@ export default function App() {
       </div>
 
       {/* Sustainable footer printed inside */}
-      <footer id="vazzadec-footer" className="bg-[#5A5A40] text-white py-4 px-6 md:px-8 text-xs border-t border-[#4a4a34] mt-10">
+      <footer id="vatsadec-footer" className="bg-[#5A5A40] text-white py-4 px-6 md:px-8 text-xs border-t border-[#4a4a34] mt-10">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <span className="relative flex h-3 w-3">
@@ -2145,7 +2145,7 @@ export default function App() {
           <div className="flex gap-6 text-[10px] uppercase font-mono tracking-widest text-[#e9edc9] opacity-80">
             <button onClick={() => { setActiveTab('quiz'); playSynthSound('clink'); }} className="hover:underline">Scuola di Alpeggio</button>
             <button onClick={() => { setActiveTab('radar'); playSynthSound('clink'); }} className="hover:underline">Mappa Sentieri VDA</button>
-            <button onClick={() => alert('Vazzadex - BovineGO v1.4.0. Sviluppato in collaborazione con la riserva dei pascoli d\'alpeggio della Valle d\'Aosta.')} className="hover:underline">Crediti Alpini</button>
+            <button onClick={() => alert('Vatsadex - BovineGO v1.4.0. Sviluppato in collaborazione con la riserva dei pascoli d\'alpeggio della Valle d\'Aosta.')} className="hover:underline">Crediti Alpini</button>
           </div>
         </div>
       </footer>

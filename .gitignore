@@ -22,5 +22,5 @@ app/.env.local
 *.log
 /tmp/
 
-# archivi (i contenuti sono già estratti in vazzamon/ e foto/)
+# archivi (i contenuti sono già estratti in vatsamon/ e foto/)
 *.zip

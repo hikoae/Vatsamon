@@ -1,6 +1,0 @@
-{
-  "name": "Vazzamon",
-  "description": "Una splendida applicazione a tema alpino valdostano dove collezionare, analizzare o combattere con i mitici Vazzamon (mucche alpine rare).",
-  "requestFramePermissions": ["camera"],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
-}

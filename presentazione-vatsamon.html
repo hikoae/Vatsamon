@@ -1,0 +1,628 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Vatsamon - Pitch Deck</title>
+  <style>
+    :root {
+      --ink: #10131f;
+      --muted: #5b6475;
+      --paper: #fbfaf7;
+      --panel: #ffffff;
+      --green: #207b56;
+      --lime: #b6dd73;
+      --sky: #3aa7d8;
+      --amber: #d98d20;
+      --rose: #c94f67;
+      --violet: #6b5bd6;
+      --line: rgba(16, 19, 31, 0.12);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { margin: 0; background: #161922; color: var(--ink); }
+    body { overflow: hidden; }
+
+    .deck {
+      width: 100vw;
+      height: 100vh;
+      position: relative;
+    }
+
+    .slide {
+      width: 100vw;
+      height: 100vh;
+      display: none;
+      position: absolute;
+      inset: 0;
+      padding: 56px 72px;
+      background: var(--paper);
+      overflow: hidden;
+    }
+
+    .slide.active { display: grid; }
+    .slide::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        linear-gradient(120deg, rgba(32, 123, 86, 0.12), transparent 32%),
+        radial-gradient(circle at 84% 16%, rgba(58, 167, 216, 0.18), transparent 28%),
+        radial-gradient(circle at 18% 86%, rgba(217, 141, 32, 0.16), transparent 24%);
+      pointer-events: none;
+    }
+
+    .content {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      gap: 28px;
+      align-content: center;
+      min-height: 100%;
+    }
+
+    .kicker {
+      color: var(--green);
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-size: 15px;
+    }
+
+    h1, h2, h3, p { margin: 0; }
+    h1 {
+      max-width: 980px;
+      font-size: 78px;
+      line-height: 0.95;
+      letter-spacing: 0;
+    }
+    h2 {
+      max-width: 980px;
+      font-size: 52px;
+      line-height: 1.02;
+      letter-spacing: 0;
+    }
+    h3 {
+      font-size: 24px;
+      line-height: 1.15;
+    }
+    p, li {
+      font-size: 22px;
+      line-height: 1.36;
+      color: var(--muted);
+    }
+    ul {
+      margin: 0;
+      padding-left: 1.15em;
+      display: grid;
+      gap: 12px;
+    }
+
+    .hero {
+      grid-template-columns: minmax(0, 1.05fr) minmax(320px, 0.8fr);
+      align-items: center;
+    }
+    .hero-image {
+      height: 72vh;
+      min-height: 500px;
+      border-radius: 22px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      box-shadow: 0 28px 70px rgba(16, 19, 31, 0.22);
+      background: #d8dacd;
+    }
+    .hero-image img,
+    .photo-strip img,
+    .phone img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .grid-2 { grid-template-columns: 1fr 1fr; align-items: stretch; }
+    .grid-3 { grid-template-columns: repeat(3, 1fr); }
+    .grid-4 { grid-template-columns: repeat(4, 1fr); }
+    .cards { display: grid; gap: 18px; }
+    .card {
+      background: rgba(255, 255, 255, 0.84);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 22px;
+      box-shadow: 0 16px 36px rgba(16, 19, 31, 0.08);
+    }
+    .card strong {
+      display: block;
+      color: var(--ink);
+      font-size: 20px;
+      margin-bottom: 8px;
+    }
+    .card p { font-size: 18px; }
+
+    .metric {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 24px;
+    }
+    .metric .num {
+      font-size: 56px;
+      font-weight: 900;
+      color: var(--green);
+      line-height: 1;
+    }
+    .metric .label {
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 17px;
+      line-height: 1.25;
+    }
+
+    .flow {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 14px;
+    }
+    .step {
+      min-height: 176px;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 18px;
+      position: relative;
+    }
+    .step .n {
+      width: 34px;
+      height: 34px;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      color: #fff;
+      background: var(--green);
+      font-weight: 900;
+      margin-bottom: 16px;
+    }
+    .step p { font-size: 17px; }
+
+    .tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .tag {
+      border: 1px solid var(--line);
+      background: #fff;
+      border-radius: 999px;
+      padding: 10px 14px;
+      font-size: 17px;
+      font-weight: 750;
+      color: var(--ink);
+    }
+
+    .phone {
+      width: 300px;
+      height: 610px;
+      border-radius: 34px;
+      padding: 12px;
+      background: #111827;
+      border: 1px solid rgba(255,255,255,0.12);
+      box-shadow: 0 28px 80px rgba(16, 19, 31, 0.28);
+      justify-self: center;
+      overflow: hidden;
+    }
+    .phone-screen {
+      height: 100%;
+      border-radius: 24px;
+      overflow: hidden;
+      background: linear-gradient(180deg, #111827, #1f2937);
+      color: white;
+      padding: 20px;
+      display: grid;
+      gap: 14px;
+      align-content: start;
+    }
+    .screen-map {
+      min-height: 250px;
+      border-radius: 8px;
+      background:
+        linear-gradient(35deg, rgba(72, 187, 120, 0.26), transparent),
+        url("app/public/photos/ALLEGRA.jpg") center/cover;
+      border: 1px solid rgba(255,255,255,0.16);
+      position: relative;
+    }
+    .pin {
+      position: absolute;
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      border: 3px solid white;
+      background: var(--amber);
+      box-shadow: 0 4px 14px rgba(0,0,0,0.35);
+    }
+    .pin.a { top: 36px; left: 42px; }
+    .pin.b { bottom: 48px; right: 52px; background: var(--sky); }
+    .pin.c { top: 114px; right: 30px; background: var(--rose); }
+    .mini-card {
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 8px;
+      padding: 12px;
+    }
+    .mini-card b { display: block; font-size: 17px; }
+    .mini-card span { color: rgba(255,255,255,0.72); font-size: 14px; }
+
+    .photo-strip {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      height: 220px;
+    }
+    .photo-strip img {
+      border-radius: 8px;
+      border: 1px solid var(--line);
+    }
+
+    .split-note {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 36px;
+      align-items: center;
+    }
+    .audit-list {
+      display: grid;
+      gap: 14px;
+    }
+    .audit-item {
+      display: grid;
+      grid-template-columns: 18px 1fr;
+      gap: 12px;
+      align-items: start;
+      font-size: 20px;
+      color: var(--muted);
+      line-height: 1.32;
+    }
+    .dot {
+      width: 12px;
+      height: 12px;
+      margin-top: 8px;
+      border-radius: 50%;
+      background: var(--green);
+    }
+    .dot.warn { background: var(--amber); }
+    .dot.risk { background: var(--rose); }
+
+    .footer {
+      position: absolute;
+      z-index: 2;
+      left: 72px;
+      right: 72px;
+      bottom: 28px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: rgba(16, 19, 31, 0.45);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .controls {
+      position: fixed;
+      z-index: 5;
+      right: 24px;
+      bottom: 22px;
+      display: flex;
+      gap: 8px;
+    }
+    button {
+      border: 1px solid rgba(255,255,255,0.18);
+      background: rgba(16,19,31,0.78);
+      color: white;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font: inherit;
+      cursor: pointer;
+    }
+    button:hover { background: rgba(16,19,31,0.95); }
+    .speaker {
+      position: fixed;
+      z-index: 4;
+      left: 24px;
+      bottom: 22px;
+      width: min(680px, calc(100vw - 220px));
+      background: rgba(16,19,31,0.92);
+      color: white;
+      border-radius: 8px;
+      padding: 16px 18px;
+      display: none;
+      box-shadow: 0 18px 50px rgba(0,0,0,0.3);
+      font-size: 16px;
+      line-height: 1.35;
+    }
+    .speaker.visible { display: block; }
+
+    @media print {
+      body { overflow: visible; background: white; }
+      .deck { height: auto; }
+      .slide {
+        display: grid !important;
+        position: relative;
+        width: 297mm;
+        height: 167mm;
+        page-break-after: always;
+        padding: 16mm 20mm;
+      }
+      .controls, .speaker { display: none !important; }
+      h1 { font-size: 50px; }
+      h2 { font-size: 36px; }
+      p, li { font-size: 15px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="deck" id="deck">
+    <section class="slide active" data-notes="Aprite con una frase semplice: Vatsamon rende giocabile una tradizione valdostana, senza trasformarla in una caricatura. Il punto forte e l'unione tra dati reali, territorio e comportamento responsabile.">
+      <div class="content hero">
+        <div>
+          <div class="kicker">Build With AI - Challenge 1</div>
+          <h1>Vatsamon</h1>
+          <p style="max-width:760px;font-size:28px;color:#2c3442;">La Vatsadex delle Reines valdostane: esplorazione, cultura alpina e IA in una PWA installabile.</p>
+          <div class="tags" style="margin-top:18px;">
+            <span class="tag">PWA</span>
+            <span class="tag">Mappa reale</span>
+            <span class="tag">73 Reines</span>
+            <span class="tag">Trekking responsabile</span>
+          </div>
+        </div>
+        <div class="hero-image">
+          <img src="app/public/photos/VICTOIRE.jpg" alt="Reina valdostana" />
+        </div>
+      </div>
+      <div class="footer"><span>Vatsamon pitch deck</span><span>1 / 12</span></div>
+    </section>
+
+    <section class="slide" data-notes="Qui agganciate la challenge: non bastava fare un gioco, serviva valorizzare turismo, ambiente e tradizione. Vatsamon usa la familiarita del monster-catching per avvicinare persone nuove alle Reines.">
+      <div class="content split-note">
+        <div>
+          <div class="kicker">Il problema</div>
+          <h2>La tradizione e ricca, ma per chi non la conosce resta distante.</h2>
+          <p>Le Batailles de Reines, gli alpeggi, la Fontina e i sentieri sono patrimonio vivo. L'utente giovane o turista pero ha bisogno di un ingresso immediato, interattivo e rispettoso.</p>
+        </div>
+        <div class="cards">
+          <div class="card"><strong>Turismo</strong><p>Scoprire comuni, pascoli e sentieri reali con una motivazione ludica.</p></div>
+          <div class="card"><strong>Cultura</strong><p>Raccontare Reines, allevatori, razze e tradizioni con dati concreti.</p></div>
+          <div class="card"><strong>Ambiente</strong><p>Premiare comportamenti corretti: distanza, cancelli, rifiuti, sentieri.</p></div>
+        </div>
+      </div>
+      <div class="footer"><span>Idea commerciale e sociale</span><span>2 / 12</span></div>
+    </section>
+
+    <section class="slide" data-notes="Questa e la promessa in una frase. Evitate dettagli tecnici qui: l'idea deve suonare come una demo che si capisce al volo.">
+      <div class="content">
+        <div class="kicker">La soluzione</div>
+        <h2>Una PWA stile Pokemon GO, ma radicata nei dati reali della Valle d'Aosta.</h2>
+        <div class="grid-4 cards">
+          <div class="metric"><div class="num">73</div><div class="label">bovine reali nel Vatsadex</div></div>
+          <div class="metric"><div class="num">35</div><div class="label">foto autentiche integrate</div></div>
+          <div class="metric"><div class="num">34</div><div class="label">comuni rappresentati</div></div>
+          <div class="metric"><div class="num">6</div><div class="label">pascoli/Casere usati come punti gioco</div></div>
+        </div>
+        <p>Il gioco non inventa un mondo fittizio: usa Reines, luoghi e comportamenti reali come materiale narrativo e didattico.</p>
+      </div>
+      <div class="footer"><span>Proposta di valore</span><span>3 / 12</span></div>
+    </section>
+
+    <section class="slide" data-notes="Descrivete il flusso utente come demo live: apro la mappa, mi avvicino, catturo, consulto, imparo, combatto. Sono le tappe che il pubblico deve ricordare.">
+      <div class="content">
+        <div class="kicker">Flusso utente</div>
+        <h2>Dal sentiero alla collezione, in cinque passaggi.</h2>
+        <div class="flow">
+          <div class="step"><div class="n">1</div><h3>Esplora</h3><p>Mappa Leaflet con sentieri, comuni, Casere e Reines.</p></div>
+          <div class="step"><div class="n">2</div><h3>Avvicinati</h3><p>GPS reale o tap-to-move demo. Raggio cattura: 250 m.</p></div>
+          <div class="step"><div class="n">3</div><h3>Cattura</h3><p>Mini-gioco con Vatsa-ball, mele e probabilita di presa.</p></div>
+          <div class="step"><div class="n">4</div><h3>Impara</h3><p>Vatsadex, schede reali e quiz Scuola d'Alpeggio.</p></div>
+          <div class="step"><div class="n">5</div><h3>Sfida</h3><p>Batailles a turni e arene con boss Reines reali.</p></div>
+        </div>
+      </div>
+      <div class="footer"><span>Demo funzionante</span><span>4 / 12</span></div>
+    </section>
+
+    <section class="slide" data-notes="Qui mostrate che l'app non e solo mock: i dati reali cambiano la credibilita del progetto. Nomi, foto, comuni, allevatori e statistiche diventano gameplay.">
+      <div class="content grid-2">
+        <div>
+          <div class="kicker">Vatsadex</div>
+          <h2>Il catalogo trasforma le Reines in carte vive.</h2>
+          <ul>
+            <li>Ogni bovina reale diventa un Vatsamon con nome, razza, comune, allevatore, matricola e riconoscimento.</li>
+            <li>Le statistiche reali vengono convertite in parametri di gioco: stazza, corna, testa, grinta, CP e livello.</li>
+            <li>Foto reali quando disponibili, illustrazioni o avatar procedurali come fallback.</li>
+          </ul>
+        </div>
+        <div>
+          <div class="photo-strip">
+            <img src="app/public/photos/MALIBU.jpg" alt="Malibu" />
+            <img src="app/public/photos/FERONDA.jpg" alt="Feronda" />
+            <img src="app/public/photos/ALLEGRA.jpg" alt="Allegra" />
+            <img src="app/public/photos/SIRENA.jpg" alt="Sirena" />
+          </div>
+          <div class="cards grid-3" style="margin-top:14px;">
+            <div class="card"><strong>51</strong><p>Rare</p></div>
+            <div class="card"><strong>11</strong><p>Epiche</p></div>
+            <div class="card"><strong>11</strong><p>Leggendarie</p></div>
+          </div>
+        </div>
+      </div>
+      <div class="footer"><span>Dataset e identita</span><span>5 / 12</span></div>
+    </section>
+
+    <section class="slide" data-notes="Questa slide copre il requisito trekking responsabile. Il messaggio: la mappa non porta solo a catturare, ma insegna a stare in montagna.">
+      <div class="content grid-2">
+        <div class="phone">
+          <div class="phone-screen">
+            <div style="font-weight:900;font-size:20px;">Mappa Vatsamon</div>
+            <div class="screen-map"><span class="pin a"></span><span class="pin b"></span><span class="pin c"></span></div>
+            <div class="mini-card"><b>Sentiero selezionato</b><span>Cogne - Rifugio Vittorio Sella</span></div>
+            <div class="mini-card"><b>Consiglio</b><span>Resta sul sentiero e mantieni distanza dalla mandria.</span></div>
+          </div>
+        </div>
+        <div>
+          <div class="kicker">Mappa e sentieri</div>
+          <h2>Esplorazione reale, non solo una schermata decorativa.</h2>
+          <ul>
+            <li>Leaflet + OpenStreetMap per visualizzare territorio e prossimita.</li>
+            <li>GPS reale con fallback demo per presentazione sul palco.</li>
+            <li>Sentieri e consigli responsabili: recinti, vitellini, cani, rifiuti, erba da sfalcio.</li>
+            <li>Casere d'Alpeggio come punti di rifornimento e ricompensa.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer"><span>Trekking responsabile</span><span>6 / 12</span></div>
+    </section>
+
+    <section class="slide" data-notes="Siate trasparenti: lo scanner e simulato lato client. Per un hackathon e una scelta utile: demo robusta, niente chiavi, niente backend. La roadmap puo portarlo su Gemini/Vertex.">
+      <div class="content split-note">
+        <div>
+          <div class="kicker">Scanner IA</div>
+          <h2>Una demo multimodale robusta: camera/upload oggi, IA reale in roadmap.</h2>
+          <p>Lo scanner accetta immagini o camera, simula l'analisi e genera un Vatsamon coerente con razza, rarita, lore ed eco-tip. E stato progettato per funzionare in una build statica senza server e senza chiavi API.</p>
+        </div>
+        <div class="cards">
+          <div class="card"><strong>Oggi</strong><p>Generazione locale simulata in `src/lib/generate.ts`, ideale per demo affidabile.</p></div>
+          <div class="card"><strong>Domani</strong><p>Backend sicuro con Gemini/Vertex AI per riconoscimento reale di razza, contesto e paesaggio.</p></div>
+        </div>
+      </div>
+      <div class="footer"><span>Modelli IA integrati</span><span>7 / 12</span></div>
+    </section>
+
+    <section class="slide" data-notes="Questa slide serve a far capire che l'app ha retention, non solo una mappa. Ogni meccanica ha un messaggio: giocare porta a conoscere e rispettare.">
+      <div class="content">
+        <div class="kicker">Gamification educativa</div>
+        <h2>La meccanica di gioco diventa memoria culturale.</h2>
+        <div class="grid-3 cards">
+          <div class="card"><strong>Cattura</strong><p>Ogni Reina conquistata aggiunge una scheda e avvicina al completamento 73/73.</p></div>
+          <div class="card"><strong>Progressione</strong><p>XP, monete, zaino, Vatsa-ball, mele, uova e livello allenatore.</p></div>
+          <div class="card"><strong>Scuola d'Alpeggio</strong><p>Quiz statico su Batailles, Fontina, biologia, ecologia e comportamento responsabile.</p></div>
+          <div class="card"><strong>Batailles</strong><p>Combattimenti incruenti a turni basati su statistiche reali e pastori narrativi.</p></div>
+          <div class="card"><strong>Arene</strong><p>Palestre con medaglie, bonus permanenti e boss Epiche/Leggendarie reali.</p></div>
+          <div class="card"><strong>PWA</strong><p>Installabile, mobile-first, offline-friendly e pronta per QR code demo.</p></div>
+        </div>
+      </div>
+      <div class="footer"><span>Retention e apprendimento</span><span>8 / 12</span></div>
+    </section>
+
+    <section class="slide" data-notes="Tenete questa slide rapida. Serve a rispondere alla richiesta dello stack tecnologico e a dimostrare solidita senza sommergere la giuria.">
+      <div class="content">
+        <div class="kicker">Stack tecnologico</div>
+        <h2>Web app moderna, statica e deployabile.</h2>
+        <div class="tags">
+          <span class="tag">React 19</span>
+          <span class="tag">TypeScript</span>
+          <span class="tag">Vite 6</span>
+          <span class="tag">Tailwind v4</span>
+          <span class="tag">Motion</span>
+          <span class="tag">Lucide React</span>
+          <span class="tag">Leaflet</span>
+          <span class="tag">OpenStreetMap</span>
+          <span class="tag">vite-plugin-pwa</span>
+          <span class="tag">Workbox</span>
+          <span class="tag">localStorage</span>
+          <span class="tag">GitHub Pages</span>
+        </div>
+        <div class="grid-3 cards">
+          <div class="card"><strong>Frontend</strong><p>React + componenti custom per mappa, cattura, Vatsadex, quiz e battaglie.</p></div>
+          <div class="card"><strong>Dati</strong><p>JSON statico convertito in modello Vatsamon, con foto servite da `public/photos`.</p></div>
+          <div class="card"><strong>PWA</strong><p>Manifest, icone, cache asset e tile OSM per una demo installabile.</p></div>
+        </div>
+      </div>
+      <div class="footer"><span>Strumenti Google e IA</span><span>9 / 12</span></div>
+    </section>
+
+    <section class="slide" data-notes="Qui rispondete ad architettura e prompt. Dite la verita tecnica: abbiamo una base AI Studio molto ricca, poi abbiamo innestato dataset, PWA, mappa e logica reale. Il refactor e il passo successivo.">
+      <div class="content grid-2">
+        <div>
+          <div class="kicker">Architettura del codice</div>
+          <h2>Un monolite funzionale con moduli dati e logiche isolate.</h2>
+          <div class="audit-list">
+            <div class="audit-item"><span class="dot"></span><span>`App.tsx`: orchestrazione viste, stato, persistenza e flussi principali.</span></div>
+            <div class="audit-item"><span class="dot"></span><span>`data/realCows.ts`: conversione dataset reale in modello di gioco.</span></div>
+            <div class="audit-item"><span class="dot"></span><span>`lib/geo.ts`: distanza, raggio cattura e movimento verso target.</span></div>
+            <div class="audit-item"><span class="dot"></span><span>`components/*`: avatar, visual bovine, quiz, battaglie e overlay sentieri.</span></div>
+            <div class="audit-item"><span class="dot warn"></span><span>Punto di miglioramento: spezzare `App.tsx` in feature module e hook.</span></div>
+          </div>
+        </div>
+        <div class="cards">
+          <div class="metric"><div class="num">2683</div><div class="label">righe in `App.tsx`: MVP veloce, refactor consigliato</div></div>
+          <div class="metric"><div class="num">6124</div><div class="label">righe audit nei file principali letti</div></div>
+        </div>
+      </div>
+      <div class="footer"><span>Struttura e logica prompt</span><span>10 / 12</span></div>
+    </section>
+
+    <section class="slide" data-notes="Questa e importante per la valutazione: quanto ha fatto l'IA e quanto avete fatto voi. Formulate come collaborazione, non come delega.">
+      <div class="content">
+        <div class="kicker">Rapporto uomo-IA</div>
+        <h2>L'IA ha accelerato la costruzione; il lavoro umano ha dato verita, contesto e direzione.</h2>
+        <div class="grid-2 cards">
+          <div class="card"><strong>Lavoro accelerato dall'IA</strong><p>Base AI Studio v2, prototipi, prompt, testi ludici, logiche procedurali, struttura iniziale dell'esperienza.</p></div>
+          <div class="card"><strong>Tocco umano</strong><p>Dataset reale, foto, comuni, pascoli, scelte di prodotto, audit, PWA statica, demo robusta e racconto coerente con la cultura valdostana.</p></div>
+        </div>
+        <p>La scelta chiave e stata usare l'IA non per sostituire il territorio, ma per renderlo esplorabile.</p>
+      </div>
+      <div class="footer"><span>Uomo + IA</span><span>11 / 12</span></div>
+    </section>
+
+    <section class="slide" data-notes="Chiudete con sicurezza: MVP pronto per demo, ma con roadmap chiara. La cosa piu onesta e forte e distinguere presente e prossimo passo.">
+      <div class="content">
+        <div class="kicker">Stato dell'arte</div>
+        <h2>MVP pronto per il palco, con roadmap concreta.</h2>
+        <div class="grid-2 cards">
+          <div class="card">
+            <strong>Pronto oggi</strong>
+            <p>PWA navigabile, dati reali, mappa/GPS, cattura, Vatsadex, quiz, Casere, uova, battaglie, arene e deploy statico.</p>
+          </div>
+          <div class="card">
+            <strong>Prossimi passi</strong>
+            <p>Riconoscimento IA reale via backend sicuro, refactor architetturale, test/screenshot automatici, QR code pubblico e partnership turistiche.</p>
+          </div>
+        </div>
+        <p style="font-size:30px;color:var(--ink);font-weight:850;">Vatsamon e una porta d'ingresso giocabile alla Valle d'Aosta: catturi una Reina, impari a rispettare l'alpeggio.</p>
+      </div>
+      <div class="footer"><span>Chiusura</span><span>12 / 12</span></div>
+    </section>
+  </main>
+
+  <div class="speaker" id="speaker"></div>
+  <div class="controls" aria-label="Controlli presentazione">
+    <button type="button" id="prev">Indietro</button>
+    <button type="button" id="notes">Note</button>
+    <button type="button" id="next">Avanti</button>
+  </div>
+
+  <script>
+    const slides = [...document.querySelectorAll(".slide")];
+    const speaker = document.getElementById("speaker");
+    let idx = 0;
+    let notesVisible = false;
+
+    function show(next) {
+      idx = Math.max(0, Math.min(slides.length - 1, next));
+      slides.forEach((s, i) => s.classList.toggle("active", i === idx));
+      speaker.textContent = slides[idx].dataset.notes || "";
+      speaker.classList.toggle("visible", notesVisible);
+    }
+
+    document.getElementById("prev").addEventListener("click", () => show(idx - 1));
+    document.getElementById("next").addEventListener("click", () => show(idx + 1));
+    document.getElementById("notes").addEventListener("click", () => {
+      notesVisible = !notesVisible;
+      show(idx);
+    });
+    window.addEventListener("keydown", (e) => {
+      if (["ArrowRight", "PageDown", " "].includes(e.key)) { e.preventDefault(); show(idx + 1); }
+      if (["ArrowLeft", "PageUp"].includes(e.key)) { e.preventDefault(); show(idx - 1); }
+      if (e.key.toLowerCase() === "n") { notesVisible = !notesVisible; show(idx); }
+    });
+    show(0);
+  </script>
+</body>
+</html>

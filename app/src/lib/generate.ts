@@ -1,7 +1,7 @@
-import { Vazzamon } from "../types";
+import { Vatsamon } from "../types";
 
 /**
- * Generazione CLIENT del Vazzamon (sostituisce il server /api/generate-vazzamon).
+ * Generazione CLIENT del Vatsamon (sostituisce il server /api/generate-vatsamon).
  * Build statica, niente rete: stesso schema di risposta del server v2.
  */
 
@@ -39,10 +39,10 @@ function rnd<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
-function simulate(): Omit<Vazzamon, "cp" | "level"> {
+function simulate(): Omit<Vatsamon, "cp" | "level"> {
   const breed = rnd(AUTUMN_BREEDS);
   const name = rnd(FUN_COW_NAMES);
-  const rarityPool: Vazzamon["rarity"][] = ["Comune", "Comune", "Rara", "Rara", "Epica", "Leggendaria"];
+  const rarityPool: Vatsamon["rarity"][] = ["Comune", "Comune", "Rara", "Rara", "Epica", "Leggendaria"];
   const rarity = rnd(rarityPool);
 
   let st = 30 + Math.floor(Math.random() * 40);
@@ -64,13 +64,13 @@ function simulate(): Omit<Vazzamon, "cp" | "level"> {
 }
 
 /** Stessa firma di una risposta del server, ma calcolata in locale. */
-export async function generateVazzamonClient(
+export async function generateVatsamonClient(
   imageBase64: string | null,
   _isDemo = false,
-): Promise<Vazzamon> {
+): Promise<Vatsamon> {
   // piccola latenza per far percepire l'analisi
   await new Promise((r) => setTimeout(r, 400));
   const base = simulate();
   const cp = 0; // calcolato dal chiamante
-  return { ...base, imageUrl: imageBase64 ?? undefined, cp, level: 15 } as Vazzamon;
+  return { ...base, imageUrl: imageBase64 ?? undefined, cp, level: 15 } as Vatsamon;
 }

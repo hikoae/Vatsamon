@@ -160,7 +160,7 @@ export const VALDOSTANO_TRAILS: ValdostanTrail[] = [
   }
 ];
 
-export const INITIAL_VAZZADEX: Cow[] = [
+export const INITIAL_VATSADEX: Cow[] = [
   {
     id: 'pre-captured-1',
     name: 'Bimba',

@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import { motion } from "motion/react";
-import { Vazzamon } from "../types";
+import { Vatsamon } from "../types";
 import { NPC_OPPONENTS, Pastore } from "../data/opponents";
 import { CowVisual } from "./CowVisual";
 import {
@@ -34,7 +34,7 @@ export function BattleTurnBased({
   onResult,
   playClick,
 }: {
-  playerCow: Vazzamon;
+  playerCow: Vatsamon;
   onResult: (playerWon: boolean, rewardXp: number, coins: number) => void;
   playClick: () => void;
 }) {

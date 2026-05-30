@@ -2,14 +2,14 @@
 """
 Pulisce i comuni e assegna a ogni bovina coordinate reali (lat/lng) nella zona
 corretta della Valle d'Aosta, con jitter deterministico per spargere le bovine
-attorno al comune (lungo pascoli/sentieri). Riscrive app/src/data/vazzadex.json.
+attorno al comune (lungo pascoli/sentieri). Riscrive app/src/data/vatsadex.json.
 """
 import json
 import os
 import hashlib
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SRC = os.path.join(ROOT, "src", "data", "vazzadex.json")
+SRC = os.path.join(ROOT, "src", "data", "vatsadex.json")
 
 # Coordinate (lat, lng) dei comuni / zone della Valle d'Aosta
 COMUNI = {
