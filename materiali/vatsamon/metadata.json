@@ -1,0 +1,6 @@
+{
+  "name": "Vazzadex - BovineGO",
+  "description": "Esplora i sentieri della Valle d'Aosta in modo responsabile, fotografa le mucche reali nei pascoli e scopri le razze storiche con l'IA nella tua Vazzadex, fino a partecipare alle amichevoli Bataille de Reines!",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
