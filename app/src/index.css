@@ -8,6 +8,40 @@
   --animate-pulse-ring: pulse-ring 1.5s cubic-bezier(0.215, 0.610, 0.355, 1) infinite;
   --animate-radar: ping-radar 3s cubic-bezier(0, 0, 0.2, 1) infinite;
   --animate-shake: shake 0.3s ease-in-out;
+
+  /* ===== PALETTE "POKÉMON" — base viola-indaco elettrica =====
+     Ridefinendo la scala slate, TUTTA l'interfaccia (sfondi/bordi/testi che usano
+     slate-*) diventa più colorata e vivace in un colpo solo. */
+  --color-slate-950: #0b0820;
+  --color-slate-900: #15102e;
+  --color-slate-855: #1c1542;
+  --color-slate-850: #20184a;
+  --color-slate-800: #2c2168;
+  --color-slate-700: #41318f;
+  --color-slate-600: #5b46b3;
+  --color-slate-500: #8a7fd6;
+  --color-slate-450: #a99fe4;
+  --color-slate-400: #bcb4ef;
+  --color-slate-300: #d6d1f7;
+  --color-slate-200: #e9e6fc;
+  --color-slate-100: #f4f2ff;
+  --color-slate-50:  #fbfaff;
+
+  /* Accenti più sgargianti (neon) */
+  --color-emerald-400: #22f5a8;
+  --color-emerald-500: #10e29a;
+  --color-amber-400: #ffc31a;
+  --color-amber-500: #ff9d00;
+  --color-rose-500: #ff3d68;
+  --color-rose-600: #ec2c5a;
+  --color-sky-400: #3ad8ff;
+  --color-blue-400: #4aa8ff;
+  --color-purple-400: #c478ff;
+
+  /* Shade custom usati nel markup (prima non resi) */
+  --color-red-650: #ff3355;
+  --color-amber-550: #ff8e0a;
+  --color-amber-450: #ffb01f;
 }
 
 @keyframes wobble {
@@ -117,12 +151,13 @@
   z-index: 0;
   pointer-events: none;
   background:
-    radial-gradient(40% 40% at 20% 20%, rgba(16, 185, 129, 0.22), transparent 70%),
-    radial-gradient(45% 45% at 80% 15%, rgba(56, 189, 248, 0.20), transparent 70%),
-    radial-gradient(50% 50% at 65% 85%, rgba(245, 158, 11, 0.16), transparent 70%),
-    radial-gradient(40% 40% at 15% 80%, rgba(168, 85, 247, 0.16), transparent 70%);
-  filter: blur(20px) saturate(1.2);
-  animation: aurora 18s ease-in-out infinite;
+    radial-gradient(44% 44% at 16% 16%, rgba(16, 226, 154, 0.55), transparent 68%),
+    radial-gradient(50% 50% at 84% 10%, rgba(58, 216, 255, 0.52), transparent 68%),
+    radial-gradient(54% 54% at 70% 90%, rgba(255, 157, 0, 0.44), transparent 68%),
+    radial-gradient(48% 48% at 10% 84%, rgba(196, 120, 255, 0.50), transparent 68%),
+    radial-gradient(42% 42% at 50% 48%, rgba(255, 61, 140, 0.34), transparent 70%);
+  filter: blur(20px) saturate(1.7);
+  animation: aurora 16s ease-in-out infinite;
 }
 
 /* Transizione d'ingresso di ogni schermata (cambio tab) */
@@ -138,12 +173,13 @@
   50% { background-position: 100% 50%; }
 }
 .title-gradient {
-  background: linear-gradient(90deg, #34d399, #38bdf8, #fbbf24, #34d399);
-  background-size: 300% 100%;
+  background: linear-gradient(90deg, #ff3d8b, #3ad8ff, #ffc31a, #22f5a8, #c478ff, #ff3d8b);
+  background-size: 320% 100%;
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
-  animation: gradient-pan 6s ease infinite;
+  filter: drop-shadow(0 0 6px rgba(58, 216, 255, 0.35));
+  animation: gradient-pan 5s ease infinite;
 }
 
 /* Tab attivo: pillola lucida con bagliore e pop */
@@ -153,8 +189,8 @@
   100% { transform: scale(1); }
 }
 .nav-active {
-  background-image: linear-gradient(160deg, #34d399 0%, #10b981 55%, #059669 100%);
-  box-shadow: 0 6px 16px -4px rgba(16, 185, 129, 0.6), inset 0 1px 0 rgba(255,255,255,0.35);
+  background-image: linear-gradient(160deg, #22f5a8 0%, #10e29a 45%, #3ad8ff 100%);
+  box-shadow: 0 6px 18px -3px rgba(16, 226, 154, 0.7), 0 0 0 1px rgba(58,216,255,0.35), inset 0 1px 0 rgba(255,255,255,0.45);
   animation: tab-pop 0.32s ease;
 }
 
