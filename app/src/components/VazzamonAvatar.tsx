@@ -1,9 +1,9 @@
 import React from 'react';
-import type { Rarita } from '../data/types';
+import { RarityType } from '../types';
 
 interface VazzamonAvatarProps {
   breed: string;
-  rarity: Rarita;
+  rarity: RarityType;
   className?: string;
   isAttacking?: boolean;
 }
@@ -20,8 +20,9 @@ export const VazzamonAvatar: React.FC<VazzamonAvatarProps> = ({
   let hideColor = "#8D5B4C"; // Warm chestnut
   let isSpotted = false;
   let spotColor = "#FFFFFF";
-  const snoutColor = "#FAD3CF";
-
+  let snoutColor = "#FAD3CF";
+  let bellColor = "#FBBF24"; // Golden bell
+  
   if (breedLower.includes("nera") || breedLower.includes("black")) {
     hideColor = "#27272A"; // Charcoal black
     isSpotted = true;
@@ -41,10 +42,12 @@ export const VazzamonAvatar: React.FC<VazzamonAvatarProps> = ({
 
   // Rarity styling effects (card border aura or background sparkle)
   let hornColor = "#E4E4E7"; // Off-white
-  const eyeSparkle = true;
+  let hornDecoration = null;
+  let eyeSparkle = true;
 
   if (rarity === 'Leggendaria') {
     hornColor = "#FBBF24";  // Radiant gold horns
+    bellColor = "#EF4444";  // Ruby embedded bell
   } else if (rarity === 'Epica') {
     hornColor = "#A855F7";  // Violet power horns
   } else if (rarity === 'Rara') {
@@ -54,7 +57,9 @@ export const VazzamonAvatar: React.FC<VazzamonAvatarProps> = ({
   // Generate a distinct hash-like layout based on breed to give variations in spots
   const hash = breed.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
   const spotX1 = 20 + (hash % 15);
+  const spotY1 = 45 + (hash % 10);
   const spotX2 = 65 - (hash % 12);
+  const spotY2 = 35 + (hash % 15);
 
   return (
     <div className={`relative flex items-center justify-center select-none ${className} ${isAttacking ? 'animate-bounce' : ''}`}>

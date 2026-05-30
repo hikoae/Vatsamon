@@ -1,9 +1,9 @@
-import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
+import react from "@vitejs/plugin-react";
+import path from "path";
+import { defineConfig } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
 
-// base = "/vazzamon/" for GitHub Pages project site; override with VITE_BASE if needed.
 export default defineConfig(({ mode }) => ({
   base: mode === "development" ? "/" : "/vazzamon/",
   plugins: [
@@ -11,31 +11,20 @@ export default defineConfig(({ mode }) => ({
     tailwindcss(),
     VitePWA({
       registerType: "autoUpdate",
-      includeAssets: [
-        "favicon.svg",
-        "apple-touch-icon.png",
-        "cow-silhouette.svg",
-        "photos/*.jpg",
-      ],
+      includeAssets: ["favicon.svg", "apple-touch-icon.png", "cow-silhouette.svg", "photos/*.jpg"],
       manifest: {
         name: "Vazzamon — la Vazzadex delle Reines",
         short_name: "Vazzamon",
-        description:
-          "Cattura le mucche reali delle Bataille de Reines valdostane e completa la tua Vazzadex.",
+        description: "Cattura le mucche reali delle Bataille de Reines valdostane.",
         lang: "it",
-        theme_color: "#2E5D34",
-        background_color: "#eef3ec",
+        theme_color: "#0f172a",
+        background_color: "#0f172a",
         display: "standalone",
         orientation: "portrait",
         icons: [
           { src: "icon-192.png", sizes: "192x192", type: "image/png" },
           { src: "icon-512.png", sizes: "512x512", type: "image/png" },
-          {
-            src: "icon-512.png",
-            sizes: "512x512",
-            type: "image/png",
-            purpose: "maskable",
-          },
+          { src: "icon-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
         ],
       },
       workbox: {
@@ -54,4 +43,7 @@ export default defineConfig(({ mode }) => ({
       },
     }),
   ],
+  resolve: {
+    alias: { "@": path.resolve(__dirname, ".") },
+  },
 }));
