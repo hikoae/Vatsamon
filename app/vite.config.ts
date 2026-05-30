@@ -5,7 +5,9 @@ import { defineConfig } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
 
 export default defineConfig(({ mode }) => ({
-  base: mode === "development" ? "/" : "/vatsamon/",
+  // Base = nome del repo GitHub (il sito Pages vive su hikoae.github.io/<repo>/).
+  // Il repo si chiama "vazzamon": gli asset devono puntare a /vazzamon/.
+  base: mode === "development" ? "/" : "/vazzamon/",
   plugins: [
     react(),
     tailwindcss(),
