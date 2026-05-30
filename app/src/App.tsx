@@ -34,6 +34,7 @@ import { CowCard } from './components/CowCard';
 import { TrailOverlay } from './components/TrailOverlay';
 import { VALDOSTAN_TRAILS } from './data/trails';
 import { QuizScreen } from './components/QuizScreen';
+import { BattleTurnBased } from './components/BattleTurnBased';
 import { soundEngine } from './utils/audio';
 import { generateVazzamonClient } from './lib/generate';
 import { REAL_COWS, REAL_TOTAL, REAL_CASERE } from './data/realCows';
@@ -2340,6 +2341,37 @@ export default function App() {
         {/* VIEW 5: BATAILLE DE REINES (TAP COMBAT arena) */}
         {activeTab === 'battle' && (
           <div className="space-y-6" id="battle-tab-view">
+
+            {/* BATAILLE A TURNI (stile Pokémon) vs Pastori */}
+            <div className="bg-slate-950 border border-amber-700/30 rounded-3xl p-5 space-y-4" id="turnbattle-card">
+              <div className="text-center">
+                <h2 className="text-lg font-mono font-black text-amber-400 uppercase tracking-tight flex items-center justify-center gap-1.5">
+                  <Swords className="w-5 h-5" /> Bataille a Turni
+                </h2>
+                <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">Sfida i Pastori in una spinta a turni: 4 mosse dalle statistiche reali della tua Reina.</p>
+              </div>
+              {vazzadex.length > 0 ? (
+                <BattleTurnBased
+                  playerCow={vazzadex.find(c => c.id === activeCombatantId) || vazzadex[0]}
+                  playClick={playClickSfx}
+                  onResult={(won, xp, coins) => {
+                    if (won) {
+                      addTrainerXp(xp);
+                      setTrainer(prev => ({ ...prev, coins: prev.coins + coins }));
+                      setTrekkingFeed(prev => [`🏆 Bataille a turni vinta! +${xp} XP · +${coins} 🪙`, ...prev.slice(0, 8)]);
+                    } else {
+                      setTrekkingFeed(prev => [`🐂 Bataille a turni persa: allena ancora la tua Reina!`, ...prev.slice(0, 8)]);
+                    }
+                  }}
+                />
+              ) : (
+                <div className="text-center py-6 space-y-2">
+                  <p className="text-xs text-slate-500">Cattura una Reina per combattere a turni!</p>
+                  <button onClick={() => setActiveTab('map')} className="bg-emerald-500 text-slate-950 font-mono font-black text-xs px-4 py-2 rounded-xl">Vai alla mappa</button>
+                </div>
+              )}
+            </div>
+
             <div className="bg-slate-950 border border-slate-850 rounded-3xl p-5 text-center space-y-4">
               
               <div className="flex justify-center">

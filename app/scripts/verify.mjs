@@ -136,6 +136,36 @@ if (await fileInput.count()) {
   }
 } else problems.push("scanner: input file assente");
 
+// chiudi l'eventuale schermata d'incontro (modale post-cattura)
+const encounter = page.locator("#encounter-screen");
+if (await encounter.isVisible().catch(() => false)) {
+  await encounter.locator("button").first().click().catch(() => {});
+  await page.waitForTimeout(400);
+}
+
+// Bataille a turni: dopo la cattura c'è una Reina → scegli pastore, combatti
+await clickTab(page, "Gym");
+await page.waitForTimeout(400);
+const startTurn = page.locator("#turnbattle-choose button").first();
+if (await startTurn.count()) {
+  await startTurn.click();
+  await page.waitForTimeout(300);
+  await page.locator("#turnbattle-start").click().catch(() => {});
+  await page.waitForTimeout(300);
+  let tbGuard = 0;
+  while (tbGuard++ < 60) {
+    const ended = await page.locator("#turnbattle-arena .font-mono.font-black", { hasText: /Hai vinto|Hai perso/ }).first().isVisible().catch(() => false);
+    if (ended) break;
+    const moveBtn = page.locator("#turnbattle-moves button:not([disabled])").first();
+    if (await moveBtn.count()) { await moveBtn.click().catch(() => {}); }
+    await page.waitForTimeout(400);
+  }
+  const tbDone = await page.locator("text=/Hai vinto la Bataille|Hai perso questa volta/").isVisible().catch(() => false);
+  note(`bataille a turni conclusa: ${tbDone}`);
+  if (!tbDone) problems.push("la battaglia a turni non si conclude");
+  await page.screenshot({ path: `${OUT}/v2int-7-turnbattle.png` });
+} else problems.push("bataille a turni: selezione pastore assente");
+
 if (errors.length) {
   console.log("  ! errori console:");
   errors.slice(0, 6).forEach((e) => console.log("    - " + e));
