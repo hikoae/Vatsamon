@@ -24,3 +24,4 @@ app/.env.local
 
 # archivi (i contenuti sono già estratti in vatsamon/ e foto/)
 *.zip
+app/dist-netlify/
