@@ -6,7 +6,7 @@
  */
 export interface QuizQuestion {
   id: string;
-  category: "Tradizione" | "Biologia" | "Ecologia" | "Casaro" | "Rispetto" | "Storia";
+  category: "Tradizione" | "Biologia" | "Ecologia" | "Casaro" | "Rispetto" | "Storia" | "Esplorazione";
   question: string;
   options: string[];
   correctAnswerIndex: number;
@@ -269,5 +269,112 @@ export const QUIZ_QUESTIONS: QuizQuestion[] = [
     explanation:
       "La campionessa che vince la finale di categoria diventa la 'Reina' del torneo: un titolo prestigiosissimo per l'allevatore, celebrato in tutta la Valle.",
     difficulty: "Medio",
+  },
+
+  // ===== Esplorazione responsabile: come approcciare il mondo e i sentieri =====
+  {
+    id: "e1",
+    category: "Esplorazione",
+    question: "Prima di partire per un'escursione in alpeggio, qual è la preparazione più responsabile?",
+    options: [
+      "Partire all'avventura senza piani: l'improvvisazione è il bello.",
+      "Controllare meteo e difficoltà del sentiero, dirlo a qualcuno e portare acqua e scarponi adatti.",
+      "Portare un drone per filmare le mucche da vicino.",
+      "Affidarsi solo al GPS del telefono, senza altro.",
+    ],
+    correctAnswerIndex: 1,
+    explanation:
+      "Esplorare bene significa prepararsi: controlla meteo e dislivello, avvisa qualcuno del tuo itinerario, porta acqua, scarponi e strati caldi. La montagna premia chi la rispetta e la conosce.",
+    difficulty: "Facile",
+  },
+  {
+    id: "e2",
+    category: "Esplorazione",
+    question: "Durante l'esplorazione, qual è il modo giusto di scoprire la fauna selvatica (marmotte, camosci, stambecchi)?",
+    options: [
+      "Inseguirli per fare un selfie ravvicinato.",
+      "Dare loro da mangiare per avvicinarli.",
+      "Osservarli a distanza in silenzio, senza disturbarli né nutrirli.",
+      "Imitare i loro versi per farli avvicinare.",
+    ],
+    correctAnswerIndex: 2,
+    explanation:
+      "La fauna va osservata da lontano e in silenzio. Inseguirla o nutrirla la stressa e ne altera i comportamenti naturali. Un buon esploratore lascia solo impronte e porta via solo foto e ricordi.",
+    difficulty: "Facile",
+  },
+  {
+    id: "e3",
+    category: "Esplorazione",
+    question: "Stai esplorando e il sentiero diventa poco chiaro. Cosa fai?",
+    options: [
+      "Taglio per i prati e i pascoli per accorciare.",
+      "Seguo i segnavia bianco-rossi del CAI e, se non li trovo, torno sui miei passi.",
+      "Salgo dritto sulla parete più ripida per orientarmi.",
+      "Continuo a caso: prima o poi arrivo da qualche parte.",
+    ],
+    correctAnswerIndex: 1,
+    explanation:
+      "I segnavia bianco-rossi del CAI indicano il percorso sicuro. Restare sul sentiero protegge te e l'ambiente: tagliare per i prati causa erosione e calpesta l'erba da fieno. Nel dubbio, torna indietro.",
+    difficulty: "Medio",
+  },
+  {
+    id: "e4",
+    category: "Esplorazione",
+    question: "Qual è il principio guida del 'Leave No Trace' (Non Lasciare Traccia)?",
+    options: [
+      "Lasciare frecce di sassi per chi viene dopo.",
+      "Riportare a valle ogni rifiuto e lasciare i luoghi come (o meglio di come) li hai trovati.",
+      "Incidere il proprio nome sulle rocce come ricordo.",
+      "Raccogliere fiori ed erbe rare come souvenir.",
+    ],
+    correctAnswerIndex: 1,
+    explanation:
+      "Non Lasciare Traccia: porta via tutti i rifiuti, non incidere rocce o alberi, non raccogliere fiori protetti. L'obiettivo è che chi arriva dopo trovi la natura intatta come l'hai trovata tu.",
+    difficulty: "Medio",
+  },
+  {
+    id: "e5",
+    category: "Esplorazione",
+    question: "Esplorando incontri un gregge guidato da un cane da pastore (es. Pastore Maremmano). Come ti comporti?",
+    options: [
+      "Lo accarezzo e gioco con lui.",
+      "Mi muovo con calma, lo aggiro a distanza e non corro: sta proteggendo il gregge.",
+      "Gli urlo contro per farlo allontanare.",
+      "Attraverso di corsa in mezzo al gregge.",
+    ],
+    correctAnswerIndex: 1,
+    explanation:
+      "I cani da guardiania proteggono il bestiame da predatori: non vanno accarezzati né sfidati. Procedi con calma, evita gesti bruschi, aggira a distanza e dai spazio al gregge.",
+    difficulty: "Medio",
+  },
+  {
+    id: "e6",
+    category: "Esplorazione",
+    question: "Perché conviene esplorare gli alpeggi al mattino presto o nel tardo pomeriggio?",
+    options: [
+      "Perché i biglietti costano meno.",
+      "Perché si evita il caldo, si incontra più fauna attiva e si rispettano i ritmi del pascolo.",
+      "Perché di notte i sentieri sono chiusi a chiave.",
+      "Perché le mucche dormono e non danno fastidio.",
+    ],
+    correctAnswerIndex: 1,
+    explanation:
+      "Alle prime e ultime ore fa più fresco, la fauna è più attiva e si disturbano meno le attività dell'alpeggio. Esplorare con i ritmi della montagna è più sicuro e più ricco di incontri.",
+    difficulty: "Facile",
+  },
+  {
+    id: "e7",
+    category: "Esplorazione",
+    question: "Qual è l'atteggiamento mentale giusto del buon esploratore in montagna?",
+    options: [
+      "Conquistare la vetta a ogni costo, ignorando rischi e segnali.",
+      "Curiosità e rispetto: osservare, capire e proteggere ciò che si scopre, sapendo rinunciare se serve.",
+      "Andare più veloce di tutti per fare più sentieri possibili.",
+      "Modificare l'ambiente per renderlo più comodo.",
+    ],
+    correctAnswerIndex: 1,
+    explanation:
+      "Esplorare bene è curiosità unita a rispetto e prudenza: si osserva, si impara e si protegge. Saper rinunciare (per meteo, stanchezza o per non disturbare) è segno di un vero esploratore, non di debolezza.",
+    difficulty: "Difficile",
   },
 ];
