@@ -1,57 +1,39 @@
-# 🐮 Vazzamon — PWA
+# 🐮 Vazzamon — PWA (build unica)
 
-La Vazzadex delle **Reines reali** delle Bataille de Reines valdostane.
-Vero gameplay **stile Pokémon GO**: cammini (GPS reale o demo) lungo i sentieri,
-ti avvicini alle bovine sparse nei loro **comuni reali**, e puoi catturarle solo
-quando sei nel raggio → riconoscimento razza → scheda → Vazzadex → Bataille.
-
-> Hackathon **BuildWithAI – GDG Valle d'Aosta**.
-
-## Gameplay (mappa)
-- Ogni bovina è geolocalizzata nel **comune/zona reale** di provenienza
-  (`scripts/place_bovine.py` assegna lat/lng + jitter, 0 fuori dalla VdA).
-- Marker del **giocatore** + cerchio del **raggio di cattura** (150 m).
-- Bovine **verdi** se a portata, **grigie** se lontane (tap → distanza).
-- **📍 GPS reale** (`watchPosition`) per giocare all'aperto.
-- **Demo al chiuso**: tocca la mappa per "camminare" verso le 🐮, oppure
-  il bottone **🥾 Avvicinati**. I metri percorsi diventano passi e punti.
+Fusione dei due prototipi: i **dati reali** (73 Reines con foto, comuni veri,
+4 statistiche) + il **gioco stile Pokémon GO** di v2 (cattura, item, uova,
+arena, allenatore, audio). Build **statica**, niente server, riconoscimento IA
+**simulato** (offline-proof). PC-first, installabile come PWA.
 
 ## Stack
-- **Vite + React + TypeScript** (PWA installabile, offline-ready via `vite-plugin-pwa`)
-- **Leaflet** + tile OpenStreetMap (nessuna API key)
-- Stato utente in **localStorage** (catturate, punti, passi) — niente backend, niente login
-- Dataset **reale** v0.3: 73 bovine + 6 pascoli (`src/data/vazzadex.json`), 35 foto reali in `public/photos/`
+- **Vite + React + TypeScript**, **Tailwind v4**, `motion` (animazioni), `lucide-react` (icone)
+- **react-leaflet** + OpenStreetMap (nessuna API key)
+- Stato in **localStorage** (`vazzamon.save.v2`): collezione, allenatore, zaino, uova
+- Audio sintetizzato via Web Audio (`src/lib/audio.ts`)
+- PWA offline via `vite-plugin-pwa`
 
-## Riconoscimento — Demo Mode
-Il riconoscimento razza è **simulato in locale** (`src/lib/recognition.ts`): nessuna
-chiamata di rete, la demo funziona sempre anche offline (a prova di palco).
-L'incontro è pre-assegnato dal pascolo; la "foto" conferma razza + confidenza e
-rivela la scheda. Pronto a essere sostituito con una vera chiamata Gemini multimodale.
+## Schermate (5 tab + barra allenatore)
+1. **Mappa** — player + GPS reale / demo (tocca per camminare), raggio di cattura 150 m,
+   sentiero reale, bovine reali (con foto) + selvatiche IA, **Casere/PokéStop** con ruota premi.
+2. **Scanner** — foto/camera → analisi simulata → **Vazzamon bonus** generato (avatar + lore + eco-tip).
+3. **Uova** — incubazione/schiusa camminando.
+4. **Vazzadex** — griglia reali (X/73) + bonus IA, ricerca, scheda dettaglio, **potenzia / libera**.
+5. **Bataille** — arena in tempo reale: attacca / schiva / super (energia).
 
-## Sviluppo
+## Comandi
 ```bash
-cd app
 npm install
-npm run dev      # http://localhost:5173
-npm run build    # output in dist/
-npm run preview  # anteprima della build
+npm run dev       # http://localhost:5173
+npm run build     # build statica in dist/
+npm run verify    # Playwright: navbar, mappa, cattura, scanner, contatore (desktop+mobile)
 ```
+
+## Dati e collocazione
+- `src/data/vazzadex.json` — 73 bovine + 6 pascoli (v0.3), con lat/lng nei comuni reali.
+- `scripts/place_bovine.py` — geocoding/pulizia comuni (rigenera le coordinate).
+- Foto reali in `public/photos/`.
 
 ## Deploy su GitHub Pages
-1. Il repository **deve chiamarsi `vazzamon`** (il `base` in `vite.config.ts` è `/vazzamon/`).
-   Se usi un altro nome, cambia quel valore.
-2. Push su `main`: la GitHub Action in `.github/workflows/deploy.yml` builda e pubblica.
-3. Su GitHub → **Settings → Pages → Source: GitHub Actions**.
-4. URL finale: `https://<utente>.github.io/vazzamon/` → apri da Safari su iPhone →
-   *Condividi → Aggiungi a Home* per installare la PWA.
-
-## Struttura
-```
-app/src/
-├─ data/        vazzadex.json (v0.3) + types + loader (db.ts)
-├─ store/       game.tsx  → stato localStorage (catture, punti, custom)
-├─ lib/         recognition.ts (Demo Mode) · rarity.ts
-├─ components/  CowImage · StatBars · CowDetail · Navbar · EducationPopup
-├─ screens/     MapScreen · EncounterScreen · VazzadexScreen · BattleScreen · ProfileScreen
-└─ App.tsx
-```
+Repo chiamato **`vazzamon`** (il `base` in `vite.config.ts` è `/vazzamon/`).
+Push su `main` → la Action `.github/workflows/deploy.yml` builda `app/` e pubblica.
+Poi *Settings → Pages → Source: GitHub Actions*.

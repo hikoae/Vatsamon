@@ -1,80 +1,76 @@
-import type { Bovina } from "../data/types";
+import { motion } from "motion/react";
+import { X, TrendingUp, Gift } from "lucide-react";
+import type { Vazzamon } from "../data/types";
+import { useGame } from "../store/game";
 import { rarityColor, stelle } from "../lib/rarity";
-import { CowImage } from "./CowImage";
+import { Portrait } from "./Portrait";
 import { StatBars } from "./StatBars";
 
 export function CowDetail({
-  bovina,
-  onClose,
-  catturata,
+  cow, onClose, catturata,
 }: {
-  bovina: Bovina;
+  cow: Vazzamon;
   onClose: () => void;
   catturata: boolean;
 }) {
+  const { potenzia, rilascia, getCow } = useGame();
+  // se è in collezione, mostra la versione aggiornata (power-up)
+  const live = getCow(cow.id) ?? cow;
+  const reale = live.origine === "reale";
+
   return (
-    <div className="overlay" onClick={onClose}>
-      <div className="sheet" onClick={(e) => e.stopPropagation()}>
-        <div className="handle" />
-
-        <div style={{ position: "relative" }}>
-          <CowImage bovina={bovina} className="hero-img" forceSilhouette={!catturata} />
-          <span
-            className="rarity-badge"
-            style={{
-              position: "absolute",
-              top: 10,
-              left: 10,
-              background: rarityColor(bovina.rarita),
-            }}
-          >
-            {bovina.rarita}
+    <div className="fixed inset-0 z-[4000] flex items-end justify-center bg-alpino-900/60 backdrop-blur-sm" onClick={onClose}>
+      <motion.div initial={{ y: "100%" }} animate={{ y: 0 }}
+        className="w-full max-w-[520px] max-h-[94vh] overflow-y-auto rounded-t-3xl bg-crema p-4 pb-8" onClick={(e) => e.stopPropagation()}>
+        <div className="flex justify-between items-center mb-2">
+          <span className="text-white text-[11px] font-extrabold px-2.5 py-1 rounded-full" style={{ background: rarityColor(live.rarita) }}>
+            {live.rarita} {reale ? "" : "· IA"}
           </span>
+          <button onClick={onClose} className="p-1 text-pietra"><X size={22} /></button>
         </div>
 
-        <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginTop: 12 }}>
-          <h2 style={{ margin: 0 }}>{catturata ? bovina.nome : "???"}</h2>
-          <span style={{ color: "#f59e0b", fontSize: 16 }}>{stelle(bovina.stelle)}</span>
-        </div>
-        <div className="muted" style={{ marginBottom: 10 }}>
-          {bovina.tipo} · {bovina.razza} · cat. {bovina.categoria}
-        </div>
+        <Portrait cow={live} className="w-full aspect-[4/3]" forceSilhouette={!catturata} />
 
-        <p style={{ fontSize: 14, lineHeight: 1.5 }}>{bovina.descrizione}</p>
-
-        <div className="card" style={{ padding: 14, marginTop: 6 }}>
-          <StatBars stats={bovina.stats} potenza={bovina.potenza} />
+        <div className="flex items-baseline gap-2 mt-3">
+          <h2 className="text-2xl font-extrabold">{catturata ? live.nome : "???"}</h2>
+          <span className="text-oro">{stelle(live.stelle)}</span>
+          <span className="ml-auto text-sm font-bold text-pietra">CP {live.cp} · Liv. {live.level}</span>
         </div>
+        <div className="text-sm text-pietra mb-2">{live.tipo} · {live.razza} · cat. {live.categoria}</div>
+        <p className="text-sm leading-snug mb-3">{live.lore ?? live.descrizione}</p>
 
-        <div style={{ marginTop: 14 }}>
-          <div className="kv">
-            <b>Riconoscimento</b>
-            <span>{bovina.riconoscimento}</span>
-          </div>
-          <div className="kv">
-            <b>Comune / zona</b>
-            <span>{bovina.comune}</span>
-          </div>
-          <div className="kv">
-            <b>Allevatore</b>
-            <span>{bovina.allevatore || "—"}</span>
-          </div>
-          <div className="kv">
-            <b>Matricola</b>
-            <span>{bovina.matricola || "—"}</span>
-          </div>
-          <div className="kv">
-            <b>Peso</b>
-            <span>
-              {bovina.peso_kg} kg{bovina.peso_stimato ? " (stima)" : ""}
-            </span>
-          </div>
+        <div className="bg-white rounded-2xl p-3.5 mb-3"><StatBars stats={live.stats} potenza={live.potenza} /></div>
+
+        {live.eco_tip && <div className="bg-alpino-50 text-alpino-900 rounded-xl p-3 text-[13px] font-medium mb-3">🌿 {live.eco_tip}</div>}
+
+        <div className="text-sm">
+          {reale && <Row k="Riconoscimento" v={live.riconoscimento} />}
+          <Row k="Comune / zona" v={live.comune} />
+          {reale && <Row k="Allevatore" v={live.allevatore || "—"} />}
+          {reale && live.matricola && <Row k="Matricola" v={live.matricola} />}
+          <Row k="Peso" v={`${live.peso_kg} kg${live.peso_stimato ? " (stima)" : ""}`} />
         </div>
 
-        <button className="btn secondary" style={{ marginTop: 16 }} onClick={onClose}>
-          Chiudi
-        </button>
-      </div>
+        {catturata && (
+          <div className="flex gap-2 mt-4">
+            <button className="btn-alpino flex-1 bg-oro" onClick={() => potenzia(live.id)}>
+              <TrendingUp size={18} /> Potenzia (15🪙 + 🌾)
+            </button>
+            <button className="btn-alpino flex-1 bg-pietra" onClick={() => { if (confirm(`Liberare ${live.nome}? Ricevi +5 fieno.`)) { rilascia(live.id); onClose(); } }}>
+              <Gift size={18} /> Libera
+            </button>
+          </div>
+        )}
+      </motion.div>
+    </div>
+  );
+}
+
+function Row({ k, v }: { k: string; v: string }) {
+  return (
+    <div className="flex justify-between py-2 border-b border-alpino-100">
+      <b>{k}</b>
+      <span className="text-pietra">{v}</span>
     </div>
   );
 }

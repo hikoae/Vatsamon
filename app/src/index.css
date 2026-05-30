@@ -1,0 +1,171 @@
+@import "tailwindcss";
+
+/* ===== Tema alpino valdostano (v2 "ripulito") ===== */
+@theme {
+  --color-alpino-50: #f1f6ef;
+  --color-alpino-100: #dcebd6;
+  --color-alpino-200: #bcd8b2;
+  --color-alpino-300: #93bf85;
+  --color-alpino-400: #6aa157;
+  --color-alpino-500: #4a8438;
+  --color-alpino-600: #356a28;
+  --color-alpino-700: #2e5d34;
+  --color-alpino-800: #244a26;
+  --color-alpino-900: #1f4324;
+
+  --color-crema: #f7f5ef;
+  --color-crema-scuro: #ece7da;
+  --color-legno: #8a6d4b;
+  --color-pietra: #6b7280;
+
+  --color-oro: #e0a82e;
+  --color-cielo: #2b7fff;
+
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
+    Arial, sans-serif;
+
+  --radius-card: 1.1rem;
+}
+
+/* rarità */
+:root {
+  --rar-comune: #7c8a82;
+  --rar-noncomune: #16a34a;
+  --rar-rara: #2b7fff;
+  --rar-epica: #a855f7;
+  --rar-leggendaria: #e0a82e;
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: var(--font-sans);
+  background:
+    radial-gradient(1200px 600px at 50% -10%, #eaf3e6 0%, transparent 60%),
+    linear-gradient(180deg, #eef3ec 0%, #e6efe3 100%);
+  color: #1b2a1d;
+  overscroll-behavior: none;
+}
+
+/* ---- utility riusabili ---- */
+.glass {
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(46, 93, 52, 0.1);
+}
+
+.btn-alpino {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-weight: 700;
+  border-radius: 0.9rem;
+  padding: 0.85rem 1.1rem;
+  background: var(--color-alpino-700);
+  color: #fff;
+  transition: transform 0.08s ease, filter 0.15s ease;
+}
+.btn-alpino:active {
+  transform: scale(0.97);
+}
+.btn-alpino:disabled {
+  opacity: 0.5;
+}
+
+/* barra di scorrimento sottile */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(46, 93, 52, 0.25);
+  border-radius: 999px;
+}
+
+/* animazioni leggere */
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+.animate-float {
+  animation: float 2.4s ease-in-out infinite;
+}
+
+/* Leaflet sotto gli overlay dell'app */
+.leaflet-pane,
+.leaflet-top,
+.leaflet-bottom {
+  z-index: 400 !important;
+}
+.leaflet-container {
+  background: #aadaff;
+}
+
+/* marker bovine */
+.pin {
+  position: relative;
+  width: 34px;
+  height: 34px;
+  background: var(--color-alpino-700);
+  border: 2px solid #fff;
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 10px rgba(31, 67, 36, 0.3);
+}
+.pin span {
+  transform: rotate(45deg);
+  font-size: 17px;
+}
+.pin.far {
+  background: #9aa6a0;
+  opacity: 0.85;
+}
+.pin .cp {
+  position: absolute;
+  top: -9px;
+  right: -9px;
+  transform: rotate(45deg);
+  background: var(--color-oro);
+  color: #1b2a1d;
+  font-size: 8px;
+  font-weight: 800;
+  padding: 1px 4px;
+  border-radius: 999px;
+}
+.casera {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  background: var(--color-cielo);
+  border: 2px solid #fff;
+  border-radius: 50%;
+  font-size: 15px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
+}
+.player-dot {
+  width: 18px;
+  height: 18px;
+  background: var(--color-cielo);
+  border: 3px solid #fff;
+  border-radius: 50%;
+  box-shadow: 0 0 0 4px rgba(43, 127, 255, 0.3);
+  animation: pulse 1.8s ease-out infinite;
+}
+@keyframes pulse {
+  0% { box-shadow: 0 0 0 0 rgba(43, 127, 255, 0.45); }
+  100% { box-shadow: 0 0 0 16px rgba(43, 127, 255, 0); }
+}

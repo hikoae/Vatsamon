@@ -1,147 +1,193 @@
-import { useMemo, useState } from "react";
-import { BOVINE } from "../data/db";
-import type { Bovina } from "../data/types";
+import { useEffect, useRef, useState } from "react";
+import { motion } from "motion/react";
+import { Swords, Shield, Zap } from "lucide-react";
+import type { Vazzamon } from "../data/types";
 import { useGame } from "../store/game";
-import { CowImage } from "../components/CowImage";
+import { soundEngine } from "../lib/audio";
+import { Portrait } from "../components/Portrait";
 import { stelle } from "../lib/rarity";
 
-type Esito = { vincitrice: Bovina; perdente: Bovina } | null;
+type Status = "select" | "intro" | "active" | "ended";
 
 export function BattleScreen({ onToast }: { onToast: (m: string) => void }) {
-  const { captured, customBovine, vinciBattaglia } = useGame();
+  const { collezione, trainer, addXp, addCoins, sound } = useGame();
 
-  const disponibili = useMemo<Bovina[]>(
-    () => [...BOVINE, ...customBovine].filter((b) => captured.has(b.id)),
-    [captured, customBovine],
-  );
+  const [status, setStatus] = useState<Status>("select");
+  const [mine, setMine] = useState<Vazzamon | null>(null);
+  const [opp, setOpp] = useState<Vazzamon | null>(null);
+  const [pHp, setPHp] = useState(100); const [pMax, setPMax] = useState(100);
+  const [oHp, setOHp] = useState(100); const [oMax, setOMax] = useState(100);
+  const [energy, setEnergy] = useState(0);
+  const [oEnergy, setOEnergy] = useState(0);
+  const [dodge, setDodge] = useState(false);
+  const [winner, setWinner] = useState<"player" | "opponent" | null>(null);
+  const [log, setLog] = useState<string[]>([]);
+  const [pAnim, setPAnim] = useState(false);
+  const [oAnim, setOAnim] = useState(false);
+  const loop = useRef<ReturnType<typeof setInterval> | null>(null);
+  const dodgeRef = useRef(false);
 
-  const [a, setA] = useState<Bovina | null>(null);
-  const [b, setB] = useState<Bovina | null>(null);
-  const [esito, setEsito] = useState<Esito>(null);
-  const [fighting, setFighting] = useState(false);
+  const play = (f: () => void) => { if (sound) f(); };
+  const push = (m: string) => setLog((l) => [...l.slice(-5), m]);
 
-  function scegli(bovina: Bovina) {
-    setEsito(null);
-    if (a?.id === bovina.id) return setA(null);
-    if (b?.id === bovina.id) return setB(null);
-    if (!a) return setA(bovina);
-    if (!b) return setB(bovina);
-    setA(bovina);
-    setB(null);
+  function avvia(c: Vazzamon) {
+    // avversario scalato: una bovina forte dalla collezione o un boss
+    const pool = collezione.filter((x) => x.id !== c.id);
+    const base = pool.sort((a, b) => b.cp - a.cp)[0] ?? c;
+    const mult = 1 + trainer.level * 0.08;
+    const o: Vazzamon = { ...base, id: "boss", nome: base.nome + " Boss", cp: Math.round(base.cp * mult) };
+    const phm = 280 + c.level * 12, ohm = 260 + o.level * 18;
+    setMine(c); setOpp(o);
+    setPHp(phm); setPMax(phm); setOHp(ohm); setOMax(ohm);
+    setEnergy(0); setOEnergy(0); setWinner(null);
+    setLog([`🥊 Arena Bataille de Reines d'Aosta!`, `⚔️ ${c.nome} (CP ${c.cp}) vs ${o.nome} (CP ${o.cp})`, `👉 Tocca per colpire, 🛡️ schiva quando carica!`]);
+    setStatus("intro");
   }
 
-  function combatti() {
-    if (!a || !b) return;
-    setFighting(true);
-    setEsito(null);
-    setTimeout(() => {
-      const [vincitrice, perdente] = a.potenza >= b.potenza ? [a, b] : [b, a];
-      setEsito({ vincitrice, perdente });
-      vinciBattaglia();
-      setFighting(false);
-      onToast(`👑 ${vincitrice.nome} è la Reina! +5 punti`);
-    }, 1100);
+  // AI loop
+  useEffect(() => {
+    if (status !== "active") return;
+    loop.current = setInterval(() => {
+      setOpp((o) => o);
+      setOHp((curO) => curO); // noop to keep deps simple
+      const dmgBase = Math.floor(12 + (opp?.stats.corna ?? 60) * 0.15 + Math.random() * 8);
+      let superMove = false;
+      setOEnergy((e) => { if (e >= 100) { superMove = true; return 0; } return Math.min(100, e + 22); });
+      const dmg = superMove ? Math.floor(dmgBase * 2.2) : dmgBase;
+      const final = dodgeRef.current ? Math.floor(dmg * 0.15) : dmg;
+      play(() => soundEngine.playHeadbutt());
+      setOAnim(true); setTimeout(() => setOAnim(false), 250);
+      push(dodgeRef.current
+        ? `🛡️ Hai schivato ${superMove ? "l'INCORNATA" : "l'attacco"}! Solo ${final} danni.`
+        : `💥 ${opp?.nome} ${superMove ? "INCORNATA DEVASTANTE" : "spallata"}: ${final} danni!`);
+      setPHp((hp) => {
+        const next = Math.max(0, hp - final);
+        if (next <= 0) { endMatch("opponent"); }
+        return next;
+      });
+    }, 1700);
+    return () => { if (loop.current) clearInterval(loop.current); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status, opp]);
+
+  function endMatch(w: "player" | "opponent") {
+    if (loop.current) clearInterval(loop.current);
+    setWinner(w); setStatus("ended");
+    if (w === "player") {
+      play(() => soundEngine.playVictoryFanfare());
+      addXp(500); addCoins(60);
+      onToast("🏆 Vittoria! +500 XP, +60 🪙");
+    } else onToast("Sconfitta dignitosa: potenzia le tue Reines!");
   }
 
-  if (disponibili.length < 2) {
+  function attacca() {
+    if (status === "intro") { setStatus("active"); return; }
+    if (status !== "active" || !mine) return;
+    play(() => soundEngine.playHeadbutt());
+    setPAnim(true); setTimeout(() => setPAnim(false), 200);
+    const dmg = Math.floor(10 + mine.stats.corna * 0.16 + Math.random() * 8);
+    setEnergy((e) => Math.min(100, e + 12));
+    setOHp((hp) => { const next = Math.max(0, hp - dmg); if (next <= 0) endMatch("player"); return next; });
+    push(`⚔️ ${mine.nome} colpisce: ${dmg} danni!`);
+  }
+  function schiva() {
+    if (status !== "active" || dodgeRef.current) return;
+    play(() => soundEngine.playClick());
+    dodgeRef.current = true; setDodge(true);
+    setTimeout(() => { dodgeRef.current = false; setDodge(false); }, 500);
+  }
+  function super_() {
+    if (status !== "active" || energy < 100 || !mine) return;
+    play(() => soundEngine.playVictoryFanfare());
+    setEnergy(0);
+    const dmg = Math.floor((16 + mine.stats.corna * 0.22) * 2.4);
+    setOHp((hp) => { const next = Math.max(0, hp - dmg); if (next <= 0) endMatch("player"); return next; });
+    push(`🌟 RUGITO DELLA COGNE: ${dmg} danni devastanti!`);
+  }
+
+  if (collezione.length < 1) {
     return (
-      <div className="screen">
-        <h2>Bataille de Reines 👑</h2>
-        <div className="banner">
-          Cattura almeno <b>2 bovine</b> per organizzare una sfida. Vai sulla mappa e
-          cerca le Reines nei pascoli!
+      <div className="h-full overflow-y-auto p-4">
+        <h2 className="text-xl font-extrabold mb-2">Bataille de Reines 👑</h2>
+        <div className="bg-alpino-50 text-alpino-900 rounded-xl p-4 text-sm font-medium">
+          Cattura almeno una Reina sulla mappa per combattere nell'arena!
+        </div>
+      </div>
+    );
+  }
+
+  if (status === "select") {
+    return (
+      <div className="h-full overflow-y-auto p-4 pb-6">
+        <h2 className="text-xl font-extrabold mb-1">Bataille de Reines 👑</h2>
+        <p className="text-sm text-pietra mb-4">Scegli la tua campionessa. Niente violenza: è una sfida di tecnica e statistiche.</p>
+        <div className="grid grid-cols-3 gap-2.5">
+          {collezione.map((c) => (
+            <button key={c.id} onClick={() => avvia(c)} className="bg-white rounded-2xl shadow-sm overflow-hidden text-center pb-2">
+              <div className="aspect-square"><Portrait cow={c} className="w-full h-full" rounded="rounded-none" /></div>
+              <div className="font-bold text-xs mt-1 truncate px-1">{c.nome}</div>
+              <div className="text-[10px] text-pietra">⚡ CP {c.cp}</div>
+            </button>
+          ))}
         </div>
       </div>
     );
   }
 
   return (
-    <div className="screen">
-      <h2>Bataille de Reines 👑</h2>
-      <p className="muted" style={{ marginTop: 0 }}>
-        Niente violenza: vince la <b>potenza</b> più alta. Scegli due Reines.
-      </p>
+    <div className="h-full overflow-y-auto p-4 pb-6">
+      {/* avversario */}
+      <Fighter cow={opp!} hp={oHp} max={oMax} energy={oEnergy} anim={oAnim} flip />
+      <div className="text-center text-2xl font-black my-1 text-alpino-700">VS</div>
+      {/* giocatore */}
+      <Fighter cow={mine!} hp={pHp} max={pMax} energy={energy} anim={pAnim} dodge={dodge} />
 
-      <div style={{ display: "flex", gap: 10, margin: "8px 0 14px" }}>
-        <Slot bovina={a} label="Sfidante 1" />
-        <div style={{ alignSelf: "center", fontWeight: 800, fontSize: 22 }}>VS</div>
-        <Slot bovina={b} label="Sfidante 2" />
+      <div className="bg-alpino-900/90 text-white rounded-xl p-2.5 h-24 overflow-y-auto text-[11px] my-3 space-y-0.5">
+        {log.map((l, i) => <div key={i}>{l}</div>)}
       </div>
 
-      <button
-        className="btn"
-        disabled={!a || !b || fighting}
-        onClick={combatti}
-        style={{ marginBottom: 8 }}
-      >
-        {fighting ? "Combattono…" : "⚔️ Fai combattere"}
-      </button>
+      {status === "intro" && <button onClick={attacca} className="btn-alpino w-full">▶️ Inizia la sfida</button>}
 
-      {esito && (
-        <div className="card" style={{ padding: 16, textAlign: "center", marginBottom: 14 }}>
-          <div style={{ fontSize: 40 }}>👑</div>
-          <h2 style={{ margin: "4px 0" }}>{esito.vincitrice.nome}</h2>
-          <div className="muted">Reina del pascolo!</div>
-          <div style={{ marginTop: 8, fontWeight: 700 }}>
-            {esito.vincitrice.potenza} vs {esito.perdente.potenza} potenza
-          </div>
+      {status === "active" && (
+        <div className="grid grid-cols-3 gap-2">
+          <button onClick={attacca} className="btn-alpino"><Swords size={18} /> Attacca</button>
+          <button onClick={schiva} className={`btn-alpino ${dodge ? "bg-cielo" : "bg-alpino-500"}`}><Shield size={18} /> Schiva</button>
+          <button onClick={super_} disabled={energy < 100} className="btn-alpino bg-oro disabled:opacity-40"><Zap size={18} /> Super</button>
         </div>
       )}
 
-      <h3 style={{ margin: "6px 2px" }}>Le tue Reines</h3>
-      <div className="grid">
-        {disponibili.map((bv) => {
-          const scelta = a?.id === bv.id || b?.id === bv.id;
-          return (
-            <button
-              key={bv.id}
-              className="cell"
-              style={{ borderColor: scelta ? "var(--verde)" : "transparent" }}
-              onClick={() => scegli(bv)}
-            >
-              <CowImage bovina={bv} className="thumb" />
-              <div className="nome">{bv.nome}</div>
-              <div className="stelle">{stelle(bv.stelle)}</div>
-              <div className="tipo">⚡ {bv.potenza}</div>
-            </button>
-          );
-        })}
-      </div>
+      {status === "ended" && (
+        <div className="text-center">
+          <div className="text-4xl mb-2">{winner === "player" ? "🏆" : "💪"}</div>
+          <div className="font-extrabold text-lg mb-3">{winner === "player" ? "Reina del pascolo!" : "Sconfitta dignitosa"}</div>
+          <button onClick={() => setStatus("select")} className="btn-alpino w-full">Nuova sfida</button>
+        </div>
+      )}
     </div>
   );
 }
 
-function Slot({ bovina, label }: { bovina: Bovina | null; label: string }) {
+function Fighter({ cow, hp, max, energy, anim, flip, dodge }: {
+  cow: Vazzamon; hp: number; max: number; energy: number; anim: boolean; flip?: boolean; dodge?: boolean;
+}) {
   return (
-    <div className="card" style={{ flex: 1, padding: 10, textAlign: "center", minHeight: 150 }}>
-      {bovina ? (
-        <>
-          <CowImage
-            bovina={bovina}
-            className="thumb"
-            alt={bovina.nome}
-          />
-          <div className="nome">{bovina.nome}</div>
-          <div className="tipo">⚡ {bovina.potenza}</div>
-        </>
-      ) : (
-        <div
-          style={{
-            height: "100%",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            color: "var(--testo-soft)",
-            fontSize: 13,
-            fontWeight: 600,
-            padding: 12,
-          }}
-        >
-          {label}
-          <br />
-          (tocca una Reina)
+    <div className="glass rounded-card p-3 flex items-center gap-3">
+      <motion.div animate={anim ? { x: flip ? [-6, 6, 0] : [6, -6, 0] } : dodge ? { x: [-12, 12, -8, 0] } : {}} transition={{ duration: 0.25 }} className="w-16 h-16 shrink-0">
+        <Portrait cow={cow} className="w-16 h-16" />
+      </motion.div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          <span className="font-bold text-sm truncate">{cow.nome}</span>
+          <span className="text-[11px] text-oro">{stelle(cow.stelle)}</span>
+          <span className="ml-auto text-[11px] font-bold text-pietra">CP {cow.cp}</span>
         </div>
-      )}
+        <div className="h-2.5 mt-1 rounded-full bg-alpino-100 overflow-hidden">
+          <div className="h-full transition-[width]" style={{ width: `${(hp / max) * 100}%`, background: hp / max > 0.3 ? "#22c55e" : "#ef4444" }} />
+        </div>
+        <div className="h-1.5 mt-1 rounded-full bg-alpino-100 overflow-hidden">
+          <div className="h-full bg-oro transition-[width]" style={{ width: `${energy}%` }} />
+        </div>
+      </div>
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import tailwindcss from "@tailwindcss/vite";
 import { VitePWA } from "vite-plugin-pwa";
 
 // base = "/vazzamon/" for GitHub Pages project site; override with VITE_BASE if needed.
@@ -7,6 +8,7 @@ export default defineConfig(({ mode }) => ({
   base: mode === "development" ? "/" : "/vazzamon/",
   plugins: [
     react(),
+    tailwindcss(),
     VitePWA({
       registerType: "autoUpdate",
       includeAssets: [

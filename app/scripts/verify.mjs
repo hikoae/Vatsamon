@@ -5,9 +5,8 @@ const APP_URL = process.env.URL ?? "http://localhost:5173/";
 const OUT = "/tmp/vazzamon-shots";
 mkdirSync(OUT, { recursive: true });
 
-// una bovina reale su cui posizionare il "GPS" per testare la cattura di prossimità
 const data = JSON.parse(readFileSync(new URL("../src/data/vazzadex.json", import.meta.url)));
-const target = data.bovine[0];
+const target = data.bovine[0]; // GPS qui per testare la prossimità
 
 const viewports = [
   { name: "desktop", width: 1280, height: 832, isMobile: false },
@@ -34,87 +33,85 @@ for (const vp of viewports) {
   page.on("pageerror", (e) => errors.push("PAGEERROR: " + e.message));
 
   await page.goto(APP_URL, { waitUntil: "networkidle" });
-  await page.waitForTimeout(900);
+  await page.waitForTimeout(1000);
 
-  // --- Topbar + navbar ---
-  const navVisible = await page.locator(".navbar").isVisible();
-  const nBtns = await page.locator(".navbar button").count();
-  note(`navbar visibile: ${navVisible} · pulsanti: ${nBtns}`);
-  if (!navVisible) problems.push(`[${vp.name}] navbar non visibile`);
-  if (nBtns !== 4) problems.push(`[${vp.name}] navbar ha ${nBtns} pulsanti`);
+  // TrainerBar + BottomNav
+  const trainer = await page.locator("header", { hasText: "Liv." }).isVisible();
+  const navBtns = page.locator("nav button");
+  const nNav = await navBtns.count();
+  note(`TrainerBar: ${trainer} · tab nav: ${nNav}`);
+  if (!trainer) problems.push(`[${vp.name}] TrainerBar assente`);
+  if (nNav !== 5) problems.push(`[${vp.name}] nav ha ${nNav} tab (attesi 5)`);
 
-  // --- Mappa: player + bovine + HUD ---
+  // Mappa
   const player = await page.locator(".player-dot").count();
-  const cows = await page.locator(".leaflet-marker-icon").count();
-  const hud = await page.locator(".map-hud-top .hud-pill").isVisible();
-  note(`player marker: ${player} · marker totali: ${cows} · HUD: ${hud}`);
-  if (player < 1) problems.push(`[${vp.name}] manca il marker del giocatore`);
-  if (cows < 10) problems.push(`[${vp.name}] poche bovine sulla mappa (${cows})`);
-  if (!hud) problems.push(`[${vp.name}] HUD di stato non visibile`);
-  await page.screenshot({ path: `${OUT}/${vp.name}-1-mappa.png` });
+  const pins = await page.locator(".leaflet-marker-icon .pin").count();
+  const casere = await page.locator(".casera").count();
+  note(`player: ${player} · pin bovine: ${pins} · casere: ${casere}`);
+  if (!player) problems.push(`[${vp.name}] manca player marker`);
+  if (pins < 10) problems.push(`[${vp.name}] poche bovine (${pins})`);
+  if (!casere) problems.push(`[${vp.name}] mancano le Casere`);
+  await page.screenshot({ path: `${OUT}/v2-${vp.name}-1-mappa.png` });
 
-  // --- Giro dei tab ---
-  for (const [label, shot] of [
-    ["Vazzadex", "2-vazzadex"],
-    ["Bataille", "3-bataille"],
-    ["Profilo", "4-profilo"],
-  ]) {
-    await page.locator(".navbar button", { hasText: label }).click();
+  // giro tab
+  for (const [label, shot] of [["Scanner", "2-scanner"], ["Uova", "3-uova"], ["Vazzadex", "4-dex"], ["Bataille", "5-bataille"]]) {
+    await page.locator("nav button", { hasText: label }).click();
     await page.waitForTimeout(450);
-    const ok = await page.locator(".screen h2, .card").first().isVisible().catch(() => false);
-    note(`tab ${label}: contenuto = ${ok}`);
+    const ok = await page.locator("h2, .glass").first().isVisible().catch(() => false);
+    note(`tab ${label}: ${ok}`);
     if (!ok) problems.push(`[${vp.name}] tab ${label} vuoto`);
-    await page.screenshot({ path: `${OUT}/${vp.name}-${shot}.png` });
+    await page.screenshot({ path: `${OUT}/v2-${vp.name}-${shot}.png` });
   }
 
-  // --- Flusso Pokémon GO: GPS → prossimità → cattura (solo mobile) ---
+  // Scanner: genera a sorpresa
+  await page.locator("nav button", { hasText: "Scanner" }).click();
+  await page.waitForTimeout(300);
+  await page.locator("button", { hasText: "Genera a sorpresa" }).click();
+  await page.waitForTimeout(1800);
+  const scanOk = await page.locator("button", { hasText: "Analizza un'altra" }).isVisible();
+  note(`scanner genera Vazzamon: ${scanOk}`);
+  if (!scanOk) problems.push(`[${vp.name}] scanner non genera`);
+
   if (vp.name === "mobile") {
-    await page.locator(".navbar button", { hasText: "Mappa" }).click();
-    await page.waitForTimeout(700);
-
-    // attiva il GPS (geolocation mockata sulla bovina target → entriamo nel raggio)
-    await page.locator(".hud-btn", { hasText: "GPS reale" }).click();
+    // cattura interattiva: GPS -> in range -> tap bovina -> master ball -> lancia
+    await page.locator("nav button", { hasText: "Mappa" }).click();
+    await page.waitForTimeout(600);
+    await page.locator("button", { hasText: "GPS reale" }).click();
     await page.waitForTimeout(1200);
-    const pill = await page.locator(".map-hud-top .hud-pill").innerText();
+    const pill = await page.locator(".absolute.top-2\\.5 span").first().innerText().catch(() => "");
     note(`HUD dopo GPS: ${pill.trim()}`);
-    const inRange = /a portata|tocca per catturare/i.test(pill);
-    if (!inRange) problems.push(`[${vp.name}] GPS non porta in raggio di cattura (${pill.trim()})`);
-    await page.screenshot({ path: `${OUT}/${vp.name}-5-inrange.png` });
 
-    // tocca una bovina a portata (pin non "far")
     const nearPin = page.locator(".leaflet-marker-icon:has(.pin:not(.far))").first();
     if (await nearPin.count()) {
       await nearPin.click();
-      await page.waitForTimeout(400);
-      const sheet = await page.locator(".sheet").isVisible();
-      note(`sheet incontro aperta: ${sheet}`);
-      if (!sheet) problems.push(`[${vp.name}] tap su bovina a portata non apre l'incontro`);
-      await page.screenshot({ path: `${OUT}/${vp.name}-6-incontro.png` });
+      await page.waitForTimeout(500);
+      const capOpen = await page.locator("button", { hasText: "Lancia il campanaccio" }).isVisible();
+      note(`overlay cattura aperto: ${capOpen}`);
+      if (!capOpen) problems.push(`[${vp.name}] cattura non si apre`);
+      await page.screenshot({ path: `${OUT}/v2-${vp.name}-6-cattura.png` });
+      // Bell di Platino = cattura garantita
+      await page.locator('[data-ball="ball-master"]').click();
+      await page.locator("button", { hasText: "Lancia il campanaccio" }).click();
+      await page.waitForTimeout(3400);
+      const caught = await page.locator("button", { hasText: "Aggiungi al Vazzadex" }).isVisible();
+      note(`cattura riuscita: ${caught}`);
+      if (!caught) problems.push(`[${vp.name}] cattura non conclusa`);
+      await page.screenshot({ path: `${OUT}/v2-${vp.name}-7-presa.png` });
+      // chiudi l'overlay comunque
+      await page.locator(".fixed.z-\\[4000\\] button", { hasText: caught ? "Aggiungi al Vazzadex" : "Chiudi" }).first().click().catch(() => {});
+    } else problems.push(`[${vp.name}] nessuna bovina a portata dopo GPS`);
 
-      const demo = page.locator("button", { hasText: "Usa mucca demo" });
-      if (await demo.isVisible()) {
-        await demo.click();
-        await page.waitForTimeout(2600);
-        const reveal = await page.locator("button", { hasText: "Aggiungi alla Vazzadex" }).isVisible();
-        note(`reveal scheda: ${reveal}`);
-        if (!reveal) problems.push(`[${vp.name}] scheda non rivelata`);
-        await page.screenshot({ path: `${OUT}/${vp.name}-7-reveal.png` });
-        if (reveal) await page.locator("button", { hasText: "Aggiungi alla Vazzadex" }).click();
-      } else problems.push(`[${vp.name}] bottone demo assente`);
-    } else problems.push(`[${vp.name}] nessuna bovina a portata dopo il GPS`);
-
-    // contatore aggiornato
-    await page.locator(".navbar button", { hasText: "Vazzadex" }).click();
-    await page.waitForTimeout(450);
-    const counter = await page.locator(".card", { hasText: "Vazzadex:" }).first().innerText();
-    note(`contatore: ${counter.replace(/\n/g, " ")}`);
-    if (!/Vazzadex:\s*1\s*\/\s*73/.test(counter))
-      problems.push(`[${vp.name}] contatore non 1/73 (${counter.replace(/\n/g, " ")})`);
+    // contatore reali (>=1) — abbiamo catturato 1 reale; lo scanner aggiunge bonus IA a parte
+    await page.locator("nav button", { hasText: "Vazzadex" }).click();
+    await page.waitForTimeout(500);
+    const counter = await page.locator(".glass", { hasText: "Vazzadex:" }).first().innerText();
+    note(`contatore: ${counter.replace(/\n/g, " ").trim()}`);
+    if (!/Vazzadex:\s*1\s*\/\s*73/.test(counter)) problems.push(`[${vp.name}] contatore reali non 1/73 (${counter.replace(/\n/g, " ").trim()})`);
   }
 
   if (errors.length) {
-    console.log("  ! errori:");
-    errors.forEach((e) => console.log("    - " + e));
+    console.log("  ! errori console:");
+    errors.slice(0, 6).forEach((e) => console.log("    - " + e));
     problems.push(`[${vp.name}] ${errors.length} errori console`);
   } else note("nessun errore console");
 
@@ -123,9 +120,6 @@ for (const vp of viewports) {
 
 console.log("\n================ ESITO ================");
 if (problems.length === 0) console.log("✅ TUTTO OK");
-else {
-  console.log(`❌ ${problems.length} problemi:`);
-  problems.forEach((p) => console.log("  - " + p));
-}
+else { console.log(`❌ ${problems.length} problemi:`); problems.forEach((p) => console.log("  - " + p)); }
 console.log(`\nScreenshot in ${OUT}`);
 process.exit(problems.length ? 1 : 0);
