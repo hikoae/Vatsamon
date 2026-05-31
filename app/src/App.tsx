@@ -34,8 +34,8 @@ import { CowCard } from './components/CowCard';
 import { TrailOverlay } from './components/TrailOverlay';
 import { VALDOSTAN_TRAILS } from './data/trails';
 import { QuizScreen } from './components/QuizScreen';
-import { BattleTurnBased } from './components/BattleTurnBased';
-import { ArenaBattle } from './components/ArenaBattle';
+import BattleScene from './components/BattleScene';
+import { MAP_BATTLES, MapBattle } from './data/mapBattles';
 import { ARENAS, ArenaId } from './data/arenas';
 import { TREK_ROUTES } from './data/routes';
 import { Challenges } from './components/Challenges';
@@ -267,7 +267,10 @@ export default function App() {
   useEffect(() => { localStorage.setItem('vazzamon_waypoint_progress', String(waypointProgress)); }, [waypointProgress]);
 
   // ---- 2. VIEW NAVIGATION ----
-  const [activeTab, setActiveTab] = useState<'map' | 'scanner' | 'eggs' | 'vatsadex' | 'battle' | 'quiz'>('map');
+  const [activeTab, setActiveTab] = useState<'map' | 'scanner' | 'eggs' | 'vatsadex' | 'quiz'>('map');
+  // Battaglia attiva (scena stile Pokémon lanciata dalla mappa).
+  const [activeBattle, setActiveBattle] = useState<MapBattle | null>(null);
+  const [encounterFlash, setEncounterFlash] = useState(false); // flash d'incontro casuale
   // Quiz "Scuola d'Alpeggio": miglior punteggio persistito.
   const [quizBest, setQuizBest] = useState<number>(() => {
     const saved = localStorage.getItem('vazzamon_quiz_go');
@@ -338,6 +341,60 @@ export default function App() {
   // Posizione effettiva del giocatore (GPS/demo se presente, altrimenti sentiero)
   const effLat = gpsPos ? gpsPos.lat : playerLat;
   const effLng = gpsPos ? gpsPos.lng : playerLng;
+
+  // ---- Battaglie sulla mappa: ingaggio + ricompense ----
+  const BATTLE_RANGE = 800; // metri per poter sfidare un combattente
+  const tryStartBattle = (mb: MapBattle) => {
+    playClickSfx();
+    if (vatsadex.length === 0) {
+      setTrekkingFeed(prev => [`🐮 Cattura prima una Reina per poter combattere!`, ...prev.slice(0, 8)]);
+      return;
+    }
+    if (trainer.level < mb.reqLevel) {
+      setTrekkingFeed(prev => [`🔒 ${mb.name}: serve livello ${mb.reqLevel} (sei al ${trainer.level}).`, ...prev.slice(0, 8)]);
+      return;
+    }
+    const d = distanza({ lat: effLat, lng: effLng }, { lat: mb.lat, lng: mb.lng });
+    if (d > BATTLE_RANGE) {
+      setTrekkingFeed(prev => [`🧭 ${mb.name} è a ${fmtDist(d)}: avvicinati per sfidarlo!`, ...prev.slice(0, 8)]);
+      return;
+    }
+    setActiveBattle(mb);
+  };
+  const handleBattleResult = (won: boolean) => {
+    const mb = activeBattle;
+    if (!mb) return;
+    if (won && mb.kind === 'pastore' && mb.pastore) {
+      const xp = mb.pastore.rewardXp, coins = Math.round(xp / 5);
+      addTrainerXp(xp);
+      setTrainer(prev => ({ ...prev, coins: prev.coins + coins }));
+      setTrekkingFeed(prev => [`🏆 Hai battuto ${mb.name}! +${xp} XP · +${coins} 🪙`, ...prev.slice(0, 8)]);
+    } else if (won && mb.kind === 'arena' && mb.arena) {
+      const arena = mb.arena;
+      const newBadge = !trainerBadges.includes(arena.id);
+      addTrainerXp(500);
+      setTrainer(prev => ({ ...prev, coins: prev.coins + 80 }));
+      if (newBadge) setTrainerBadges(prev => prev.includes(arena.id) ? prev : [...prev, arena.id]);
+      setTrekkingFeed(prev => [`🏆 Arena ${arena.badgeEmoji} ${arena.badgeName} conquistata! +500 XP · +80 🪙${newBadge ? ' · nuova medaglia!' : ''}`, ...prev.slice(0, 8)]);
+    } else if (!won) {
+      setTrekkingFeed(prev => [`🐂 Sconfitta contro ${mb.name}. Allena la tua Reina e riprova!`, ...prev.slice(0, 8)]);
+    }
+  };
+
+  // Incontro casuale stile Pokémon: un Pastore errante ti sfida mentre cammini.
+  const triggerRandomEncounter = () => {
+    const pool = MAP_BATTLES.filter(mb => mb.kind === 'pastore' && trainer.level >= mb.reqLevel);
+    if (pool.length === 0) return;
+    const npc = pool[Math.floor(Math.random() * pool.length)];
+    setEncounterFlash(true);
+    if (soundEnabled) soundEngine.playHeadbutt();
+    setTrekkingFeed(prev => [`⚔️ Incontro! ${npc.emoji} ${npc.name} ti sbarra il sentiero e ti sfida!`, ...prev.slice(0, 8)]);
+    setTimeout(() => {
+      setEncounterFlash(false);
+      // posiziona l'incontro alla tua posizione (così è "in raggio")
+      setActiveBattle({ ...npc, lat: effLat, lng: effLng, id: `enc-${npc.id}-${Date.now()}` });
+    }, 750);
+  };
 
   // Synchronize dynamic Leaflet Map Layer drawing
   useEffect(() => {
@@ -539,6 +596,29 @@ export default function App() {
           setTrekkingFeed(prev => [`🔭 Hai avvistato ${n.name}${n.comune ? ` (${n.comune})` : ''}!`, ...prev.slice(0, 8)]),
         );
       }
+
+      // ===== BATTAGLIE sulla mappa (Pastori + Boss-Arena) =====
+      MAP_BATTLES.forEach(mb => {
+        const d = distanza({ lat: effLat, lng: effLng }, { lat: mb.lat, lng: mb.lng });
+        const inRange = d <= BATTLE_RANGE;
+        const locked = trainer.level < mb.reqLevel;
+        const ring = locked ? '#64748b' : mb.accent;
+        const battleIcon = L.divIcon({
+          className: 'custom-leaflet-marker battle-marker',
+          html: `<div class="flex flex-col items-center ${inRange && !locked ? '' : 'opacity-75'}">
+                   <div class="w-12 h-12 rounded-2xl border-2 flex items-center justify-center shadow-lg relative ${inRange && !locked ? 'animate-bounce' : ''}" style="border-color:${ring};background:#211b3a;transform:translateY(-8px);">
+                     <span class="text-2xl">${locked ? '🔒' : mb.emoji}</span>
+                     <span class="absolute -top-1 -right-1 text-[7px] font-mono font-black px-1 rounded-full" style="background:${ring};color:#0b0820;">${mb.kind === 'arena' ? 'BOSS' : 'VS'}</span>
+                   </div>
+                   <div class="px-1 rounded border text-[7px] font-mono font-bold whitespace-nowrap shadow-sm" style="background:#211b3a;border-color:${ring}55;color:${ring};transform:translateY(-10px);">${locked ? `🔒 Lv ${mb.reqLevel}` : (inRange ? '⚔️ SFIDA' : `${fmtDist(d)}`)}</div>
+                 </div>`,
+          iconSize: [48, 60], iconAnchor: [24, 30],
+        });
+        const bm = L.marker([mb.lat, mb.lng], { icon: battleIcon })
+          .addTo(map)
+          .on('click', () => tryStartBattle(mb));
+        leafletMarkersRef.current.push(bm);
+      });
 
       // Place or shift Player Marker
       if (leafletPlayerMarkerRef.current) {
@@ -951,6 +1031,11 @@ export default function App() {
       feedMsg,
       ...prev.slice(0, 8)
     ]);
+
+    // INCONTRO CASUALE stile Pokémon: a volte un Pastore errante ti sfida.
+    if (!activeBattle && vatsadex.length > 0 && Math.random() < 0.22) {
+      triggerRandomEncounter();
+    }
   };
 
   // ---- 6. EGG HATCHERY UTILITIES ----
@@ -1630,14 +1715,6 @@ export default function App() {
           </button>
 
           <button
-            onClick={() => { playClickSfx(); setActiveTab('battle'); }}
-            className={`flex flex-col items-center py-2 rounded-xl transition-all ${activeTab === 'battle' ? 'nav-active text-white' : 'text-slate-400 hover:bg-slate-900 hover:-translate-y-0.5'}`}
-          >
-            <Swords className="w-4 h-4 mb-0.5" />
-            <span>Gym</span>
-          </button>
-
-          <button
             onClick={() => { playClickSfx(); setActiveTab('quiz'); }}
             className={`flex flex-col items-center py-2 rounded-xl transition-all ${activeTab === 'quiz' ? 'nav-active text-white' : 'text-slate-400 hover:bg-slate-900 hover:-translate-y-0.5'}`}
           >
@@ -1712,8 +1789,35 @@ export default function App() {
               </div>
             </div>
 
+            {/* SFIDE NEI DINTORNI — battaglie piazzate sulla mappa (Pastori + Boss-Arena) */}
+            <div className="bg-slate-950 border border-slate-850 rounded-3xl p-4 space-y-2" id="battle-nearby">
+              <h3 className="text-xs font-mono font-extrabold uppercase text-slate-300 tracking-wider flex items-center gap-1.5">
+                <Swords className="w-4 h-4 text-rose-500" /> Sfide nei dintorni
+              </h3>
+              {[...MAP_BATTLES].map(mb => ({ mb, d: distanza({ lat: effLat, lng: effLng }, { lat: mb.lat, lng: mb.lng }) }))
+                .sort((a, b) => a.d - b.d).slice(0, 5).map(({ mb, d }) => {
+                  const locked = trainer.level < mb.reqLevel;
+                  const inRange = d <= BATTLE_RANGE;
+                  return (
+                    <button key={mb.id} onClick={() => tryStartBattle(mb)} disabled={locked}
+                      className={`w-full flex items-center gap-3 rounded-2xl border p-2.5 text-left transition-all ${locked ? 'opacity-50 border-slate-800 bg-slate-900/60' : inRange ? 'border-rose-700/50 bg-rose-950/30 hover:bg-rose-900/30' : 'border-slate-800 bg-slate-900 hover:bg-slate-850'}`}>
+                      <span className="text-2xl">{locked ? '🔒' : mb.emoji}</span>
+                      <div className="flex-grow min-w-0">
+                        <div className="text-[11px] font-mono font-black text-slate-100 truncate">{mb.name}</div>
+                        <div className="text-[9px] text-slate-400 truncate">{mb.subtitle}</div>
+                      </div>
+                      <div className="text-right flex-shrink-0">
+                        <div className="text-[9px] font-mono text-slate-400">{fmtDist(d)}</div>
+                        <div className={`text-[9px] font-mono font-black ${locked ? 'text-slate-500' : inRange ? 'text-rose-400' : 'text-amber-400'}`}>{locked ? `Lv ${mb.reqLevel}` : inRange ? '⚔️ COMBATTI' : 'avvicìnati'}</div>
+                      </div>
+                    </button>
+                  );
+                })}
+              <p className="text-[9px] text-slate-500 text-center">Avvicìnati (≤ 800 m) a un combattente per sfidarlo. Cammina o usa il GPS.</p>
+            </div>
+
             <div className="bg-slate-950 rounded-3xl p-5 border border-slate-850 relative overflow-hidden shadow-2xl">
-              
+
               {/* Overworld Title HUD */}
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4 z-10 relative border-b border-slate-900 pb-4">
                 <div>
@@ -2733,80 +2837,28 @@ export default function App() {
           </div>
         )}
 
-        {/* VIEW 5: BATAILLE DE REINES (TAP COMBAT arena) */}
-        {activeTab === 'battle' && (
-          <div className="space-y-6" id="battle-tab-view">
-
-            {/* BATAILLE A TURNI (stile Pokémon) vs Pastori */}
-            <div className="bg-slate-950 border border-amber-700/30 rounded-3xl p-5 space-y-4" id="turnbattle-card">
-              <div className="text-center">
-                <h2 className="text-lg font-mono font-black text-amber-400 uppercase tracking-tight flex items-center justify-center gap-1.5">
-                  <Swords className="w-5 h-5" /> Bataille a Turni
-                </h2>
-                <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">Sfida i Pastori in una spinta a turni: 4 mosse dalle statistiche reali della tua Reina.</p>
-              </div>
-              {vatsadex.length > 0 ? (
-                <BattleTurnBased
-                  playerCow={vatsadex.find(c => c.id === activeCombatantId) || vatsadex[0]}
-                  backpack={backpack}
-                  onConsumeItem={(id) => setBackpack(prev => prev.map(it => it.id === id ? { ...it, quantity: Math.max(0, it.quantity - 1) } : it))}
-                  playClick={playClickSfx}
-                  onResult={(won, xp, coins) => {
-                    if (won) {
-                      addTrainerXp(xp);
-                      setTrainer(prev => ({ ...prev, coins: prev.coins + coins }));
-                      setTrekkingFeed(prev => [`🏆 Bataille a turni vinta! +${xp} XP · +${coins} 🪙`, ...prev.slice(0, 8)]);
-                    } else {
-                      setTrekkingFeed(prev => [`🐂 Bataille a turni persa: allena ancora la tua Reina!`, ...prev.slice(0, 8)]);
-                    }
-                  }}
-                />
-              ) : (
-                <div className="text-center py-6 space-y-2">
-                  <p className="text-xs text-slate-500">Cattura una Reina per combattere a turni!</p>
-                  <button onClick={() => setActiveTab('map')} className="bg-emerald-500 text-[#0b0820] font-mono font-black text-xs px-4 py-2 rounded-xl">Vai alla mappa</button>
-                </div>
-              )}
-            </div>
-
-            {/* ARENE A TURNI (4 Palestre) — vs vere Reines boss, con medaglie */}
-            <div className="bg-slate-950 border border-rose-700/30 rounded-3xl p-5 space-y-4" id="arena-card">
-              <div className="text-center">
-                <h2 className="text-2xl font-mono font-black text-rose-400 uppercase tracking-tight flex items-center justify-center gap-2">
-                  <Swords className="w-6 h-6 fill-current" /> Arene · Bataille de Reines 🏆
-                </h2>
-                <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">Conquista le 4 Palestre della Valle: combattimento a turni con scelta delle mosse, barra Adrenalina e medaglie con bonus permanenti.</p>
-                {trainerBadges.length > 0 && (
-                  <div className="mt-2 text-sm">{trainerBadges.map((id) => ARENAS.find(a => a.id === id)?.badgeEmoji).join(' ')}</div>
-                )}
-              </div>
-              {vatsadex.length > 0 ? (
-                <ArenaBattle
-                  playerCow={vatsadex.find(c => c.id === activeCombatantId) || vatsadex[0]}
-                  trainerLevel={trainer.level}
-                  badges={trainerBadges}
-                  backpack={backpack}
-                  onConsumeItem={(id) => setBackpack(prev => prev.map(it => it.id === id ? { ...it, quantity: Math.max(0, it.quantity - 1) } : it))}
-                  playClick={playClickSfx}
-                  onWin={(arena, xp, coins, newBadge) => {
-                    addTrainerXp(xp);
-                    setTrainer(prev => ({ ...prev, coins: prev.coins + coins }));
-                    if (newBadge) setTrainerBadges(prev => prev.includes(arena.id) ? prev : [...prev, arena.id]);
-                    setTrekkingFeed(prev => [`🏆 Arena ${arena.badgeEmoji} ${arena.name} conquistata! +${xp} XP · +${coins} 🪙`, ...prev.slice(0, 8)]);
-                  }}
-                />
-              ) : (
-                <div className="text-center py-6 space-y-2">
-                  <p className="text-xs text-slate-500">Cattura una Reina per sfidare le arene!</p>
-                  <button onClick={() => setActiveTab('map')} className="bg-emerald-500 text-[#0b0820] font-mono font-black text-xs px-4 py-2 rounded-xl">Vai alla mappa</button>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
+        {/* Le battaglie ora vivono sulla MAPPA (marker Pastori/Boss) + pannello "Sfide nei dintorni". */}
         </div>
 
       </main>
+
+      {/* Flash d'incontro casuale (transizione stile Pokémon) */}
+      {encounterFlash && <div className="encounter-flash" />}
+
+      {/* SCENA DI BATTAGLIA stile Pokémon (lanciata dai marker/pannello sulla mappa) */}
+      {activeBattle && (
+        <BattleScene
+          battle={activeBattle}
+          playerCows={vatsadex}
+          initialCowId={activeCombatantId}
+          trainerLevel={trainer.level}
+          backpack={backpack}
+          onConsumeItem={(id) => setBackpack(prev => prev.map(it => it.id === id ? { ...it, quantity: Math.max(0, it.quantity - 1) } : it))}
+          onResult={handleBattleResult}
+          onClose={() => setActiveBattle(null)}
+          playClick={playClickSfx}
+        />
+      )}
 
       {/* PROFILO & SALVATAGGIO (risorse di test, export/import progressi) */}
       {showProfile && (
