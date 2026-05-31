@@ -1,7 +1,9 @@
 import { useState, useRef } from "react";
 import { motion } from "motion/react";
-import { Vatsamon } from "../types";
+import { Backpack } from "lucide-react";
+import { Vatsamon, BackpackItem } from "../types";
 import { ARENAS, Arena, ArenaId, arenaBoss } from "../data/arenas";
+import { BATTLE_ITEMS } from "../data/combat";
 import { CowVisual } from "./CowVisual";
 
 type Phase = "select" | "intro" | "fighting" | "ended";
@@ -11,8 +13,17 @@ interface Snap {
   oHp: number; oMax: number;
   energy: number; oEnergy: number;
   pDef: number; oDef: number;
+  atkBuff: number; defBuff: number; // bonus da zaino/buff (in %)
   milk: number;
 }
+
+const ITEM_LABEL: Record<string, { name: string; emoji: string }> = {
+  "item-potion-milk":    { name: "Secchio di Latte", emoji: "🥛" },
+  "item-potion-fontina": { name: "Fetta di Fontina", emoji: "🧀" },
+  "item-buff-genepy":    { name: "Genepy del Pastore", emoji: "🍵" },
+  "item-buff-bell":      { name: "Campanaccio Fortunato", emoji: "🔔" },
+  "item-energy-grappa":  { name: "Grappa alla Genziana", emoji: "🥃" },
+};
 
 /**
  * Arena a TURNI (le 4 Palestre). 4 mosse firma (Testata/Corno Protettivo/
@@ -24,12 +35,16 @@ export function ArenaBattle({
   playerCow,
   trainerLevel,
   badges,
+  backpack,
+  onConsumeItem,
   onWin,
   playClick,
 }: {
   playerCow: Vatsamon;
   trainerLevel: number;
   badges: ArenaId[];
+  backpack: BackpackItem[];
+  onConsumeItem: (id: string) => void;
   onWin: (arena: Arena, xp: number, coins: number, newBadge: boolean) => void;
   playClick: () => void;
 }) {
@@ -40,9 +55,10 @@ export function ArenaBattle({
   const [busy, setBusy] = useState(false);
   const [pAnim, setPAnim] = useState(false);
   const [oAnim, setOAnim] = useState(false);
+  const [showBag, setShowBag] = useState(false);
 
   const bossRef = useRef<Vatsamon | null>(null);
-  const stRef = useRef<Snap>({ pHp: 0, pMax: 0, oHp: 0, oMax: 0, energy: 0, oEnergy: 0, pDef: 0, oDef: 0, milk: 3 });
+  const stRef = useRef<Snap>({ pHp: 0, pMax: 0, oHp: 0, oMax: 0, energy: 0, oEnergy: 0, pDef: 0, oDef: 0, atkBuff: 0, defBuff: 0, milk: 3 });
   const [, force] = useState(0);
   const rerender = () => force((n) => n + 1);
 
@@ -64,12 +80,14 @@ export function ArenaBattle({
       energy: a.id === "gran_paradiso" ? 40 : 20,
       oEnergy: 10,
       pDef: 0, oDef: 0,
+      atkBuff: 0, defBuff: 0,
       milk: 3,
     };
     setArena(a);
     setLog([a.introMsg, `⚔️ ${playerCow.name} (CP ${playerCow.cp}) sfida ${b.name} (CP ${b.cp})`, "👉 È il tuo turno: scegli una mossa!"]);
     setWinner(null);
     setBusy(false);
+    setShowBag(false);
     setPhase("intro");
     rerender();
   };
@@ -116,7 +134,7 @@ export function ArenaBattle({
       if (Math.random() < pEva) {
         lines.push(`💨 ${playerCow.name} schiva ${name}! Nessun danno.${has("morgex") ? " (Schivata Vigneto)" : ""}`);
       } else {
-        const defFactor = 1 - Math.min(0.75, s.pDef + (a.id === "fenis" ? 0.25 : 0) + (has("fenis") ? 0.15 : 0));
+        const defFactor = 1 - Math.min(0.85, s.pDef + (a.id === "fenis" ? 0.25 : 0) + (has("fenis") ? 0.15 : 0) + s.defBuff / 100);
         const fin = Math.floor(dmg * defFactor);
         s.pHp = Math.max(0, s.pHp - fin);
         s.oEnergy = isSuper ? 0 : Math.min(100, s.oEnergy + 25);
@@ -163,7 +181,7 @@ export function ArenaBattle({
       lines.push(`🍀 ${playerCow.name} ${desc}.`);
     } else {
       const oppDefFactor = 1 - Math.min(0.68, s.oDef);
-      const fin = Math.round(dmg * oppDefFactor);
+      const fin = Math.round(dmg * oppDefFactor * (1 + s.atkBuff / 100));
       s.oDef = 0; // consuma la difesa avversaria
       s.oHp = Math.max(0, s.oHp - fin);
       lines.push(`⚔️ ${playerCow.name} ${desc}: ${fin} danni!`);
@@ -185,6 +203,25 @@ export function ArenaBattle({
       endBattle("player", a);
       return;
     }
+    setTimeout(() => opponentTurn(a), 850);
+  };
+
+  const useItem = (itemId: string) => {
+    if (busy || winner || phase !== "fighting" || !arena) return;
+    const eff = BATTLE_ITEMS[itemId];
+    const owned = backpack.find((b) => b.id === itemId);
+    if (!eff || !owned || owned.quantity <= 0) return;
+    const a = arena, s = stRef.current;
+    const lbl = ITEM_LABEL[itemId]?.name || "Oggetto";
+    playClick();
+    setBusy(true);
+    setShowBag(false);
+    if (eff.kind === "heal") { s.pHp = Math.min(s.pMax, s.pHp + eff.amount); pushLog([`🎒 Usi ${lbl}: +${eff.amount} HP!`]); }
+    else if (eff.kind === "buff_atk") { s.atkBuff = Math.min(100, s.atkBuff + eff.amount); pushLog([`🎒 Usi ${lbl}: attacco +${eff.amount}%!`]); }
+    else if (eff.kind === "buff_def") { s.defBuff = Math.min(100, s.defBuff + eff.amount); pushLog([`🎒 Usi ${lbl}: difesa +${eff.amount}%!`]); }
+    else if (eff.kind === "energy") { s.energy = Math.min(100, s.energy + eff.amount); pushLog([`🎒 Usi ${lbl}: Adrenalina +${eff.amount}!`]); }
+    onConsumeItem(itemId);
+    rerender();
     setTimeout(() => opponentTurn(a), 850);
   };
 
@@ -252,6 +289,7 @@ export function ArenaBattle({
   const pPct = Math.round((st.pHp / st.pMax) * 100);
   const oPct = Math.round((st.oHp / st.oMax) * 100);
   const superReady = st.energy >= 100;
+  const bagItems = backpack.filter((b) => BATTLE_ITEMS[b.id] && b.quantity > 0);
 
   return (
     <div className={`space-y-4 rounded-3xl bg-gradient-to-b ${arena.bgGradient} p-3 -m-1`} id="arena-arena">
@@ -291,25 +329,60 @@ export function ArenaBattle({
         ))}
       </div>
 
-      {/* mosse / esito */}
-      {phase === "fighting" && (
-        <div className="grid grid-cols-2 gap-2" id="arena-moves">
-          <button onClick={() => playerMove("testata")} disabled={busy} className="text-left rounded-xl border p-2.5 bg-rose-950/40 border-rose-800 hover:bg-rose-900/50 disabled:opacity-40">
-            <div className="text-xs font-mono font-black text-slate-100">💥 Testata</div>
-            <div className="text-[8.5px] text-slate-400">Danno medio · carica Adrenalina</div>
+      {/* buff attivi dallo zaino */}
+      {(st.atkBuff > 0 || st.defBuff > 0) && (
+        <div className="flex justify-center gap-2 -mt-1">
+          {st.atkBuff > 0 && <span className="text-[8px] font-mono bg-rose-950 text-rose-400 px-1.5 py-0.5 rounded">⚔️ ATK +{st.atkBuff}%</span>}
+          {st.defBuff > 0 && <span className="text-[8px] font-mono bg-blue-950 text-blue-400 px-1.5 py-0.5 rounded">🛡️ DEF +{st.defBuff}%</span>}
+        </div>
+      )}
+
+      {/* mosse / zaino / esito */}
+      {phase === "fighting" && !showBag && (
+        <>
+          <div className="grid grid-cols-2 gap-2" id="arena-moves">
+            <button onClick={() => playerMove("testata")} disabled={busy} className="text-left rounded-xl border p-2.5 bg-rose-950/40 border-rose-800 hover:bg-rose-900/50 disabled:opacity-40">
+              <div className="text-xs font-mono font-black text-slate-100">💥 Testata</div>
+              <div className="text-[8.5px] text-slate-400">Danno medio · carica Adrenalina</div>
+            </button>
+            <button onClick={() => playerMove("corno")} disabled={busy} className="text-left rounded-xl border p-2.5 bg-blue-950/40 border-blue-800 hover:bg-blue-900/50 disabled:opacity-40">
+              <div className="text-xs font-mono font-black text-slate-100">🛡️ Corno Protettivo</div>
+              <div className="text-[8.5px] text-slate-400">+35% difesa, danno lieve</div>
+            </button>
+            <button onClick={() => playerMove("latte")} disabled={busy || st.milk <= 0} className="text-left rounded-xl border p-2.5 bg-emerald-950/40 border-emerald-800 hover:bg-emerald-900/50 disabled:opacity-40">
+              <div className="text-xs font-mono font-black text-slate-100">🍼 Sorso di Latte <span className="text-[8px] text-emerald-300">x{st.milk}</span></div>
+              <div className="text-[8.5px] text-slate-400">Cura HP (usi limitati)</div>
+            </button>
+            <button onClick={() => playerMove("incornata")} disabled={busy || !superReady} className={`text-left rounded-xl border p-2.5 disabled:opacity-40 ${superReady ? "bg-amber-900/60 border-amber-500 animate-pulse" : "bg-amber-950/40 border-amber-800"}`}>
+              <div className="text-xs font-mono font-black text-slate-100">🔱 Incornata Suprema</div>
+              <div className="text-[8.5px] text-slate-400">Devastante · serve Adrenalina</div>
+            </button>
+          </div>
+          <button onClick={() => { playClick(); setShowBag(true); }} disabled={busy} className="w-full flex items-center justify-center gap-2 bg-slate-950/70 border border-amber-700/40 text-amber-400 font-mono font-black text-xs py-2.5 rounded-xl disabled:opacity-40">
+            <Backpack className="w-4 h-4" /> Zaino ({bagItems.reduce((n, b) => n + b.quantity, 0)})
           </button>
-          <button onClick={() => playerMove("corno")} disabled={busy} className="text-left rounded-xl border p-2.5 bg-blue-950/40 border-blue-800 hover:bg-blue-900/50 disabled:opacity-40">
-            <div className="text-xs font-mono font-black text-slate-100">🛡️ Corno Protettivo</div>
-            <div className="text-[8.5px] text-slate-400">+35% difesa, danno lieve</div>
-          </button>
-          <button onClick={() => playerMove("latte")} disabled={busy || st.milk <= 0} className="text-left rounded-xl border p-2.5 bg-emerald-950/40 border-emerald-800 hover:bg-emerald-900/50 disabled:opacity-40">
-            <div className="text-xs font-mono font-black text-slate-100">🍼 Sorso di Latte <span className="text-[8px] text-emerald-300">x{st.milk}</span></div>
-            <div className="text-[8.5px] text-slate-400">Cura HP (usi limitati)</div>
-          </button>
-          <button onClick={() => playerMove("incornata")} disabled={busy || !superReady} className={`text-left rounded-xl border p-2.5 disabled:opacity-40 ${superReady ? "bg-amber-900/60 border-amber-500 animate-pulse" : "bg-amber-950/40 border-amber-800"}`}>
-            <div className="text-xs font-mono font-black text-slate-100">🔱 Incornata Suprema</div>
-            <div className="text-[8.5px] text-slate-400">Devastante · serve Adrenalina</div>
-          </button>
+        </>
+      )}
+
+      {phase === "fighting" && showBag && (
+        <div className="space-y-2">
+          <div className="text-[10px] font-mono text-slate-400 text-center">Usa un oggetto (consuma il turno)</div>
+          {bagItems.length === 0 ? (
+            <p className="text-[10px] text-slate-500 text-center py-3">Zaino da battaglia vuoto. Rifornisciti alla Casera!</p>
+          ) : bagItems.map((b) => {
+            const meta = ITEM_LABEL[b.id]; const eff = BATTLE_ITEMS[b.id];
+            return (
+              <button key={b.id} onClick={() => useItem(b.id)} disabled={busy} className="w-full flex items-center gap-3 bg-slate-950/70 border border-slate-800 rounded-xl p-2.5 text-left disabled:opacity-40">
+                <span className="text-2xl">{meta?.emoji}</span>
+                <div className="flex-grow">
+                  <div className="text-[11px] font-mono font-black text-slate-100">{meta?.name}</div>
+                  <div className="text-[9px] text-slate-400">{eff.kind === "heal" ? `Cura ${eff.amount} HP` : eff.kind === "buff_atk" ? `Attacco +${eff.amount}%` : eff.kind === "buff_def" ? `Difesa +${eff.amount}%` : `Adrenalina +${eff.amount}`}</div>
+                </div>
+                <span className="text-[10px] font-mono text-amber-400">×{b.quantity}</span>
+              </button>
+            );
+          })}
+          <button onClick={() => { playClick(); setShowBag(false); }} className="w-full bg-slate-900 border border-slate-800 text-slate-300 font-mono font-bold text-xs py-2 rounded-xl">Chiudi zaino</button>
         </div>
       )}
 
