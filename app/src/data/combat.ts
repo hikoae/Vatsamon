@@ -8,7 +8,25 @@
  * - Set di 4 mosse per Reina, costruito da tipo + rarità (firma per le Leggendarie).
  * - OGGETTI da battaglia (cure + buff) usabili dallo zaino durante lo scontro.
  */
-import { Vatsamon } from "../types";
+import { Vatsamon, RarityType } from "../types";
+import rawDex from "./vatsadex.json";
+
+// Distribuzione reale delle 4 statistiche (per assegnare i tipi in modo
+// equilibrato via percentile, evitando che la "stazza" sempre alta domini).
+const _dex = (rawDex as unknown as { bovine: { stats: { stazza: number; corna: number; testa: number; grinta: number } }[] }).bovine;
+const _sorted: Record<"stazza" | "corna" | "testa" | "grinta", number[]> = {
+  stazza: _dex.map((b) => b.stats.stazza).sort((a, b) => a - b),
+  corna: _dex.map((b) => b.stats.corna).sort((a, b) => a - b),
+  testa: _dex.map((b) => b.stats.testa).sort((a, b) => a - b),
+  grinta: _dex.map((b) => b.stats.grinta).sort((a, b) => a - b),
+};
+/** Percentile (0..1) di un valore nella distribuzione reale di quella statistica. */
+function _pct(stat: "stazza" | "corna" | "testa" | "grinta", v: number): number {
+  const arr = _sorted[stat];
+  let lo = 0, hi = arr.length;
+  while (lo < hi) { const m = (lo + hi) >> 1; if (arr[m] < v) lo = m + 1; else hi = m; }
+  return lo / Math.max(1, arr.length - 1);
+}
 
 // ===================== TIPI =====================
 export type VatsaType = "corna" | "prato" | "tempesta" | "latte" | "roccia";
@@ -35,38 +53,43 @@ export const TYPES: Record<VatsaType, TypeMeta> = {
  */
 const CYCLE: VatsaType[] = ["corna", "prato", "tempesta", "latte", "roccia"];
 
-/** Moltiplicatore di efficacia del tipo attaccante contro il tipo difensore. */
+/** Moltiplicatore di efficacia del tipo attaccante contro il tipo difensore.
+ *  Valori "morbidi" (1.5 / 0.7) per bilanciamento: il tipo conta ma non decide
+ *  da solo la battaglia (testato in simulazione). */
 export function typeMultiplier(attacker: VatsaType, defender: VatsaType): number {
   if (attacker === defender) return 1;
   const ai = CYCLE.indexOf(attacker);
-  if (CYCLE[(ai + 1) % CYCLE.length] === defender) return 2;     // super-efficace
-  if (CYCLE[(ai + 4) % CYCLE.length] === defender) return 0.5;   // poco efficace
+  if (CYCLE[(ai + 1) % CYCLE.length] === defender) return 1.5;    // super-efficace
+  if (CYCLE[(ai + 4) % CYCLE.length] === defender) return 0.7;    // poco efficace
   return 1;
 }
 
 export function effectivenessLabel(mult: number): string {
-  if (mult >= 2) return "È SUPER-EFFICACE! 💥";
-  if (mult <= 0.5) return "Non è molto efficace…";
+  if (mult > 1) return "È SUPER-EFFICACE! 💥";
+  if (mult < 1) return "Non è molto efficace…";
   return "";
 }
 
-/** Assegna il tipo a una Reina da razza/statistiche reali (deterministico). */
+/**
+ * Assegna il tipo a una Reina in base a quale delle 4 statistiche reali è la sua
+ * più "spiccata" (percentile più alto nella distribuzione del dataset). Questo
+ * dà una distribuzione equilibrata fra tutti e 5 i tipi (la stazza non domina
+ * più tutto). Le Pezzate Rosse restano razze "da latte" per tema.
+ */
+const STAT_OF_TYPE: Record<"stazza" | "corna" | "testa" | "grinta", VatsaType> = {
+  stazza: "roccia", corna: "corna", testa: "prato", grinta: "tempesta",
+};
 export function cowType(cow: Vatsamon): VatsaType {
-  // Le Pezzate Rosse sono razze "da latte" per eccellenza.
   if (/pezzata\s*rossa/i.test(cow.breed)) return "latte";
-  const s = cow.stats4;
-  const stazza = s ? s.stazza : cow.stats.defense;
-  const corna = s ? s.corna : cow.stats.strength;
-  const testa = s ? s.testa : cow.stats.defense;
-  const grinta = s ? s.grinta : cow.stats.agility;
-  const pairs: [VatsaType, number][] = [
-    ["corna", corna],
-    ["roccia", stazza],
-    ["prato", testa],
-    ["tempesta", grinta],
-  ];
-  pairs.sort((a, b) => b[1] - a[1]);
-  return pairs[0][0];
+  const s = cow.stats4 ?? {
+    stazza: cow.stats.defense, corna: cow.stats.strength, testa: cow.stats.defense, grinta: cow.stats.agility,
+  };
+  let best: VatsaType = "roccia", bestP = -1;
+  (Object.keys(STAT_OF_TYPE) as ("stazza" | "corna" | "testa" | "grinta")[]).forEach((k) => {
+    const p = _pct(k, s[k]);
+    if (p > bestP) { bestP = p; best = STAT_OF_TYPE[k]; }
+  });
+  return best;
 }
 
 // ===================== MOSSE =====================
@@ -89,20 +112,20 @@ export interface BattleMove {
 
 // Mosse base d'attacco per tipo (affidabili, caricano l'Adrenalina).
 const BASIC: Record<VatsaType, BattleMove> = {
-  corna:    { id: "corna_basic",    name: "Incornata della Suocera", emoji: "🐂", type: "corna",    category: "attacco", power: 1.0, accuracy: 0.95, energy: 25, desc: "Spintone frontale carico di rancore famigliare." },
-  prato:    { id: "prato_basic",    name: "Ruttino Erbivoro Tattico", emoji: "🌿", type: "prato",    category: "attacco", power: 1.0, accuracy: 0.95, energy: 25, desc: "Eruttazione mirata profumata di trifoglio alpino." },
-  tempesta: { id: "tempesta_basic", name: "Föhn Furioso",            emoji: "⛈️", type: "tempesta", category: "attacco", power: 1.0, accuracy: 0.95, energy: 25, desc: "Una folata calda che spettina pure i ghiacciai." },
-  latte:    { id: "latte_basic",    name: "Spruzzo di Fontina",      emoji: "🥛", type: "latte",    category: "attacco", power: 1.0, accuracy: 0.95, energy: 25, desc: "Getto lattiginoso ad alta pressione DOP." },
-  roccia:   { id: "roccia_basic",   name: "Sassata del Cugino",      emoji: "🪨", type: "roccia",   category: "attacco", power: 1.0, accuracy: 0.95, energy: 25, desc: "Un masso lanciato con affetto rude di montagna." },
+  corna:    { id: "corna_basic",    name: "Incornata della Suocera", emoji: "🐂", type: "corna",    category: "attacco", power: 0.85, accuracy: 0.95, energy: 25, desc: "Spintone frontale carico di rancore famigliare." },
+  prato:    { id: "prato_basic",    name: "Ruttino Erbivoro Tattico", emoji: "🌿", type: "prato",    category: "attacco", power: 0.85, accuracy: 0.95, energy: 25, desc: "Eruttazione mirata profumata di trifoglio alpino." },
+  tempesta: { id: "tempesta_basic", name: "Föhn Furioso",            emoji: "⛈️", type: "tempesta", category: "attacco", power: 0.85, accuracy: 0.95, energy: 25, desc: "Una folata calda che spettina pure i ghiacciai." },
+  latte:    { id: "latte_basic",    name: "Spruzzo di Fontina",      emoji: "🥛", type: "latte",    category: "attacco", power: 0.85, accuracy: 0.95, energy: 25, desc: "Getto lattiginoso ad alta pressione DOP." },
+  roccia:   { id: "roccia_basic",   name: "Sassata del Cugino",      emoji: "🪨", type: "roccia",   category: "attacco", power: 0.85, accuracy: 0.95, energy: 25, desc: "Un masso lanciato con affetto rude di montagna." },
 };
 
 // Mosse SPECIALI per tipo (potenti, richiedono Adrenalina carica).
 const SPECIAL: Record<VatsaType, BattleMove> = {
-  corna:    { id: "corna_sp",    name: "Testata Termonucleare",     emoji: "💥", type: "corna",    category: "speciale", power: 2.4, accuracy: 0.9, energy: 100, desc: "Capocciata da fine del mondo: richiede Adrenalina piena." },
-  prato:    { id: "prato_sp",    name: "Fotosintesi Aggressiva",    emoji: "🌻", type: "prato",    category: "speciale", power: 2.3, accuracy: 0.9, energy: 100, desc: "Assorbe il sole e lo restituisce in faccia all'avversario." },
-  tempesta: { id: "tempesta_sp", name: "Grandinata Express",        emoji: "🌪️", type: "tempesta", category: "speciale", power: 2.3, accuracy: 0.88, energy: 100, desc: "Chicchi di grandine grossi come campanacci." },
-  latte:    { id: "latte_sp",    name: "Diluvio di Latte Crudo",    emoji: "🌊", type: "latte",    category: "speciale", power: 2.3, accuracy: 0.9, energy: 100, desc: "Uno tsunami caseario travolgente." },
-  roccia:   { id: "roccia_sp",   name: "Valanga Vendicativa",       emoji: "🏔️", type: "roccia",   category: "speciale", power: 2.5, accuracy: 0.85, energy: 100, desc: "Mezza montagna in testa al malcapitato." },
+  corna:    { id: "corna_sp",    name: "Testata Termonucleare",     emoji: "💥", type: "corna",    category: "speciale", power: 1.95, accuracy: 0.9, energy: 100, desc: "Capocciata da fine del mondo: richiede Adrenalina piena." },
+  prato:    { id: "prato_sp",    name: "Fotosintesi Aggressiva",    emoji: "🌻", type: "prato",    category: "speciale", power: 1.9, accuracy: 0.9, energy: 100, desc: "Assorbe il sole e lo restituisce in faccia all'avversario." },
+  tempesta: { id: "tempesta_sp", name: "Grandinata Express",        emoji: "🌪️", type: "tempesta", category: "speciale", power: 1.9, accuracy: 0.88, energy: 100, desc: "Chicchi di grandine grossi come campanacci." },
+  latte:    { id: "latte_sp",    name: "Diluvio di Latte Crudo",    emoji: "🌊", type: "latte",    category: "speciale", power: 1.9, accuracy: 0.9, energy: 100, desc: "Uno tsunami caseario travolgente." },
+  roccia:   { id: "roccia_sp",   name: "Valanga Vendicativa",       emoji: "🏔️", type: "roccia",   category: "speciale", power: 2.0, accuracy: 0.85, energy: 100, desc: "Mezza montagna in testa al malcapitato." },
 };
 
 // Mossa firma per le Leggendarie (sostituisce la speciale).
@@ -112,7 +135,7 @@ const SIGNATURE: BattleMove = {
   emoji: "🔱",
   type: "corna",
   category: "speciale",
-  power: 2.9,
+  power: 2.3,
   accuracy: 0.92,
   energy: 100,
   desc: "Un muggito così potente da far tremare le Alpi. Solo le Reine leggendarie lo conoscono.",
@@ -120,20 +143,20 @@ const SIGNATURE: BattleMove = {
 
 // Mosse di utilità (difesa / cura / buff), comuni a tutte.
 const MURO: BattleMove   = { id: "muro",   name: "Muro di Stalla",     emoji: "🛡️", type: "roccia", category: "difesa", power: 0, accuracy: 1, energy: 20, desc: "Si pianta sugli zoccoli: dimezza il prossimo colpo subìto." };
-const PISOLINO: BattleMove = { id: "pisolino", name: "Pisolino al Pascolo", emoji: "😴", type: "prato", category: "cura", power: 0, accuracy: 1, energy: 15, amount: 70, desc: "Una pennichella ristoratrice tra i fiori: recupera HP." };
+const PISOLINO: BattleMove = { id: "pisolino", name: "Pisolino al Pascolo", emoji: "😴", type: "prato", category: "cura", power: 0, accuracy: 1, energy: 15, amount: 80, desc: "Una pennichella ristoratrice tra i fiori: recupera HP." };
 const SGUARDO: BattleMove = { id: "sguardo", name: "Sguardo Regale",     emoji: "👑", type: "corna", category: "buff", power: 0, accuracy: 1, energy: 15, buffStat: "atk", amount: 35, desc: "Fissa l'avversario con regalità: alza l'attacco." };
 const RUMINA: BattleMove  = { id: "rumina",  name: "Ruminazione Zen",    emoji: "🧘", type: "latte", category: "buff", power: 0, accuracy: 1, energy: 15, buffStat: "def", amount: 35, desc: "Mastica filosoficamente: alza la difesa." };
 
+/** Set di 4 mosse a partire da un TIPO e una rarità (firma per le Leggendarie). */
+export function movesetForType(t: VatsaType, rarity: RarityType): BattleMove[] {
+  const heavy = rarity === "Leggendaria" ? SIGNATURE : SPECIAL[t];
+  const utility = rarity === "Epica" ? SGUARDO : rarity === "Rara" ? RUMINA : MURO;
+  return [BASIC[t], heavy, utility, PISOLINO];
+}
+
 /** Costruisce il set di 4 mosse di una Reina dal suo tipo e dalla rarità. */
 export function cowMoveset(cow: Vatsamon): BattleMove[] {
-  const t = cowType(cow);
-  const isLegendary = cow.rarity === "Leggendaria";
-  const heavy = isLegendary ? SIGNATURE : SPECIAL[t];
-  // Difensiva/buff in base alla rarità per dare varietà.
-  const utility =
-    cow.rarity === "Epica" ? SGUARDO :
-    cow.rarity === "Rara" ? RUMINA : MURO;
-  return [BASIC[t], heavy, utility, PISOLINO];
+  return movesetForType(cowType(cow), cow.rarity);
 }
 
 // ===================== OGGETTI DA BATTAGLIA =====================

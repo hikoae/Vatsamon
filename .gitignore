@@ -25,3 +25,7 @@ app/.env.local
 # archivi (i contenuti sono già estratti in vatsamon/ e foto/)
 *.zip
 app/dist-netlify/
+
+# backup/temp locali
+*.bak
+app/.env.local.bak

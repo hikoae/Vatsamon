@@ -1,10 +1,11 @@
-import { Vatsamon } from "../types";
+import { Vatsamon, RarityType } from "../types";
 import { Pastore } from "../data/opponents";
 import {
   BattleMove,
   VatsaType,
   cowType,
   cowMoveset,
+  movesetForType,
   typeMultiplier,
 } from "../data/combat";
 
@@ -39,7 +40,7 @@ export function buildPlayerFighter(cow: Vatsamon): Fighter {
   const agi = clamp(s4 ? s4.grinta : cow.stats.agility);
   const stazza = s4 ? s4.stazza : cow.stats.defense;
   const peso = cow.peso_kg ?? 600;
-  const maxHp = Math.round(110 + stazza * 0.8 + peso / 12 + cow.level * 4);
+  const maxHp = Math.round(150 + stazza * 0.8 + peso / 12 + cow.level * 5);
   return {
     name: cow.name,
     breed: cow.breed,
@@ -70,7 +71,7 @@ export function buildOpponentFighter(p: Pastore): Fighter {
     cp: 0,
     level: p.cowLevel,
   };
-  const maxHp = Math.round(120 + resistance * 1.0 + p.cowLevel * 7);
+  const maxHp = Math.round(130 + resistance * 1.0 + p.cowLevel * 7);
   return {
     name: p.cowName,
     breed: p.cowBreed,
@@ -111,16 +112,21 @@ export function computeDamage(
   if (Math.random() > move.accuracy) return { dmg: 0, missed: true, crit: false, mult: 1 };
 
   const mult = typeMultiplier(move.type, defender.type);
-  const stab = move.type === attacker.type ? 1.2 : 1; // bonus tipo coerente
-  const variance = 0.85 + Math.random() * 0.3;
+  const stab = move.type === attacker.type ? 1.15 : 1; // bonus tipo coerente
+  // Varianza ampia (±28%) e crit più frequente: rende gli scontri meno
+  // deterministici (più "fun", come i range/crit di Pokémon).
+  const variance = 0.72 + Math.random() * 0.56;
   const crit = Math.random() < 0.12;
 
   const atk = attacker.atk * (1 + atkBuff / 100);
   const def = defender.def * (1 + defBuff / 100);
-  let base = (atk * move.power - def * 0.32) * mult * stab * variance;
-  if (crit) base *= 1.5;
+  // Difesa a RAPPORTO (mitigazione %), non sottrattiva: scala morbida, niente
+  // "gradino" in cui il danno crolla a zero (testato in simulazione).
+  const DEF_K = 55;
+  let base = atk * move.power * mult * stab * variance * (DEF_K / (DEF_K + def));
+  if (crit) base *= 1.6;
   if (defending) base *= 0.5;
-  return { dmg: Math.max(6, Math.round(base)), missed: false, crit, mult };
+  return { dmg: Math.max(4, Math.round(base)), missed: false, crit, mult };
 }
 
 /** IA avversaria: sceglie una mossa in modo sensato dal proprio set. */
@@ -146,4 +152,33 @@ export function pickOpponentMove(
   if (buff && r < 0.3) return buff;
   // Altrimenti un attacco base
   return attacks[Math.floor(Math.random() * attacks.length)] || set[0];
+}
+
+/**
+ * Boss d'Arena SCALATO sulla Reina del giocatore (rubber-band): il boss vale
+ * `powerFactor` volte la Reina con cui combatti, e ha il TIPO tematico dell'arena.
+ * Così la sfida è sempre "giusta" (mai impossibile né banale) e la strategia sta
+ * nel portare una Reina di tipo vincente contro il tipo dell'arena.
+ * powerFactor < 1 = più facile della tua Reina; > 1 = più forte.
+ */
+export function buildScaledBoss(
+  reference: Fighter,
+  visual: Vatsamon,
+  type: VatsaType,
+  powerFactor: number,
+  rarity: RarityType,
+): Fighter {
+  const pf = powerFactor;
+  return {
+    name: visual.name,
+    breed: visual.breed,
+    level: visual.level,
+    atk: clamp(reference.atk * pf),
+    def: clamp(reference.def * (0.9 + (pf - 1) * 0.5)),
+    agi: reference.agi,
+    maxHp: Math.round(reference.maxHp * pf),
+    type,
+    moveset: movesetForType(type, rarity),
+    visual,
+  };
 }

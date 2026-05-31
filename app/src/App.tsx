@@ -34,8 +34,12 @@ import { CowCard } from './components/CowCard';
 import { TrailOverlay } from './components/TrailOverlay';
 import { VALDOSTAN_TRAILS } from './data/trails';
 import { QuizScreen } from './components/QuizScreen';
+import { RespectEncounter } from './components/RespectEncounter';
+import { RESPONSIBLE_QUESTIONS, ResponsibleQuestion } from './data/responsibleQuestions';
 import BattleScene from './components/BattleScene';
+import DungeonRun from './components/DungeonRun';
 import { MAP_BATTLES, MapBattle } from './data/mapBattles';
+import { DUNGEONS, Dungeon } from './data/dungeons';
 import { ARENAS, ArenaId } from './data/arenas';
 import { TREK_ROUTES } from './data/routes';
 import { Challenges } from './components/Challenges';
@@ -132,6 +136,16 @@ function estimateCatch(rarity: RarityType | undefined, ballId: string, fedApple:
   return Math.max(0, Math.min(1, p));
 }
 
+// FASE 4 — Colore/etichetta del Punteggio Rispetto (0..100) per l'HUD.
+// Alto = verde (esploratore modello), basso = rosso (poco rispettoso).
+function respectTone(score: number): { color: string; label: string } {
+  if (score >= 80) return { color: '#10b981', label: 'Esemplare' };
+  if (score >= 60) return { color: '#22c55e', label: 'Buono' };
+  if (score >= 40) return { color: '#eab308', label: 'Discreto' };
+  if (score >= 20) return { color: '#f97316', label: 'Scarso' };
+  return { color: '#ef4444', label: 'Critico' };
+}
+
 // Anello colorato di difficoltà (verde→rosso) come il cerchio target di Pokémon GO.
 function catchDifficulty(p: number): { color: string; label: string } {
   if (p >= 1)    return { color: '#10b981', label: 'GARANTITA' };
@@ -207,11 +221,33 @@ export default function App() {
     };
   });
 
+  // ---- FASE 4: Punteggio RISPETTO (esplorazione responsabile) ----
+  // 0..100, parte da 50. Persistito in localStorage (chiave aggiunta anche a
+  // SAVE_KEYS in cloudSave.ts per la sincronizzazione cloud). Un Rispetto alto
+  // dà un piccolo vantaggio di gameplay (vedi spawnWildCowAtRandom: bonus rarità).
+  const [respectScore, setRespectScore] = useState<number>(() => {
+    const cached = localStorage.getItem('vazzamon_respect');
+    if (cached !== null) {
+      const n = Number(cached);
+      if (!Number.isNaN(n)) return Math.max(0, Math.min(100, n));
+    }
+    return 50;
+  });
+  // Applica una variazione al Rispetto mantenendolo nel range 0..100.
+  const adjustRespect = (delta: number) =>
+    setRespectScore(prev => Math.max(0, Math.min(100, prev + delta)));
+
   // Keep all persistent items secure in localStorage
   useEffect(() => { localStorage.setItem('vazzamon_collection_go', JSON.stringify(vatsadex)); }, [vatsadex]);
   useEffect(() => { localStorage.setItem('vazzamon_bag_go', JSON.stringify(backpack)); }, [backpack]);
   useEffect(() => { localStorage.setItem('vazzamon_eggs_go', JSON.stringify(eggs)); }, [eggs]);
   useEffect(() => { localStorage.setItem('vazzamon_trainer_go', JSON.stringify(trainer)); }, [trainer]);
+  useEffect(() => { localStorage.setItem('vazzamon_respect', String(respectScore)); }, [respectScore]);
+  // Rispecchia il Rispetto nell'oggetto trainer così la classifica cloud
+  // (leaderboard in cloudSave.ts, che legge trainer.respectScore) resta accurata.
+  useEffect(() => {
+    setTrainer(prev => prev.respectScore === respectScore ? prev : { ...prev, respectScore });
+  }, [respectScore]);
 
   // Trekking Waypoints coordinates tracking
   const [currentWaypointIndex, setCurrentWaypointIndex] = useState<number>(() => {
@@ -267,10 +303,17 @@ export default function App() {
   useEffect(() => { localStorage.setItem('vazzamon_waypoint_progress', String(waypointProgress)); }, [waypointProgress]);
 
   // ---- 2. VIEW NAVIGATION ----
-  const [activeTab, setActiveTab] = useState<'map' | 'scanner' | 'eggs' | 'vatsadex' | 'quiz'>('map');
+  const [activeTab, setActiveTab] = useState<'map' | 'scanner' | 'eggs' | 'vatsadex' | 'quiz' | 'premi'>('map');
   // Battaglia attiva (scena stile Pokémon lanciata dalla mappa).
   const [activeBattle, setActiveBattle] = useState<MapBattle | null>(null);
+  const [activeDungeon, setActiveDungeon] = useState<Dungeon | null>(null); // Lega/dungeon in corso
+  const [dungeonsCleared, setDungeonsCleared] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem('vazzamon_dungeons') || '[]'); } catch { return []; }
+  });
+  useEffect(() => { localStorage.setItem('vazzamon_dungeons', JSON.stringify(dungeonsCleared)); }, [dungeonsCleared]);
   const [encounterFlash, setEncounterFlash] = useState(false); // flash d'incontro casuale
+  // FASE 4: incontro educativo casuale (guardaparco/pastore) attivo, o null.
+  const [respectEncounter, setRespectEncounter] = useState<ResponsibleQuestion | null>(null);
   // Quiz "Scuola d'Alpeggio": miglior punteggio persistito.
   const [quizBest, setQuizBest] = useState<number>(() => {
     const saved = localStorage.getItem('vazzamon_quiz_go');
@@ -381,6 +424,47 @@ export default function App() {
     }
   };
 
+  // ---- DUNGEON / Lega delle Reines (castelli) ----
+  const tryStartDungeon = (d: Dungeon) => {
+    playClickSfx();
+    if (vatsadex.length === 0) {
+      setTrekkingFeed(prev => [`🐮 Cattura prima qualche Reina per formare una squadra!`, ...prev.slice(0, 8)]);
+      return;
+    }
+    if (trainer.level < d.reqLevel) {
+      setTrekkingFeed(prev => [`🔒 ${d.name}: serve livello ${d.reqLevel} (sei al ${trainer.level}). È contenuto endgame!`, ...prev.slice(0, 8)]);
+      return;
+    }
+    const dist = distanza({ lat: effLat, lng: effLng }, { lat: d.lat, lng: d.lng });
+    if (dist > BATTLE_RANGE) {
+      setTrekkingFeed(prev => [`🧭 ${d.name} è a ${fmtDist(dist)}: avvicinati per entrare nella Lega!`, ...prev.slice(0, 8)]);
+      return;
+    }
+    setActiveDungeon(d);
+  };
+  const handleDungeonResult = (won: boolean) => {
+    const d = activeDungeon;
+    if (!d) return;
+    if (won) {
+      addTrainerXp(d.rewardXp);
+      setTrainer(prev => ({ ...prev, coins: prev.coins + d.rewardCoins }));
+      // assegna gli oggetti rari in premio
+      setBackpack(prev => {
+        const next = prev.map(it => ({ ...it }));
+        d.rewardItems.forEach(r => {
+          const found = next.find(it => it.id === r.id);
+          if (found) found.quantity += r.qty;
+        });
+        return next;
+      });
+      if (!dungeonsCleared.includes(d.id)) setDungeonsCleared(prev => [...prev, d.id]);
+      const items = d.rewardItems.map(r => r.label).join(' · ');
+      setTrekkingFeed(prev => [`🏆 ${d.league} CONQUISTATA! Medaglia ${d.badgeEmoji} · +${d.rewardCoins} 🪙 · +${d.rewardXp} XP · ${items}`, ...prev.slice(0, 8)]);
+    } else {
+      setTrekkingFeed(prev => [`💀 La ${d.league} ti ha respinto. Rinforza la squadra e riprova!`, ...prev.slice(0, 8)]);
+    }
+  };
+
   // Incontro casuale stile Pokémon: un Pastore errante ti sfida mentre cammini.
   const triggerRandomEncounter = () => {
     const pool = MAP_BATTLES.filter(mb => mb.kind === 'pastore' && trainer.level >= mb.reqLevel);
@@ -394,6 +478,28 @@ export default function App() {
       // posiziona l'incontro alla tua posizione (così è "in raggio")
       setActiveBattle({ ...npc, lat: effLat, lng: effLng, id: `enc-${npc.id}-${Date.now()}` });
     }, 750);
+  };
+
+  // FASE 4: incontro EDUCATIVO casuale. Un guardaparco/pastore ti ferma con una
+  // domanda di comportamento responsabile (vedi data/responsibleQuestions.ts).
+  const triggerRespectEncounter = () => {
+    const q = RESPONSIBLE_QUESTIONS[Math.floor(Math.random() * RESPONSIBLE_QUESTIONS.length)];
+    if (soundEnabled) playClickSfx();
+    setTrekkingFeed(prev => [`${q.emoji} ${q.npc} ti ferma sul sentiero con una domanda sull'esplorazione responsabile…`, ...prev.slice(0, 8)]);
+    setRespectEncounter(q);
+  };
+  // Esito dell'incontro educativo: aggiorna Rispetto, ricompense e feed.
+  const resolveRespectEncounter = (correct: boolean) => {
+    if (correct) {
+      adjustRespect(6);
+      addTrainerXp(80);
+      setTrainer(prev => ({ ...prev, coins: prev.coins + 15 }));
+      setTrekkingFeed(prev => [`🌿 Risposta corretta! Rispetto +6 · +15 🪙 · +80 XP`, ...prev.slice(0, 8)]);
+    } else {
+      adjustRespect(-4);
+      setTrekkingFeed(prev => [`🌿 Risposta sbagliata: Rispetto -4. Hai imparato qualcosa di nuovo sulla montagna!`, ...prev.slice(0, 8)]);
+    }
+    setRespectEncounter(null);
   };
 
   // Synchronize dynamic Leaflet Map Layer drawing
@@ -620,6 +726,31 @@ export default function App() {
         leafletMarkersRef.current.push(bm);
       });
 
+      // ===== DUNGEON "Lega delle Reines" (castelli endgame) =====
+      DUNGEONS.forEach(dg => {
+        const d = distanza({ lat: effLat, lng: effLng }, { lat: dg.lat, lng: dg.lng });
+        const inRange = d <= BATTLE_RANGE;
+        const locked = trainer.level < dg.reqLevel;
+        const cleared = dungeonsCleared.includes(dg.id);
+        const ring = locked ? '#64748b' : dg.accent;
+        const dgIcon = L.divIcon({
+          className: 'custom-leaflet-marker dungeon-marker',
+          html: `<div class="flex flex-col items-center ${inRange && !locked ? '' : 'opacity-75'}">
+                   <div class="w-14 h-14 rounded-2xl border-2 flex items-center justify-center shadow-xl relative ${inRange && !locked ? 'animate-pulse' : ''}" style="border-color:${ring};background:#1a1430;transform:translateY(-8px);">
+                     <span class="text-3xl">${locked ? '🔒' : dg.emoji}</span>
+                     <span class="absolute -top-1 -right-1 text-[7px] font-mono font-black px-1 rounded-full" style="background:${ring};color:#fff;">LEGA</span>
+                     ${cleared ? '<span class="absolute -bottom-1 -right-1 text-[10px]">✅</span>' : ''}
+                   </div>
+                   <div class="px-1 rounded border text-[7px] font-mono font-bold whitespace-nowrap shadow-sm" style="background:#1a1430;border-color:${ring}66;color:${ring};transform:translateY(-10px);">${locked ? `🔒 Lv ${dg.reqLevel}` : (inRange ? '🏰 ENTRA' : `${fmtDist(d)}`)}</div>
+                 </div>`,
+          iconSize: [56, 70], iconAnchor: [28, 35],
+        });
+        const dm = L.marker([dg.lat, dg.lng], { icon: dgIcon })
+          .addTo(map)
+          .on('click', () => tryStartDungeon(dg));
+        leafletMarkersRef.current.push(dm);
+      });
+
       // Place or shift Player Marker
       if (leafletPlayerMarkerRef.current) {
         leafletPlayerMarkerRef.current.remove();
@@ -681,6 +812,15 @@ export default function App() {
     );
   };
   useEffect(() => () => { if (gpsWatchRef.current != null) navigator.geolocation.clearWatch(gpsWatchRef.current); }, []);
+
+  // La mappa vive dentro la cornice "telefono" a larghezza fissa: se la finestra
+  // viene ridimensionata (es. desktop ↔ mobile, rotazione), forza Leaflet a
+  // ricalcolare le sue dimensioni così le tile non restano sfocate/tagliate.
+  useEffect(() => {
+    const onResize = () => { if (leafletMapRef.current) leafletMapRef.current.invalidateSize(); };
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
 
   // PokeStop: Casere d'Alpeggio active interactions
   const [selectedCasera, setSelectedCasera] = useState<Hotspot | null>(null);
@@ -771,8 +911,18 @@ export default function App() {
     const randBreed = WILD_BREEDS[Math.floor(Math.random() * WILD_BREEDS.length)];
     const randName = WILD_NAMES[Math.floor(Math.random() * WILD_NAMES.length)] + " Selvatico";
     const rarities: RarityType[] = ['Comune', 'Comune', 'Rara', 'Rara', 'Epica', 'Leggendaria'];
-    const randRarity = rarities[Math.floor(Math.random() * rarities.length)];
-    
+    let randRarity = rarities[Math.floor(Math.random() * rarities.length)];
+
+    // FASE 4 — EFFETTO DEL RISPETTO sul gameplay: un esploratore rispettoso della
+    // montagna (Rispetto > 70) ha il 25% di probabilità di "promuovere" di un
+    // gradino la rarità di una Reina selvatica generata (Comune→Rara→Epica→
+    // Leggendaria). Vantaggio piccolo ma reale che premia il buon comportamento.
+    if (respectScore > 70 && Math.random() < 0.25) {
+      const ladder: RarityType[] = ['Comune', 'Rara', 'Epica', 'Leggendaria'];
+      const idx = ladder.indexOf(randRarity);
+      if (idx >= 0 && idx < ladder.length - 1) randRarity = ladder[idx + 1];
+    }
+
     let str = 30 + Math.floor(Math.random() * 45);
     let def = 30 + Math.floor(Math.random() * 45);
     let agl = 30 + Math.floor(Math.random() * 45);
@@ -1032,9 +1182,16 @@ export default function App() {
       ...prev.slice(0, 8)
     ]);
 
-    // INCONTRO CASUALE stile Pokémon: a volte un Pastore errante ti sfida.
-    if (!activeBattle && vatsadex.length > 0 && Math.random() < 0.22) {
+    // INCONTRI CASUALI mentre cammini. Mutuamente esclusivi: parte al più uno per
+    // passo, e solo se non c'è già una battaglia o un incontro educativo in corso.
+    const busy = activeBattle || respectEncounter;
+    if (!busy && vatsadex.length > 0 && Math.random() < 0.22) {
+      // a) Incontro di BATTAGLIA stile Pokémon: un Pastore errante ti sfida.
       triggerRandomEncounter();
+    } else if (!busy && Math.random() < 0.20) {
+      // b) FASE 4 — Incontro EDUCATIVO: un guardaparco/pastore pone una domanda
+      //    di comportamento responsabile in montagna (probabilità separata).
+      triggerRespectEncounter();
     }
   };
 
@@ -1111,6 +1268,27 @@ export default function App() {
       if (odds > 0.9) {
         looted.push("+1 Fieno Vette");
         setBackpack(prev => prev.map(item => item.id === 'item-hay' ? { ...item, quantity: item.quantity + 1 } : item));
+      }
+      // Oggetti DA BATTAGLIA (cure + buff) — così si raccolgono e si usano in combattimento.
+      if (odds > 0.45) {
+        looted.push("+2 Secchi di Latte 🥛");
+        setBackpack(prev => prev.map(item => item.id === 'item-potion-milk' ? { ...item, quantity: item.quantity + 2 } : item));
+      }
+      if (odds > 0.72) {
+        looted.push("+1 Genepy del Pastore 🍵 (ATK)");
+        setBackpack(prev => prev.map(item => item.id === 'item-buff-genepy' ? { ...item, quantity: item.quantity + 1 } : item));
+      }
+      if (odds > 0.8) {
+        looted.push("+1 Campanaccio Fortunato 🔔 (DIF)");
+        setBackpack(prev => prev.map(item => item.id === 'item-buff-bell' ? { ...item, quantity: item.quantity + 1 } : item));
+      }
+      if (odds > 0.91) {
+        looted.push("+1 Fetta di Fontina 🧀 (cura+)");
+        setBackpack(prev => prev.map(item => item.id === 'item-potion-fontina' ? { ...item, quantity: item.quantity + 1 } : item));
+      }
+      if (odds > 0.95) {
+        looted.push("+1 Grappa alla Genziana 🥃 (Adrenalina)");
+        setBackpack(prev => prev.map(item => item.id === 'item-energy-grappa' ? { ...item, quantity: item.quantity + 1 } : item));
       }
 
       setSpinRewards(looted);
@@ -1613,10 +1791,15 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-violet-100 via-rose-50 to-sky-100 flex flex-col font-sans text-slate-100 antialiased selection:bg-emerald-500 selection:text-white relative overflow-x-hidden" id="vatsamon-go-app">
+    <div className="min-h-screen bg-gradient-to-br from-violet-100 via-rose-50 to-sky-100 font-sans text-slate-100 antialiased selection:bg-emerald-500 selection:text-white relative overflow-x-hidden flex justify-center" id="vatsamon-go-app">
 
       {/* Sfondo aurora animato (tema Pokémon moderno) */}
       <div className="aurora-bg" aria-hidden="true" />
+
+      {/* CORNICE "TELEFONO": su desktop l'esperienza resta in una colonna centrata
+          di larghezza massima mobile, con bordo/ombra ai lati; su mobile occupa
+          tutto lo schermo senza cornice. */}
+      <div className="phone-frame w-full max-w-md min-h-screen flex flex-col relative bg-slate-950/0 lg:shadow-2xl lg:border-x lg:border-slate-800/60">
 
       {/* 🎒 MAIN HUD STATUS BAR (POKEMON GO STYLE) 🎒 */}
       <header className="bg-slate-950 border-b-2 border-[#c8102e] p-3 sticky top-0 z-50 shadow-md">
@@ -1657,9 +1840,20 @@ export default function App() {
               <span className="text-xs font-mono font-extrabold text-amber-300">{trainer.coins}</span>
             </div>
 
-            <div className="bg-slate-900 border border-slate-800 rounded-2xl py-1.5 px-3 flex items-center gap-1" title="Chilometri Camminati">
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl py-1.5 px-3 hidden sm:flex items-center gap-1" title="Chilometri Camminati">
               <span className="text-emerald-400 text-xs">🥾</span>
               <span className="text-xs font-mono font-extrabold text-slate-300">{trainer.kmTraveled} km</span>
+            </div>
+
+            {/* FASE 4 — Punteggio RISPETTO (esplorazione responsabile) */}
+            <div
+              className="bg-slate-900 border rounded-2xl py-1.5 px-3 flex items-center gap-1"
+              style={{ borderColor: respectTone(respectScore).color }}
+              title={`Rispetto della montagna: ${respectTone(respectScore).label} (${respectScore}/100). Rispondi bene agli incontri educativi per aumentarlo; oltre 70 migliora la rarità degli avvistamenti.`}
+              id="respect-hud"
+            >
+              <span className="text-xs">🌿</span>
+              <span className="text-xs font-mono font-extrabold" style={{ color: respectTone(respectScore).color }}>{respectScore}</span>
             </div>
 
             <button
@@ -1721,6 +1915,14 @@ export default function App() {
             <GraduationCap className="w-4 h-4 mb-0.5" />
             <span>Scuola</span>
           </button>
+
+          <button
+            onClick={() => { playClickSfx(); setActiveTab('premi'); }}
+            className={`flex flex-col items-center py-2 rounded-xl transition-all ${activeTab === 'premi' ? 'nav-active text-white' : 'text-slate-400 hover:bg-slate-900 hover:-translate-y-0.5'}`}
+          >
+            <Gift className="w-4 h-4 mb-0.5" />
+            <span>Premi</span>
+          </button>
         </div>
       </nav>
 
@@ -1730,29 +1932,10 @@ export default function App() {
         
         {/* VIEW 1: INTERACTIVE MAP OVERWORLD */}
         {activeTab === 'map' && (
-          <div className="space-y-6" id="overworld-view">
+          <div className="flex flex-col gap-6" id="overworld-view">
 
-            {/* SFIDE DEL GIOCATORE */}
-            <div className="bg-slate-950 border border-rose-700/30 rounded-3xl p-4">
-              <Challenges
-                stats={{
-                  capturedReal: vatsadex.filter(c => c.isReal).length,
-                  badges: trainerBadges.length,
-                  quizBest,
-                  km: trainer.kmTraveled,
-                  level: trainer.level,
-                }}
-                claimed={claimedChallenges}
-                onClaim={(id, coins, xp) => {
-                  if (claimedChallenges.includes(id)) return;
-                  playClickSfx();
-                  setClaimedChallenges(prev => [...prev, id]);
-                  setTrainer(prev => ({ ...prev, coins: prev.coins + coins }));
-                  addTrainerXp(xp);
-                  setTrekkingFeed(prev => [`🎯 Sfida completata! +${coins} 🪙 +${xp} XP`, ...prev.slice(0, 8)]);
-                }}
-              />
-            </div>
+            {/* La MAPPA è il primo elemento (order-first sul contenitore mappa più sotto).
+                Le ricompense/obiettivi sono nel tab dedicato "Premi". */}
 
             {/* SELETTORE PERCORSO (3 grandi itinerari valdostani) */}
             <div className="bg-slate-950 border border-slate-850 rounded-3xl p-4 space-y-3" id="route-selector">
@@ -1816,7 +1999,35 @@ export default function App() {
               <p className="text-[9px] text-slate-500 text-center">Avvicìnati (≤ 800 m) a un combattente per sfidarlo. Cammina o usa il GPS.</p>
             </div>
 
-            <div className="bg-slate-950 rounded-3xl p-5 border border-slate-850 relative overflow-hidden shadow-2xl">
+            {/* LEGA DELLE REINES — dungeon endgame nei castelli (squadra di 4) */}
+            <div className="bg-slate-950 border border-purple-700/30 rounded-3xl p-4 space-y-2" id="dungeon-nearby">
+              <h3 className="text-xs font-mono font-extrabold uppercase text-slate-300 tracking-wider flex items-center gap-1.5">
+                <span className="text-base">🏰</span> Lega delle Reines · Dungeon
+              </h3>
+              {[...DUNGEONS].map(dg => ({ dg, d: distanza({ lat: effLat, lng: effLng }, { lat: dg.lat, lng: dg.lng }) }))
+                .sort((a, b) => a.dg.reqLevel - b.dg.reqLevel).map(({ dg, d }) => {
+                  const locked = trainer.level < dg.reqLevel;
+                  const inRange = d <= BATTLE_RANGE;
+                  const cleared = dungeonsCleared.includes(dg.id);
+                  return (
+                    <button key={dg.id} onClick={() => tryStartDungeon(dg)} disabled={locked}
+                      className={`w-full flex items-center gap-3 rounded-2xl border p-2.5 text-left transition-all ${locked ? 'opacity-50 border-slate-800 bg-slate-900/60' : inRange ? 'border-purple-700/50 bg-purple-950/30 hover:bg-purple-900/30' : 'border-slate-800 bg-slate-900 hover:bg-slate-850'}`}>
+                      <span className="text-2xl">{locked ? '🔒' : dg.emoji}</span>
+                      <div className="flex-grow min-w-0">
+                        <div className="text-[11px] font-mono font-black text-slate-100 truncate">{dg.league} {cleared ? '✅' : ''}</div>
+                        <div className="text-[9px] text-slate-400 truncate">5 sfide · squadra di 4 · {dg.rewardCoins} 🪙</div>
+                      </div>
+                      <div className="text-right flex-shrink-0">
+                        <div className="text-[9px] font-mono text-slate-400">{fmtDist(d)}</div>
+                        <div className={`text-[9px] font-mono font-black ${locked ? 'text-slate-500' : inRange ? 'text-purple-400' : 'text-amber-400'}`}>{locked ? `Lv ${dg.reqLevel}` : inRange ? '🏰 ENTRA' : 'avvicìnati'}</div>
+                      </div>
+                    </button>
+                  );
+                })}
+              <p className="text-[9px] text-slate-500 text-center">Endgame: 5 battaglie di fila, gli HP si trascinano. Ricompense rare.</p>
+            </div>
+
+            <div className="order-first bg-slate-950 rounded-3xl p-3 sm:p-5 border border-slate-850 relative overflow-hidden shadow-2xl">
 
               {/* Overworld Title HUD */}
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4 z-10 relative border-b border-slate-900 pb-4">
@@ -1871,7 +2082,7 @@ export default function App() {
               {/* Conditional Map View Frame */}
               {mapMode === 'real' ? (
                 /* GEOGRAPHIC INTERACTIVE REAL MAP VIEW */
-                <div className="relative w-full h-[400px] sm:h-[450px] bg-slate-900 border-2 border-emerald-500/20 rounded-2xl overflow-hidden shadow-inner group z-0">
+                <div className="relative w-full h-[460px] sm:h-[540px] bg-slate-900 border-2 border-emerald-500/20 rounded-2xl overflow-hidden shadow-inner group z-0">
                   <div ref={mapContainerRef} className="w-full h-full" id="real-gps-map" />
                   
                   {/* Overlay HUD status regarding current trekking location */}
@@ -2837,6 +3048,32 @@ export default function App() {
           </div>
         )}
 
+        {/* VIEW: PREMI & OBIETTIVI (Sfide del Trekker, spostate qui dal tab Mappa) */}
+        {activeTab === 'premi' && (
+          <div className="space-y-6" id="premi-view">
+            <div className="bg-slate-950 border border-rose-700/30 rounded-3xl p-4">
+              <Challenges
+                stats={{
+                  capturedReal: vatsadex.filter(c => c.isReal).length,
+                  badges: trainerBadges.length,
+                  quizBest,
+                  km: trainer.kmTraveled,
+                  level: trainer.level,
+                }}
+                claimed={claimedChallenges}
+                onClaim={(id, coins, xp) => {
+                  if (claimedChallenges.includes(id)) return;
+                  playClickSfx();
+                  setClaimedChallenges(prev => [...prev, id]);
+                  setTrainer(prev => ({ ...prev, coins: prev.coins + coins }));
+                  addTrainerXp(xp);
+                  setTrekkingFeed(prev => [`🎯 Sfida completata! +${coins} 🪙 +${xp} XP`, ...prev.slice(0, 8)]);
+                }}
+              />
+            </div>
+          </div>
+        )}
+
         {/* Le battaglie ora vivono sulla MAPPA (marker Pastori/Boss) + pannello "Sfide nei dintorni". */}
         </div>
 
@@ -2857,6 +3094,28 @@ export default function App() {
           onResult={handleBattleResult}
           onClose={() => setActiveBattle(null)}
           playClick={playClickSfx}
+        />
+      )}
+
+      {/* DUNGEON "Lega delle Reines" (gauntlet di 5 battaglie con squadra di 4) */}
+      {activeDungeon && (
+        <DungeonRun
+          dungeon={activeDungeon}
+          playerCows={vatsadex}
+          backpack={backpack}
+          onConsumeItem={(id) => setBackpack(prev => prev.map(it => it.id === id ? { ...it, quantity: Math.max(0, it.quantity - 1) } : it))}
+          onResult={handleDungeonResult}
+          onClose={() => setActiveDungeon(null)}
+          playClick={playClickSfx}
+        />
+      )}
+
+      {/* FASE 4 — INCONTRO EDUCATIVO casuale (guardaparco/pastore con una domanda
+          di esplorazione responsabile) */}
+      {respectEncounter && (
+        <RespectEncounter
+          question={respectEncounter}
+          onResolved={resolveRespectEncounter}
         />
       )}
 
@@ -2933,6 +3192,8 @@ export default function App() {
           <span>Campanacci del latte & Bataille de Reines®</span>
         </div>
       </footer>
+
+      </div>{/* /phone-frame */}
 
       {/* OVERLAY LEVEL UP POPUP */}
       {levelUpAward && (

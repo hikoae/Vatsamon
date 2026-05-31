@@ -7,6 +7,7 @@ import {
   Fighter,
   buildPlayerFighter,
   buildOpponentFighter,
+  buildScaledBoss,
   computeDamage,
   pickOpponentMove,
 } from "../lib/battle";
@@ -90,15 +91,19 @@ export default function BattleScene({
   const pushLog = (lines: string[]) => setLog((prev) => [...[...lines].reverse(), ...prev].slice(0, 6));
   const cap = (n: number) => Math.max(0, Math.min(100, n));
 
-  const buildOpp = (): Fighter =>
-    battle.kind === "pastore" && battle.pastore
-      ? buildOpponentFighter(battle.pastore)
-      : buildPlayerFighter(arenaBoss(battle.arena!, trainerLevel));
+  // Costruisce l'avversario. Per le ARENE il boss è scalato sulla Reina scelta
+  // (rubber-band) col tipo tematico dell'arena → sfida sempre giusta.
+  const buildOpp = (ref: Fighter): Fighter => {
+    if (battle.kind === "pastore" && battle.pastore) return buildOpponentFighter(battle.pastore);
+    const arena = battle.arena!;
+    const bossCow = arenaBoss(arena, trainerLevel);
+    return buildScaledBoss(ref, bossCow, arena.bossType, arena.powerFactor, bossCow.rarity);
+  };
 
   const begin = () => {
     playClick();
     const pf = buildPlayerFighter(playerCow);
-    const of = buildOpp();
+    const of = buildOpp(pf);
     playerRef.current = pf;
     oppRef.current = of;
     stRef.current = { pHp: pf.maxHp, oHp: of.maxHp, pMax: pf.maxHp, oMax: of.maxHp, pEnergy: 0, oEnergy: 0, pAtkBuff: 0, pDefBuff: 0, oAtkBuff: 0, oDefBuff: 0, pDef: false, oDef: false };
@@ -327,6 +332,15 @@ function IntroPanel({ battle, playerCows, cowId, setCowId, onStart, onClose, pla
         <div className="text-base font-mono font-black text-slate-100">{battle.name}</div>
         <div className="text-[11px] text-slate-300">{battle.subtitle}</div>
         {battle.pastore && <p className="text-[11px] text-slate-200 italic mt-2 bg-slate-900/60 border border-slate-800 rounded-2xl p-3 max-w-xs">"{battle.pastore.dialogueIntro}"</p>}
+        {battle.kind === "arena" && battle.arena && (
+          <p className="text-[11px] font-mono mt-2">
+            Boss di tipo{" "}
+            <span className="font-black px-1 rounded" style={{ background: TYPES[battle.arena.bossType].color + "22", color: TYPES[battle.arena.bossType].color }}>
+              {TYPES[battle.arena.bossType].emoji} {TYPES[battle.arena.bossType].name}
+            </span>{" "}
+            — porta una Reina del tipo che lo batte!
+          </p>
+        )}
       </div>
       {locked ? (
         <div className="text-rose-500 font-mono font-bold text-sm">🔒 Richiede livello {battle.reqLevel}</div>

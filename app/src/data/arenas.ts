@@ -1,13 +1,17 @@
 import { Vatsamon } from "../types";
+import { VatsaType } from "./combat";
 import { REAL_COWS } from "./realCows";
 
 /**
- * Arene (Palestre) della Valle d'Aosta per il combattimento a turni.
- * Portate da `materiali/vatsamon_arene`: ogni arena ha un boss, un livello
- * richiesto, una medaglia con bonus permanente e bonus ambientali.
- * I BOSS sono vere Reines Epiche/Leggendarie del nostro dataset, scalate.
+ * Palestre (Gym) della Valle d'Aosta, piazzate sugli ALPEGGI reali — dove
+ * vivono davvero le Reines. Ogni palestra ha un boss di un TIPO tematico, una
+ * medaglia e una difficoltà crescente. Il boss è SCALATO sulla Reina del
+ * giocatore (rubber-band, vedi buildScaledBoss): sfida sempre giusta, la
+ * strategia sta nel portare il tipo che batte quello dell'alpeggio.
+ * I CASTELLI non sono più palestre: sono diventati i Dungeon endgame.
  */
-export type ArenaId = "cogne" | "gran_paradiso" | "fenis" | "morgex";
+export type ArenaId =
+  | "herbetet" | "money" | "gabiet" | "predebar" | "nivolet" | "tsatsan";
 
 export interface Arena {
   id: ArenaId;
@@ -18,70 +22,111 @@ export interface Arena {
   badgeName: string;
   badgeEmoji: string;
   bonusDesc: string;
-  /** classi gradient per lo sfondo dell'arena */
   bgGradient: string;
-  /** colore dominante (per pattern/accenti) */
   accent: string;
   introMsg: string;
-  /** rarità preferita per scegliere il boss reale */
   preferRarity: "Epica" | "Leggendaria";
+  /** Fattore di potenza del boss rispetto alla Reina del giocatore (rubber-band). */
+  powerFactor: number;
+  /** Tipo tematico del boss (portagli il tipo che lo batte). */
+  bossType: VatsaType;
 }
 
 export const ARENAS: Arena[] = [
   {
-    id: "cogne",
-    name: "Palestra dei Prati di Cogne 🌸",
+    id: "herbetet",
+    powerFactor: 0.88,
+    bossType: "prato",
+    name: "Alpeggio dell'Herbetet 🌼",
     difficulty: "Facile",
     requiredLevel: 1,
     cp: 850,
-    badgeName: "Medaglia Flora",
-    badgeEmoji: "🌸",
-    bonusDesc: "I Sorsi di Latte curano il +25% di HP in ogni battaglia.",
+    badgeName: "Medaglia Herbetet",
+    badgeEmoji: "🌼",
+    bonusDesc: "Pascoli fioriti di Valnontey: il tuo primo banco di prova.",
     bgGradient: "from-emerald-900/50 to-slate-950",
     accent: "#10b981",
-    introMsg: "🌸 Prati di Sant'Orso a Cogne: la brezza alpina infonde forza alle mosse rigenerative.",
+    introMsg: "🌼 Erba grassa e fiori alpini dell'Herbetet (Cogne): qui la boss è di tipo Prato 🌿.",
     preferRarity: "Epica",
   },
   {
-    id: "gran_paradiso",
-    name: "Palestra del Ghiacciaio ❄️",
+    id: "money",
+    powerFactor: 0.96,
+    bossType: "latte",
+    name: "Alpe Money 🥛",
     difficulty: "Medio",
-    requiredLevel: 2,
-    cp: 1550,
-    badgeName: "Medaglia Ghiacciaio",
-    badgeEmoji: "❄️",
-    bonusDesc: "+25% di Punti Esperienza (XP) da qualsiasi attività.",
+    requiredLevel: 3,
+    cp: 1400,
+    badgeName: "Medaglia Money",
+    badgeEmoji: "🥛",
+    bonusDesc: "Alpeggio d'alta quota sopra Cogne: latte purissimo e Reines placide ma toste.",
+    bgGradient: "from-purple-900/50 to-slate-950",
+    accent: "#a78bfa",
+    introMsg: "🥛 All'Alpe Money, regno del latte: la boss è di tipo Latte 🥛.",
+    preferRarity: "Epica",
+  },
+  {
+    id: "gabiet",
+    powerFactor: 1.0,
+    bossType: "tempesta",
+    name: "Alpe Gabiet ⛈️",
+    difficulty: "Medio",
+    requiredLevel: 5,
+    cp: 1900,
+    badgeName: "Medaglia Gabiet",
+    badgeEmoji: "⛈️",
+    bonusDesc: "Lago e pascoli del Gabiet sotto il Monte Rosa: vento e fulmini Walser.",
     bgGradient: "from-sky-900/50 to-slate-950",
     accent: "#38bdf8",
-    introMsg: "❄️ Ghiacciaio del Gran Paradiso: l'aria sottile rinvigorisce energia e determinazione iniziali.",
+    introMsg: "⛈️ Tra le tormente del Gabiet (Gressoney): la boss è di tipo Tempesta ⛈️.",
     preferRarity: "Leggendaria",
   },
   {
-    id: "fenis",
-    name: "Palestra del Castello di Fénis 🏰",
+    id: "predebar",
+    powerFactor: 1.06,
+    bossType: "roccia",
+    name: "Alpe Pré de Bar 🪨",
     difficulty: "Difficile",
-    requiredLevel: 3,
-    cp: 2350,
-    badgeName: "Medaglia Fortezza",
-    badgeEmoji: "🏰",
-    bonusDesc: "+15% di difesa passiva permanente in tutti gli scontri.",
+    requiredLevel: 8,
+    cp: 2500,
+    badgeName: "Medaglia Pré de Bar",
+    badgeEmoji: "🪨",
+    bonusDesc: "Ai piedi delle Grandes Jorasses, in Val Ferret: Reines dure come il granito.",
     bgGradient: "from-amber-900/50 to-slate-950",
-    accent: "#f59e0b",
-    introMsg: "🏰 Arena del Castello di Fénis: le massicce mura di pietra riducono i danni subiti.",
+    accent: "#d97706",
+    introMsg: "🪨 Morene e roccia del Pré de Bar (Val Ferret): la boss è di tipo Roccia 🪨.",
     preferRarity: "Epica",
   },
   {
-    id: "morgex",
-    name: "Palestra dei Vigneti di Morgex 🍇",
+    id: "nivolet",
+    powerFactor: 1.1,
+    bossType: "corna",
+    name: "Gran Piano del Nivolet 🐂",
+    difficulty: "Difficile",
+    requiredLevel: 11,
+    cp: 3000,
+    badgeName: "Medaglia Nivolet",
+    badgeEmoji: "🐂",
+    bonusDesc: "L'altopiano selvaggio del Gran Paradiso (Valsavarenche): corna fiere e stambecchi.",
+    bgGradient: "from-rose-900/50 to-slate-950",
+    accent: "#e11d48",
+    introMsg: "🐂 Sull'altopiano del Nivolet: la boss carica con corna possenti (tipo Corna 🐂).",
+    preferRarity: "Leggendaria",
+  },
+  {
+    id: "tsatsan",
+    powerFactor: 1.14,
+    bossType: "roccia",
+    name: "Alpe Tsa de Tsan 🏔️",
     difficulty: "Leggendario",
-    requiredLevel: 4,
+    requiredLevel: 14,
     cp: 3600,
-    badgeName: "Medaglia Vigneto",
-    badgeEmoji: "🍇",
-    bonusDesc: "+15% di probabilità di evasione automatica permanente.",
-    bgGradient: "from-purple-900/50 to-slate-950",
-    accent: "#a855f7",
-    introMsg: "🍇 Vigneti eroici di Morgex: le coltivazioni d'alta quota aumentano l'evasione naturale.",
+    badgeName: "Medaglia Tsa de Tsan",
+    badgeEmoji: "🏔️",
+    bonusDesc: "Alpeggio remoto della Valpelline, presso il lago di Place Moulin: la prova suprema.",
+    bgGradient: "from-slate-800/60 to-slate-950",
+    accent: "#64748b",
+    introMsg: "🏔️ Nell'austero alpeggio di Tsa de Tsan (Valpelline): la boss è di tipo Roccia 🪨.",
     preferRarity: "Leggendaria",
   },
 ];
@@ -95,14 +140,14 @@ function bossPool(rarity: "Epica" | "Leggendaria"): Vatsamon[] {
 }
 
 /**
- * Sceglie la vera Reina boss per un'arena (deterministico per arena),
- * scalata al livello del giocatore. Ritorna un Vatsamon "boss".
+ * Sceglie la vera Reina boss per una palestra (deterministico per arena),
+ * scalata al livello del giocatore. Ritorna un Vatsamon "boss" (usato per la
+ * grafica/nome; le statistiche effettive vengono dal rubber-band).
  */
 export function arenaBoss(arena: Arena, playerLevel: number): Vatsamon {
   const pool = bossPool(arena.preferRarity);
   const fallback = REAL_COWS.filter((c) => c.rarity === "Epica" || c.rarity === "Leggendaria");
   const list = pool.length ? pool : (fallback.length ? fallback : REAL_COWS);
-  // indice stabile per arena per avere boss diversi tra le palestre
   const idx = ARENAS.findIndex((a) => a.id === arena.id);
   const base = list[idx % list.length];
 
@@ -113,7 +158,6 @@ export function arenaBoss(arena: Arena, playerLevel: number): Vatsamon {
     id: `boss-${arena.id}`,
     level: bossLevel,
     cp: Math.floor(arena.cp * oppPowerMult),
-    // potenzia un po' le stat di gioco per il ruolo da boss
     stats: {
       strength: Math.floor(45 + arena.cp * 0.02),
       defense: Math.floor(40 + arena.cp * 0.015),
