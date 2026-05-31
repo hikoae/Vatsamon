@@ -8,7 +8,7 @@
  * - Set di 4 mosse per Reina, costruito da tipo + rarità (firma per le Leggendarie).
  * - OGGETTI da battaglia (cure + buff) usabili dallo zaino durante lo scontro.
  */
-import { Vatsamon } from "../types";
+import { Vatsamon, RarityType } from "../types";
 import rawDex from "./vatsadex.json";
 
 // Distribuzione reale delle 4 statistiche (per assegnare i tipi in modo
@@ -147,16 +147,16 @@ const PISOLINO: BattleMove = { id: "pisolino", name: "Pisolino al Pascolo", emoj
 const SGUARDO: BattleMove = { id: "sguardo", name: "Sguardo Regale",     emoji: "👑", type: "corna", category: "buff", power: 0, accuracy: 1, energy: 15, buffStat: "atk", amount: 35, desc: "Fissa l'avversario con regalità: alza l'attacco." };
 const RUMINA: BattleMove  = { id: "rumina",  name: "Ruminazione Zen",    emoji: "🧘", type: "latte", category: "buff", power: 0, accuracy: 1, energy: 15, buffStat: "def", amount: 35, desc: "Mastica filosoficamente: alza la difesa." };
 
+/** Set di 4 mosse a partire da un TIPO e una rarità (firma per le Leggendarie). */
+export function movesetForType(t: VatsaType, rarity: RarityType): BattleMove[] {
+  const heavy = rarity === "Leggendaria" ? SIGNATURE : SPECIAL[t];
+  const utility = rarity === "Epica" ? SGUARDO : rarity === "Rara" ? RUMINA : MURO;
+  return [BASIC[t], heavy, utility, PISOLINO];
+}
+
 /** Costruisce il set di 4 mosse di una Reina dal suo tipo e dalla rarità. */
 export function cowMoveset(cow: Vatsamon): BattleMove[] {
-  const t = cowType(cow);
-  const isLegendary = cow.rarity === "Leggendaria";
-  const heavy = isLegendary ? SIGNATURE : SPECIAL[t];
-  // Difensiva/buff in base alla rarità per dare varietà.
-  const utility =
-    cow.rarity === "Epica" ? SGUARDO :
-    cow.rarity === "Rara" ? RUMINA : MURO;
-  return [BASIC[t], heavy, utility, PISOLINO];
+  return movesetForType(cowType(cow), cow.rarity);
 }
 
 // ===================== OGGETTI DA BATTAGLIA =====================

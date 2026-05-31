@@ -1,4 +1,5 @@
 import { Vatsamon } from "../types";
+import { VatsaType } from "./combat";
 import { REAL_COWS } from "./realCows";
 
 /**
@@ -25,11 +26,18 @@ export interface Arena {
   introMsg: string;
   /** rarità preferita per scegliere il boss reale */
   preferRarity: "Epica" | "Leggendaria";
+  /** Fattore di potenza del boss rispetto alla Reina del giocatore (rubber-band).
+   *  <1 = più facile, >1 = più forte. */
+  powerFactor: number;
+  /** Tipo tematico del boss (la sfida strategica: portagli il tipo che lo batte). */
+  bossType: VatsaType;
 }
 
 export const ARENAS: Arena[] = [
   {
     id: "cogne",
+    powerFactor: 0.88,
+    bossType: "prato",
     name: "Palestra dei Prati di Cogne 🌸",
     difficulty: "Facile",
     requiredLevel: 1,
@@ -44,6 +52,8 @@ export const ARENAS: Arena[] = [
   },
   {
     id: "gran_paradiso",
+    powerFactor: 0.98,
+    bossType: "tempesta",
     name: "Palestra del Ghiacciaio ❄️",
     difficulty: "Medio",
     requiredLevel: 2,
@@ -58,6 +68,8 @@ export const ARENAS: Arena[] = [
   },
   {
     id: "fenis",
+    powerFactor: 1.06,
+    bossType: "roccia",
     name: "Palestra del Castello di Fénis 🏰",
     difficulty: "Difficile",
     requiredLevel: 3,
@@ -72,6 +84,8 @@ export const ARENAS: Arena[] = [
   },
   {
     id: "morgex",
+    powerFactor: 1.16,
+    bossType: "corna",
     name: "Palestra dei Vigneti di Morgex 🍇",
     difficulty: "Leggendario",
     requiredLevel: 4,

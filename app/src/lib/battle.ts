@@ -1,10 +1,11 @@
-import { Vatsamon } from "../types";
+import { Vatsamon, RarityType } from "../types";
 import { Pastore } from "../data/opponents";
 import {
   BattleMove,
   VatsaType,
   cowType,
   cowMoveset,
+  movesetForType,
   typeMultiplier,
 } from "../data/combat";
 
@@ -112,15 +113,20 @@ export function computeDamage(
 
   const mult = typeMultiplier(move.type, defender.type);
   const stab = move.type === attacker.type ? 1.15 : 1; // bonus tipo coerente
-  const variance = 0.85 + Math.random() * 0.3;
-  const crit = Math.random() < 0.08;
+  // Varianza ampia (±28%) e crit più frequente: rende gli scontri meno
+  // deterministici (più "fun", come i range/crit di Pokémon).
+  const variance = 0.72 + Math.random() * 0.56;
+  const crit = Math.random() < 0.12;
 
   const atk = attacker.atk * (1 + atkBuff / 100);
   const def = defender.def * (1 + defBuff / 100);
-  let base = (atk * move.power - def * 0.38) * mult * stab * variance;
-  if (crit) base *= 1.5;
+  // Difesa a RAPPORTO (mitigazione %), non sottrattiva: scala morbida, niente
+  // "gradino" in cui il danno crolla a zero (testato in simulazione).
+  const DEF_K = 55;
+  let base = atk * move.power * mult * stab * variance * (DEF_K / (DEF_K + def));
+  if (crit) base *= 1.6;
   if (defending) base *= 0.5;
-  return { dmg: Math.max(5, Math.round(base)), missed: false, crit, mult };
+  return { dmg: Math.max(4, Math.round(base)), missed: false, crit, mult };
 }
 
 /** IA avversaria: sceglie una mossa in modo sensato dal proprio set. */
@@ -146,4 +152,33 @@ export function pickOpponentMove(
   if (buff && r < 0.3) return buff;
   // Altrimenti un attacco base
   return attacks[Math.floor(Math.random() * attacks.length)] || set[0];
+}
+
+/**
+ * Boss d'Arena SCALATO sulla Reina del giocatore (rubber-band): il boss vale
+ * `powerFactor` volte la Reina con cui combatti, e ha il TIPO tematico dell'arena.
+ * Così la sfida è sempre "giusta" (mai impossibile né banale) e la strategia sta
+ * nel portare una Reina di tipo vincente contro il tipo dell'arena.
+ * powerFactor < 1 = più facile della tua Reina; > 1 = più forte.
+ */
+export function buildScaledBoss(
+  reference: Fighter,
+  visual: Vatsamon,
+  type: VatsaType,
+  powerFactor: number,
+  rarity: RarityType,
+): Fighter {
+  const pf = powerFactor;
+  return {
+    name: visual.name,
+    breed: visual.breed,
+    level: visual.level,
+    atk: clamp(reference.atk * pf),
+    def: clamp(reference.def * (0.9 + (pf - 1) * 0.5)),
+    agi: reference.agi,
+    maxHp: Math.round(reference.maxHp * pf),
+    type,
+    moveset: movesetForType(type, rarity),
+    visual,
+  };
 }
