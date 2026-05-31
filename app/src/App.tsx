@@ -301,7 +301,7 @@ export default function App() {
   useEffect(() => { localStorage.setItem('vazzamon_waypoint_progress', String(waypointProgress)); }, [waypointProgress]);
 
   // ---- 2. VIEW NAVIGATION ----
-  const [activeTab, setActiveTab] = useState<'map' | 'scanner' | 'eggs' | 'vatsadex' | 'quiz'>('map');
+  const [activeTab, setActiveTab] = useState<'map' | 'scanner' | 'eggs' | 'vatsadex' | 'quiz' | 'premi'>('map');
   // Battaglia attiva (scena stile Pokémon lanciata dalla mappa).
   const [activeBattle, setActiveBattle] = useState<MapBattle | null>(null);
   const [encounterFlash, setEncounterFlash] = useState(false); // flash d'incontro casuale
@@ -1842,6 +1842,14 @@ export default function App() {
             <GraduationCap className="w-4 h-4 mb-0.5" />
             <span>Scuola</span>
           </button>
+
+          <button
+            onClick={() => { playClickSfx(); setActiveTab('premi'); }}
+            className={`flex flex-col items-center py-2 rounded-xl transition-all ${activeTab === 'premi' ? 'nav-active text-white' : 'text-slate-400 hover:bg-slate-900 hover:-translate-y-0.5'}`}
+          >
+            <Gift className="w-4 h-4 mb-0.5" />
+            <span>Premi</span>
+          </button>
         </div>
       </nav>
 
@@ -1851,29 +1859,10 @@ export default function App() {
         
         {/* VIEW 1: INTERACTIVE MAP OVERWORLD */}
         {activeTab === 'map' && (
-          <div className="space-y-6" id="overworld-view">
+          <div className="flex flex-col gap-6" id="overworld-view">
 
-            {/* SFIDE DEL GIOCATORE */}
-            <div className="bg-slate-950 border border-rose-700/30 rounded-3xl p-4">
-              <Challenges
-                stats={{
-                  capturedReal: vatsadex.filter(c => c.isReal).length,
-                  badges: trainerBadges.length,
-                  quizBest,
-                  km: trainer.kmTraveled,
-                  level: trainer.level,
-                }}
-                claimed={claimedChallenges}
-                onClaim={(id, coins, xp) => {
-                  if (claimedChallenges.includes(id)) return;
-                  playClickSfx();
-                  setClaimedChallenges(prev => [...prev, id]);
-                  setTrainer(prev => ({ ...prev, coins: prev.coins + coins }));
-                  addTrainerXp(xp);
-                  setTrekkingFeed(prev => [`🎯 Sfida completata! +${coins} 🪙 +${xp} XP`, ...prev.slice(0, 8)]);
-                }}
-              />
-            </div>
+            {/* La MAPPA è il primo elemento (order-first sul contenitore mappa più sotto).
+                Le ricompense/obiettivi sono nel tab dedicato "Premi". */}
 
             {/* SELETTORE PERCORSO (3 grandi itinerari valdostani) */}
             <div className="bg-slate-950 border border-slate-850 rounded-3xl p-4 space-y-3" id="route-selector">
@@ -1937,7 +1926,7 @@ export default function App() {
               <p className="text-[9px] text-slate-500 text-center">Avvicìnati (≤ 800 m) a un combattente per sfidarlo. Cammina o usa il GPS.</p>
             </div>
 
-            <div className="bg-slate-950 rounded-3xl p-5 border border-slate-850 relative overflow-hidden shadow-2xl">
+            <div className="order-first bg-slate-950 rounded-3xl p-3 sm:p-5 border border-slate-850 relative overflow-hidden shadow-2xl">
 
               {/* Overworld Title HUD */}
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4 z-10 relative border-b border-slate-900 pb-4">
@@ -1992,7 +1981,7 @@ export default function App() {
               {/* Conditional Map View Frame */}
               {mapMode === 'real' ? (
                 /* GEOGRAPHIC INTERACTIVE REAL MAP VIEW */
-                <div className="relative w-full h-[400px] sm:h-[450px] bg-slate-900 border-2 border-emerald-500/20 rounded-2xl overflow-hidden shadow-inner group z-0">
+                <div className="relative w-full h-[460px] sm:h-[540px] bg-slate-900 border-2 border-emerald-500/20 rounded-2xl overflow-hidden shadow-inner group z-0">
                   <div ref={mapContainerRef} className="w-full h-full" id="real-gps-map" />
                   
                   {/* Overlay HUD status regarding current trekking location */}
@@ -2955,6 +2944,32 @@ export default function App() {
                 setTrekkingFeed(prev => [`🎓 Scuola d'Alpeggio: ${correct}/${totale} risposte giuste (+${coinsWon} 🪙)`, ...prev.slice(0, 8)]);
               }}
             />
+          </div>
+        )}
+
+        {/* VIEW: PREMI & OBIETTIVI (Sfide del Trekker, spostate qui dal tab Mappa) */}
+        {activeTab === 'premi' && (
+          <div className="space-y-6" id="premi-view">
+            <div className="bg-slate-950 border border-rose-700/30 rounded-3xl p-4">
+              <Challenges
+                stats={{
+                  capturedReal: vatsadex.filter(c => c.isReal).length,
+                  badges: trainerBadges.length,
+                  quizBest,
+                  km: trainer.kmTraveled,
+                  level: trainer.level,
+                }}
+                claimed={claimedChallenges}
+                onClaim={(id, coins, xp) => {
+                  if (claimedChallenges.includes(id)) return;
+                  playClickSfx();
+                  setClaimedChallenges(prev => [...prev, id]);
+                  setTrainer(prev => ({ ...prev, coins: prev.coins + coins }));
+                  addTrainerXp(xp);
+                  setTrekkingFeed(prev => [`🎯 Sfida completata! +${coins} 🪙 +${xp} XP`, ...prev.slice(0, 8)]);
+                }}
+              />
+            </div>
           </div>
         )}
 

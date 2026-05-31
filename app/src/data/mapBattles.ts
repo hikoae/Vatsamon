@@ -37,15 +37,14 @@ const PASTORE_COORDS: Record<string, { lat: number; lng: number; sub: string }> 
 };
 
 // Luoghi reali delle Arene (paesi/valli omonimi).
+// Palestre sugli ALPEGGI reali.
 const ARENA_COORDS: Record<string, { lat: number; lng: number }> = {
-  cogne: { lat: 45.608, lng: 7.355 },
-  gran_paradiso: { lat: 45.56, lng: 7.268 },
-  fenis: { lat: 45.736, lng: 7.491 },
-  morgex: { lat: 45.758, lng: 7.038 },
-  verres: { lat: 45.666, lng: 7.687 },
-  sarre: { lat: 45.719, lng: 7.258 },
-  bard: { lat: 45.609, lng: 7.745 },
-  issogne: { lat: 45.659, lng: 7.689 },
+  herbetet: { lat: 45.5971, lng: 7.3185 },
+  money: { lat: 45.575, lng: 7.301 },
+  gabiet: { lat: 45.8351, lng: 7.8491 },
+  predebar: { lat: 45.8453, lng: 7.0707 },
+  nivolet: { lat: 45.472, lng: 7.133 },
+  tsatsan: { lat: 45.93, lng: 7.49 },
 };
 
 function pastoreReq(p: Pastore): number {
