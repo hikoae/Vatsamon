@@ -51,8 +51,48 @@ export function writeLocalSave(keys: Record<string, string>) {
   }
 }
 
-/** Cancella le chiavi del salvataggio (es. al cambio utente / logout). */
+/** Chiave del backup locale (sempre l'ultimo salvataggio prima di un'operazione distruttiva). */
+export const BACKUP_KEY = "vazzamon_backup_latest";
+
+/** Indica se nello storage esistono progressi di gioco (collezione o allenatore). */
+export function hasExistingProgress(): boolean {
+  try {
+    const coll = JSON.parse(localStorage.getItem("vazzamon_collection_go") || "[]");
+    if (Array.isArray(coll) && coll.length > 0) return true;
+  } catch { /* ignora json corrotto */ }
+  return Boolean(localStorage.getItem("vazzamon_trainer_go"));
+}
+
+/**
+ * Copia di sicurezza dei progressi correnti in un'unica chiave locale, PRIMA di
+ * qualsiasi operazione che potrebbe sovrascriverli (cambio utente, idratazione
+ * da cloud, ecc.). Non sovrascrive un backup non vuoto con uno vuoto.
+ */
+export function backupLocalSave(reason: string) {
+  const keys = readLocalSave();
+  if (Object.keys(keys).length === 0) return;
+  try {
+    localStorage.setItem(BACKUP_KEY, JSON.stringify({ at: Date.now(), reason, keys }));
+  } catch { /* quota piena: il backup è best-effort */ }
+}
+
+/** Ripristina l'ultimo backup locale nelle chiavi di gioco. true se riuscito. */
+export function restoreLocalBackup(): boolean {
+  try {
+    const raw = localStorage.getItem(BACKUP_KEY);
+    if (!raw) return false;
+    const parsed = JSON.parse(raw) as { keys?: Record<string, string> };
+    if (!parsed.keys) return false;
+    writeLocalSave(parsed.keys);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Cancella le chiavi del salvataggio (es. al cambio utente / logout). Fa un backup prima. */
 export function clearLocalSave() {
+  backupLocalSave("clear");
   for (const k of SAVE_KEYS) localStorage.removeItem(k);
 }
 

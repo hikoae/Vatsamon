@@ -19,10 +19,17 @@ import {
   clearLocalSave,
   readLocalSave,
   saveCloudSave,
+  backupLocalSave,
+  hasExistingProgress,
 } from "../lib/cloudSave";
 
 const OWNER_KEY = "vazzamon_owner_uid";
 type Phase = "resolving" | "login" | "onboarding" | "ready";
+
+/** Segna lo storage come "già onboardato" (per giocatori migrati/grandfathered). */
+function markOnboarded(reason: string) {
+  localStorage.setItem("vazzamon_onboarded", JSON.stringify({ [reason]: true, at: Date.now() }));
+}
 
 export default function AuthGate() {
   const { user, loading, firebaseEnabled } = useAuth();
@@ -45,17 +52,29 @@ export default function AuthGate() {
     (async () => {
       setPhase("resolving");
 
-      // Modalità locale / ospite: nessun login, mantieni lo storage esistente.
+      // Modalità locale / ospite: nessun login, storage solo locale.
       if (!firebaseEnabled || user.isGuest) {
         sessionUid.current = "guest";
-        const wantOnboard =
-          new URLSearchParams(location.search).has("onboard") &&
-          !localStorage.getItem("vazzamon_onboarded");
-        setPhase(wantOnboard ? "onboarding" : "ready");
+        backupLocalSave("local-start");
+        const forced = new URLSearchParams(location.search).has("onboard");
+        if (localStorage.getItem("vazzamon_onboarded") && !forced) {
+          setPhase("ready");
+          return;
+        }
+        // Giocatore con progressi pre-onboarding: NON sovrascrivere, lo
+        // promuoviamo a "onboarded" e va dritto al gioco coi suoi dati.
+        if (hasExistingProgress() && !forced) {
+          markOnboarded("grandfathered");
+          setPhase("ready");
+          return;
+        }
+        // Utente davvero nuovo (o ?onboard): crea il personaggio.
+        setPhase("onboarding");
         return;
       }
 
-      // Utente reale: se lo storage locale apparteneva a un altro account, pulisci.
+      // Utente reale: se lo storage locale apparteneva a un altro account, pulisci
+      // (clearLocalSave fa prima un backup).
       const owner = localStorage.getItem(OWNER_KEY);
       if (owner && owner !== user.uid) clearLocalSave();
 
@@ -67,14 +86,34 @@ export default function AuthGate() {
         cloud = null;
       }
       if (cancelled) return;
-      if (cloud?.keys && Object.keys(cloud.keys).length) {
-        writeLocalSave(cloud.keys);
-      }
+
       localStorage.setItem(OWNER_KEY, user.uid);
       sessionUid.current = user.uid;
 
-      const onboarded = localStorage.getItem("vazzamon_onboarded");
-      setPhase(onboarded ? "ready" : "onboarding");
+      const cloudHasData = Boolean(cloud?.keys && Object.keys(cloud.keys).length);
+      if (cloudHasData) {
+        // Il cloud è la verità: backup del locale, poi idrata.
+        backupLocalSave("cloud-hydrate");
+        writeLocalSave(cloud!.keys);
+        if (!localStorage.getItem("vazzamon_onboarded")) markOnboarded("from-cloud");
+        setPhase("ready");
+        return;
+      }
+
+      // Nessun salvataggio cloud → account nuovo.
+      if (hasExistingProgress()) {
+        // Migra i progressi locali esistenti dentro al nuovo account (niente wipe).
+        backupLocalSave("migrate-to-account");
+        if (!localStorage.getItem("vazzamon_onboarded")) markOnboarded("migrated");
+        try {
+          await saveCloudSave(user.uid);
+        } catch {
+          /* sync best-effort: ritenterà il daemon */
+        }
+        setPhase("ready");
+        return;
+      }
+      setPhase("onboarding");
     })();
 
     return () => {

@@ -36,6 +36,12 @@ const errors = [];
 page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
 page.on("pageerror", (e) => errors.push("PAGEERROR: " + e.message));
 
+// In modalità locale i nuovi utenti vedono l'onboarding: per testare il gioco
+// pre-segniamo lo storage come "onboardato" così App si carica direttamente.
+await page.addInitScript(() => {
+  localStorage.setItem("vazzamon_onboarded", JSON.stringify({ verify: true }));
+});
+
 await page.goto(APP_URL, { waitUntil: "networkidle" });
 await page.waitForTimeout(1500);
 
