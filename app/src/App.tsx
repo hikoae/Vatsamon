@@ -37,7 +37,9 @@ import { QuizScreen } from './components/QuizScreen';
 import { RespectEncounter } from './components/RespectEncounter';
 import { RESPONSIBLE_QUESTIONS, ResponsibleQuestion } from './data/responsibleQuestions';
 import BattleScene from './components/BattleScene';
+import DungeonRun from './components/DungeonRun';
 import { MAP_BATTLES, MapBattle } from './data/mapBattles';
+import { DUNGEONS, Dungeon } from './data/dungeons';
 import { ARENAS, ArenaId } from './data/arenas';
 import { TREK_ROUTES } from './data/routes';
 import { Challenges } from './components/Challenges';
@@ -304,6 +306,11 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<'map' | 'scanner' | 'eggs' | 'vatsadex' | 'quiz' | 'premi'>('map');
   // Battaglia attiva (scena stile Pokémon lanciata dalla mappa).
   const [activeBattle, setActiveBattle] = useState<MapBattle | null>(null);
+  const [activeDungeon, setActiveDungeon] = useState<Dungeon | null>(null); // Lega/dungeon in corso
+  const [dungeonsCleared, setDungeonsCleared] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem('vazzamon_dungeons') || '[]'); } catch { return []; }
+  });
+  useEffect(() => { localStorage.setItem('vazzamon_dungeons', JSON.stringify(dungeonsCleared)); }, [dungeonsCleared]);
   const [encounterFlash, setEncounterFlash] = useState(false); // flash d'incontro casuale
   // FASE 4: incontro educativo casuale (guardaparco/pastore) attivo, o null.
   const [respectEncounter, setRespectEncounter] = useState<ResponsibleQuestion | null>(null);
@@ -414,6 +421,47 @@ export default function App() {
       setTrekkingFeed(prev => [`🏆 Arena ${arena.badgeEmoji} ${arena.badgeName} conquistata! +500 XP · +80 🪙${newBadge ? ' · nuova medaglia!' : ''}`, ...prev.slice(0, 8)]);
     } else if (!won) {
       setTrekkingFeed(prev => [`🐂 Sconfitta contro ${mb.name}. Allena la tua Reina e riprova!`, ...prev.slice(0, 8)]);
+    }
+  };
+
+  // ---- DUNGEON / Lega delle Reines (castelli) ----
+  const tryStartDungeon = (d: Dungeon) => {
+    playClickSfx();
+    if (vatsadex.length === 0) {
+      setTrekkingFeed(prev => [`🐮 Cattura prima qualche Reina per formare una squadra!`, ...prev.slice(0, 8)]);
+      return;
+    }
+    if (trainer.level < d.reqLevel) {
+      setTrekkingFeed(prev => [`🔒 ${d.name}: serve livello ${d.reqLevel} (sei al ${trainer.level}). È contenuto endgame!`, ...prev.slice(0, 8)]);
+      return;
+    }
+    const dist = distanza({ lat: effLat, lng: effLng }, { lat: d.lat, lng: d.lng });
+    if (dist > BATTLE_RANGE) {
+      setTrekkingFeed(prev => [`🧭 ${d.name} è a ${fmtDist(dist)}: avvicinati per entrare nella Lega!`, ...prev.slice(0, 8)]);
+      return;
+    }
+    setActiveDungeon(d);
+  };
+  const handleDungeonResult = (won: boolean) => {
+    const d = activeDungeon;
+    if (!d) return;
+    if (won) {
+      addTrainerXp(d.rewardXp);
+      setTrainer(prev => ({ ...prev, coins: prev.coins + d.rewardCoins }));
+      // assegna gli oggetti rari in premio
+      setBackpack(prev => {
+        const next = prev.map(it => ({ ...it }));
+        d.rewardItems.forEach(r => {
+          const found = next.find(it => it.id === r.id);
+          if (found) found.quantity += r.qty;
+        });
+        return next;
+      });
+      if (!dungeonsCleared.includes(d.id)) setDungeonsCleared(prev => [...prev, d.id]);
+      const items = d.rewardItems.map(r => r.label).join(' · ');
+      setTrekkingFeed(prev => [`🏆 ${d.league} CONQUISTATA! Medaglia ${d.badgeEmoji} · +${d.rewardCoins} 🪙 · +${d.rewardXp} XP · ${items}`, ...prev.slice(0, 8)]);
+    } else {
+      setTrekkingFeed(prev => [`💀 La ${d.league} ti ha respinto. Rinforza la squadra e riprova!`, ...prev.slice(0, 8)]);
     }
   };
 
@@ -676,6 +724,31 @@ export default function App() {
           .addTo(map)
           .on('click', () => tryStartBattle(mb));
         leafletMarkersRef.current.push(bm);
+      });
+
+      // ===== DUNGEON "Lega delle Reines" (castelli endgame) =====
+      DUNGEONS.forEach(dg => {
+        const d = distanza({ lat: effLat, lng: effLng }, { lat: dg.lat, lng: dg.lng });
+        const inRange = d <= BATTLE_RANGE;
+        const locked = trainer.level < dg.reqLevel;
+        const cleared = dungeonsCleared.includes(dg.id);
+        const ring = locked ? '#64748b' : dg.accent;
+        const dgIcon = L.divIcon({
+          className: 'custom-leaflet-marker dungeon-marker',
+          html: `<div class="flex flex-col items-center ${inRange && !locked ? '' : 'opacity-75'}">
+                   <div class="w-14 h-14 rounded-2xl border-2 flex items-center justify-center shadow-xl relative ${inRange && !locked ? 'animate-pulse' : ''}" style="border-color:${ring};background:#1a1430;transform:translateY(-8px);">
+                     <span class="text-3xl">${locked ? '🔒' : dg.emoji}</span>
+                     <span class="absolute -top-1 -right-1 text-[7px] font-mono font-black px-1 rounded-full" style="background:${ring};color:#fff;">LEGA</span>
+                     ${cleared ? '<span class="absolute -bottom-1 -right-1 text-[10px]">✅</span>' : ''}
+                   </div>
+                   <div class="px-1 rounded border text-[7px] font-mono font-bold whitespace-nowrap shadow-sm" style="background:#1a1430;border-color:${ring}66;color:${ring};transform:translateY(-10px);">${locked ? `🔒 Lv ${dg.reqLevel}` : (inRange ? '🏰 ENTRA' : `${fmtDist(d)}`)}</div>
+                 </div>`,
+          iconSize: [56, 70], iconAnchor: [28, 35],
+        });
+        const dm = L.marker([dg.lat, dg.lng], { icon: dgIcon })
+          .addTo(map)
+          .on('click', () => tryStartDungeon(dg));
+        leafletMarkersRef.current.push(dm);
       });
 
       // Place or shift Player Marker
@@ -1926,6 +1999,34 @@ export default function App() {
               <p className="text-[9px] text-slate-500 text-center">Avvicìnati (≤ 800 m) a un combattente per sfidarlo. Cammina o usa il GPS.</p>
             </div>
 
+            {/* LEGA DELLE REINES — dungeon endgame nei castelli (squadra di 4) */}
+            <div className="bg-slate-950 border border-purple-700/30 rounded-3xl p-4 space-y-2" id="dungeon-nearby">
+              <h3 className="text-xs font-mono font-extrabold uppercase text-slate-300 tracking-wider flex items-center gap-1.5">
+                <span className="text-base">🏰</span> Lega delle Reines · Dungeon
+              </h3>
+              {[...DUNGEONS].map(dg => ({ dg, d: distanza({ lat: effLat, lng: effLng }, { lat: dg.lat, lng: dg.lng }) }))
+                .sort((a, b) => a.dg.reqLevel - b.dg.reqLevel).map(({ dg, d }) => {
+                  const locked = trainer.level < dg.reqLevel;
+                  const inRange = d <= BATTLE_RANGE;
+                  const cleared = dungeonsCleared.includes(dg.id);
+                  return (
+                    <button key={dg.id} onClick={() => tryStartDungeon(dg)} disabled={locked}
+                      className={`w-full flex items-center gap-3 rounded-2xl border p-2.5 text-left transition-all ${locked ? 'opacity-50 border-slate-800 bg-slate-900/60' : inRange ? 'border-purple-700/50 bg-purple-950/30 hover:bg-purple-900/30' : 'border-slate-800 bg-slate-900 hover:bg-slate-850'}`}>
+                      <span className="text-2xl">{locked ? '🔒' : dg.emoji}</span>
+                      <div className="flex-grow min-w-0">
+                        <div className="text-[11px] font-mono font-black text-slate-100 truncate">{dg.league} {cleared ? '✅' : ''}</div>
+                        <div className="text-[9px] text-slate-400 truncate">5 sfide · squadra di 4 · {dg.rewardCoins} 🪙</div>
+                      </div>
+                      <div className="text-right flex-shrink-0">
+                        <div className="text-[9px] font-mono text-slate-400">{fmtDist(d)}</div>
+                        <div className={`text-[9px] font-mono font-black ${locked ? 'text-slate-500' : inRange ? 'text-purple-400' : 'text-amber-400'}`}>{locked ? `Lv ${dg.reqLevel}` : inRange ? '🏰 ENTRA' : 'avvicìnati'}</div>
+                      </div>
+                    </button>
+                  );
+                })}
+              <p className="text-[9px] text-slate-500 text-center">Endgame: 5 battaglie di fila, gli HP si trascinano. Ricompense rare.</p>
+            </div>
+
             <div className="order-first bg-slate-950 rounded-3xl p-3 sm:p-5 border border-slate-850 relative overflow-hidden shadow-2xl">
 
               {/* Overworld Title HUD */}
@@ -2992,6 +3093,19 @@ export default function App() {
           onConsumeItem={(id) => setBackpack(prev => prev.map(it => it.id === id ? { ...it, quantity: Math.max(0, it.quantity - 1) } : it))}
           onResult={handleBattleResult}
           onClose={() => setActiveBattle(null)}
+          playClick={playClickSfx}
+        />
+      )}
+
+      {/* DUNGEON "Lega delle Reines" (gauntlet di 5 battaglie con squadra di 4) */}
+      {activeDungeon && (
+        <DungeonRun
+          dungeon={activeDungeon}
+          playerCows={vatsadex}
+          backpack={backpack}
+          onConsumeItem={(id) => setBackpack(prev => prev.map(it => it.id === id ? { ...it, quantity: Math.max(0, it.quantity - 1) } : it))}
+          onResult={handleDungeonResult}
+          onClose={() => setActiveDungeon(null)}
           playClick={playClickSfx}
         />
       )}
