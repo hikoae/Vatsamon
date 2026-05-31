@@ -14,7 +14,7 @@ const PNG = Buffer.from(
   "base64",
 );
 
-const TABS = ["Mappa", "AR Scan", "Vitelli", "Vatsadex", "Gym"];
+const TABS = ["Mappa", "AR Scan", "Vitelli", "Vatsadex"];
 const problems = [];
 const note = (m) => console.log("  • " + m);
 
@@ -29,7 +29,9 @@ const browser = await chromium.launch();
 const ctx = await browser.newContext({
   viewport: { width: vp.width, height: vp.height },
   permissions: ["geolocation"],
-  geolocation: { latitude: target.lat + 0.0006, longitude: target.lng + 0.0006 },
+  // Vicino a un combattente sulla mappa (Pastore Marco Alpino · Valnontey),
+  // così il pannello "Sfide nei dintorni" ha una sfida in raggio.
+  geolocation: { latitude: 45.5971, longitude: 7.3185 },
 });
 const page = await ctx.newPage();
 const errors = [];
@@ -153,52 +155,36 @@ if (await encounter.isVisible().catch(() => false)) {
   await page.waitForTimeout(400);
 }
 
-// Bataille a turni: dopo la cattura c'è una Reina → scegli pastore, combatti
-await clickTab(page, "Gym");
-await page.waitForTimeout(400);
-const startTurn = page.locator("#turnbattle-choose button").first();
-if (await startTurn.count()) {
-  await startTurn.click();
-  await page.waitForTimeout(300);
-  await page.locator("#turnbattle-start").click().catch(() => {});
-  await page.waitForTimeout(300);
-  let tbGuard = 0;
-  while (tbGuard++ < 60) {
-    const ended = await page.locator("#turnbattle-arena .font-mono.font-black", { hasText: /Hai vinto|Hai perso/ }).first().isVisible().catch(() => false);
+// ===== BATTAGLIE SULLA MAPPA (scena stile Pokémon) =====
+await clickTab(page, "Mappa");
+await page.waitForTimeout(500);
+// assicura GPS attivo (posizione vicino al Pastore)
+const gpsOnNow = await page.locator("#gps-btn", { hasText: "GPS attivo" }).isVisible().catch(() => false);
+if (!gpsOnNow) { await page.locator("#gps-btn").click().catch(() => {}); await page.waitForTimeout(1000); }
+const nNear = await page.locator("#battle-nearby button").count();
+note(`pannello 'Sfide nei dintorni': ${nNear} combattenti`);
+const nearBtn = page.locator("#battle-nearby button:not([disabled])").first();
+if (await nearBtn.count()) {
+  await nearBtn.click();
+  await page.waitForTimeout(500);
+  const sceneOpen = await page.locator("#battle-scene").isVisible().catch(() => false);
+  note(`scena di battaglia aperta: ${sceneOpen}`);
+  if (!sceneOpen) problems.push("la scena di battaglia non si apre dal pannello sfide");
+  await page.locator("#battle-start").click().catch(() => {});
+  await page.waitForTimeout(500);
+  let bGuard = 0;
+  while (bGuard++ < 80) {
+    const ended = await page.locator("#battle-scene .font-mono.font-black", { hasText: /Hai vinto|Hai perso/ }).first().isVisible().catch(() => false);
     if (ended) break;
-    const moveBtn = page.locator("#turnbattle-moves button:not([disabled])").first();
-    if (await moveBtn.count()) { await moveBtn.click().catch(() => {}); }
-    await page.waitForTimeout(400);
+    const mv = page.locator("#battle-moves button:not([disabled])").first();
+    if (await mv.count()) await mv.click().catch(() => {});
+    await page.waitForTimeout(350);
   }
-  const tbDone = await page.locator("text=/Hai vinto la Bataille|Hai perso questa volta/").isVisible().catch(() => false);
-  note(`bataille a turni conclusa: ${tbDone}`);
-  if (!tbDone) problems.push("la battaglia a turni non si conclude");
-  await page.screenshot({ path: `${OUT}/v2int-7-turnbattle.png` });
-} else problems.push("bataille a turni: selezione pastore assente");
-
-// Arena a turni: scegli la palestra di Cogne (Lv 1) e combatti fino all'esito
-const arenaBtn = page.locator("#arena-select button:not([disabled])").first();
-if (await arenaBtn.count()) {
-  await arenaBtn.click();
-  await page.waitForTimeout(300);
-  await page.locator("#arena-start").click().catch(() => {});
-  await page.waitForTimeout(300);
-  let arGuard = 0;
-  while (arGuard++ < 160) {
-    const ended = await page.locator("#arena-arena .font-mono.font-black", { hasText: /conquistato|Sconfitta/ }).first().isVisible().catch(() => false);
-    if (ended) break;
-    // preferisci la Suprema se carica, altrimenti Testata
-    const special = page.locator("#arena-moves button:not([disabled])", { hasText: "Incornata" }).first();
-    const testata = page.locator("#arena-moves button:not([disabled])", { hasText: "Testata" }).first();
-    if (await special.count()) await special.click().catch(() => {});
-    else if (await testata.count()) await testata.click().catch(() => {});
-    await page.waitForTimeout(300);
-  }
-  const arDone = await page.locator("text=/Hai conquistato la|Sconfitta in arena/").isVisible().catch(() => false);
-  note(`arena a turni conclusa: ${arDone}`);
-  if (!arDone) problems.push("l'arena a turni non si conclude");
-  await page.screenshot({ path: `${OUT}/v2int-8-arena.png` });
-} else problems.push("arena: selezione palestra assente");
+  const bDone = await page.locator("#battle-scene").getByText(/Hai vinto|Hai perso/).first().isVisible().catch(() => false);
+  note(`battaglia sulla mappa conclusa: ${bDone}`);
+  if (!bDone) problems.push("la battaglia sulla mappa non si conclude");
+  await page.screenshot({ path: `${OUT}/v2int-7-battlescene.png` });
+} else problems.push("nessuna sfida disponibile nel pannello 'Sfide nei dintorni'");
 
 if (errors.length) {
   console.log("  ! errori console:");
