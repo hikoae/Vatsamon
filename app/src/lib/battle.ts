@@ -39,7 +39,7 @@ export function buildPlayerFighter(cow: Vatsamon): Fighter {
   const agi = clamp(s4 ? s4.grinta : cow.stats.agility);
   const stazza = s4 ? s4.stazza : cow.stats.defense;
   const peso = cow.peso_kg ?? 600;
-  const maxHp = Math.round(110 + stazza * 0.8 + peso / 12 + cow.level * 4);
+  const maxHp = Math.round(150 + stazza * 0.8 + peso / 12 + cow.level * 5);
   return {
     name: cow.name,
     breed: cow.breed,
@@ -70,7 +70,7 @@ export function buildOpponentFighter(p: Pastore): Fighter {
     cp: 0,
     level: p.cowLevel,
   };
-  const maxHp = Math.round(120 + resistance * 1.0 + p.cowLevel * 7);
+  const maxHp = Math.round(130 + resistance * 1.0 + p.cowLevel * 7);
   return {
     name: p.cowName,
     breed: p.cowBreed,
@@ -111,16 +111,16 @@ export function computeDamage(
   if (Math.random() > move.accuracy) return { dmg: 0, missed: true, crit: false, mult: 1 };
 
   const mult = typeMultiplier(move.type, defender.type);
-  const stab = move.type === attacker.type ? 1.2 : 1; // bonus tipo coerente
+  const stab = move.type === attacker.type ? 1.15 : 1; // bonus tipo coerente
   const variance = 0.85 + Math.random() * 0.3;
-  const crit = Math.random() < 0.12;
+  const crit = Math.random() < 0.08;
 
   const atk = attacker.atk * (1 + atkBuff / 100);
   const def = defender.def * (1 + defBuff / 100);
-  let base = (atk * move.power - def * 0.32) * mult * stab * variance;
+  let base = (atk * move.power - def * 0.38) * mult * stab * variance;
   if (crit) base *= 1.5;
   if (defending) base *= 0.5;
-  return { dmg: Math.max(6, Math.round(base)), missed: false, crit, mult };
+  return { dmg: Math.max(5, Math.round(base)), missed: false, crit, mult };
 }
 
 /** IA avversaria: sceglie una mossa in modo sensato dal proprio set. */

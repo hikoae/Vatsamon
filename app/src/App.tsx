@@ -1112,6 +1112,27 @@ export default function App() {
         looted.push("+1 Fieno Vette");
         setBackpack(prev => prev.map(item => item.id === 'item-hay' ? { ...item, quantity: item.quantity + 1 } : item));
       }
+      // Oggetti DA BATTAGLIA (cure + buff) — così si raccolgono e si usano in combattimento.
+      if (odds > 0.45) {
+        looted.push("+2 Secchi di Latte 🥛");
+        setBackpack(prev => prev.map(item => item.id === 'item-potion-milk' ? { ...item, quantity: item.quantity + 2 } : item));
+      }
+      if (odds > 0.72) {
+        looted.push("+1 Genepy del Pastore 🍵 (ATK)");
+        setBackpack(prev => prev.map(item => item.id === 'item-buff-genepy' ? { ...item, quantity: item.quantity + 1 } : item));
+      }
+      if (odds > 0.8) {
+        looted.push("+1 Campanaccio Fortunato 🔔 (DIF)");
+        setBackpack(prev => prev.map(item => item.id === 'item-buff-bell' ? { ...item, quantity: item.quantity + 1 } : item));
+      }
+      if (odds > 0.91) {
+        looted.push("+1 Fetta di Fontina 🧀 (cura+)");
+        setBackpack(prev => prev.map(item => item.id === 'item-potion-fontina' ? { ...item, quantity: item.quantity + 1 } : item));
+      }
+      if (odds > 0.95) {
+        looted.push("+1 Grappa alla Genziana 🥃 (Adrenalina)");
+        setBackpack(prev => prev.map(item => item.id === 'item-energy-grappa' ? { ...item, quantity: item.quantity + 1 } : item));
+      }
 
       setSpinRewards(looted);
       setSpinState('rewarded');

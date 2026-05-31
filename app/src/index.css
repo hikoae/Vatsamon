@@ -54,6 +54,26 @@
   --color-red-650: #c8102e; /* rosso bandiera Valle d'Aosta */
   --color-amber-550: #e08a0a;
   --color-amber-450: #d9920a;
+
+  /* ===== CONTRASTO: nel tema invertito gli shade chiari -100/-200/-300 dei
+     colori d'accento servono da TESTO su superfici CHIARE, quindi vanno SCURITI
+     (i default Tailwind sarebbero pastello e illeggibili). ===== */
+  --color-slate-500: #6a6293; /* grigio attenuato un filo più scuro = più leggibile */
+
+  --color-emerald-300: #0a7d54;
+  --color-emerald-200: #08613f;
+  --color-emerald-100: #064a30;
+  --color-amber-300: #a86409;  /* NB: amber-100 resta chiaro (usato come sfondo) */
+  --color-amber-200: #885209;
+  --color-sky-300: #1d7fb8;
+  --color-blue-300: #2f6fcf;
+  --color-blue-200: #27599f;
+  --color-blue-100: #1e447c;
+  --color-purple-300: #7a3fc0;
+  --color-rose-300: #be1f3e;
+  --color-rose-200: #99162f;
+  --color-rose-100: #7a1228;
+  --color-yellow-300: #8a6800;
 }
 
 @keyframes wobble {
