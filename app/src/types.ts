@@ -78,6 +78,8 @@ export interface Trainer {
   capturedCount: number;
   kmTraveled: number;
   coins: number;
+  /** FASE 4 — Punteggio Rispetto (0..100), rispecchiato qui per la classifica cloud. */
+  respectScore?: number;
 }
 
 export interface BattleState {

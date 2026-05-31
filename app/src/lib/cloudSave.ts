@@ -28,6 +28,7 @@ export const SAVE_KEYS = [
   "vazzamon_completed_routes",
   "vazzamon_discovered_cows",
   "vazzamon_onboarded",
+  "vazzamon_respect",
 ] as const;
 
 export interface CloudSave {
