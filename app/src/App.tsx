@@ -2772,7 +2772,7 @@ export default function App() {
                       <div className="flex-grow space-y-2">
                         <div>
                           <span className={`text-[9px] uppercase font-mono font-bold px-2 py-0.5 rounded-full border bg-slate-950 tracking-wide ${rarityLabelColor}`}>
-                            Vitellino {egg.rarity}
+                            Vitellino · {egg.rarity}
                           </span>
                           <h4 className="font-mono font-extrabold text-sm text-slate-100 mt-1.5">Svezzamento e Crescita</h4>
                         </div>
@@ -3184,7 +3184,7 @@ export default function App() {
                 window.location.reload();
               }
             }}
-            className="text-[9px] text-red-500 hover:text-red-400 cursor-pointer"
+            className="text-[9px] text-slate-500 hover:text-rose-500 underline decoration-dotted underline-offset-2 cursor-pointer transition-colors"
           >
             Cancella memoria locale (Reset)
           </button>

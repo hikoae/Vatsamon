@@ -289,3 +289,18 @@ button:active { transform: scale(0.95); }
     border-radius: 0;
   }
 }
+
+/* POLISH desktop: le scene a schermo intero (battaglia/dungeon) restano in una
+   colonna centrata stile "telefono" su schermi larghi, con sfondo scuro ai lati
+   (coerente con la cornice .phone-frame). Su mobile occupano tutto. */
+@media (min-width: 1024px) {
+  #battle-scene,
+  #dungeon-scene {
+    left: 50% !important;
+    right: auto !important;
+    width: 100%;
+    max-width: 28rem; /* = max-w-md, come la cornice telefono */
+    transform: translateX(-50%);
+    box-shadow: 0 0 0 100vmax rgba(12, 10, 24, 0.92);
+  }
+}
