@@ -379,7 +379,9 @@ function Combatant({ pos, fighter, hp, max, energy, def, atkB, defB, lunge, hit,
   const pct = Math.round((hp / max) * 100);
   const top = pos === "top";
   const tm = TYPES[fighter.type];
-  const lungeX = top ? 40 : -40, lungeY = top ? 40 : -40;
+  // Scatto d'attacco VERSO l'avversaria: il giocatore (in basso a sx) scatta in
+  // alto-destra; l'avversaria (in alto a dx) scatta in basso-sinistra.
+  const lungeX = top ? -40 : 40, lungeY = top ? 40 : -40;
   return (
     <div className={`absolute ${top ? "top-3" : "bottom-3"} ${top ? "right-3" : "left-3"} flex ${top ? "flex-col items-end" : "flex-col items-start"} gap-1`} style={{ width: "62%" }}>
       {/* targhetta */}

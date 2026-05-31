@@ -16,13 +16,20 @@ export function CowVisual({
   isAttacking?: boolean;
 }) {
   if (cow.realPhoto) {
+    // Foto intera, centrata, su sfondo neutro (studio): la Reina è sempre tutta
+    // visibile (niente teste/posteriori tagliati dal ritaglio quadrato).
     return (
-      <img
-        src={cow.realPhoto}
-        alt={cow.name}
-        loading="lazy"
-        className={`object-cover rounded-2xl ${className} ${isAttacking ? "animate-bounce" : ""}`}
-      />
+      <div
+        className={`overflow-hidden rounded-2xl flex items-center justify-center ${className} ${isAttacking ? "animate-bounce" : ""}`}
+        style={{ background: "linear-gradient(180deg,#eef1f6 0%,#e3e8f0 55%,#d6dce7 100%)" }}
+      >
+        <img
+          src={cow.realPhoto}
+          alt={cow.name}
+          loading="lazy"
+          className="w-full h-full object-contain"
+        />
+      </div>
     );
   }
 
