@@ -108,6 +108,12 @@ const DEFAULT_BAG: BackpackItem[] = [
   { id: 'item-bell-master', name: 'Master Vatsa-ball', description: BALL_META['item-bell-master'].description, quantity: 1,  type: 'ball' },
   { id: 'item-apple', name: 'Mela Alpina d\'Oro', description: 'Frutto profumatissimo. Addolcisce i Vatsamon selvatici del 50%.', quantity: 6, type: 'food' },
   { id: 'item-hay', name: 'Fieno delle Vette', description: 'Nutriente speciale usato per aumentare il livello e CP dei Vatsamon.', quantity: 12, type: 'candy' },
+  // Oggetti da BATTAGLIA (usabili dallo zaino durante la Bataille a turni)
+  { id: 'item-potion-milk', name: 'Secchio di Latte', description: 'Cura 60 HP in battaglia. Latte tiepido d\'alpeggio, rimette in piedi qualsiasi Reina.', quantity: 5, type: 'potion' },
+  { id: 'item-potion-fontina', name: 'Fetta di Fontina DOP', description: 'Cura 130 HP in battaglia. Energia casearia concentrata.', quantity: 2, type: 'potion' },
+  { id: 'item-buff-genepy', name: 'Genepy del Pastore', description: 'In battaglia: aumenta l\'Attacco del 40%. Distillato d\'erbe che accende la grinta.', quantity: 3, type: 'buff' },
+  { id: 'item-buff-bell', name: 'Campanaccio Fortunato', description: 'In battaglia: aumenta la Difesa del 40%. Il suo rintocco rassicura la mandria.', quantity: 3, type: 'buff' },
+  { id: 'item-energy-grappa', name: 'Grappa alla Genziana', description: 'In battaglia: carica +60 Adrenalina per le mosse speciali. Da usare con prudenza!', quantity: 2, type: 'buff' },
 ];
 
 // Tasso di cattura base per rarità (prima di ball / mela / precisione del lancio).
@@ -224,9 +230,27 @@ export default function App() {
   useEffect(() => { localStorage.setItem('vazzamon_active_route_id', activeRouteId); }, [activeRouteId]);
   const activeRoute = TREK_ROUTES.find(r => r.id === activeRouteId) ?? TREK_ROUTES[0];
   const activeTrail = activeRoute.coords;
+
+  // ---- Progressione Fase 2: percorsi completati + bovine scoperte (fog-of-war) ----
+  const [completedRoutes, setCompletedRoutes] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem('vazzamon_completed_routes') || '[]'); } catch { return []; }
+  });
+  useEffect(() => { localStorage.setItem('vazzamon_completed_routes', JSON.stringify(completedRoutes)); }, [completedRoutes]);
+
+  const [discoveredCows, setDiscoveredCows] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem('vazzamon_discovered_cows') || '[]'); } catch { return []; }
+  });
+  useEffect(() => { localStorage.setItem('vazzamon_discovered_cows', JSON.stringify(discoveredCows)); }, [discoveredCows]);
+  const DISCOVERY_RADIUS = 1500; // metri: entro questo raggio una Reina viene "avvistata"
   // Cambia percorso: riparte dalla prima tappa.
   const selectRoute = (id: string) => {
     playClickSfx();
+    const route = TREK_ROUTES.find(r => r.id === id);
+    // Blocco di progressione: serve il livello allenatore minimo.
+    if (route && trainer.level < route.reqLevel) {
+      setTrekkingFeed(prev => [`🔒 "${route.name}" è bloccato: raggiungi il livello ${route.reqLevel} (sei al ${trainer.level}). Cattura e cammina per salire!`, ...prev.slice(0, 8)]);
+      return;
+    }
     setActiveRouteId(id);
     setCurrentWaypointIndex(0);
     setWaypointProgress(0);
@@ -446,32 +470,60 @@ export default function App() {
       });
 
       // ===== Bovine REALI (Batailles) non ancora catturate, nei comuni veri =====
+      // Fog-of-war: l'identità di una Reina resta nascosta finché non ti avvicini
+      // (entro DISCOVERY_RADIUS): allora viene "avvistata" e resta rivelata.
       const capturedIds = new Set(vatsadex.map(c => c.id));
       const roamingIds = new Set(wildCows.map(w => w.vatsa.id));
+      const discSet = new Set(discoveredCows);
+      const newlyFound: { id: string; name: string; comune?: string }[] = [];
       REAL_COWS.filter(rc => !capturedIds.has(rc.id) && !roamingIds.has(rc.id) && rc.lat != null && rc.lng != null).forEach(rc => {
         const d = distanza({ lat: effLat, lng: effLng }, { lat: rc.lat!, lng: rc.lng! });
         const inRange = d <= RAGGIO_CATTURA;
-        const ring = inRange ? 'border-emerald-400' : 'border-slate-500';
-        const photo = rc.realPhoto
-          ? `background-image:url('${rc.realPhoto}');background-size:cover;background-position:center;`
-          : '';
-        const inner = rc.realPhoto ? '' : '<span class="text-xl">🐮</span>';
-        const realIcon = L.divIcon({
-          className: 'custom-leaflet-marker',
-          html: `<div class="flex flex-col items-center ${inRange ? '' : 'opacity-70'}">
-                   <div class="w-11 h-11 rounded-full border-2 ${ring} bg-[#211b3a] flex items-center justify-center shadow-lg overflow-hidden relative" style="${photo}">
-                     ${inner}
-                     <span class="absolute -top-1 -right-1 bg-emerald-500 text-[#0b0820] font-mono text-[7px] font-black px-1 rounded-full">CP${rc.cp}</span>
-                   </div>
-                   <div class="px-1 rounded bg-emerald-900/90 border border-emerald-700 text-[7px] text-emerald-200 font-mono font-bold whitespace-nowrap mt-0.5">REALE · ${rc.rarity}</div>
-                 </div>`,
-          iconSize: [44, 56], iconAnchor: [22, 28],
-        });
+        const isDiscovered = discSet.has(rc.id) || d <= DISCOVERY_RADIUS;
+        if (d <= DISCOVERY_RADIUS && !discSet.has(rc.id)) newlyFound.push({ id: rc.id, name: rc.name, comune: rc.comune });
+
+        let realIcon: L.DivIcon;
+        if (isDiscovered) {
+          const ring = inRange ? 'border-emerald-400' : 'border-slate-500';
+          const photo = rc.realPhoto
+            ? `background-image:url('${rc.realPhoto}');background-size:cover;background-position:center;`
+            : '';
+          const inner = rc.realPhoto ? '' : '<span class="text-xl">🐮</span>';
+          realIcon = L.divIcon({
+            className: 'custom-leaflet-marker cow-real-marker',
+            html: `<div class="flex flex-col items-center ${inRange ? '' : 'opacity-70'}">
+                     <div class="w-11 h-11 rounded-full border-2 ${ring} bg-[#211b3a] flex items-center justify-center shadow-lg overflow-hidden relative" style="${photo}">
+                       ${inner}
+                       <span class="absolute -top-1 -right-1 bg-emerald-500 text-[#0b0820] font-mono text-[7px] font-black px-1 rounded-full">CP${rc.cp}</span>
+                     </div>
+                     <div class="px-1 rounded bg-emerald-900/90 border border-emerald-700 text-[7px] text-emerald-200 font-mono font-bold whitespace-nowrap mt-0.5">REALE · ${rc.rarity}</div>
+                   </div>`,
+            iconSize: [44, 56], iconAnchor: [22, 28],
+          });
+        } else {
+          // Marker "nebbia": presenza nota, identità ignota.
+          realIcon = L.divIcon({
+            className: 'custom-leaflet-marker cow-real-marker',
+            html: `<div class="flex flex-col items-center opacity-80">
+                     <div class="w-10 h-10 rounded-full border-2 border-dashed border-slate-500 bg-[#211b3a]/80 flex items-center justify-center shadow-lg">
+                       <span class="text-lg">❓</span>
+                     </div>
+                     <div class="px-1 rounded bg-slate-900/90 border border-slate-700 text-[7px] text-slate-300 font-mono font-bold whitespace-nowrap mt-0.5">REINA ?</div>
+                   </div>`,
+            iconSize: [40, 52], iconAnchor: [20, 26],
+          });
+        }
+
         const m = L.marker([rc.lat!, rc.lng!], { icon: realIcon })
           .addTo(map)
           .on('click', () => {
             playClickSfx();
             const dist = distanza({ lat: effLat, lng: effLng }, { lat: rc.lat!, lng: rc.lng! });
+            const known = new Set(discoveredCows).has(rc.id) || dist <= DISCOVERY_RADIUS;
+            if (!known) {
+              setTrekkingFeed(prev => [`🌫️ Una Reina misteriosa pascola qui (a ${fmtDist(dist)}). Avvicinati per scoprirla!`, ...prev.slice(0, 8)]);
+              return;
+            }
             if (dist <= RAGGIO_CATTURA) {
               initiateCatchWild({ id: rc.id, vatsa: rc, lat: rc.lat!, lng: rc.lng!, x: 0, y: 0, angle: 0 });
             } else {
@@ -480,6 +532,13 @@ export default function App() {
           });
         leafletMarkersRef.current.push(m);
       });
+      // Registra le nuove Reines avvistate (persistito → sincronizzato sul cloud)
+      if (newlyFound.length > 0) {
+        setDiscoveredCows(prev => Array.from(new Set([...prev, ...newlyFound.map(n => n.id)])));
+        newlyFound.slice(0, 3).forEach(n =>
+          setTrekkingFeed(prev => [`🔭 Hai avvistato ${n.name}${n.comune ? ` (${n.comune})` : ''}!`, ...prev.slice(0, 8)]),
+        );
+      }
 
       // Place or shift Player Marker
       if (leafletPlayerMarkerRef.current) {
@@ -859,6 +918,13 @@ export default function App() {
       nextIndex = (safeWaypointIndex + 1) % activeTrail.length;
       actualProgress = nextProgress - 100;
       feedMsg = `🏔️ Nuovo Traguardo! Sei arrivato a: ${activeTrail[nextIndex].name}!`;
+      // Percorso COMPLETATO al raggiungimento dell'ultima tappa.
+      if (nextIndex === activeTrail.length - 1 && !completedRoutes.includes(activeRouteId)) {
+        setCompletedRoutes(prev => prev.includes(activeRouteId) ? prev : [...prev, activeRouteId]);
+        setTrainer(prev => ({ ...prev, coins: prev.coins + 200 }));
+        addTrainerXp(300);
+        setTrekkingFeed(prev => [`🏁 Percorso "${activeRoute.name}" COMPLETATO! +300 XP · +200 🪙 · ora rigiocabile liberamente`, ...prev.slice(0, 8)]);
+      }
     } else {
       const targetWp = activeTrail[nextWaypointIndex] || activeTrail[0];
       feedMsg = `🥾 Cammini verso ${targetWp.name}... Progressi: ${nextProgress}%`;
@@ -1621,21 +1687,25 @@ export default function App() {
                 {TREK_ROUTES.map((route) => {
                   const active = route.id === activeRouteId;
                   const t = ROUTE_TONE[route.accent] ?? ROUTE_TONE.emerald;
+                  const locked = trainer.level < route.reqLevel;
+                  const completed = completedRoutes.includes(route.id);
                   return (
                     <button
                       key={route.id}
                       onClick={() => selectRoute(route.id)}
-                      className={`relative text-left rounded-2xl border-2 p-3 transition-all overflow-hidden ${active ? `${t.border} ${t.bg}` : 'border-slate-800 bg-slate-900 hover:bg-slate-850'}`}
+                      className={`relative text-left rounded-2xl border-2 p-3 transition-all overflow-hidden ${locked ? 'border-slate-800 bg-slate-900/60 opacity-70' : active ? `${t.border} ${t.bg}` : 'border-slate-800 bg-slate-900 hover:bg-slate-850'}`}
                     >
                       <div className="flex items-center gap-2">
-                        <span className="text-2xl">{route.icon}</span>
+                        <span className="text-2xl">{locked ? '🔒' : route.icon}</span>
                         <div className="min-w-0">
                           <div className={`text-[11px] font-mono font-black truncate ${active ? t.text : 'text-slate-200'}`}>{route.name}</div>
                           <div className="text-[9px] font-mono text-slate-400">{route.difficulty} · {route.lengthKm} km · {route.coords.length} tappe</div>
                         </div>
                       </div>
                       <p className="text-[9px] text-slate-500 leading-snug mt-1.5 line-clamp-2">{route.description}</p>
-                      {active && <span className={`absolute top-2 right-2 text-[8px] font-mono font-black ${t.text}`}>● ATTIVO</span>}
+                      {locked && <span className="absolute top-2 right-2 text-[8px] font-mono font-black text-slate-400">🔒 Lv {route.reqLevel}</span>}
+                      {!locked && completed && <span className="absolute top-2 right-2 text-[8px] font-mono font-black text-emerald-500">✓ FATTO</span>}
+                      {!locked && !completed && active && <span className={`absolute top-2 right-2 text-[8px] font-mono font-black ${t.text}`}>● ATTIVO</span>}
                     </button>
                   );
                 })}
@@ -2678,6 +2748,8 @@ export default function App() {
               {vatsadex.length > 0 ? (
                 <BattleTurnBased
                   playerCow={vatsadex.find(c => c.id === activeCombatantId) || vatsadex[0]}
+                  backpack={backpack}
+                  onConsumeItem={(id) => setBackpack(prev => prev.map(it => it.id === id ? { ...it, quantity: Math.max(0, it.quantity - 1) } : it))}
                   playClick={playClickSfx}
                   onResult={(won, xp, coins) => {
                     if (won) {

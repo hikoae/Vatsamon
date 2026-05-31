@@ -52,11 +52,11 @@ note(`header VATSAMON GO: ${header} · tab: ${nNav}`);
 if (!header) problems.push("header assente");
 if (nNav < 5) problems.push(`nav ha ${nNav} tab`);
 
-// mappa: bovine reali + casere + player
+// mappa: bovine reali (con fog-of-war: marker reali + nebbia condividono la classe) + player
 await page.waitForTimeout(800);
-const reali = await page.locator("text=REALE").count();
+const reali = await page.locator(".cow-real-marker").count();
 const player = await page.locator("text=🧑‍🌾").count();
-note(`marker REALE: ${reali} · player: ${player}`);
+note(`marker bovine reali (rivelate+nebbia): ${reali} · player: ${player}`);
 if (reali < 10) problems.push(`poche bovine reali sulla mappa (${reali})`);
 await page.screenshot({ path: `${OUT}/v2int-1-mappa.png` });
 
