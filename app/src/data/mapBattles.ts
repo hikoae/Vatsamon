@@ -42,6 +42,10 @@ const ARENA_COORDS: Record<string, { lat: number; lng: number }> = {
   gran_paradiso: { lat: 45.56, lng: 7.268 },
   fenis: { lat: 45.736, lng: 7.491 },
   morgex: { lat: 45.758, lng: 7.038 },
+  verres: { lat: 45.666, lng: 7.687 },
+  sarre: { lat: 45.719, lng: 7.258 },
+  bard: { lat: 45.609, lng: 7.745 },
+  issogne: { lat: 45.659, lng: 7.689 },
 };
 
 function pastoreReq(p: Pastore): number {

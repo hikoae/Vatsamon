@@ -8,7 +8,9 @@ import { REAL_COWS } from "./realCows";
  * richiesto, una medaglia con bonus permanente e bonus ambientali.
  * I BOSS sono vere Reines Epiche/Leggendarie del nostro dataset, scalate.
  */
-export type ArenaId = "cogne" | "gran_paradiso" | "fenis" | "morgex";
+export type ArenaId =
+  | "cogne" | "gran_paradiso" | "fenis" | "morgex"
+  | "verres" | "sarre" | "bard" | "issogne";
 
 export interface Arena {
   id: ArenaId;
@@ -96,6 +98,70 @@ export const ARENAS: Arena[] = [
     bgGradient: "from-purple-900/50 to-slate-950",
     accent: "#a855f7",
     introMsg: "🍇 Vigneti eroici di Morgex: le coltivazioni d'alta quota aumentano l'evasione naturale.",
+    preferRarity: "Leggendaria",
+  },
+  {
+    id: "verres",
+    powerFactor: 1.0,
+    bossType: "corna",
+    name: "Palestra del Castello di Verrès 🏯",
+    difficulty: "Medio",
+    requiredLevel: 6,
+    cp: 1900,
+    badgeName: "Medaglia di Verrès",
+    badgeEmoji: "🏯",
+    bonusDesc: "Il maniero di Ibleto: le mura squadrate temprano l'attacco.",
+    bgGradient: "from-amber-900/50 to-slate-950",
+    accent: "#d97706",
+    introMsg: "🏯 Severo cubo di pietra dei Challant: qui regna la forza bruta delle corna.",
+    preferRarity: "Epica",
+  },
+  {
+    id: "sarre",
+    powerFactor: 1.04,
+    bossType: "latte",
+    name: "Palestra del Castello Reale di Sarre 👑",
+    difficulty: "Medio",
+    requiredLevel: 7,
+    cp: 2100,
+    badgeName: "Medaglia Reale",
+    badgeEmoji: "👑",
+    bonusDesc: "Residenza di caccia dei Savoia: nobiltà e latte purissimo.",
+    bgGradient: "from-rose-900/50 to-slate-950",
+    accent: "#e11d48",
+    introMsg: "👑 Galleria di corna reali a Sarre: la boss combatte con regale potenza casearia (tipo Latte).",
+    preferRarity: "Epica",
+  },
+  {
+    id: "bard",
+    powerFactor: 1.1,
+    bossType: "roccia",
+    name: "Palestra del Forte di Bard 🛡️",
+    difficulty: "Difficile",
+    requiredLevel: 9,
+    cp: 2800,
+    badgeName: "Medaglia del Forte",
+    badgeEmoji: "🛡️",
+    bonusDesc: "La rocca inespugnabile che fermò Napoleone: difesa di granito.",
+    bgGradient: "from-slate-800/60 to-slate-950",
+    accent: "#64748b",
+    introMsg: "🛡️ Forte di Bard, sbarramento della Valle: la boss è dura come la roccia (tipo Roccia).",
+    preferRarity: "Epica",
+  },
+  {
+    id: "issogne",
+    powerFactor: 1.13,
+    bossType: "tempesta",
+    name: "Palestra del Castello di Issogne 🌳",
+    difficulty: "Difficile",
+    requiredLevel: 11,
+    cp: 3200,
+    badgeName: "Medaglia del Melograno",
+    badgeEmoji: "🌳",
+    bonusDesc: "Il melograno in ferro battuto nel cortile: eleganza e scatto fulmineo.",
+    bgGradient: "from-emerald-900/50 to-slate-950",
+    accent: "#10b981",
+    introMsg: "🌳 Cortile del melograno a Issogne: la boss colpisce rapida come una tempesta (tipo Tempesta).",
     preferRarity: "Leggendaria",
   },
 ];
