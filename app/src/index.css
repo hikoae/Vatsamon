@@ -247,3 +247,25 @@ button:active { transform: scale(0.95); }
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+
+/* ============================================================
+   CORNICE "TELEFONO" — layout responsive desktop/PC
+   L'app è mobile-first: su schermi larghi la incorniciamo in una
+   colonna centrata di larghezza massima "telefono" (max-w-md), con
+   lo sfondo aurora visibile ai lati. Su mobile resta a tutto schermo.
+   ============================================================ */
+.phone-frame {
+  /* La cornice ha il proprio sfondo chiaro così le superfici interne
+     (header/nav scuri = chiari nella palette invertita) restano coerenti. */
+  background-color: var(--color-slate-950);
+}
+@media (min-width: 1024px) {
+  /* Su desktop: un filo d'aria sopra/sotto e angoli arrotondati per dare
+     l'effetto "dispositivo" senza rompere gli elementi sticky interni. */
+  #vatsamon-go-app {
+    padding-block: 0;
+  }
+  .phone-frame {
+    border-radius: 0;
+  }
+}

@@ -34,6 +34,8 @@ import { CowCard } from './components/CowCard';
 import { TrailOverlay } from './components/TrailOverlay';
 import { VALDOSTAN_TRAILS } from './data/trails';
 import { QuizScreen } from './components/QuizScreen';
+import { RespectEncounter } from './components/RespectEncounter';
+import { RESPONSIBLE_QUESTIONS, ResponsibleQuestion } from './data/responsibleQuestions';
 import BattleScene from './components/BattleScene';
 import { MAP_BATTLES, MapBattle } from './data/mapBattles';
 import { ARENAS, ArenaId } from './data/arenas';
@@ -132,6 +134,16 @@ function estimateCatch(rarity: RarityType | undefined, ballId: string, fedApple:
   return Math.max(0, Math.min(1, p));
 }
 
+// FASE 4 — Colore/etichetta del Punteggio Rispetto (0..100) per l'HUD.
+// Alto = verde (esploratore modello), basso = rosso (poco rispettoso).
+function respectTone(score: number): { color: string; label: string } {
+  if (score >= 80) return { color: '#10b981', label: 'Esemplare' };
+  if (score >= 60) return { color: '#22c55e', label: 'Buono' };
+  if (score >= 40) return { color: '#eab308', label: 'Discreto' };
+  if (score >= 20) return { color: '#f97316', label: 'Scarso' };
+  return { color: '#ef4444', label: 'Critico' };
+}
+
 // Anello colorato di difficoltà (verde→rosso) come il cerchio target di Pokémon GO.
 function catchDifficulty(p: number): { color: string; label: string } {
   if (p >= 1)    return { color: '#10b981', label: 'GARANTITA' };
@@ -207,11 +219,33 @@ export default function App() {
     };
   });
 
+  // ---- FASE 4: Punteggio RISPETTO (esplorazione responsabile) ----
+  // 0..100, parte da 50. Persistito in localStorage (chiave aggiunta anche a
+  // SAVE_KEYS in cloudSave.ts per la sincronizzazione cloud). Un Rispetto alto
+  // dà un piccolo vantaggio di gameplay (vedi spawnWildCowAtRandom: bonus rarità).
+  const [respectScore, setRespectScore] = useState<number>(() => {
+    const cached = localStorage.getItem('vazzamon_respect');
+    if (cached !== null) {
+      const n = Number(cached);
+      if (!Number.isNaN(n)) return Math.max(0, Math.min(100, n));
+    }
+    return 50;
+  });
+  // Applica una variazione al Rispetto mantenendolo nel range 0..100.
+  const adjustRespect = (delta: number) =>
+    setRespectScore(prev => Math.max(0, Math.min(100, prev + delta)));
+
   // Keep all persistent items secure in localStorage
   useEffect(() => { localStorage.setItem('vazzamon_collection_go', JSON.stringify(vatsadex)); }, [vatsadex]);
   useEffect(() => { localStorage.setItem('vazzamon_bag_go', JSON.stringify(backpack)); }, [backpack]);
   useEffect(() => { localStorage.setItem('vazzamon_eggs_go', JSON.stringify(eggs)); }, [eggs]);
   useEffect(() => { localStorage.setItem('vazzamon_trainer_go', JSON.stringify(trainer)); }, [trainer]);
+  useEffect(() => { localStorage.setItem('vazzamon_respect', String(respectScore)); }, [respectScore]);
+  // Rispecchia il Rispetto nell'oggetto trainer così la classifica cloud
+  // (leaderboard in cloudSave.ts, che legge trainer.respectScore) resta accurata.
+  useEffect(() => {
+    setTrainer(prev => prev.respectScore === respectScore ? prev : { ...prev, respectScore });
+  }, [respectScore]);
 
   // Trekking Waypoints coordinates tracking
   const [currentWaypointIndex, setCurrentWaypointIndex] = useState<number>(() => {
@@ -271,6 +305,8 @@ export default function App() {
   // Battaglia attiva (scena stile Pokémon lanciata dalla mappa).
   const [activeBattle, setActiveBattle] = useState<MapBattle | null>(null);
   const [encounterFlash, setEncounterFlash] = useState(false); // flash d'incontro casuale
+  // FASE 4: incontro educativo casuale (guardaparco/pastore) attivo, o null.
+  const [respectEncounter, setRespectEncounter] = useState<ResponsibleQuestion | null>(null);
   // Quiz "Scuola d'Alpeggio": miglior punteggio persistito.
   const [quizBest, setQuizBest] = useState<number>(() => {
     const saved = localStorage.getItem('vazzamon_quiz_go');
@@ -394,6 +430,28 @@ export default function App() {
       // posiziona l'incontro alla tua posizione (così è "in raggio")
       setActiveBattle({ ...npc, lat: effLat, lng: effLng, id: `enc-${npc.id}-${Date.now()}` });
     }, 750);
+  };
+
+  // FASE 4: incontro EDUCATIVO casuale. Un guardaparco/pastore ti ferma con una
+  // domanda di comportamento responsabile (vedi data/responsibleQuestions.ts).
+  const triggerRespectEncounter = () => {
+    const q = RESPONSIBLE_QUESTIONS[Math.floor(Math.random() * RESPONSIBLE_QUESTIONS.length)];
+    if (soundEnabled) playClickSfx();
+    setTrekkingFeed(prev => [`${q.emoji} ${q.npc} ti ferma sul sentiero con una domanda sull'esplorazione responsabile…`, ...prev.slice(0, 8)]);
+    setRespectEncounter(q);
+  };
+  // Esito dell'incontro educativo: aggiorna Rispetto, ricompense e feed.
+  const resolveRespectEncounter = (correct: boolean) => {
+    if (correct) {
+      adjustRespect(6);
+      addTrainerXp(80);
+      setTrainer(prev => ({ ...prev, coins: prev.coins + 15 }));
+      setTrekkingFeed(prev => [`🌿 Risposta corretta! Rispetto +6 · +15 🪙 · +80 XP`, ...prev.slice(0, 8)]);
+    } else {
+      adjustRespect(-4);
+      setTrekkingFeed(prev => [`🌿 Risposta sbagliata: Rispetto -4. Hai imparato qualcosa di nuovo sulla montagna!`, ...prev.slice(0, 8)]);
+    }
+    setRespectEncounter(null);
   };
 
   // Synchronize dynamic Leaflet Map Layer drawing
@@ -682,6 +740,15 @@ export default function App() {
   };
   useEffect(() => () => { if (gpsWatchRef.current != null) navigator.geolocation.clearWatch(gpsWatchRef.current); }, []);
 
+  // La mappa vive dentro la cornice "telefono" a larghezza fissa: se la finestra
+  // viene ridimensionata (es. desktop ↔ mobile, rotazione), forza Leaflet a
+  // ricalcolare le sue dimensioni così le tile non restano sfocate/tagliate.
+  useEffect(() => {
+    const onResize = () => { if (leafletMapRef.current) leafletMapRef.current.invalidateSize(); };
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
   // PokeStop: Casere d'Alpeggio active interactions
   const [selectedCasera, setSelectedCasera] = useState<Hotspot | null>(null);
   const [spinState, setSpinState] = useState<'idle' | 'spinning' | 'rewarded'>('idle');
@@ -771,8 +838,18 @@ export default function App() {
     const randBreed = WILD_BREEDS[Math.floor(Math.random() * WILD_BREEDS.length)];
     const randName = WILD_NAMES[Math.floor(Math.random() * WILD_NAMES.length)] + " Selvatico";
     const rarities: RarityType[] = ['Comune', 'Comune', 'Rara', 'Rara', 'Epica', 'Leggendaria'];
-    const randRarity = rarities[Math.floor(Math.random() * rarities.length)];
-    
+    let randRarity = rarities[Math.floor(Math.random() * rarities.length)];
+
+    // FASE 4 — EFFETTO DEL RISPETTO sul gameplay: un esploratore rispettoso della
+    // montagna (Rispetto > 70) ha il 25% di probabilità di "promuovere" di un
+    // gradino la rarità di una Reina selvatica generata (Comune→Rara→Epica→
+    // Leggendaria). Vantaggio piccolo ma reale che premia il buon comportamento.
+    if (respectScore > 70 && Math.random() < 0.25) {
+      const ladder: RarityType[] = ['Comune', 'Rara', 'Epica', 'Leggendaria'];
+      const idx = ladder.indexOf(randRarity);
+      if (idx >= 0 && idx < ladder.length - 1) randRarity = ladder[idx + 1];
+    }
+
     let str = 30 + Math.floor(Math.random() * 45);
     let def = 30 + Math.floor(Math.random() * 45);
     let agl = 30 + Math.floor(Math.random() * 45);
@@ -1032,9 +1109,16 @@ export default function App() {
       ...prev.slice(0, 8)
     ]);
 
-    // INCONTRO CASUALE stile Pokémon: a volte un Pastore errante ti sfida.
-    if (!activeBattle && vatsadex.length > 0 && Math.random() < 0.22) {
+    // INCONTRI CASUALI mentre cammini. Mutuamente esclusivi: parte al più uno per
+    // passo, e solo se non c'è già una battaglia o un incontro educativo in corso.
+    const busy = activeBattle || respectEncounter;
+    if (!busy && vatsadex.length > 0 && Math.random() < 0.22) {
+      // a) Incontro di BATTAGLIA stile Pokémon: un Pastore errante ti sfida.
       triggerRandomEncounter();
+    } else if (!busy && Math.random() < 0.20) {
+      // b) FASE 4 — Incontro EDUCATIVO: un guardaparco/pastore pone una domanda
+      //    di comportamento responsabile in montagna (probabilità separata).
+      triggerRespectEncounter();
     }
   };
 
@@ -1613,10 +1697,15 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-violet-100 via-rose-50 to-sky-100 flex flex-col font-sans text-slate-100 antialiased selection:bg-emerald-500 selection:text-white relative overflow-x-hidden" id="vatsamon-go-app">
+    <div className="min-h-screen bg-gradient-to-br from-violet-100 via-rose-50 to-sky-100 font-sans text-slate-100 antialiased selection:bg-emerald-500 selection:text-white relative overflow-x-hidden flex justify-center" id="vatsamon-go-app">
 
       {/* Sfondo aurora animato (tema Pokémon moderno) */}
       <div className="aurora-bg" aria-hidden="true" />
+
+      {/* CORNICE "TELEFONO": su desktop l'esperienza resta in una colonna centrata
+          di larghezza massima mobile, con bordo/ombra ai lati; su mobile occupa
+          tutto lo schermo senza cornice. */}
+      <div className="phone-frame w-full max-w-md min-h-screen flex flex-col relative bg-slate-950/0 lg:shadow-2xl lg:border-x lg:border-slate-800/60">
 
       {/* 🎒 MAIN HUD STATUS BAR (POKEMON GO STYLE) 🎒 */}
       <header className="bg-slate-950 border-b-2 border-[#c8102e] p-3 sticky top-0 z-50 shadow-md">
@@ -1657,9 +1746,20 @@ export default function App() {
               <span className="text-xs font-mono font-extrabold text-amber-300">{trainer.coins}</span>
             </div>
 
-            <div className="bg-slate-900 border border-slate-800 rounded-2xl py-1.5 px-3 flex items-center gap-1" title="Chilometri Camminati">
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl py-1.5 px-3 hidden sm:flex items-center gap-1" title="Chilometri Camminati">
               <span className="text-emerald-400 text-xs">🥾</span>
               <span className="text-xs font-mono font-extrabold text-slate-300">{trainer.kmTraveled} km</span>
+            </div>
+
+            {/* FASE 4 — Punteggio RISPETTO (esplorazione responsabile) */}
+            <div
+              className="bg-slate-900 border rounded-2xl py-1.5 px-3 flex items-center gap-1"
+              style={{ borderColor: respectTone(respectScore).color }}
+              title={`Rispetto della montagna: ${respectTone(respectScore).label} (${respectScore}/100). Rispondi bene agli incontri educativi per aumentarlo; oltre 70 migliora la rarità degli avvistamenti.`}
+              id="respect-hud"
+            >
+              <span className="text-xs">🌿</span>
+              <span className="text-xs font-mono font-extrabold" style={{ color: respectTone(respectScore).color }}>{respectScore}</span>
             </div>
 
             <button
@@ -2860,6 +2960,15 @@ export default function App() {
         />
       )}
 
+      {/* FASE 4 — INCONTRO EDUCATIVO casuale (guardaparco/pastore con una domanda
+          di esplorazione responsabile) */}
+      {respectEncounter && (
+        <RespectEncounter
+          question={respectEncounter}
+          onResolved={resolveRespectEncounter}
+        />
+      )}
+
       {/* PROFILO & SALVATAGGIO (risorse di test, export/import progressi) */}
       {showProfile && (
         <div className="fixed inset-0 bg-slate-950/95 z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto" id="profile-modal" onClick={() => setShowProfile(false)}>
@@ -2933,6 +3042,8 @@ export default function App() {
           <span>Campanacci del latte & Bataille de Reines®</span>
         </div>
       </footer>
+
+      </div>{/* /phone-frame */}
 
       {/* OVERLAY LEVEL UP POPUP */}
       {levelUpAward && (
