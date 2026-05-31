@@ -599,7 +599,7 @@ export default function App() {
         const emoji = wc.vatsa.breed.toLowerCase().includes('pezza') ? '🐮' : '🐄';
         const ringCol = isRealWild ? 'border-emerald-400' : 'border-amber-500';
         const photoStyle = wc.vatsa.realPhoto
-          ? `background-image:url('${wc.vatsa.realPhoto}');background-size:cover;background-position:center;`
+          ? `background-image:url('${wc.vatsa.realPhoto}');background-size:contain;background-repeat:no-repeat;background-position:center;background-color:#eef1f6;`
           : '';
         const inner = wc.vatsa.realPhoto ? '' : `<span class="text-xl animate-float">${emoji}</span>`;
         const label = isRealWild ? `REALE · ${wc.vatsa.rarity}` : wc.vatsa.rarity;
@@ -649,7 +649,7 @@ export default function App() {
         if (isDiscovered) {
           const ring = inRange ? 'border-emerald-400' : 'border-slate-500';
           const photo = rc.realPhoto
-            ? `background-image:url('${rc.realPhoto}');background-size:cover;background-position:center;`
+            ? `background-image:url('${rc.realPhoto}');background-size:contain;background-repeat:no-repeat;background-position:center;background-color:#eef1f6;`
             : '';
           const inner = rc.realPhoto ? '' : '<span class="text-xl">🐮</span>';
           realIcon = L.divIcon({
