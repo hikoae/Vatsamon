@@ -2785,6 +2785,8 @@ export default function App() {
                   playerCow={vatsadex.find(c => c.id === activeCombatantId) || vatsadex[0]}
                   trainerLevel={trainer.level}
                   badges={trainerBadges}
+                  backpack={backpack}
+                  onConsumeItem={(id) => setBackpack(prev => prev.map(it => it.id === id ? { ...it, quantity: Math.max(0, it.quantity - 1) } : it))}
                   playClick={playClickSfx}
                   onWin={(arena, xp, coins, newBadge) => {
                     addTrainerXp(xp);
