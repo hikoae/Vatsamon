@@ -59,7 +59,7 @@ export interface BackpackItem {
   name: string;
   description: string;
   quantity: number;
-  type: 'ball' | 'candy' | 'food' | 'potion';
+  type: 'ball' | 'candy' | 'food' | 'potion' | 'buff';
 }
 
 export interface Egg {

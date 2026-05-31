@@ -25,6 +25,8 @@ export const SAVE_KEYS = [
   "vazzamon_quiz_go",
   "vazzamon_badges",
   "vazzamon_challenges_go",
+  "vazzamon_completed_routes",
+  "vazzamon_discovered_cows",
   "vazzamon_onboarded",
 ] as const;
 
