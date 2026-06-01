@@ -62,13 +62,17 @@ export interface BackpackItem {
   type: 'ball' | 'candy' | 'food' | 'potion' | 'buff';
 }
 
-export interface Egg {
+export interface Pregnancy {
   id: string;
   rarity: RarityType;
   kmWalked: number;
   kmRequired: number;
   isIncubating: boolean;
+  stage: 'incinta' | 'vicina' | 'parto';
+  lastCuddleAt?: number;
 }
+/** @deprecated use Pregnancy */
+export type Egg = Pregnancy;
 
 export interface Trainer {
   name: string;

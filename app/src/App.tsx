@@ -27,7 +27,8 @@ import {
   Plus,
   GraduationCap
 } from 'lucide-react';
-import { Vatsamon, Hotspot, BackpackItem, Egg, Trainer, BattleState, RarityType } from './types';
+import { Vatsamon, Hotspot, BackpackItem, Pregnancy, Egg, Trainer, BattleState, RarityType } from './types';
+import HatchScene from './components/HatchScene';
 import { VatsamonAvatar } from './components/VatsamonAvatar';
 import { CowVisual } from './components/CowVisual';
 import { CowCard } from './components/CowCard';
@@ -120,6 +121,13 @@ const DEFAULT_BAG: BackpackItem[] = [
   { id: 'item-energy-grappa', name: 'Grappa alla Genziana', description: 'In battaglia: carica +60 Adrenalina per le mosse speciali. Da usare con prudenza!', quantity: 2, type: 'buff' },
 ];
 
+const CUDDLE_COOLDOWN_MS = 30 * 60 * 1000; // 30 minuti
+
+// Km di gestazione per rarità (molto più lunghi degli ex "uova").
+const KM_REQUIRED: Record<RarityType, number> = {
+  Comune: 10, Rara: 20, Epica: 35, Leggendaria: 50,
+};
+
 // Tasso di cattura base per rarità (prima di ball / mela / precisione del lancio).
 const BASE_CATCH: Record<RarityType, number> = {
   Comune: 0.45, Rara: 0.30, Epica: 0.18, Leggendaria: 0.09,
@@ -194,15 +202,22 @@ export default function App() {
     return DEFAULT_BAG.map(i => ({ ...i }));
   });
 
-  const [eggs, setEggs] = useState<Egg[]>(() => {
+  const [pregnancies, setPregnancies] = useState<Pregnancy[]>(() => {
     const cached = localStorage.getItem('vazzamon_eggs_go');
     if (cached) {
-      try { return JSON.parse(cached); } catch (e) { console.error(e); }
+      try {
+        const parsed: Pregnancy[] = JSON.parse(cached);
+        // Migrazione: aggiunge `stage` se mancante (salvataggi pre-gravidanza).
+        return parsed.map(p => ({
+          ...p,
+          stage: p.stage ?? (p.kmWalked >= p.kmRequired ? 'parto' : p.kmWalked / p.kmRequired >= 0.75 ? 'vicina' : 'incinta'),
+        }));
+      } catch (e) { console.error(e); }
     }
     return [
-      { id: 'egg-1', rarity: 'Comune', kmWalked: 0, kmRequired: 2, isIncubating: true },
-      { id: 'egg-2', rarity: 'Epica', kmWalked: 0, kmRequired: 5, isIncubating: true }
-    ];
+      { id: 'preg-1', rarity: 'Comune', kmWalked: 0, kmRequired: KM_REQUIRED.Comune, isIncubating: true, stage: 'incinta' },
+      { id: 'preg-2', rarity: 'Epica', kmWalked: 0, kmRequired: KM_REQUIRED.Epica, isIncubating: true, stage: 'incinta' },
+    ] satisfies Pregnancy[];
   });
 
   const [trainer, setTrainer] = useState<Trainer>(() => {
@@ -240,7 +255,7 @@ export default function App() {
   // Keep all persistent items secure in localStorage
   useEffect(() => { localStorage.setItem('vazzamon_collection_go', JSON.stringify(vatsadex)); }, [vatsadex]);
   useEffect(() => { localStorage.setItem('vazzamon_bag_go', JSON.stringify(backpack)); }, [backpack]);
-  useEffect(() => { localStorage.setItem('vazzamon_eggs_go', JSON.stringify(eggs)); }, [eggs]);
+  useEffect(() => { localStorage.setItem('vazzamon_eggs_go', JSON.stringify(pregnancies)); }, [pregnancies]);
   useEffect(() => { localStorage.setItem('vazzamon_trainer_go', JSON.stringify(trainer)); }, [trainer]);
   useEffect(() => { localStorage.setItem('vazzamon_respect', String(respectScore)); }, [respectScore]);
   // Rispecchia il Rispetto nell'oggetto trainer così la classifica cloud
@@ -857,8 +872,8 @@ export default function App() {
   // Level Up overlay reward popup
   const [levelUpAward, setLevelUpAward] = useState<number | null>(null);
 
-  // Hatching egg modal
-  const [hatchingEgg, setHatchingEgg] = useState<Egg | null>(null);
+  // Parto: Vatsamon vitellino nato, da mostrare con HatchScene.
+  const [birthingCow, setBirthingCow] = useState<Vatsamon | null>(null);
 
   // Interactive Bataille de Reines gym-fighter active state
   const [gymState, setGymState] = useState<BattleState>({
@@ -1119,23 +1134,23 @@ export default function App() {
 
     addTrainerXp(120); // Exploration yields XP
 
-    // Incubate eggs & check for hatches
-    let triggeredHatch: Egg | null = null;
-    const updatedEggs = eggs.map(egg => {
-      if (egg.isIncubating) {
-        const walked = Number((egg.kmWalked + distanceStep).toFixed(1));
-        if (walked >= egg.kmRequired && !triggeredHatch) {
-          triggeredHatch = { ...egg, kmWalked: walked };
-          return { ...egg, kmWalked: walked, isIncubating: false }; // trigger hatch flow
-        }
-        return { ...egg, kmWalked: walked };
+    // Avanza le gravidanze e controlla il parto.
+    let triggeredBirth: Pregnancy | null = null;
+    const updatedPregnancies = pregnancies.map(p => {
+      if (!p.isIncubating) return p;
+      const walked = Number((p.kmWalked + distanceStep).toFixed(1));
+      if (walked >= p.kmRequired && !triggeredBirth) {
+        triggeredBirth = { ...p, kmWalked: walked, stage: 'parto' as const };
+        return { ...p, kmWalked: walked, isIncubating: false, stage: 'parto' as const };
       }
-      return egg;
+      const pct = walked / p.kmRequired;
+      const stage: Pregnancy['stage'] = pct >= 0.75 ? 'vicina' : 'incinta';
+      return { ...p, kmWalked: walked, stage };
     });
-    setEggs(updatedEggs);
+    setPregnancies(updatedPregnancies);
 
-    if (triggeredHatch) {
-      triggerEggHatching(triggeredHatch);
+    if (triggeredBirth) {
+      triggerBirth(triggeredBirth);
     }
 
     // Update trek coordinates progress
@@ -1195,41 +1210,65 @@ export default function App() {
     }
   };
 
-  // ---- 6. EGG HATCHERY UTILITIES ----
-  const triggerEggHatching = (egg: Egg) => {
+  // ---- 6. STALLA — NASCITA VITELLINO ----
+  const triggerBirth = (p: Pregnancy) => {
     const breed = WILD_BREEDS[Math.floor(Math.random() * WILD_BREEDS.length)];
-    const rarity = egg.rarity;
-    
-    let str = 45 + Math.floor(Math.random() * 45);
-    let def = 45 + Math.floor(Math.random() * 45);
-    let agl = 45 + Math.floor(Math.random() * 45);
-    
+    const rarity = p.rarity;
+
+    const str = 45 + Math.floor(Math.random() * 45);
+    const def = 45 + Math.floor(Math.random() * 45);
+    const agl = 45 + Math.floor(Math.random() * 45);
     const cp = Math.floor((str * 2 + def + agl) * (1.3 + (rarity === 'Leggendaria' ? 1.0 : rarity === 'Epica' ? 0.5 : 0.2)));
 
-    const hatchedCow: Vatsamon = {
-      id: "hatch-" + Date.now(),
+    const bornCalf: Vatsamon = {
+      id: "born-" + Date.now(),
       breed,
-      name: "Baby " + breed.split(" ")[0],
+      name: "Vitellino " + breed.split(" ")[0],
       stats: { strength: str, defense: def, agility: agl },
       rarity,
       eco_tip: "I piccoli pascoli fioriscono con pazienza. Proteggi i giovani germogli tenendo fermi zaini e tende.",
-      lore: `Schiusa direttamente da un raro uovo montano custodito al caldo dell'incubatore alpino. Mostra una vitalità contagiosa!`,
+      lore: `Nato dopo una gestazione di ${p.kmRequired} km percorsi tra i pascoli valdostani. Mostra una vitalità contagiosa!`,
       capturedAt: new Date().toISOString(),
       cp,
-      level: 1
+      level: 1,
     };
 
-    setHatchingEgg(egg);
-    // Add to collection
-    setVatsadex(prev => [hatchedCow, ...prev]);
-    // Replace egg in hatchery list with a fresh one
-    setEggs(prev => {
-      const remaining = prev.filter(e => e.id !== egg.id);
+    setBirthingCow(bornCalf);
+    setVatsadex(prev => [bornCalf, ...prev]);
+    // Sostituisce la gravidanza con una nuova.
+    setPregnancies(prev => {
+      const remaining = prev.filter(e => e.id !== p.id);
       const nextRarities: RarityType[] = ['Comune', 'Rara', 'Epica'];
       const nextRarity = nextRarities[Math.floor(Math.random() * nextRarities.length)];
-      const req = nextRarity === 'Epica' ? 5 : nextRarity === 'Rara' ? 3 : 2;
-      return [...remaining, { id: "egg-new-" + Date.now(), rarity: nextRarity, kmWalked: 0, kmRequired: req, isIncubating: true }];
+      const newPreg: Pregnancy = {
+        id: "preg-" + Date.now(),
+        rarity: nextRarity,
+        kmWalked: 0,
+        kmRequired: KM_REQUIRED[nextRarity],
+        isIncubating: true,
+        stage: 'incinta',
+      };
+      return [...remaining, newPreg];
     });
+  };
+
+  // Accarezza la mucca: boost +0.5 km con cooldown di 30 minuti.
+  const handleCuddle = (id: string) => {
+    const now = Date.now();
+    const p = pregnancies.find(pr => pr.id === id);
+    if (!p) return;
+    if (p.lastCuddleAt && now - p.lastCuddleAt < CUDDLE_COOLDOWN_MS) return;
+
+    const walked = Number((p.kmWalked + 0.5).toFixed(1));
+    if (walked >= p.kmRequired) {
+      triggerBirth({ ...p, kmWalked: walked, stage: 'parto', isIncubating: false, lastCuddleAt: now });
+    } else {
+      const pct = walked / p.kmRequired;
+      const stage: Pregnancy['stage'] = pct >= 0.75 ? 'vicina' : 'incinta';
+      setPregnancies(prev => prev.map(pr => pr.id === id ? { ...pr, kmWalked: walked, stage, lastCuddleAt: now } : pr));
+      playMooSfx();
+      setTrekkingFeed(prev => ['🤍 Accarezzi dolcemente la mucca… lei risponde con un muggito grato!', ...prev.slice(0, 8)]);
+    }
   };
 
   // ---- 7. POKESTOP INTERACTIVE SPIN WHEEL ----
@@ -2723,80 +2762,120 @@ export default function App() {
 
         {/* VIEW 3: CALF GESTATION & WEANING STABLE */}
         {activeTab === 'eggs' && (
-          <div className="space-y-6" id="hatchery-tab-view">
+          <div className="space-y-4" id="hatchery-tab-view">
+            {/* Header stalla */}
             <div className="bg-slate-950 border border-slate-850 rounded-3xl p-5 shadow-sm">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4">
+              <div className="flex items-start justify-between gap-3">
                 <div>
-                  <h2 className="text-xl font-mono font-black text-emerald-400 flex items-center gap-1.5 uppercase">
-                    <Gift className="w-5 h-5" />
-                    Culla dei Vitellini Alpini
+                  <h2 className="text-xl font-mono font-black text-amber-400 flex items-center gap-2 uppercase">
+                    🐮 Stalla Alpina
                   </h2>
-                  <p className="text-xs text-slate-400">I piccoli vitellini necessitano che tu cammini o simuli l'escursionismo per completare la crescita e lo svezzamento d'alta quota. Accompagnali nei pascoli alpini per far nascere nuove splendide Regine!</p>
+                  <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                    Le tue mucche incinte hanno bisogno di camminate e coccole per portare a termine la gestazione.
+                    Più rara la Reina, più lunga la gravidanza!
+                  </p>
                 </div>
-                
-                {/* Walk triggers direct step inside the hatchery */}
                 <button
                   onClick={handleSimulatedWalk}
-                  className="bg-slate-900 hover:bg-slate-850 border border-slate-800 text-slate-300 font-mono font-black text-xs py-2 px-4 rounded-xl flex items-center gap-1.5 cursor-pointer shadow"
+                  className="bg-slate-900 hover:bg-slate-850 border border-slate-800 text-slate-300 font-mono font-black text-xs py-2 px-4 rounded-xl flex items-center gap-1.5 cursor-pointer shadow shrink-0"
                 >
                   <Footprints className="w-4 h-4 text-emerald-400" />
-                  PASSO 500m!
+                  PASSO 500m
                 </button>
               </div>
+            </div>
 
-              {/* Grid of incubating calves */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {eggs.map((egg) => {
-                  const progressPct = Math.min((egg.kmWalked / egg.kmRequired) * 100, 100);
-                  const rarityLabelColor = 
-                    egg.rarity === 'Epica' ? 'text-purple-400 border-purple-500/20' :
-                    egg.rarity === 'Rara' ? 'text-blue-400 border-blue-500/20' : 'text-slate-400 border-slate-800';
+            {/* Card per ogni gravidanza */}
+            {pregnancies.map((p) => {
+              const progressPct = Math.min((p.kmWalked / p.kmRequired) * 100, 100);
+              const now = Date.now();
+              const canCuddle = !p.lastCuddleAt || now - p.lastCuddleAt >= CUDDLE_COOLDOWN_MS;
+              const cooldownMin = p.lastCuddleAt ? Math.ceil(Math.max(0, CUDDLE_COOLDOWN_MS - (now - p.lastCuddleAt)) / 60000) : 0;
 
-                  return (
-                    <div key={egg.id} className="bg-slate-900 border border-slate-800 rounded-3xl p-5 relative overflow-hidden flex items-center gap-4 group hover:border-slate-700 transition-colors">
-                      
-                      {/* Glass Tube Capsule Overlay */}
-                      <div className="w-16 h-24 rounded-full border-2 border-slate-800 bg-slate-950 flex flex-col justify-end p-1 relative overflow-hidden shadow-inner group-hover:border-slate-700">
-                        {/* Bubbles or liquid gradient indicating incubation progress */}
-                        <div className="absolute inset-x-0 bottom-0 bg-emerald-500/10 transition-all duration-500" style={{ height: `${progressPct}%` }}></div>
-                        
-                        {/* Animated Calf weaning graphics */}
-                        <div className="w-12 h-12 bg-amber-100 rounded-full border-2 border-amber-600/40 shadow-md mx-auto mb-4 flex items-center justify-center animate-float relative">
-                          <span className="text-2xl">🍼</span>
-                        </div>
+              const stageCfg = p.stage === 'parto'
+                ? { label: '⚡ PARTO!', badge: 'text-red-400 border-red-500/30 bg-red-950/30', bar: 'from-red-500 to-orange-400', border: 'border-amber-500/60 shadow-amber-500/15 shadow-lg' }
+                : p.stage === 'vicina'
+                ? { label: 'Vicina al parto', badge: 'text-amber-400 border-amber-500/30 bg-amber-950/30', bar: 'from-amber-500 to-yellow-400', border: 'border-amber-700/30' }
+                : { label: 'Incinta', badge: 'text-emerald-400 border-emerald-600/30 bg-emerald-950/30', bar: 'from-emerald-500 to-emerald-400', border: 'border-slate-800' };
 
-                        {/* Tiny glass reflection strip */}
-                        <div className="absolute right-1.5 top-2 bottom-2 w-1.5 rounded-full bg-white/5 pointer-events-none"></div>
-                      </div>
+              const rarityBadge = p.rarity === 'Epica'
+                ? 'text-purple-400 border-purple-500/30 bg-purple-950/30'
+                : p.rarity === 'Rara'
+                ? 'text-blue-400 border-blue-500/30 bg-blue-950/30'
+                : 'text-slate-400 border-slate-700 bg-slate-900';
 
-                      <div className="flex-grow space-y-2">
-                        <div>
-                          <span className={`text-[9px] uppercase font-mono font-bold px-2 py-0.5 rounded-full border bg-slate-950 tracking-wide ${rarityLabelColor}`}>
-                            Vitellino · {egg.rarity}
-                          </span>
-                          <h4 className="font-mono font-extrabold text-sm text-slate-100 mt-1.5">Svezzamento e Crescita</h4>
-                        </div>
-
-                        <div className="space-y-1">
-                          <div className="flex justify-between text-[11px] font-mono text-slate-400">
-                            <span>Sviluppo Vitello</span>
-                            <span className="font-bold text-slate-200">{egg.kmWalked} / {egg.kmRequired} km</span>
-                          </div>
-                          
-                          {/* Progress slider bar */}
-                          <div className="bg-slate-950 border border-slate-850 rounded-full h-2 overflow-hidden shadow-inner">
-                            <div className="bg-gradient-to-r from-amber-500 to-yellow-400 h-2 rounded-full" style={{ width: `${progressPct}%` }} />
-                          </div>
-                        </div>
-
-                        <p className="text-[9.5px] text-slate-500">Accompagna il vitellino nelle camminate d'alta quota per completare la crescita e vederlo svezzato in stalla!</p>
-                      </div>
-
+              return (
+                <div key={p.id} className={`bg-slate-950 border rounded-3xl p-5 transition-all ${stageCfg.border}`}>
+                  {/* Riga principale */}
+                  <div className="flex items-start gap-4">
+                    {/* Mucca con animazione per stadio */}
+                    <div className="text-5xl leading-none shrink-0 select-none" style={{ filter: p.stage === 'parto' ? 'drop-shadow(0 0 10px #f59e0b)' : 'none' }}>
+                      {p.stage === 'parto'
+                        ? <span className="animate-bounce inline-block">🐮</span>
+                        : p.stage === 'vicina'
+                        ? <span className="animate-pulse inline-block">🐮</span>
+                        : <span style={{ display: 'inline-block', animation: 'float 3s ease-in-out infinite' }}>🐮</span>
+                      }
                     </div>
-                  );
-                })}
-              </div>
 
+                    <div className="flex-1 min-w-0">
+                      {/* Badge stadio + rarità */}
+                      <div className="flex flex-wrap items-center gap-1.5 mb-1.5">
+                        <span className={`text-[9px] uppercase font-mono font-bold px-2 py-0.5 rounded-full border ${stageCfg.badge}`}>
+                          {stageCfg.label}
+                        </span>
+                        <span className={`text-[9px] uppercase font-mono font-bold px-2 py-0.5 rounded-full border ${rarityBadge}`}>
+                          {p.rarity}
+                        </span>
+                      </div>
+                      <div className="text-sm font-mono font-black text-slate-100">
+                        {p.stage === 'parto' ? 'Pronta a partorire!' : p.stage === 'vicina' ? 'Il parto si avvicina…' : 'In gestazione'}
+                      </div>
+                    </div>
+
+                    {/* Bottone Accarezza con cooldown */}
+                    <button
+                      onClick={() => handleCuddle(p.id)}
+                      disabled={!canCuddle}
+                      className={`shrink-0 px-3 py-2 rounded-2xl font-mono font-black text-[10px] flex flex-col items-center gap-0.5 transition-all ${canCuddle ? 'bg-pink-950/60 hover:bg-pink-900/60 border border-pink-700/50 text-pink-300 cursor-pointer active:scale-95' : 'bg-slate-900 border border-slate-800 text-slate-600 cursor-not-allowed'}`}
+                    >
+                      <span className="text-xl">🤍</span>
+                      <span>{canCuddle ? 'Accarezza' : `${cooldownMin}m`}</span>
+                    </button>
+                  </div>
+
+                  {/* Barra gestazione */}
+                  <div className="mt-3 space-y-1.5">
+                    <div className="flex justify-between text-[11px] font-mono">
+                      <span className="text-slate-400">Gestazione</span>
+                      <span className="font-bold text-slate-200">{p.kmWalked.toFixed(1)} / {p.kmRequired} km</span>
+                    </div>
+                    <div className="bg-slate-900 border border-slate-800 rounded-full h-3 overflow-hidden shadow-inner">
+                      <div
+                        className={`bg-gradient-to-r ${stageCfg.bar} h-3 rounded-full transition-all duration-500 ${p.stage !== 'incinta' ? 'animate-pulse' : ''}`}
+                        style={{ width: `${progressPct}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Hint parto */}
+                  {p.stage === 'parto' && (
+                    <p className="mt-2 text-[11px] font-mono font-bold text-amber-400 text-center animate-pulse">
+                      ⚡ Cammina o accarezza per far nascere il vitellino!
+                    </p>
+                  )}
+                </div>
+              );
+            })}
+
+            {/* Legenda */}
+            <div className="bg-slate-950/60 border border-slate-850 rounded-2xl p-4">
+              <p className="text-[10px] font-mono text-slate-500 leading-relaxed">
+                🌾 <strong className="text-slate-400">Come funziona:</strong> ogni mucca porta una gravidanza.
+                Cammina sui percorsi o premi PASSO per avanzare la gestazione.
+                Accarezza ogni 30 min per un boost extra +0.5 km.
+                Comune 10 km · Rara 20 km · Epica 35 km · Leggendaria 50 km.
+              </p>
             </div>
           </div>
         )}
@@ -3228,33 +3307,14 @@ export default function App() {
         </div>
       )}
 
-      {/* OVERLAY BIRTH / CALVING POPUP */}
-      {hatchingEgg && (
-        <div className="fixed inset-0 bg-slate-950/95 z-55 flex items-center justify-center p-4 backdrop-blur-xs animate-scale-in" id="calving-modal">
-          <div className="bg-gradient-to-br from-emerald-950 via-slate-900 to-slate-900 border-2 border-amber-500 p-8 rounded-3xl max-w-sm w-full text-center space-y-4 shadow-2xl relative overflow-hidden">
-            <div className="absolute top-0 inset-x-0 h-2 bg-gradient-to-r from-yellow-400 via-amber-500 to-emerald-500"></div>
-            
-            <div className="text-4xl">🍼🐮🍼</div>
-            <h1 className="text-3xl font-mono font-black text-amber-400">LIETO EVENTO!</h1>
-            <p className="text-sm text-slate-200">Accompagnandolo nei pascoli alpini, hai completato la crescita e svezzato il vitellino!</p>
-            
-            <div className="bg-slate-950/80 p-5 rounded-2xl border border-slate-850 space-y-3">
-              <span className="text-[10px] font-mono text-emerald-400 uppercase tracking-widest block">È Nata una Nuova Regina!</span>
-              <div className="my-2 flex justify-center text-5xl animate-float">🐮</div>
-              <p className="text-xs text-slate-300">Un dolcissimo vitellino {hatchingEgg.rarity} è cresciuto sano e forte nei nostri pascoli ed è entrato ufficialmente nel tuo **Vatsadex**!</p>
-            </div>
-
-            <button
-              onClick={() => {
-                playMooSfx();
-                setHatchingEgg(null);
-              }}
-              className="w-full bg-amber-500 hover:bg-amber-400 text-[#0b0820] font-mono font-bold text-xs py-2.5 rounded-xl border-b-4 border-amber-700 cursor-pointer"
-            >
-              ACCOGLI IN STALLA! 🌾
-            </button>
-          </div>
-        </div>
+      {/* SCENA PARTO — animazione nascita vitellino */}
+      {birthingCow && (
+        <HatchScene
+          cow={birthingCow}
+          onClose={() => setBirthingCow(null)}
+          playMoo={playMooSfx}
+          playVictory={playVictorySfx}
+        />
       )}
 
     </div>
