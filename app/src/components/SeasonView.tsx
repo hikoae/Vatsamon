@@ -15,6 +15,7 @@ import {
 import { CULTURA, GLOSSARIO, FONTI } from "../data/bataillesContent";
 import { loadNews, NewsItem } from "../data/news";
 import { SPONSOR_SLOTS } from "../config/brand";
+import { useLang, tr, Lang } from "../i18n/hub";
 
 /**
  * STAGIONE — il "second screen" ufficiale della stagione Batailles de Reines.
@@ -47,6 +48,7 @@ function toISO(d: Date): string {
 
 export function SeasonView({ onReward }: { onReward?: (coins: number, xp: number) => void }) {
   const [sub, setSub] = useState<SubTab>("notizie");
+  const [lang, setLang] = useLang();
   const [picks, setPicks] = useState<Record<string, string>>(() => loadJSON(LS_PICKS, {}));
   const [followId, setFollowId] = useState<string | null>(() => localStorage.getItem(LS_FOLLOW));
   const [catSel, setCatSel] = useState<CategoriaId>("1");
@@ -101,17 +103,24 @@ export function SeasonView({ onReward }: { onReward?: (coins: number, xp: number
         <div className="flex items-center gap-2 mb-1">
           <Trophy className="w-5 h-5 text-amber-400" />
           <h2 className="text-lg font-mono font-black text-amber-300 uppercase tracking-wide">Stagione {SEASON_META.anno}</h2>
-          <span className="ml-auto flex items-center gap-1 bg-rose-600/20 border border-rose-500/40 text-rose-300 text-[9px] font-mono font-black px-2 py-0.5 rounded-full">
-            <span className="w-1.5 h-1.5 rounded-full bg-rose-400 animate-pulse" /> LIVE
-          </span>
+          <div className="ml-auto flex items-center gap-1.5">
+            {/* Toggle lingua IT/FR (la Valle d'Aosta è bilingue) */}
+            <div className="flex bg-slate-900 border border-slate-800 rounded-full overflow-hidden text-[9px] font-mono font-black">
+              {(["it", "fr"] as Lang[]).map((l) => (
+                <button key={l} onClick={() => setLang(l)} className={`px-2 py-0.5 ${lang === l ? "bg-amber-500 text-[#0b0820]" : "text-slate-400"}`}>{l.toUpperCase()}</button>
+              ))}
+            </div>
+            <span className="flex items-center gap-1 bg-rose-600/20 border border-rose-500/40 text-rose-300 text-[9px] font-mono font-black px-2 py-0.5 rounded-full">
+              <span className="w-1.5 h-1.5 rounded-full bg-rose-400 animate-pulse" /> LIVE
+            </span>
+          </div>
         </div>
         <p className="text-[11px] text-slate-400 leading-snug">
-          Batailles de Reines · {SEASON_META.organizzatore}. Segui le eliminatorie reali, fai i tuoi
-          pronostici e accompagna la tua Reina fino alla finale di {fmtDate(SEASON_META.finale.data)}.
+          {tr(lang, "headerSub", { date: fmtDate(SEASON_META.finale.data) })}
         </p>
         <div className="mt-3 flex items-center gap-2 text-[10px] font-mono">
           <span className="flex items-center gap-1 bg-amber-500/15 border border-amber-600/40 text-amber-200 px-2 py-1 rounded-lg">
-            <Star className="w-3 h-3" /> {puntiTifoso} Punti Tifoso
+            <Star className="w-3 h-3" /> {puntiTifoso} {tr(lang, "puntiTifoso")}
           </span>
           <span className="flex items-center gap-1 bg-slate-900 border border-slate-800 text-slate-300 px-2 py-1 rounded-lg">
             <MapPin className="w-3 h-3 text-amber-400" /> {SEASON_META.finale.luogo}, {SEASON_META.finale.comune}
@@ -122,12 +131,12 @@ export function SeasonView({ onReward }: { onReward?: (coins: number, xp: number
       {/* SUB-TABS */}
       <div className="flex gap-1 bg-slate-950 border border-slate-850 rounded-2xl p-1 overflow-x-auto no-scrollbar">
         {([
-          ["notizie", "Notizie", Newspaper],
-          ["calendario", "Calendario", CalendarDays],
-          ["albo", "Albo d'Oro", Medal],
-          ["tabellone", "Tabellone", Swords],
-          ["segui", "Segui", Heart],
-          ["scopri", "Scopri", BookOpen],
+          ["notizie", tr(lang, "nav_notizie"), Newspaper],
+          ["calendario", tr(lang, "nav_calendario"), CalendarDays],
+          ["albo", tr(lang, "nav_albo"), Medal],
+          ["tabellone", tr(lang, "nav_tabellone"), Swords],
+          ["segui", tr(lang, "nav_segui"), Heart],
+          ["scopri", tr(lang, "nav_scopri"), BookOpen],
         ] as [SubTab, string, typeof Trophy][]).map(([id, label, Icon]) => (
           <button
             key={id}
@@ -159,7 +168,7 @@ export function SeasonView({ onReward }: { onReward?: (coins: number, xp: number
           {sub === "tabellone" && (
             <BracketSection catSel={catSel} setCatSel={setCatSel} picks={picks} setPicks={setPicks} />
           )}
-          {sub === "scopri" && <ScopriSection />}
+          {sub === "scopri" && <ScopriSection lang={lang} />}
           {sub === "segui" && (
             <FollowSection followCow={followCow} onFollow={setFollowId} onOpenBracket={(cat) => { setCatSel(cat); setSub("tabellone"); }} />
           )}
@@ -690,15 +699,15 @@ function AlboSection() {
 
 type ScopriTab = "cultura" | "regolamento" | "glossario";
 
-function ScopriSection() {
+function ScopriSection({ lang }: { lang: Lang }) {
   const [tab, setTab] = useState<ScopriTab>("cultura");
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-3 gap-1.5">
         {([
-          ["cultura", "Cultura", BookOpen],
-          ["regolamento", "Regolamento", Scroll],
-          ["glossario", "Glossario", Languages],
+          ["cultura", tr(lang, "scopri_cultura"), BookOpen],
+          ["regolamento", tr(lang, "scopri_regolamento"), Scroll],
+          ["glossario", tr(lang, "scopri_glossario"), Languages],
         ] as [ScopriTab, string, typeof BookOpen][]).map(([id, label, Icon]) => (
           <button
             key={id}
@@ -715,9 +724,9 @@ function ScopriSection() {
           {CULTURA.map((c) => (
             <div key={c.id} className="bg-slate-950 border border-slate-850 rounded-2xl p-3.5">
               <h4 className="text-[12px] font-mono font-black text-amber-200 flex items-center gap-1.5">
-                <span className="text-base">{c.emoji}</span> {c.titolo}
+                <span className="text-base">{c.emoji}</span> {lang === "fr" ? c.titoloFr : c.titolo}
               </h4>
-              <p className="text-[11px] text-slate-300 leading-relaxed mt-1.5">{c.testo}</p>
+              <p className="text-[11px] text-slate-300 leading-relaxed mt-1.5">{lang === "fr" ? c.testoFr : c.testo}</p>
             </div>
           ))}
         </div>

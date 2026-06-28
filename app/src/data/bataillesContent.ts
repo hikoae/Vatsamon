@@ -8,6 +8,8 @@ export interface SchedaCultura {
   id: string;
   titolo: string;
   testo: string;
+  titoloFr: string;
+  testoFr: string;
   emoji: string;
 }
 
@@ -18,6 +20,9 @@ export const CULTURA: SchedaCultura[] = [
     titolo: "Le Batailles de Reines, le regine delle Alpi",
     testo:
       "Sono i combattimenti rituali e incruenti tra mucche di razza Valdostana che, ogni stagione, stabiliscono in modo naturale la «regina» della mandria. Non c'è violenza imposta dall'uomo: è l'istinto di dominio delle bovine più combattive, le pezzate nere e castane. Una tradizione che da secoli accompagna la vita pastorale della Valle d'Aosta.",
+    titoloFr: "Les Batailles de Reines, les reines des Alpes",
+    testoFr:
+      "Ce sont les combats rituels et non sanglants entre vaches de race Valdôtaine qui, chaque saison, désignent naturellement la « reine » du troupeau. Aucune violence n'est imposée par l'homme : c'est l'instinct de domination des bovins les plus combatifs, les pie noir et castaine. Une tradition qui accompagne depuis des siècles la vie pastorale de la Vallée d'Aoste.",
   },
   {
     id: "cult-02",
@@ -25,6 +30,9 @@ export const CULTURA: SchedaCultura[] = [
     titolo: "Tutto nasce all'alpe",
     testo:
       "La bataille nasce con la transumanza. Nel giorno dell'inalpa (la salita all'alpeggio, tra maggio e giugno) mandrie diverse si fondono e devono ricostruire la propria gerarchia: le mucche si sfidano a colpi di corna finché una non prevale. È la «regina dell'alpeggio», che guiderà la mandria per tutta l'estate, fino alla désarpa, la discesa di fine settembre.",
+    titoloFr: "Tout naît à l'alpage",
+    testoFr:
+      "La bataille naît avec la transhumance. Le jour de l'inalpe (la montée à l'alpage, entre mai et juin) des troupeaux différents se mêlent et doivent reconstruire leur hiérarchie : les vaches s'affrontent à coups de cornes jusqu'à ce que l'une l'emporte. C'est la « reine de l'alpage », qui guidera le troupeau tout l'été, jusqu'à la désalpe, la descente de fin septembre.",
   },
   {
     id: "cult-03",
@@ -32,6 +40,9 @@ export const CULTURA: SchedaCultura[] = [
     titolo: "Da rito spontaneo a tradizione condivisa",
     testo:
       "Le sfide tra mucche sono documentate almeno dalla metà dell'Ottocento: il poeta in patois Jean-Baptiste Cerlogne descrisse le battaglie a Vertosan, e il torneo è noto fin dal 1858. La svolta arriva nel 1958, con la nascita dell'Association Régionale des Amis des Batailles de Reines, che ha trasformato gli scontri spontanei in un vero campionato.",
+    titoloFr: "D'un rite spontané à une tradition partagée",
+    testoFr:
+      "Les défis entre vaches sont documentés au moins depuis le milieu du XIXe siècle : le poète en patois Jean-Baptiste Cerlogne décrivit les batailles à Vertosan, et le tournoi est connu depuis 1858. Le tournant arrive en 1958, avec la naissance de l'Association Régionale des Amis des Batailles de Reines, qui a transformé les affrontements spontanés en un véritable championnat.",
   },
   {
     id: "cult-04",
@@ -39,6 +50,9 @@ export const CULTURA: SchedaCultura[] = [
     titolo: "Più di una sfida: un'identità",
     testo:
       "Per la comunità valdostana la regina è motivo d'orgoglio: il suo valore ricade sull'allevatore, ne esalta le capacità e ne accresce il prestigio. L'antropologa Christiane Dunoyer descrive la bataille come uno «stabilizzatore sociale»: nell'arena l'uomo resta in secondo piano, a decidere è la mucca. È l'etica del lavoro che si fa festa.",
+    titoloFr: "Plus qu'un défi : une identité",
+    testoFr:
+      "Pour la communauté valdôtaine la reine est une fierté : sa valeur rejaillit sur l'éleveur, met en valeur ses compétences et accroît son prestige. L'anthropologue Christiane Dunoyer décrit la bataille comme un « stabilisateur social » : dans l'arène l'homme reste au second plan, c'est la vache qui décide. C'est l'éthique du travail qui devient fête.",
   },
   {
     id: "cult-05",
@@ -46,6 +60,9 @@ export const CULTURA: SchedaCultura[] = [
     titolo: "Il campionato delle regine",
     testo:
       "Da fine marzo a ottobre si svolgono una quindicina di eliminatorie in tutta la regione, con una pausa estiva durante l'alpeggio. Le bovine, pesate la mattina, gareggiano in tre categorie di peso. Vince chi spinge l'avversaria fino a farla cedere; le corna sono spuntate per evitare ferite. La stagione culmina nella grande finale di ottobre all'Arena Croix-Noire di Aosta.",
+    titoloFr: "Le championnat des reines",
+    testoFr:
+      "De fin mars à octobre se déroulent une quinzaine d'éliminatoires dans toute la région, avec une pause estivale durant l'alpage. Les bovins, pesés le matin, concourent en trois catégories de poids. L'emporte celle qui pousse l'adversaire à céder ; les cornes sont émoussées pour éviter les blessures. La saison culmine avec la grande finale d'octobre à l'Arène de la Croix-Noire d'Aoste.",
   },
   {
     id: "cult-06",
@@ -53,6 +70,9 @@ export const CULTURA: SchedaCultura[] = [
     titolo: "Valdostana o Hérens?",
     testo:
       "In Valle d'Aosta le protagoniste sono soprattutto le mucche di razza Valdostana Pezzata Nera e Castana (la Pezzata Rossa è invece la grande produttrice di latte per la Fontina DOP). In VdA è ammessa e usata anche la Hérens, razza del Vallese svizzero — dove i Combats de Reines sono una tradizione gemella ma distinta. Due mondi vicini, da non confondere nei dati.",
+    titoloFr: "Valdôtaine ou Hérens ?",
+    testoFr:
+      "En Vallée d'Aoste les protagonistes sont surtout les vaches de race Valdôtaine Pie Noir et Castaine (la Pie Rouge est en revanche la grande productrice de lait pour la Fontina AOP). En VdA la Hérens, race du Valais suisse, est aussi admise et utilisée — là où les Combats de Reines sont une tradition jumelle mais distincte. Deux mondes voisins, à ne pas confondre dans les données.",
   },
 ];
 
