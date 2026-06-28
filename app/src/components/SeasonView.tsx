@@ -2,14 +2,16 @@ import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import {
   Trophy, CalendarDays, Swords, MapPin, Heart, Check, Sparkles,
-  ChevronRight, Star, Crown, Info,
+  ChevronRight, Star, Crown, Info, Medal, BookOpen, Scroll, Languages,
 } from "lucide-react";
 import { CowVisual } from "./CowVisual";
 import { Vatsamon } from "../types";
 import {
   CALENDAR, CATEGORIES, CategoriaId, SEASON_META, SeasonEvent,
   winnersFor, cowsByCategory, buildRounds, bracketChampion, roundLabel,
+  ALBO_DORO, LEGGENDE, ALBO_ANNI, reinaByName, SOGLIE_PER_FASE,
 } from "../data/season";
+import { CULTURA, GLOSSARIO, FONTI } from "../data/bataillesContent";
 
 /**
  * STAGIONE — il "second screen" ufficiale della stagione Batailles de Reines.
@@ -22,7 +24,7 @@ import {
  * Nessun backend: i risultati live si aggiornano committando il JSON della stagione.
  */
 
-type SubTab = "calendario" | "tabellone" | "segui";
+type SubTab = "calendario" | "albo" | "tabellone" | "segui" | "scopri";
 
 const LS_PICKS = "vazzamon_pronostici";
 const LS_FOLLOW = "vazzamon_follow_reine";
@@ -115,16 +117,18 @@ export function SeasonView({ onReward }: { onReward?: (coins: number, xp: number
       </div>
 
       {/* SUB-TABS */}
-      <div className="grid grid-cols-3 gap-1 bg-slate-950 border border-slate-850 rounded-2xl p-1">
+      <div className="flex gap-1 bg-slate-950 border border-slate-850 rounded-2xl p-1 overflow-x-auto no-scrollbar">
         {([
           ["calendario", "Calendario", CalendarDays],
+          ["albo", "Albo d'Oro", Medal],
           ["tabellone", "Tabellone", Swords],
           ["segui", "Segui", Heart],
+          ["scopri", "Scopri", BookOpen],
         ] as [SubTab, string, typeof Trophy][]).map(([id, label, Icon]) => (
           <button
             key={id}
             onClick={() => setSub(id)}
-            className={`flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] font-mono font-black transition-all ${
+            className={`flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-xl text-[11px] font-mono font-black whitespace-nowrap transition-all flex-shrink-0 ${
               sub === id ? "bg-amber-500 text-[#0b0820]" : "text-slate-400 hover:bg-slate-900"
             }`}
           >
@@ -144,9 +148,11 @@ export function SeasonView({ onReward }: { onReward?: (coins: number, xp: number
           {sub === "calendario" && (
             <CalendarSection nextEventId={nextEventId} todayISO={todayISO} onGoPronostici={() => setSub("tabellone")} />
           )}
+          {sub === "albo" && <AlboSection />}
           {sub === "tabellone" && (
             <BracketSection catSel={catSel} setCatSel={setCatSel} picks={picks} setPicks={setPicks} />
           )}
+          {sub === "scopri" && <ScopriSection />}
           {sub === "segui" && (
             <FollowSection followCow={followCow} onFollow={setFollowId} onOpenBracket={(cat) => { setCatSel(cat); setSub("tabellone"); }} />
           )}
@@ -514,6 +520,171 @@ function FollowSection({ followCow, onFollow, onOpenBracket }: {
           </button>
         ))}
       </div>
+    </div>
+  );
+}
+
+// ===========================================================================
+//  ALBO D'ORO
+// ===========================================================================
+
+function AlboSection() {
+  return (
+    <div className="space-y-3">
+      <div className="bg-slate-950 border border-slate-850 rounded-2xl p-4 text-center">
+        <Medal className="w-7 h-7 text-amber-400 mx-auto mb-1" />
+        <h3 className="text-sm font-mono font-black text-amber-200">Albo d'Oro</h3>
+        <p className="text-[10px] font-mono text-slate-500 mt-0.5">Le Reines des Reines della Finale regionale, una per categoria.</p>
+      </div>
+
+      {/* leggende */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+        {LEGGENDE.map((l) => {
+          const cow = reinaByName(l.nome);
+          return (
+            <div key={l.nome} className="bg-gradient-to-br from-amber-950/40 to-slate-950 border border-amber-700/40 rounded-2xl p-3 flex gap-2.5">
+              {cow ? <CowVisual cow={cow} className="w-12 h-12 flex-shrink-0" /> : <div className="w-12 h-12 rounded-xl bg-slate-900 flex items-center justify-center text-2xl flex-shrink-0">👑</div>}
+              <div className="min-w-0">
+                <div className="text-[8px] font-mono uppercase tracking-widest text-amber-400">{l.titolo}</div>
+                <div className="text-sm font-mono font-black text-amber-200 truncate">{l.nome}</div>
+                <p className="text-[9.5px] font-mono text-slate-400 leading-snug mt-0.5">{l.descr}</p>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* per anno */}
+      {ALBO_ANNI.map((anno) => (
+        <div key={anno} className="bg-slate-950 border border-slate-850 rounded-2xl p-3">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-sm font-mono font-black text-slate-100">{anno}</span>
+            <span className="text-[9px] font-mono text-slate-500">Finale Croix-Noire</span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            {(["1", "2", "3"] as CategoriaId[]).map((catId) => {
+              const h = ALBO_DORO.find((e) => e.anno === anno && e.cat === catId);
+              const cat = CATEGORIES.find((c) => c.id === catId)!;
+              const cow = h ? reinaByName(h.nome) : undefined;
+              return (
+                <div key={catId} className="bg-slate-900/70 rounded-xl p-2 flex items-center gap-2" style={{ borderLeft: `3px solid ${cat.accent}` }}>
+                  {cow ? <CowVisual cow={cow} className="w-8 h-8 flex-shrink-0" /> : <div className="w-8 h-8 rounded-lg bg-slate-950 flex items-center justify-center text-base flex-shrink-0">{cat.emoji}</div>}
+                  <div className="min-w-0">
+                    <div className="text-[8px] font-mono uppercase" style={{ color: cat.accent }}>{cat.label}</div>
+                    <div className="text-[11px] font-mono font-black text-slate-200 truncate">{h?.nome ?? "—"}</div>
+                    <div className="text-[8.5px] font-mono text-slate-500 truncate">{h?.allevatore}{h?.note ? ` · ${h.note}` : ""}</div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+
+      <p className="text-[9px] font-mono text-slate-500 text-center leading-snug">
+        Dati storici verificati da cronache locali. 2020 non disputato come finale ufficiale (Combat événement Covid).
+      </p>
+    </div>
+  );
+}
+
+// ===========================================================================
+//  SCOPRI — cultura · regolamento · glossario
+// ===========================================================================
+
+type ScopriTab = "cultura" | "regolamento" | "glossario";
+
+function ScopriSection() {
+  const [tab, setTab] = useState<ScopriTab>("cultura");
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-3 gap-1.5">
+        {([
+          ["cultura", "Cultura", BookOpen],
+          ["regolamento", "Regolamento", Scroll],
+          ["glossario", "Glossario", Languages],
+        ] as [ScopriTab, string, typeof BookOpen][]).map(([id, label, Icon]) => (
+          <button
+            key={id}
+            onClick={() => setTab(id)}
+            className={`flex items-center justify-center gap-1 py-2 rounded-xl text-[10px] font-mono font-black transition-all ${tab === id ? "bg-amber-500 text-[#0b0820]" : "text-slate-400 bg-slate-900 hover:bg-slate-850"}`}
+          >
+            <Icon className="w-3.5 h-3.5" /> {label}
+          </button>
+        ))}
+      </div>
+
+      {tab === "cultura" && (
+        <div className="space-y-2.5">
+          {CULTURA.map((c) => (
+            <div key={c.id} className="bg-slate-950 border border-slate-850 rounded-2xl p-3.5">
+              <h4 className="text-[12px] font-mono font-black text-amber-200 flex items-center gap-1.5">
+                <span className="text-base">{c.emoji}</span> {c.titolo}
+              </h4>
+              <p className="text-[11px] text-slate-300 leading-relaxed mt-1.5">{c.testo}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {tab === "regolamento" && (
+        <div className="space-y-3">
+          <div className="bg-slate-950 border border-slate-850 rounded-2xl p-3 overflow-x-auto">
+            <div className="text-[10px] font-mono font-black uppercase tracking-widest text-slate-300 mb-2">Categorie di peso per fase</div>
+            <table className="w-full text-[10px] font-mono border-collapse">
+              <thead>
+                <tr className="text-slate-500">
+                  <th className="text-left font-bold py-1 pr-2">Fase</th>
+                  {CATEGORIES.map((c) => (
+                    <th key={c.id} className="text-right font-bold py-1 px-1" style={{ color: c.accent }}>{c.emoji} {c.id}ª</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {SOGLIE_PER_FASE.map((s) => (
+                  <tr key={s.fase} className="border-t border-slate-850">
+                    <td className="py-1.5 pr-2 text-slate-300">{s.faseLabel}</td>
+                    {(["1", "2", "3"] as CategoriaId[]).map((catId) => (
+                      <td key={catId} className="py-1.5 px-1 text-right text-slate-200 tabular-nums">{s.soglie[catId]}</td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p className="text-[8.5px] font-mono text-slate-500 mt-2 leading-snug">Le soglie salgono di fase in fase. Fonte autoritativa: regolamento ufficiale annuale (amisdesreines.it).</p>
+          </div>
+
+          <div className="bg-slate-950 border border-slate-850 rounded-2xl p-3.5 space-y-2 text-[11px] text-slate-300 leading-relaxed">
+            {[
+              ["🩺 Bovine gravide", "Per moderare l'aggressività: almeno 3 mesi (eliminatorie estive), 4 mesi (autunnali)."],
+              ["🐮 Scontro incruento", "Spinta a colpi di corna limate; l'allevatore conduce ma non forza. Vince chi fa sottomettere l'avversaria."],
+              ["🏆 A eliminazione diretta", "La vincitrice di ogni scontro avanza; in finale si incoronano 3 Reines des Reines, una per categoria."],
+              ["🌿 Premi", "Trofeo «Bosquet» (rami con fiori rossi), campanaccio (sonnaille) e collare in cuoio."],
+            ].map(([t, d]) => (
+              <div key={t}><b className="text-slate-100">{t}</b> — {d}</div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {tab === "glossario" && (
+        <div className="space-y-2">
+          {GLOSSARIO.map((g) => (
+            <div key={g.chiave} className="bg-slate-950 border border-slate-850 rounded-xl p-3">
+              <div className="flex items-baseline gap-2 flex-wrap">
+                <span className="text-[12px] font-mono font-black text-amber-200">{g.it}</span>
+                <span className="text-[10px] font-mono text-sky-300">{g.fr}</span>
+                {g.patois && <span className="text-[9px] font-mono italic text-slate-500">{g.patois}</span>}
+              </div>
+              <p className="text-[10px] text-slate-400 leading-snug mt-0.5">{g.def}</p>
+            </div>
+          ))}
+          <div className="flex items-start gap-2 bg-slate-950 border border-slate-850 rounded-2xl p-3 text-[9px] font-mono text-slate-500 leading-snug">
+            <Info className="w-3.5 h-3.5 text-sky-400 flex-shrink-0 mt-0.5" />
+            Fonti ufficiali: {FONTI.filter((f) => f.tipo === "ufficiale" || f.tipo === "regione").map((f) => f.nome).join(" · ")}.
+          </div>
+        </div>
+      )}
     </div>
   );
 }

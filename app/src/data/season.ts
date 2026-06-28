@@ -37,16 +37,38 @@ export interface SeasonCategory {
 }
 
 export const CATEGORIES: SeasonCategory[] = [
-  { id: "1", label: "1ª categoria", labelFr: "1ère catégorie", peso: "oltre ~600 kg", accent: "#f59e0b", emoji: "🥇" },
-  { id: "2", label: "2ª categoria", labelFr: "2ème catégorie", peso: "~520–600 kg", accent: "#38bdf8", emoji: "🥈" },
-  { id: "3", label: "3ª categoria", labelFr: "3ème catégorie", peso: "fino a ~520 kg", accent: "#34d399", emoji: "🥉" },
+  { id: "1", label: "1ª categoria", labelFr: "1ère catégorie", peso: "pesi massimi (≥ 571–631 kg)", accent: "#f59e0b", emoji: "🥇" },
+  { id: "2", label: "2ª categoria", labelFr: "2ème catégorie", peso: "pesi medi (521–630 kg)", accent: "#38bdf8", emoji: "🥈" },
+  { id: "3", label: "3ª categoria", labelFr: "3ème catégorie", peso: "pesi leggeri (≤ 520–580 kg)", accent: "#34d399", emoji: "🥉" },
+];
+
+/**
+ * REGOLAMENTO — soglie di peso per FASE della stagione (verificate, fonte
+ * regolamento Amis des Batailles de Reines). Le soglie NON sono fisse: salgono
+ * di fase in fase per seguire la crescita naturale degli animali.
+ */
+export type FaseStagione = "primavera" | "estate" | "autunno" | "autunno-finale" | "finale";
+
+export interface SogliaCategoria {
+  fase: FaseStagione;
+  faseLabel: string;
+  soglie: Record<CategoriaId, string>;
+}
+
+export const SOGLIE_PER_FASE: SogliaCategoria[] = [
+  { fase: "primavera", faseLabel: "Eliminatorie primaverili", soglie: { "1": "≥ 571 kg", "2": "521–570 kg", "3": "≤ 520 kg" } },
+  { fase: "estate", faseLabel: "Eliminatorie estive", soglie: { "1": "≥ 591 kg", "2": "541–590 kg", "3": "≤ 540 kg" } },
+  { fase: "autunno", faseLabel: "Autunnali (primi concorsi)", soglie: { "1": "≥ 601 kg", "2": "551–600 kg", "3": "≤ 550 kg" } },
+  { fase: "autunno-finale", faseLabel: "Autunnali (ultimi 3 concorsi)", soglie: { "1": "≥ 611 kg", "2": "561–610 kg", "3": "≤ 560 kg" } },
+  { fase: "finale", faseLabel: "Finale regionale", soglie: { "1": "≥ 631 kg", "2": "581–630 kg", "3": "≤ 580 kg" } },
 ];
 
 export const SEASON_META = {
   anno: 2026,
-  organizzatore: "Association régionale Amis des Batailles de Reines",
+  edizione: "69ème Concours Régional",
+  organizzatore: "Association Régionale Amis des Batailles de Reines",
   finale: {
-    data: "2026-10-18",
+    data: "2026-10-25",
     luogo: "Arena Croix-Noire",
     comune: "Aosta",
   },
@@ -64,7 +86,9 @@ export interface SeasonEvent {
   luogo: string;
   categorie: CategoriaId[];
   kind: EventKind;
-  /** true = già disputata (in questa stagione = eliminatorie di primavera). */
+  /** Fase della stagione (determina le soglie di peso applicate). */
+  fase?: FaseStagione;
+  /** true = già disputata (calcolato sui dati reali: primavera 2026). */
   disputata?: boolean;
   /** true = è la finale regionale (l'evento clou). */
   finale?: boolean;
@@ -72,26 +96,32 @@ export interface SeasonEvent {
 }
 
 /**
- * Calendario 2026 (forma reale: primavera disputata → pausa d'alpeggio →
- * autunno → finale a ottobre). Comuni e arene sono località valdostane reali
- * che ospitano davvero le Batailles. Le date sono domeniche reali del 2026.
+ * Calendario REALE 2026 — 69ème Concours Régional (fonte: Amis des Batailles de
+ * Reines, calendario approvato): 15 eliminatorie + finale del 25/10 alla
+ * Croix-Noire. Pausa d'alpeggio (inalpa) tra le primaverili e le estive.
+ * `disputata` riflette la timeline reale rispetto a "oggi" (stagione in corso).
  */
 export const CALENDAR: SeasonEvent[] = [
-  { id: "el-01", data: "2026-03-29", comune: "Aymavilles", luogo: "Area Tsanté", categorie: ["3"], kind: "bataille", disputata: true },
-  { id: "el-02", data: "2026-04-05", comune: "Saint-Vincent", luogo: "Area Fontaines", categorie: ["2", "3"], kind: "bataille", disputata: true },
-  { id: "el-03", data: "2026-04-19", comune: "Fénis", luogo: "Area Tornafol", categorie: ["1"], kind: "bataille", disputata: true },
-  { id: "el-04", data: "2026-05-03", comune: "Cogne", luogo: "Prato di Sant'Orso", categorie: ["2", "3"], kind: "bataille", disputata: true },
-  { id: "el-05", data: "2026-05-17", comune: "Châtillon", luogo: "Area Soleil", categorie: ["1", "2"], kind: "bataille", disputata: true },
-  { id: "el-06", data: "2026-05-31", comune: "Gignod", luogo: "Area Le Pré", categorie: ["1"], kind: "bataille", disputata: true },
-  { id: "el-07", data: "2026-06-07", comune: "Pollein", luogo: "Area Grand-Place", categorie: ["1", "2", "3"], kind: "bataille", disputata: true },
+  { id: "el-01", data: "2026-03-29", comune: "Pont-Saint-Martin", luogo: "Area combattimenti", categorie: ["1", "2", "3"], kind: "bataille", fase: "primavera", disputata: true },
+  { id: "el-02", data: "2026-04-06", comune: "Saint-Marcel", luogo: "Area combattimenti", categorie: ["1", "2", "3"], kind: "bataille", fase: "primavera", disputata: true },
+  { id: "el-03", data: "2026-04-12", comune: "Jovençan", luogo: "Area combattimenti", categorie: ["1", "2", "3"], kind: "bataille", fase: "primavera", disputata: true },
+  { id: "el-04", data: "2026-04-19", comune: "Gignod", luogo: "Area Le Pré", categorie: ["1", "2", "3"], kind: "bataille", fase: "primavera", disputata: true },
+  { id: "el-05", data: "2026-04-26", comune: "Pollein", luogo: "Area Grand-Place", categorie: ["1", "2", "3"], kind: "bataille", fase: "primavera", disputata: true },
 
-  { id: "pausa-estate", data: "2026-06-14", dataFine: "2026-08-23", comune: "Alpeggi della Valle d'Aosta", luogo: "Inalpa", categorie: [], kind: "pausa", note: "Le Reines salgono agli alpeggi: la stagione si ferma fino a fine estate." },
+  { id: "pausa-estate", data: "2026-05-01", dataFine: "2026-08-01", comune: "Alpeggi della Valle d'Aosta", luogo: "Inalpa", categorie: [], kind: "pausa", note: "Le mandrie salgono agli alpeggi (inalpa): le eliminatorie riprendono ad agosto." },
 
-  { id: "el-08", data: "2026-09-06", comune: "Brusson", luogo: "Area Extrepieraz", categorie: ["2", "3"], kind: "bataille", disputata: false },
-  { id: "el-09", data: "2026-09-20", comune: "Nus", luogo: "Area Plan-Félinaz", categorie: ["1"], kind: "bataille", disputata: false },
-  { id: "el-10", data: "2026-10-04", comune: "Sarre", luogo: "Area Stade", categorie: ["1", "2", "3"], kind: "bataille", disputata: false, note: "Ultime semifinali prima della finale regionale." },
+  { id: "el-06", data: "2026-08-02", comune: "Avise", luogo: "Vertosan", categorie: ["1", "2", "3"], kind: "bataille", fase: "estate", disputata: false },
+  { id: "el-07", data: "2026-08-09", comune: "Valtournenche", luogo: "Breuil-Cervinia", categorie: ["1", "2", "3"], kind: "bataille", fase: "estate", disputata: false },
+  { id: "el-08", data: "2026-08-16", comune: "Doues", luogo: "Champillon", categorie: ["1", "2", "3"], kind: "bataille", fase: "estate", disputata: false },
+  { id: "el-09", data: "2026-08-23", comune: "Ayas", luogo: "Champoluc", categorie: ["1", "2", "3"], kind: "bataille", fase: "estate", disputata: false },
+  { id: "el-10", data: "2026-08-30", comune: "Arnad", luogo: "Féhta dou Lar", categorie: ["1", "2", "3"], kind: "bataille", fase: "estate", disputata: false },
+  { id: "el-11", data: "2026-09-06", comune: "Aosta", luogo: "Area combattimenti", categorie: ["1", "2", "3"], kind: "bataille", fase: "autunno", disputata: false },
+  { id: "el-12", data: "2026-09-13", comune: "Cogne", luogo: "Prato di Sant'Orso", categorie: ["1", "2", "3"], kind: "bataille", fase: "autunno", disputata: false },
+  { id: "el-13", data: "2026-09-27", comune: "Courmayeur", luogo: "Mont-Blanc", categorie: ["1", "2", "3"], kind: "bataille", fase: "autunno", disputata: false },
+  { id: "el-14", data: "2026-10-04", comune: "Châtillon-Pontey", luogo: "Area combattimenti", categorie: ["1", "2", "3"], kind: "bataille", fase: "autunno-finale", disputata: false },
+  { id: "el-15", data: "2026-10-11", comune: "Gressan", luogo: "Area combattimenti", categorie: ["1", "2", "3"], kind: "bataille", fase: "autunno-finale", disputata: false, note: "Ultima eliminatoria prima della finale." },
 
-  { id: "finale", data: "2026-10-18", comune: "Aosta", luogo: "Arena Croix-Noire", categorie: ["1", "2", "3"], kind: "bataille", disputata: false, finale: true, note: "Finale regionale: si eleggono le tre Reines della Valle d'Aosta 2026." },
+  { id: "finale", data: "2026-10-25", comune: "Aosta", luogo: "Arena Croix-Noire", categorie: ["1", "2", "3"], kind: "bataille", fase: "finale", disputata: false, finale: true, note: "Finale regionale: si incoronano le tre Reines des Reines (una per categoria)." },
 ];
 
 // ---------------------------------------------------------------------------
@@ -220,4 +250,58 @@ export function roundLabel(roundIndex: number, totalRounds: number): string {
   if (fromEnd === 2) return "Quarti";
   if (fromEnd === 3) return "Ottavi";
   return `Turno ${roundIndex + 1}`;
+}
+
+// ===========================================================================
+//  ALBO D'ORO — vincitrici reali della Finale Regionale (Reine des Reines).
+//  Dati verificati 2021–2025 (fonte: cronache locali; vedi BATAILLES_DOSSIER).
+// ===========================================================================
+
+export interface HonorEntry {
+  anno: number;
+  cat: CategoriaId;
+  nome: string;
+  allevatore: string;
+  comune?: string;
+  note?: string;
+}
+
+export const ALBO_DORO: HonorEntry[] = [
+  { anno: 2025, cat: "1", nome: "Suisse", allevatore: "Soc. Ymak Frassy-Letey", comune: "Arvier", note: "2° titolo consecutivo" },
+  { anno: 2025, cat: "2", nome: "Berline", allevatore: "Fam. Charbonnier", comune: "Aosta" },
+  { anno: 2025, cat: "3", nome: "Falchetta", allevatore: "Renzo Rosset", comune: "Nus", note: "4° titolo consecutivo" },
+  { anno: 2024, cat: "1", nome: "Suisse", allevatore: "Ymak Frassy / C. Letey", comune: "Arvier" },
+  { anno: 2024, cat: "2", nome: "Tiky", allevatore: "Italo Arlian", note: "esordio" },
+  { anno: 2024, cat: "3", nome: "Falchetta", allevatore: "Renzo Rosset", comune: "Nus", note: "3° consecutivo" },
+  { anno: 2023, cat: "1", nome: "Bandit", allevatore: "Davide Bieller", note: "715 kg" },
+  { anno: 2023, cat: "2", nome: "Malice", allevatore: "Soc. Lo Tsanti" },
+  { anno: 2023, cat: "3", nome: "Falchetta", allevatore: "Renzo Rosset", comune: "Nus", note: "2° titolo" },
+  { anno: 2022, cat: "1", nome: "Bataille", allevatore: "Fratelli Martignon", comune: "Fénis" },
+  { anno: 2022, cat: "2", nome: "Rubis", allevatore: "Massimiliano Garin", comune: "Cogne" },
+  { anno: 2022, cat: "3", nome: "Falchetta", allevatore: "Lorenzo Rosset", comune: "Nus", note: "1° titolo" },
+  { anno: 2021, cat: "1", nome: "Energie", allevatore: "Girod", comune: "Fontainemore" },
+  { anno: 2021, cat: "2", nome: "Orsières", allevatore: "Alino Marquis", comune: "Nus" },
+  { anno: 2021, cat: "3", nome: "Reinette", allevatore: "Fratelli Bonin", comune: "Gressan" },
+];
+
+export interface Leggenda {
+  nome: string;
+  titolo: string;
+  descr: string;
+}
+
+export const LEGGENDE: Leggenda[] = [
+  { nome: "Falchetta", titolo: "La regina-leggenda", descr: "4 titoli consecutivi in 3ª categoria (2022–2025), allevamento Rosset di Nus." },
+  { nome: "Sirène", titolo: "Il record eterno", descr: "Regina dal 1966 al 1969: 4 finali consecutive, un primato imbattuto da oltre 55 anni." },
+  { nome: "Suisse", titolo: "La bicampionessa", descr: "Doppietta in 1ª categoria (2024–2025), allevamento Ymak Frassy-Letey di Arvier." },
+];
+
+/** Anni presenti nell'albo, dal più recente. */
+export const ALBO_ANNI = Array.from(new Set(ALBO_DORO.map((h) => h.anno))).sort((a, b) => b - a);
+
+/** Cerca una foto reale nel dataset per nome (match tollerante) di una vincitrice. */
+export function reinaByName(nome: string): Vatsamon | undefined {
+  const norm = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+  const target = norm(nome);
+  return REAL_COWS.find((c) => norm(c.name) === target);
 }
