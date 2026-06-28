@@ -1,0 +1,528 @@
+import { useEffect, useMemo, useState } from "react";
+import { motion, AnimatePresence } from "motion/react";
+import {
+  Trophy, CalendarDays, Swords, MapPin, Heart, Check, Sparkles,
+  ChevronRight, Star, Crown, Info,
+} from "lucide-react";
+import { CowVisual } from "./CowVisual";
+import { Vatsamon } from "../types";
+import {
+  CALENDAR, CATEGORIES, CategoriaId, SEASON_META, SeasonEvent,
+  winnersFor, cowsByCategory, buildRounds, bracketChampion, roundLabel,
+} from "../data/season";
+
+/**
+ * STAGIONE — il "second screen" ufficiale della stagione Batailles de Reines.
+ * Tre sezioni:
+ *  • Calendario  → eliminatorie reali (disputate con vincitrici) + pausa d'alpeggio + finale.
+ *  • Tabellone   → bracket della finale regionale per categoria, con PRONOSTICI dell'utente.
+ *  • Segui       → scegli una Reina reale e seguila verso la finale.
+ *
+ * Tutto statico (dati in data/season.ts) + localStorage per pronostici/segui.
+ * Nessun backend: i risultati live si aggiornano committando il JSON della stagione.
+ */
+
+type SubTab = "calendario" | "tabellone" | "segui";
+
+const LS_PICKS = "vazzamon_pronostici";
+const LS_FOLLOW = "vazzamon_follow_reine";
+const LS_REWARDED = "vazzamon_pronostici_rewarded";
+
+function loadJSON<T>(key: string, fallback: T): T {
+  try { const raw = localStorage.getItem(key); return raw ? (JSON.parse(raw) as T) : fallback; } catch { return fallback; }
+}
+
+const ITA_DATE = new Intl.DateTimeFormat("it-IT", { weekday: "short", day: "numeric", month: "long" });
+function fmtDate(iso: string): string {
+  return ITA_DATE.format(new Date(iso + "T12:00:00")).replace(/^\w/, (c) => c.toUpperCase());
+}
+function toISO(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+export function SeasonView({ onReward }: { onReward?: (coins: number, xp: number) => void }) {
+  const [sub, setSub] = useState<SubTab>("calendario");
+  const [picks, setPicks] = useState<Record<string, string>>(() => loadJSON(LS_PICKS, {}));
+  const [followId, setFollowId] = useState<string | null>(() => localStorage.getItem(LS_FOLLOW));
+  const [catSel, setCatSel] = useState<CategoriaId>("1");
+
+  useEffect(() => { localStorage.setItem(LS_PICKS, JSON.stringify(picks)); }, [picks]);
+  useEffect(() => {
+    if (followId) localStorage.setItem(LS_FOLLOW, followId);
+    else localStorage.removeItem(LS_FOLLOW);
+  }, [followId]);
+
+  const todayISO = toISO(new Date());
+
+  // Prossimo evento in calendario (prima bataille non disputata da oggi in poi).
+  const nextEventId = useMemo(() => {
+    const fut = CALENDAR.filter((e) => e.kind === "bataille" && !e.disputata && e.data >= todayISO);
+    return fut.length ? fut[0].id : null;
+  }, [todayISO]);
+
+  // Punteggio "Tifoso": premia partecipazione (pronostici + seguire una Reina).
+  const puntiTifoso = Object.keys(picks).length * 10 + (followId ? 20 : 0);
+
+  // Ricompensa (monete/XP) una sola volta per categoria con tabellone completato.
+  useEffect(() => {
+    if (!onReward) return;
+    const rewarded = loadJSON<string[]>(LS_REWARDED, []);
+    let changed = false;
+    for (const cat of CATEGORIES) {
+      const champ = bracketChampion(buildRounds(cat.id, picks));
+      if (champ && !rewarded.includes(cat.id)) {
+        rewarded.push(cat.id);
+        changed = true;
+        onReward(20, 50);
+      }
+    }
+    if (changed) localStorage.setItem(LS_REWARDED, JSON.stringify(rewarded));
+  }, [picks, onReward]);
+
+  const followCow = useMemo<Vatsamon | null>(() => {
+    if (!followId) return null;
+    for (const c of CATEGORIES) {
+      const found = cowsByCategory(c.id).find((x) => x.id === followId);
+      if (found) return found;
+    }
+    return null;
+  }, [followId]);
+
+  return (
+    <div className="max-w-2xl mx-auto space-y-4" id="season-view">
+      {/* HEADER */}
+      <div className="relative overflow-hidden bg-gradient-to-br from-amber-950/50 via-slate-950 to-slate-950 border border-amber-800/40 rounded-3xl p-5">
+        <div className="absolute -right-6 -top-6 text-7xl opacity-10 select-none">🐮</div>
+        <div className="flex items-center gap-2 mb-1">
+          <Trophy className="w-5 h-5 text-amber-400" />
+          <h2 className="text-lg font-mono font-black text-amber-300 uppercase tracking-wide">Stagione {SEASON_META.anno}</h2>
+          <span className="ml-auto flex items-center gap-1 bg-rose-600/20 border border-rose-500/40 text-rose-300 text-[9px] font-mono font-black px-2 py-0.5 rounded-full">
+            <span className="w-1.5 h-1.5 rounded-full bg-rose-400 animate-pulse" /> LIVE
+          </span>
+        </div>
+        <p className="text-[11px] text-slate-400 leading-snug">
+          Batailles de Reines · {SEASON_META.organizzatore}. Segui le eliminatorie reali, fai i tuoi
+          pronostici e accompagna la tua Reina fino alla finale di {fmtDate(SEASON_META.finale.data)}.
+        </p>
+        <div className="mt-3 flex items-center gap-2 text-[10px] font-mono">
+          <span className="flex items-center gap-1 bg-amber-500/15 border border-amber-600/40 text-amber-200 px-2 py-1 rounded-lg">
+            <Star className="w-3 h-3" /> {puntiTifoso} Punti Tifoso
+          </span>
+          <span className="flex items-center gap-1 bg-slate-900 border border-slate-800 text-slate-300 px-2 py-1 rounded-lg">
+            <MapPin className="w-3 h-3 text-amber-400" /> {SEASON_META.finale.luogo}, {SEASON_META.finale.comune}
+          </span>
+        </div>
+      </div>
+
+      {/* SUB-TABS */}
+      <div className="grid grid-cols-3 gap-1 bg-slate-950 border border-slate-850 rounded-2xl p-1">
+        {([
+          ["calendario", "Calendario", CalendarDays],
+          ["tabellone", "Tabellone", Swords],
+          ["segui", "Segui", Heart],
+        ] as [SubTab, string, typeof Trophy][]).map(([id, label, Icon]) => (
+          <button
+            key={id}
+            onClick={() => setSub(id)}
+            className={`flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] font-mono font-black transition-all ${
+              sub === id ? "bg-amber-500 text-[#0b0820]" : "text-slate-400 hover:bg-slate-900"
+            }`}
+          >
+            <Icon className="w-3.5 h-3.5" /> {label}
+          </button>
+        ))}
+      </div>
+
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={sub}
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -8 }}
+          transition={{ duration: 0.2 }}
+        >
+          {sub === "calendario" && (
+            <CalendarSection nextEventId={nextEventId} todayISO={todayISO} onGoPronostici={() => setSub("tabellone")} />
+          )}
+          {sub === "tabellone" && (
+            <BracketSection catSel={catSel} setCatSel={setCatSel} picks={picks} setPicks={setPicks} />
+          )}
+          {sub === "segui" && (
+            <FollowSection followCow={followCow} onFollow={setFollowId} onOpenBracket={(cat) => { setCatSel(cat); setSub("tabellone"); }} />
+          )}
+        </motion.div>
+      </AnimatePresence>
+    </div>
+  );
+}
+
+// ===========================================================================
+//  CALENDARIO
+// ===========================================================================
+
+function statusOf(ev: SeasonEvent, todayISO: string, nextEventId: string | null): {
+  label: string; color: string; dot?: boolean;
+} {
+  if (ev.kind === "pausa") {
+    const inCorso = todayISO >= ev.data && todayISO <= (ev.dataFine ?? ev.data);
+    return inCorso
+      ? { label: "In corso", color: "#38bdf8", dot: true }
+      : todayISO < ev.data
+        ? { label: "In arrivo", color: "#64748b" }
+        : { label: "Conclusa", color: "#475569" };
+  }
+  if (ev.disputata) return { label: "Disputata", color: "#34d399" };
+  if (ev.id === nextEventId) return { label: "Prossima", color: "#f59e0b", dot: true };
+  return { label: "In calendario", color: "#64748b" };
+}
+
+function CalendarSection({ nextEventId, todayISO, onGoPronostici }: {
+  nextEventId: string | null; todayISO: string; onGoPronostici: () => void;
+}) {
+  return (
+    <div className="space-y-2.5">
+      {CALENDAR.map((ev) => {
+        const st = statusOf(ev, todayISO, nextEventId);
+        const winners = winnersFor(ev.id);
+        const hasWinners = Object.keys(winners).length > 0;
+        const isPausa = ev.kind === "pausa";
+
+        return (
+          <div
+            key={ev.id}
+            className={`rounded-2xl border p-3.5 ${
+              ev.finale
+                ? "bg-gradient-to-br from-amber-950/40 to-slate-950 border-amber-700/50"
+                : isPausa
+                  ? "bg-sky-950/20 border-sky-900/40 border-dashed"
+                  : "bg-slate-950 border-slate-850"
+            }`}
+          >
+            <div className="flex items-start gap-3">
+              {/* data */}
+              <div className="flex-shrink-0 text-center w-14">
+                <div className="text-[9px] font-mono uppercase text-slate-500">{fmtDate(ev.data).split(" ")[0]}</div>
+                <div className="text-xl font-mono font-black text-slate-100 leading-none">{new Date(ev.data + "T12:00:00").getDate()}</div>
+                <div className="text-[9px] font-mono uppercase text-slate-500">{new Intl.DateTimeFormat("it-IT", { month: "short" }).format(new Date(ev.data + "T12:00:00"))}</div>
+              </div>
+
+              <div className="min-w-0 flex-grow">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-sm font-mono font-black text-slate-100 truncate">
+                    {ev.finale && <Crown className="inline w-4 h-4 text-amber-400 mb-0.5 mr-1" />}
+                    {isPausa ? "Pausa d'alpeggio" : ev.comune}
+                  </span>
+                  <span
+                    className="flex items-center gap-1 text-[9px] font-mono font-black px-1.5 py-0.5 rounded-full"
+                    style={{ color: st.color, background: `${st.color}22`, border: `1px solid ${st.color}55` }}
+                  >
+                    {st.dot && <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: st.color }} />}
+                    {st.label}
+                  </span>
+                </div>
+                <div className="text-[10px] font-mono text-slate-400 mt-0.5 flex items-center gap-1">
+                  <MapPin className="w-3 h-3 text-slate-600" /> {ev.luogo}
+                  {ev.dataFine && <span className="text-slate-600"> · fino al {fmtDate(ev.dataFine)}</span>}
+                </div>
+
+                {!isPausa && (
+                  <div className="flex items-center gap-1 mt-1.5 flex-wrap">
+                    {ev.categorie.map((c) => {
+                      const cat = CATEGORIES.find((x) => x.id === c)!;
+                      return (
+                        <span key={c} className="text-[8.5px] font-mono font-bold px-1.5 py-0.5 rounded-md" style={{ color: cat.accent, background: `${cat.accent}1a` }}>
+                          {cat.emoji} {cat.label}
+                        </span>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {ev.note && <p className="text-[10px] text-slate-500 leading-snug mt-1.5 italic">{ev.note}</p>}
+
+                {/* vincitrici (eliminatorie disputate) */}
+                {hasWinners && (
+                  <div className="mt-2 space-y-1">
+                    {ev.categorie.map((c) => {
+                      const w = winners[c];
+                      if (!w) return null;
+                      const cat = CATEGORIES.find((x) => x.id === c)!;
+                      return (
+                        <div key={c} className="flex items-center gap-2 bg-slate-900/70 rounded-lg px-2 py-1">
+                          <CowVisual cow={w} className="w-7 h-7" />
+                          <span className="text-[10px] font-mono text-slate-300 truncate">
+                            <Trophy className="inline w-3 h-3 text-amber-400 mb-0.5 mr-0.5" />
+                            <b className="text-amber-200">{w.name}</b>
+                            <span className="text-slate-500"> · {cat.label}</span>
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* CTA pronostici per la finale */}
+                {ev.finale && (
+                  <button
+                    onClick={onGoPronostici}
+                    className="mt-2.5 w-full bg-amber-500 hover:bg-amber-400 text-[#0b0820] font-mono font-black text-[11px] py-2 rounded-xl flex items-center justify-center gap-1.5"
+                  >
+                    <Swords className="w-3.5 h-3.5" /> Fai i tuoi pronostici per la finale
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      })}
+
+      <div className="flex items-start gap-2 bg-slate-950 border border-slate-850 rounded-2xl p-3 text-[9.5px] font-mono text-slate-500 leading-snug">
+        <Info className="w-3.5 h-3.5 text-sky-400 flex-shrink-0 mt-0.5" />
+        Risultati e tabellone aggiornabili in tempo reale durante l'evento — senza ripubblicare l'app.
+      </div>
+    </div>
+  );
+}
+
+// ===========================================================================
+//  TABELLONE (BRACKET) + PRONOSTICI
+// ===========================================================================
+
+function BracketSection({ catSel, setCatSel, picks, setPicks }: {
+  catSel: CategoriaId; setCatSel: (c: CategoriaId) => void;
+  picks: Record<string, string>; setPicks: React.Dispatch<React.SetStateAction<Record<string, string>>>;
+}) {
+  const rounds = buildRounds(catSel, picks);
+  const champion = bracketChampion(rounds);
+  const cat = CATEGORIES.find((x) => x.id === catSel)!;
+
+  function pick(matchId: string, cowId: string) {
+    setPicks((prev) => {
+      const next = { ...prev, [matchId]: cowId };
+      const round = Number(matchId.split("-r")[1].split("-m")[0]);
+      Object.keys(next).forEach((k) => {
+        if (k.startsWith(`${catSel}-r`)) {
+          const kr = Number(k.split("-r")[1].split("-m")[0]);
+          if (kr > round) delete next[k];
+        }
+      });
+      return next;
+    });
+  }
+
+  if (!rounds.length) {
+    return <div className="bg-slate-950 border border-slate-850 rounded-2xl p-6 text-center text-xs font-mono text-slate-500">Dati tabellone non disponibili per questa categoria.</div>;
+  }
+
+  return (
+    <div className="space-y-3">
+      {/* selettore categoria */}
+      <div className="grid grid-cols-3 gap-1.5">
+        {CATEGORIES.map((c) => (
+          <button
+            key={c.id}
+            onClick={() => setCatSel(c.id)}
+            className={`py-2 rounded-xl text-[10px] font-mono font-black border transition-all ${catSel === c.id ? "text-[#0b0820]" : "text-slate-300 bg-slate-900 border-slate-800 hover:bg-slate-850"}`}
+            style={catSel === c.id ? { background: c.accent, borderColor: c.accent } : undefined}
+          >
+            {c.emoji} {c.label}
+          </button>
+        ))}
+      </div>
+      <p className="text-[10px] font-mono text-slate-500 text-center">
+        Finale regionale · {cat.labelFr} ({cat.peso}) · tocca la Reina che pensi vincerà ogni scontro.
+      </p>
+
+      {/* campionessa designata */}
+      <AnimatePresence>
+        {champion && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-gradient-to-br from-amber-500/20 to-slate-950 border border-amber-500/50 rounded-2xl p-3 flex items-center gap-3"
+          >
+            <CowVisual cow={champion} className="w-14 h-14" />
+            <div className="min-w-0">
+              <div className="text-[9px] font-mono uppercase text-amber-400 tracking-widest flex items-center gap-1"><Crown className="w-3 h-3" /> La tua Reina campionessa</div>
+              <div className="text-base font-mono font-black text-amber-200 truncate">{champion.name}</div>
+              <div className="text-[10px] font-mono text-slate-400 truncate">{champion.comune ?? "—"} · {champion.allevatore ?? "—"}</div>
+            </div>
+            <Sparkles className="w-5 h-5 text-amber-400 ml-auto flex-shrink-0" />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* tabellone: colonne scorrevoli */}
+      <div className="overflow-x-auto no-scrollbar -mx-1 px-1">
+        <div className="flex gap-3 min-w-min">
+          {rounds.map((matches, ri) => (
+            <div key={ri} className="flex flex-col gap-3 justify-around" style={{ minWidth: 148 }}>
+              <div className="text-[9px] font-mono font-black uppercase tracking-widest text-center" style={{ color: cat.accent }}>
+                {roundLabel(ri, rounds.length)}
+              </div>
+              {matches.map((m) => (
+                <div key={m.matchId} className="bg-slate-950 border border-slate-850 rounded-xl p-1.5 space-y-1">
+                  {[m.a, m.b].map((cow, idx) => {
+                    const picked = m.winner?.id && cow?.id === m.winner.id;
+                    const decided = !!m.winner;
+                    return (
+                      <button
+                        key={idx}
+                        data-pick={cow ? "1" : undefined}
+                        disabled={!cow}
+                        onClick={() => cow && pick(m.matchId, cow.id)}
+                        className={`w-full flex items-center gap-1.5 rounded-lg px-1.5 py-1 text-left transition-all border ${
+                          !cow
+                            ? "border-slate-900 bg-slate-900/40"
+                            : picked
+                              ? "border-amber-500 bg-amber-500/15"
+                              : decided
+                                ? "border-slate-850 bg-slate-900/40 opacity-50"
+                                : "border-slate-800 bg-slate-900 hover:border-amber-600/60"
+                        }`}
+                      >
+                        {cow ? (
+                          <>
+                            <CowVisual cow={cow} className="w-6 h-6 flex-shrink-0" />
+                            <span className={`text-[10px] font-mono font-bold truncate ${picked ? "text-amber-200" : "text-slate-300"}`}>{cow.name}</span>
+                            {picked && <Check className="w-3 h-3 text-amber-400 ml-auto flex-shrink-0" />}
+                          </>
+                        ) : (
+                          <span className="text-[10px] font-mono text-slate-600 px-1">?</span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+          ))}
+
+          {/* colonna campionessa */}
+          <div className="flex flex-col justify-center" style={{ minWidth: 120 }}>
+            <div className="text-[9px] font-mono font-black uppercase tracking-widest text-center text-amber-400 mb-2">Reine 2026</div>
+            <div className={`rounded-xl border-2 p-2 text-center ${champion ? "border-amber-500 bg-amber-500/10" : "border-dashed border-slate-800 bg-slate-950"}`}>
+              {champion ? (
+                <>
+                  <CowVisual cow={champion} className="w-16 h-16 mx-auto" />
+                  <div className="text-[11px] font-mono font-black text-amber-200 truncate mt-1">{champion.name}</div>
+                </>
+              ) : (
+                <div className="py-6 text-3xl opacity-30">👑</div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ===========================================================================
+//  SEGUI LA TUA REINE
+// ===========================================================================
+
+function FollowSection({ followCow, onFollow, onOpenBracket }: {
+  followCow: Vatsamon | null;
+  onFollow: (id: string | null) => void;
+  onOpenBracket: (cat: CategoriaId) => void;
+}) {
+  const [catFilter, setCatFilter] = useState<CategoriaId>("1");
+
+  if (followCow) {
+    const catId = (followCow.categoria ?? "").startsWith("2") ? "2" : (followCow.categoria ?? "").startsWith("3") ? "3" : "1";
+    const cat = CATEGORIES.find((x) => x.id === (catId as CategoriaId))!;
+    const seeded = cowsByCategory(cat.id).slice(0, 8).some((c) => c.id === followCow.id);
+    return (
+      <div className="space-y-3">
+        <div className="bg-gradient-to-br from-rose-950/30 to-slate-950 border border-rose-800/40 rounded-3xl p-4">
+          <div className="flex items-center gap-3">
+            <CowVisual cow={followCow} className="w-20 h-20 flex-shrink-0" />
+            <div className="min-w-0">
+              <div className="text-[9px] font-mono uppercase text-rose-400 tracking-widest flex items-center gap-1"><Heart className="w-3 h-3 fill-rose-400" /> Stai seguendo</div>
+              <div className="text-xl font-mono font-black text-rose-100 truncate">{followCow.name}</div>
+              <div className="text-[10px] font-mono text-slate-400 truncate">{cat.emoji} {cat.label} · {followCow.riconoscimento || "—"}</div>
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-2 mt-3 text-center">
+            <Stat label="Comune" value={followCow.comune ?? "—"} />
+            <Stat label="Allevatore" value={followCow.allevatore ?? "—"} />
+            <Stat label="Potenza" value={String(followCow.potenza ?? followCow.cp)} />
+          </div>
+        </div>
+
+        <div className="bg-slate-950 border border-slate-850 rounded-2xl p-4 space-y-2">
+          <div className="text-[10px] font-mono font-black uppercase tracking-widest text-slate-300">Il suo cammino</div>
+          <p className="text-[11px] font-mono text-slate-400 leading-relaxed">
+            {seeded
+              ? <>È tra le <b className="text-amber-300">teste di serie</b> della finale di {cat.label}. Apri il tabellone per pronosticare il suo percorso fino al titolo.</>
+              : <>Punta a qualificarsi per la finale di {cat.label} alla Croix-Noire del {fmtDate(SEASON_META.finale.data)}.</>}
+          </p>
+          <button
+            onClick={() => onOpenBracket(cat.id)}
+            className="w-full bg-amber-500 hover:bg-amber-400 text-[#0b0820] font-mono font-black text-[11px] py-2.5 rounded-xl flex items-center justify-center gap-1.5"
+          >
+            <Swords className="w-3.5 h-3.5" /> Vai al tabellone {cat.label} <ChevronRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+        <button
+          onClick={() => onFollow(null)}
+          className="w-full text-[10px] font-mono font-bold text-slate-500 hover:text-rose-300 py-2"
+        >
+          Smetti di seguire {followCow.name}
+        </button>
+      </div>
+    );
+  }
+
+  // selezione
+  const list = cowsByCategory(catFilter);
+  return (
+    <div className="space-y-3">
+      <div className="bg-slate-950 border border-slate-850 rounded-2xl p-4 text-center">
+        <Heart className="w-7 h-7 text-rose-400 mx-auto mb-1" />
+        <h3 className="text-sm font-mono font-black text-rose-200">Scegli la tua Reina del cuore</h3>
+        <p className="text-[10px] font-mono text-slate-500 mt-0.5">Seguila per tutta la stagione fino alla finale regionale.</p>
+      </div>
+
+      <div className="grid grid-cols-3 gap-1.5">
+        {CATEGORIES.map((c) => (
+          <button
+            key={c.id}
+            onClick={() => setCatFilter(c.id)}
+            className={`py-2 rounded-xl text-[10px] font-mono font-black border transition-all ${catFilter === c.id ? "text-[#0b0820]" : "text-slate-300 bg-slate-900 border-slate-800 hover:bg-slate-850"}`}
+            style={catFilter === c.id ? { background: c.accent, borderColor: c.accent } : undefined}
+          >
+            {c.emoji} {c.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-2 gap-2">
+        {list.map((cow) => (
+          <button
+            key={cow.id}
+            onClick={() => onFollow(cow.id)}
+            className="flex items-center gap-2 bg-slate-950 border border-slate-850 hover:border-rose-600/50 rounded-xl p-2 text-left transition-all"
+          >
+            <CowVisual cow={cow} className="w-9 h-9 flex-shrink-0" />
+            <div className="min-w-0">
+              <div className="text-[10px] font-mono font-bold text-slate-200 truncate">{cow.name}</div>
+              <div className="text-[8.5px] font-mono text-slate-500 truncate">{cow.comune ?? "—"}</div>
+            </div>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function Stat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="bg-slate-900 rounded-lg border border-slate-850 py-1.5 px-1">
+      <div className="text-[8px] font-mono uppercase text-slate-500 truncate">{label}</div>
+      <div className="text-[11px] font-mono font-black text-slate-200 truncate">{value}</div>
+    </div>
+  );
+}

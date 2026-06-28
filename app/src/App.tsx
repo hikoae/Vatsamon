@@ -25,7 +25,8 @@ import {
   Gift,
   Footprints,
   Plus,
-  GraduationCap
+  GraduationCap,
+  Trophy
 } from 'lucide-react';
 import { Vatsamon, Hotspot, BackpackItem, Egg, Trainer, BattleState, RarityType } from './types';
 import { VatsamonAvatar } from './components/VatsamonAvatar';
@@ -43,6 +44,7 @@ import { DUNGEONS, Dungeon } from './data/dungeons';
 import { ARENAS, ArenaId } from './data/arenas';
 import { TREK_ROUTES } from './data/routes';
 import { Challenges } from './components/Challenges';
+import { SeasonView } from './components/SeasonView';
 import { soundEngine } from './utils/audio';
 import { generateVatsamonClient } from './lib/generate';
 import { REAL_COWS, REAL_TOTAL, REAL_CASERE, SHOWCASE_BY_RARITY } from './data/realCows';
@@ -303,7 +305,7 @@ export default function App() {
   useEffect(() => { localStorage.setItem('vazzamon_waypoint_progress', String(waypointProgress)); }, [waypointProgress]);
 
   // ---- 2. VIEW NAVIGATION ----
-  const [activeTab, setActiveTab] = useState<'map' | 'scanner' | 'eggs' | 'vatsadex' | 'quiz' | 'premi'>('map');
+  const [activeTab, setActiveTab] = useState<'map' | 'stagione' | 'scanner' | 'eggs' | 'vatsadex' | 'quiz' | 'premi'>('map');
   // Battaglia attiva (scena stile Pokémon lanciata dalla mappa).
   const [activeBattle, setActiveBattle] = useState<MapBattle | null>(null);
   const [activeDungeon, setActiveDungeon] = useState<Dungeon | null>(null); // Lega/dungeon in corso
@@ -1869,13 +1871,22 @@ export default function App() {
 
       {/* 🧭 PRIMARY MAIN TABS NAVIGATION 🧭 */}
       <nav className="bg-slate-950/90 border-b border-slate-850 sticky top-[73px] z-40 shadow-inner">
-        <div className="max-w-md mx-auto grid grid-cols-6 gap-0.5 p-1 text-[11px] font-extrabold">
+        <div className="max-w-md mx-auto grid grid-cols-7 gap-0.5 p-1 text-[11px] font-extrabold">
           <button
             onClick={() => { playClickSfx(); setActiveTab('map'); }}
             className={`flex flex-col items-center py-2 rounded-xl transition-all ${activeTab === 'map' ? 'nav-active text-white' : 'text-slate-400 hover:bg-slate-900 hover:-translate-y-0.5'}`}
           >
             <Compass className="w-4 h-4 mb-0.5" />
             <span>Mappa</span>
+          </button>
+
+          <button
+            onClick={() => { playClickSfx(); setActiveTab('stagione'); }}
+            className={`flex flex-col items-center py-2 rounded-xl transition-all relative ${activeTab === 'stagione' ? 'nav-active text-white' : 'text-slate-400 hover:bg-slate-900 hover:-translate-y-0.5'}`}
+          >
+            <Trophy className="w-4 h-4 mb-0.5" />
+            <span>Stagione</span>
+            <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span>
           </button>
 
           <button
@@ -3021,6 +3032,17 @@ export default function App() {
 
             </div>
           </div>
+        )}
+
+        {/* VIEW: STAGIONE (second screen ufficiale delle Batailles de Reines) */}
+        {activeTab === 'stagione' && (
+          <SeasonView
+            onReward={(coins, xp) => {
+              setTrainer(prev => ({ ...prev, coins: prev.coins + coins }));
+              addTrainerXp(xp);
+              setTrekkingFeed(prev => [`🏆 Tabellone completato! Pronostico finale fatto (+${coins} 🪙 +${xp} XP)`, ...prev.slice(0, 8)]);
+            }}
+          />
         )}
 
         {/* VIEW 6: SCUOLA D'ALPEGGIO (QUIZ EDUCATIVO) */}
