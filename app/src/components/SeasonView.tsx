@@ -38,9 +38,16 @@ function loadJSON<T>(key: string, fallback: T): T {
   try { const raw = localStorage.getItem(key); return raw ? (JSON.parse(raw) as T) : fallback; } catch { return fallback; }
 }
 
-const ITA_DATE = new Intl.DateTimeFormat("it-IT", { weekday: "short", day: "numeric", month: "long" });
-function fmtDate(iso: string): string {
-  return ITA_DATE.format(new Date(iso + "T12:00:00")).replace(/^\w/, (c) => c.toUpperCase());
+const LOCALE: Record<Lang, string> = { it: "it-IT", fr: "fr-FR" };
+const DATE_FMT: Record<Lang, Intl.DateTimeFormat> = {
+  it: new Intl.DateTimeFormat("it-IT", { weekday: "short", day: "numeric", month: "long" }),
+  fr: new Intl.DateTimeFormat("fr-FR", { weekday: "short", day: "numeric", month: "long" }),
+};
+function fmtDate(iso: string, lang: Lang = "it"): string {
+  return DATE_FMT[lang].format(new Date(iso + "T12:00:00")).replace(/^\w/, (c) => c.toUpperCase());
+}
+function monthShort(iso: string, lang: Lang = "it"): string {
+  return new Intl.DateTimeFormat(LOCALE[lang], { month: "short" }).format(new Date(iso + "T12:00:00"));
 }
 function toISO(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -102,7 +109,7 @@ export function SeasonView({ onReward }: { onReward?: (coins: number, xp: number
         <div className="absolute -right-6 -top-6 text-7xl opacity-10 select-none">🐮</div>
         <div className="flex items-center gap-2 mb-1">
           <Trophy className="w-5 h-5 text-amber-400" />
-          <h2 className="text-lg font-mono font-black text-amber-300 uppercase tracking-wide">Stagione {SEASON_META.anno}</h2>
+          <h2 className="text-lg font-mono font-black text-amber-300 uppercase tracking-wide">{tr(lang, "title")} {SEASON_META.anno}</h2>
           <div className="ml-auto flex items-center gap-1.5">
             {/* Toggle lingua IT/FR (la Valle d'Aosta è bilingue) */}
             <div className="flex bg-slate-900 border border-slate-800 rounded-full overflow-hidden text-[9px] font-mono font-black">
@@ -116,7 +123,7 @@ export function SeasonView({ onReward }: { onReward?: (coins: number, xp: number
           </div>
         </div>
         <p className="text-[11px] text-slate-400 leading-snug">
-          {tr(lang, "headerSub", { date: fmtDate(SEASON_META.finale.data) })}
+          {tr(lang, "headerSub", { date: fmtDate(SEASON_META.finale.data, lang) })}
         </p>
         <div className="mt-3 flex items-center gap-2 text-[10px] font-mono">
           <span className="flex items-center gap-1 bg-amber-500/15 border border-amber-600/40 text-amber-200 px-2 py-1 rounded-lg">
@@ -159,18 +166,18 @@ export function SeasonView({ onReward }: { onReward?: (coins: number, xp: number
           transition={{ duration: 0.2 }}
         >
           {sub === "notizie" && (
-            <NewsSection todayISO={todayISO} onGoCalendario={() => setSub("calendario")} onGoTabellone={() => setSub("tabellone")} />
+            <NewsSection lang={lang} todayISO={todayISO} onGoCalendario={() => setSub("calendario")} onGoTabellone={() => setSub("tabellone")} />
           )}
           {sub === "calendario" && (
-            <CalendarSection nextEventId={nextEventId} todayISO={todayISO} onGoPronostici={() => setSub("tabellone")} />
+            <CalendarSection lang={lang} nextEventId={nextEventId} todayISO={todayISO} onGoPronostici={() => setSub("tabellone")} />
           )}
-          {sub === "albo" && <AlboSection />}
+          {sub === "albo" && <AlboSection lang={lang} />}
           {sub === "tabellone" && (
-            <BracketSection catSel={catSel} setCatSel={setCatSel} picks={picks} setPicks={setPicks} />
+            <BracketSection lang={lang} catSel={catSel} setCatSel={setCatSel} picks={picks} setPicks={setPicks} />
           )}
           {sub === "scopri" && <ScopriSection lang={lang} />}
           {sub === "segui" && (
-            <FollowSection followCow={followCow} onFollow={setFollowId} onOpenBracket={(cat) => { setCatSel(cat); setSub("tabellone"); }} />
+            <FollowSection lang={lang} followCow={followCow} onFollow={setFollowId} onOpenBracket={(cat) => { setCatSel(cat); setSub("tabellone"); }} />
           )}
         </motion.div>
       </AnimatePresence>
@@ -182,32 +189,33 @@ export function SeasonView({ onReward }: { onReward?: (coins: number, xp: number
 //  CALENDARIO
 // ===========================================================================
 
-function statusOf(ev: SeasonEvent, todayISO: string, nextEventId: string | null): {
+function statusOf(ev: SeasonEvent, todayISO: string, nextEventId: string | null, lang: Lang): {
   label: string; color: string; dot?: boolean;
 } {
   if (ev.kind === "pausa") {
     const inCorso = todayISO >= ev.data && todayISO <= (ev.dataFine ?? ev.data);
     return inCorso
-      ? { label: "In corso", color: "#38bdf8", dot: true }
+      ? { label: tr(lang, "st_inCorso"), color: "#38bdf8", dot: true }
       : todayISO < ev.data
-        ? { label: "In arrivo", color: "#64748b" }
-        : { label: "Conclusa", color: "#475569" };
+        ? { label: tr(lang, "st_inArrivo"), color: "#64748b" }
+        : { label: tr(lang, "st_conclusa"), color: "#475569" };
   }
-  if (ev.disputata) return { label: "Disputata", color: "#34d399" };
-  if (ev.id === nextEventId) return { label: "Prossima", color: "#f59e0b", dot: true };
-  return { label: "In calendario", color: "#64748b" };
+  if (ev.disputata) return { label: tr(lang, "st_disputata"), color: "#34d399" };
+  if (ev.id === nextEventId) return { label: tr(lang, "st_prossima"), color: "#f59e0b", dot: true };
+  return { label: tr(lang, "st_inCalendario"), color: "#64748b" };
 }
 
-function CalendarSection({ nextEventId, todayISO, onGoPronostici }: {
-  nextEventId: string | null; todayISO: string; onGoPronostici: () => void;
+function CalendarSection({ lang, nextEventId, todayISO, onGoPronostici }: {
+  lang: Lang; nextEventId: string | null; todayISO: string; onGoPronostici: () => void;
 }) {
   return (
     <div className="space-y-2.5">
       {CALENDAR.map((ev) => {
-        const st = statusOf(ev, todayISO, nextEventId);
+        const st = statusOf(ev, todayISO, nextEventId, lang);
         const winners = winnersFor(ev.id);
         const hasWinners = Object.keys(winners).length > 0;
         const isPausa = ev.kind === "pausa";
+        const note = lang === "fr" ? (ev.noteFr ?? ev.note) : ev.note;
 
         return (
           <div
@@ -223,16 +231,16 @@ function CalendarSection({ nextEventId, todayISO, onGoPronostici }: {
             <div className="flex items-start gap-3">
               {/* data */}
               <div className="flex-shrink-0 text-center w-14">
-                <div className="text-[9px] font-mono uppercase text-slate-500">{fmtDate(ev.data).split(" ")[0]}</div>
+                <div className="text-[9px] font-mono uppercase text-slate-500">{fmtDate(ev.data, lang).split(" ")[0]}</div>
                 <div className="text-xl font-mono font-black text-slate-100 leading-none">{new Date(ev.data + "T12:00:00").getDate()}</div>
-                <div className="text-[9px] font-mono uppercase text-slate-500">{new Intl.DateTimeFormat("it-IT", { month: "short" }).format(new Date(ev.data + "T12:00:00"))}</div>
+                <div className="text-[9px] font-mono uppercase text-slate-500">{monthShort(ev.data, lang)}</div>
               </div>
 
               <div className="min-w-0 flex-grow">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-sm font-mono font-black text-slate-100 truncate">
                     {ev.finale && <Crown className="inline w-4 h-4 text-amber-400 mb-0.5 mr-1" />}
-                    {isPausa ? "Pausa d'alpeggio" : ev.comune}
+                    {isPausa ? tr(lang, "cal_pausa") : ev.comune}
                   </span>
                   <span
                     className="flex items-center gap-1 text-[9px] font-mono font-black px-1.5 py-0.5 rounded-full"
@@ -244,7 +252,7 @@ function CalendarSection({ nextEventId, todayISO, onGoPronostici }: {
                 </div>
                 <div className="text-[10px] font-mono text-slate-400 mt-0.5 flex items-center gap-1">
                   <MapPin className="w-3 h-3 text-slate-600" /> {ev.luogo}
-                  {ev.dataFine && <span className="text-slate-600"> · fino al {fmtDate(ev.dataFine)}</span>}
+                  {ev.dataFine && <span className="text-slate-600"> · {tr(lang, "cal_finoAl")} {fmtDate(ev.dataFine, lang)}</span>}
                 </div>
 
                 {!isPausa && (
@@ -253,14 +261,14 @@ function CalendarSection({ nextEventId, todayISO, onGoPronostici }: {
                       const cat = CATEGORIES.find((x) => x.id === c)!;
                       return (
                         <span key={c} className="text-[8.5px] font-mono font-bold px-1.5 py-0.5 rounded-md" style={{ color: cat.accent, background: `${cat.accent}1a` }}>
-                          {cat.emoji} {cat.label}
+                          {cat.emoji} {lang === "fr" ? cat.labelFr : cat.label}
                         </span>
                       );
                     })}
                   </div>
                 )}
 
-                {ev.note && <p className="text-[10px] text-slate-500 leading-snug mt-1.5 italic">{ev.note}</p>}
+                {note && <p className="text-[10px] text-slate-500 leading-snug mt-1.5 italic">{note}</p>}
 
                 {/* vincitrici (eliminatorie disputate) */}
                 {hasWinners && (
@@ -275,7 +283,7 @@ function CalendarSection({ nextEventId, todayISO, onGoPronostici }: {
                           <span className="text-[10px] font-mono text-slate-300 truncate">
                             <Trophy className="inline w-3 h-3 text-amber-400 mb-0.5 mr-0.5" />
                             <b className="text-amber-200">{w.name}</b>
-                            <span className="text-slate-500"> · {cat.label}</span>
+                            <span className="text-slate-500"> · {lang === "fr" ? cat.labelFr : cat.label}</span>
                           </span>
                         </div>
                       );
@@ -289,7 +297,7 @@ function CalendarSection({ nextEventId, todayISO, onGoPronostici }: {
                     onClick={onGoPronostici}
                     className="mt-2.5 w-full bg-amber-500 hover:bg-amber-400 text-[#0b0820] font-mono font-black text-[11px] py-2 rounded-xl flex items-center justify-center gap-1.5"
                   >
-                    <Swords className="w-3.5 h-3.5" /> Fai i tuoi pronostici per la finale
+                    <Swords className="w-3.5 h-3.5" /> {tr(lang, "cal_ctaFinale")}
                   </button>
                 )}
               </div>
@@ -300,7 +308,7 @@ function CalendarSection({ nextEventId, todayISO, onGoPronostici }: {
 
       <div className="flex items-start gap-2 bg-slate-950 border border-slate-850 rounded-2xl p-3 text-[9.5px] font-mono text-slate-500 leading-snug">
         <Info className="w-3.5 h-3.5 text-sky-400 flex-shrink-0 mt-0.5" />
-        Risultati e tabellone aggiornabili in tempo reale durante l'evento — senza ripubblicare l'app.
+        {tr(lang, "cal_disclaimer")}
       </div>
     </div>
   );
@@ -310,8 +318,8 @@ function CalendarSection({ nextEventId, todayISO, onGoPronostici }: {
 //  TABELLONE (BRACKET) + PRONOSTICI
 // ===========================================================================
 
-function BracketSection({ catSel, setCatSel, picks, setPicks }: {
-  catSel: CategoriaId; setCatSel: (c: CategoriaId) => void;
+function BracketSection({ lang, catSel, setCatSel, picks, setPicks }: {
+  lang: Lang; catSel: CategoriaId; setCatSel: (c: CategoriaId) => void;
   picks: Record<string, string>; setPicks: React.Dispatch<React.SetStateAction<Record<string, string>>>;
 }) {
   const rounds = buildRounds(catSel, picks);
@@ -333,7 +341,7 @@ function BracketSection({ catSel, setCatSel, picks, setPicks }: {
   }
 
   if (!rounds.length) {
-    return <div className="bg-slate-950 border border-slate-850 rounded-2xl p-6 text-center text-xs font-mono text-slate-500">Dati tabellone non disponibili per questa categoria.</div>;
+    return <div className="bg-slate-950 border border-slate-850 rounded-2xl p-6 text-center text-xs font-mono text-slate-500">{tr(lang, "br_nodata")}</div>;
   }
 
   return (
@@ -347,12 +355,12 @@ function BracketSection({ catSel, setCatSel, picks, setPicks }: {
             className={`py-2 rounded-xl text-[10px] font-mono font-black border transition-all ${catSel === c.id ? "text-[#0b0820]" : "text-slate-300 bg-slate-900 border-slate-800 hover:bg-slate-850"}`}
             style={catSel === c.id ? { background: c.accent, borderColor: c.accent } : undefined}
           >
-            {c.emoji} {c.label}
+            {c.emoji} {lang === "fr" ? c.labelFr : c.label}
           </button>
         ))}
       </div>
       <p className="text-[10px] font-mono text-slate-500 text-center">
-        Finale regionale · {cat.labelFr} ({cat.peso}) · tocca la Reina che pensi vincerà ogni scontro.
+        {tr(lang, "br_intro", { cat: cat.labelFr, peso: lang === "fr" ? cat.pesoFr : cat.peso })}
       </p>
 
       {/* campionessa designata */}
@@ -365,7 +373,7 @@ function BracketSection({ catSel, setCatSel, picks, setPicks }: {
           >
             <CowVisual cow={champion} className="w-14 h-14" />
             <div className="min-w-0">
-              <div className="text-[9px] font-mono uppercase text-amber-400 tracking-widest flex items-center gap-1"><Crown className="w-3 h-3" /> La tua Reina campionessa</div>
+              <div className="text-[9px] font-mono uppercase text-amber-400 tracking-widest flex items-center gap-1"><Crown className="w-3 h-3" /> {tr(lang, "br_champion")}</div>
               <div className="text-base font-mono font-black text-amber-200 truncate">{champion.name}</div>
               <div className="text-[10px] font-mono text-slate-400 truncate">{champion.comune ?? "—"} · {champion.allevatore ?? "—"}</div>
             </div>
@@ -422,7 +430,7 @@ function BracketSection({ catSel, setCatSel, picks, setPicks }: {
 
           {/* colonna campionessa */}
           <div className="flex flex-col justify-center" style={{ minWidth: 120 }}>
-            <div className="text-[9px] font-mono font-black uppercase tracking-widest text-center text-amber-400 mb-2">Reine 2026</div>
+            <div className="text-[9px] font-mono font-black uppercase tracking-widest text-center text-amber-400 mb-2">{tr(lang, "br_reine")}</div>
             <div className={`rounded-xl border-2 p-2 text-center ${champion ? "border-amber-500 bg-amber-500/10" : "border-dashed border-slate-800 bg-slate-950"}`}>
               {champion ? (
                 <>
@@ -444,7 +452,8 @@ function BracketSection({ catSel, setCatSel, picks, setPicks }: {
 //  SEGUI LA TUA REINE
 // ===========================================================================
 
-function FollowSection({ followCow, onFollow, onOpenBracket }: {
+function FollowSection({ lang, followCow, onFollow, onOpenBracket }: {
+  lang: Lang;
   followCow: Vatsamon | null;
   onFollow: (id: string | null) => void;
   onOpenBracket: (cat: CategoriaId) => void;
@@ -461,30 +470,30 @@ function FollowSection({ followCow, onFollow, onOpenBracket }: {
           <div className="flex items-center gap-3">
             <CowVisual cow={followCow} className="w-20 h-20 flex-shrink-0" />
             <div className="min-w-0">
-              <div className="text-[9px] font-mono uppercase text-rose-400 tracking-widest flex items-center gap-1"><Heart className="w-3 h-3 fill-rose-400" /> Stai seguendo</div>
+              <div className="text-[9px] font-mono uppercase text-rose-400 tracking-widest flex items-center gap-1"><Heart className="w-3 h-3 fill-rose-400" /> {tr(lang, "fol_seguendo")}</div>
               <div className="text-xl font-mono font-black text-rose-100 truncate">{followCow.name}</div>
-              <div className="text-[10px] font-mono text-slate-400 truncate">{cat.emoji} {cat.label} · {followCow.riconoscimento || "—"}</div>
+              <div className="text-[10px] font-mono text-slate-400 truncate">{cat.emoji} {lang === "fr" ? cat.labelFr : cat.label} · {followCow.riconoscimento || "—"}</div>
             </div>
           </div>
           <div className="grid grid-cols-3 gap-2 mt-3 text-center">
-            <Stat label="Comune" value={followCow.comune ?? "—"} />
-            <Stat label="Allevatore" value={followCow.allevatore ?? "—"} />
-            <Stat label="Potenza" value={String(followCow.potenza ?? followCow.cp)} />
+            <Stat label={tr(lang, "fol_comune")} value={followCow.comune ?? "—"} />
+            <Stat label={tr(lang, "fol_allevatore")} value={followCow.allevatore ?? "—"} />
+            <Stat label={tr(lang, "fol_potenza")} value={String(followCow.potenza ?? followCow.cp)} />
           </div>
         </div>
 
         <div className="bg-slate-950 border border-slate-850 rounded-2xl p-4 space-y-2">
-          <div className="text-[10px] font-mono font-black uppercase tracking-widest text-slate-300">Il suo cammino</div>
+          <div className="text-[10px] font-mono font-black uppercase tracking-widest text-slate-300">{tr(lang, "fol_cammino")}</div>
           <p className="text-[11px] font-mono text-slate-400 leading-relaxed">
             {seeded
-              ? <>È tra le <b className="text-amber-300">teste di serie</b> della finale di {cat.label}. Apri il tabellone per pronosticare il suo percorso fino al titolo.</>
-              : <>Punta a qualificarsi per la finale di {cat.label} alla Croix-Noire del {fmtDate(SEASON_META.finale.data)}.</>}
+              ? tr(lang, "fol_seed", { cat: lang === "fr" ? cat.labelFr : cat.label })
+              : tr(lang, "fol_qual", { cat: lang === "fr" ? cat.labelFr : cat.label, date: fmtDate(SEASON_META.finale.data, lang) })}
           </p>
           <button
             onClick={() => onOpenBracket(cat.id)}
             className="w-full bg-amber-500 hover:bg-amber-400 text-[#0b0820] font-mono font-black text-[11px] py-2.5 rounded-xl flex items-center justify-center gap-1.5"
           >
-            <Swords className="w-3.5 h-3.5" /> Vai al tabellone {cat.label} <ChevronRight className="w-3.5 h-3.5" />
+            <Swords className="w-3.5 h-3.5" /> {tr(lang, "fol_vaiTabellone")} {lang === "fr" ? cat.labelFr : cat.label} <ChevronRight className="w-3.5 h-3.5" />
           </button>
         </div>
 
@@ -492,7 +501,7 @@ function FollowSection({ followCow, onFollow, onOpenBracket }: {
           onClick={() => onFollow(null)}
           className="w-full text-[10px] font-mono font-bold text-slate-500 hover:text-rose-300 py-2"
         >
-          Smetti di seguire {followCow.name}
+          {tr(lang, "fol_smetti")} {followCow.name}
         </button>
       </div>
     );
@@ -504,8 +513,8 @@ function FollowSection({ followCow, onFollow, onOpenBracket }: {
     <div className="space-y-3">
       <div className="bg-slate-950 border border-slate-850 rounded-2xl p-4 text-center">
         <Heart className="w-7 h-7 text-rose-400 mx-auto mb-1" />
-        <h3 className="text-sm font-mono font-black text-rose-200">Scegli la tua Reina del cuore</h3>
-        <p className="text-[10px] font-mono text-slate-500 mt-0.5">Seguila per tutta la stagione fino alla finale regionale.</p>
+        <h3 className="text-sm font-mono font-black text-rose-200">{tr(lang, "fol_scegli")}</h3>
+        <p className="text-[10px] font-mono text-slate-500 mt-0.5">{tr(lang, "fol_scegliSub")}</p>
       </div>
 
       <div className="grid grid-cols-3 gap-1.5">
@@ -516,7 +525,7 @@ function FollowSection({ followCow, onFollow, onOpenBracket }: {
             className={`py-2 rounded-xl text-[10px] font-mono font-black border transition-all ${catFilter === c.id ? "text-[#0b0820]" : "text-slate-300 bg-slate-900 border-slate-800 hover:bg-slate-850"}`}
             style={catFilter === c.id ? { background: c.accent, borderColor: c.accent } : undefined}
           >
-            {c.emoji} {c.label}
+            {c.emoji} {lang === "fr" ? c.labelFr : c.label}
           </button>
         ))}
       </div>
@@ -544,8 +553,8 @@ function FollowSection({ followCow, onFollow, onOpenBracket }: {
 //  NOTIZIE (home dell'hub) — countdown · feed reale · sponsor
 // ===========================================================================
 
-function NewsSection({ todayISO, onGoCalendario, onGoTabellone }: {
-  todayISO: string; onGoCalendario: () => void; onGoTabellone: () => void;
+function NewsSection({ lang, todayISO, onGoCalendario, onGoTabellone }: {
+  lang: Lang; todayISO: string; onGoCalendario: () => void; onGoTabellone: () => void;
 }) {
   const [news, setNews] = useState<NewsItem[]>([]);
   const [generato, setGenerato] = useState<string | undefined>();
@@ -566,39 +575,39 @@ function NewsSection({ todayISO, onGoCalendario, onGoTabellone }: {
       {next && (
         <div className="bg-gradient-to-br from-amber-950/50 to-slate-950 border border-amber-700/40 rounded-2xl p-4">
           <div className="flex items-center gap-1.5 text-[9px] font-mono uppercase tracking-widest text-amber-400">
-            <Clock className="w-3 h-3" /> {next.finale ? "Finale regionale" : "Prossima tappa"}
+            <Clock className="w-3 h-3" /> {next.finale ? tr(lang, "news_finale") : tr(lang, "news_prossimaTappa")}
           </div>
           <div className="flex items-end justify-between mt-1">
             <div className="min-w-0">
               <div className="text-lg font-mono font-black text-slate-100 truncate">{next.finale && <Crown className="inline w-4 h-4 text-amber-400 mb-0.5 mr-1" />}{next.comune}</div>
-              <div className="text-[10px] font-mono text-slate-400 truncate"><MapPin className="inline w-3 h-3 text-slate-500 mb-0.5" /> {next.luogo} · {fmtDate(next.data)}</div>
+              <div className="text-[10px] font-mono text-slate-400 truncate"><MapPin className="inline w-3 h-3 text-slate-500 mb-0.5" /> {next.luogo} · {fmtDate(next.data, lang)}</div>
             </div>
             <div className="text-right flex-shrink-0 ml-2">
               <div className="text-2xl font-mono font-black text-amber-300 tabular-nums leading-none">{giorni}</div>
-              <div className="text-[8px] font-mono uppercase text-slate-500">giorni</div>
+              <div className="text-[8px] font-mono uppercase text-slate-500">{tr(lang, "news_giorni")}</div>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-2 mt-3">
-            <button onClick={onGoCalendario} className="bg-slate-900 hover:bg-slate-850 border border-slate-800 text-slate-200 font-mono font-black text-[10px] py-2 rounded-xl flex items-center justify-center gap-1"><CalendarDays className="w-3.5 h-3.5" /> Calendario</button>
-            <button onClick={onGoTabellone} className="bg-amber-500 hover:bg-amber-400 text-[#0b0820] font-mono font-black text-[10px] py-2 rounded-xl flex items-center justify-center gap-1"><Swords className="w-3.5 h-3.5" /> Pronostici</button>
+            <button onClick={onGoCalendario} className="bg-slate-900 hover:bg-slate-850 border border-slate-800 text-slate-200 font-mono font-black text-[10px] py-2 rounded-xl flex items-center justify-center gap-1"><CalendarDays className="w-3.5 h-3.5" /> {tr(lang, "news_btnCalendario")}</button>
+            <button onClick={onGoTabellone} className="bg-amber-500 hover:bg-amber-400 text-[#0b0820] font-mono font-black text-[10px] py-2 rounded-xl flex items-center justify-center gap-1"><Swords className="w-3.5 h-3.5" /> {tr(lang, "news_btnPronostici")}</button>
           </div>
         </div>
       )}
 
       {/* notizie */}
       <div className="flex items-center justify-between px-1">
-        <h3 className="text-[11px] font-mono font-black uppercase tracking-widest text-slate-300 flex items-center gap-1.5"><Newspaper className="w-3.5 h-3.5 text-amber-400" /> Dal mondo Batailles</h3>
-        {generato && <span className="text-[8px] font-mono text-slate-500">agg. {fmtDate(generato)}</span>}
+        <h3 className="text-[11px] font-mono font-black uppercase tracking-widest text-slate-300 flex items-center gap-1.5"><Newspaper className="w-3.5 h-3.5 text-amber-400" /> {tr(lang, "news_dalMondo")}</h3>
+        {generato && <span className="text-[8px] font-mono text-slate-500">{tr(lang, "news_agg")} {fmtDate(generato, lang)}</span>}
       </div>
 
       {loading ? (
-        <div className="bg-slate-950 border border-slate-850 rounded-2xl p-6 text-center text-[11px] font-mono text-slate-500">Carico le notizie…</div>
+        <div className="bg-slate-950 border border-slate-850 rounded-2xl p-6 text-center text-[11px] font-mono text-slate-500">{tr(lang, "news_loading")}</div>
       ) : (
         news.map((n) => (
           <a key={n.id} href={n.url} target="_blank" rel="noopener noreferrer"
             className="block bg-slate-950 border border-slate-850 hover:border-amber-600/40 rounded-2xl p-3 transition-all">
             <div className="flex items-center gap-2 text-[8.5px] font-mono uppercase tracking-wide text-amber-400 mb-1">
-              <span>{n.fonte}</span><span className="text-slate-600">·</span><span className="text-slate-500">{fmtDate(n.data)}</span>
+              <span>{n.fonte}</span><span className="text-slate-600">·</span><span className="text-slate-500">{fmtDate(n.data, lang)}</span>
               <ExternalLink className="w-3 h-3 text-slate-600 ml-auto" />
             </div>
             <div className="text-[12px] font-mono font-black text-slate-100 leading-snug">{n.titolo}</div>
@@ -609,13 +618,13 @@ function NewsSection({ todayISO, onGoCalendario, onGoTabellone }: {
 
       {/* sponsor (inventario vendibile) */}
       <div className="space-y-1.5">
-        <div className="text-[9px] font-mono uppercase tracking-widest text-slate-500 px-1 flex items-center gap-1"><Megaphone className="w-3 h-3" /> Spazio sponsor</div>
+        <div className="text-[9px] font-mono uppercase tracking-widest text-slate-500 px-1 flex items-center gap-1"><Megaphone className="w-3 h-3" /> {tr(lang, "news_spazioSponsor")}</div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
           {SPONSOR_SLOTS.map((s) => (
             <div key={s.id} className="bg-slate-900/60 border border-dashed border-slate-700 rounded-xl p-3 text-center">
-              <div className="text-[8px] font-mono uppercase tracking-widest text-amber-400">{s.livello}</div>
-              <div className="text-[10px] font-mono font-bold text-slate-400 mt-0.5">{s.placeholder}</div>
-              <div className="text-[8px] font-mono text-slate-600 mt-0.5">{s.posizione}</div>
+              <div className="text-[8px] font-mono uppercase tracking-widest text-amber-400">{lang === "fr" ? s.livelloFr : s.livello}</div>
+              <div className="text-[10px] font-mono font-bold text-slate-400 mt-0.5">{lang === "fr" ? s.placeholderFr : s.placeholder}</div>
+              <div className="text-[8px] font-mono text-slate-600 mt-0.5">{lang === "fr" ? s.posizioneFr : s.posizione}</div>
             </div>
           ))}
         </div>
@@ -623,7 +632,7 @@ function NewsSection({ todayISO, onGoCalendario, onGoTabellone }: {
 
       <div className="flex items-start gap-2 bg-slate-950 border border-slate-850 rounded-2xl p-3 text-[9px] font-mono text-slate-500 leading-snug">
         <Info className="w-3.5 h-3.5 text-sky-400 flex-shrink-0 mt-0.5" />
-        Notizie aggregate dalle testate locali (titolo + estratto + link alla fonte), aggiornate automaticamente. Fonte ufficiale dei dati gara: amisdesreines.it.
+        {tr(lang, "news_disclaimer")}
       </div>
     </div>
   );
@@ -633,13 +642,13 @@ function NewsSection({ todayISO, onGoCalendario, onGoTabellone }: {
 //  ALBO D'ORO
 // ===========================================================================
 
-function AlboSection() {
+function AlboSection({ lang }: { lang: Lang }) {
   return (
     <div className="space-y-3">
       <div className="bg-slate-950 border border-slate-850 rounded-2xl p-4 text-center">
         <Medal className="w-7 h-7 text-amber-400 mx-auto mb-1" />
-        <h3 className="text-sm font-mono font-black text-amber-200">Albo d'Oro</h3>
-        <p className="text-[10px] font-mono text-slate-500 mt-0.5">Le Reines des Reines della Finale regionale, una per categoria.</p>
+        <h3 className="text-sm font-mono font-black text-amber-200">{tr(lang, "albo_title")}</h3>
+        <p className="text-[10px] font-mono text-slate-500 mt-0.5">{tr(lang, "albo_sub")}</p>
       </div>
 
       {/* leggende */}
@@ -650,9 +659,9 @@ function AlboSection() {
             <div key={l.nome} className="bg-gradient-to-br from-amber-950/40 to-slate-950 border border-amber-700/40 rounded-2xl p-3 flex gap-2.5">
               {cow ? <CowVisual cow={cow} className="w-12 h-12 flex-shrink-0" /> : <div className="w-12 h-12 rounded-xl bg-slate-900 flex items-center justify-center text-2xl flex-shrink-0">👑</div>}
               <div className="min-w-0">
-                <div className="text-[8px] font-mono uppercase tracking-widest text-amber-400">{l.titolo}</div>
+                <div className="text-[8px] font-mono uppercase tracking-widest text-amber-400">{lang === "fr" ? l.titoloFr : l.titolo}</div>
                 <div className="text-sm font-mono font-black text-amber-200 truncate">{l.nome}</div>
-                <p className="text-[9.5px] font-mono text-slate-400 leading-snug mt-0.5">{l.descr}</p>
+                <p className="text-[9.5px] font-mono text-slate-400 leading-snug mt-0.5">{lang === "fr" ? l.descrFr : l.descr}</p>
               </div>
             </div>
           );
@@ -664,7 +673,7 @@ function AlboSection() {
         <div key={anno} className="bg-slate-950 border border-slate-850 rounded-2xl p-3">
           <div className="flex items-center gap-2 mb-2">
             <span className="text-sm font-mono font-black text-slate-100">{anno}</span>
-            <span className="text-[9px] font-mono text-slate-500">Finale Croix-Noire</span>
+            <span className="text-[9px] font-mono text-slate-500">{tr(lang, "albo_finaleCN")}</span>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
             {(["1", "2", "3"] as CategoriaId[]).map((catId) => {
@@ -675,9 +684,9 @@ function AlboSection() {
                 <div key={catId} className="bg-slate-900/70 rounded-xl p-2 flex items-center gap-2" style={{ borderLeft: `3px solid ${cat.accent}` }}>
                   {cow ? <CowVisual cow={cow} className="w-8 h-8 flex-shrink-0" /> : <div className="w-8 h-8 rounded-lg bg-slate-950 flex items-center justify-center text-base flex-shrink-0">{cat.emoji}</div>}
                   <div className="min-w-0">
-                    <div className="text-[8px] font-mono uppercase" style={{ color: cat.accent }}>{cat.label}</div>
+                    <div className="text-[8px] font-mono uppercase" style={{ color: cat.accent }}>{lang === "fr" ? cat.labelFr : cat.label}</div>
                     <div className="text-[11px] font-mono font-black text-slate-200 truncate">{h?.nome ?? "—"}</div>
-                    <div className="text-[8.5px] font-mono text-slate-500 truncate">{h?.allevatore}{h?.note ? ` · ${h.note}` : ""}</div>
+                    <div className="text-[8.5px] font-mono text-slate-500 truncate">{h?.allevatore}{(lang === "fr" ? h?.noteFr ?? h?.note : h?.note) ? ` · ${lang === "fr" ? h?.noteFr ?? h?.note : h?.note}` : ""}</div>
                   </div>
                 </div>
               );
@@ -687,7 +696,7 @@ function AlboSection() {
       ))}
 
       <p className="text-[9px] font-mono text-slate-500 text-center leading-snug">
-        Dati storici verificati da cronache locali. 2020 non disputato come finale ufficiale (Combat événement Covid).
+        {tr(lang, "albo_note")}
       </p>
     </div>
   );
@@ -735,11 +744,11 @@ function ScopriSection({ lang }: { lang: Lang }) {
       {tab === "regolamento" && (
         <div className="space-y-3">
           <div className="bg-slate-950 border border-slate-850 rounded-2xl p-3 overflow-x-auto">
-            <div className="text-[10px] font-mono font-black uppercase tracking-widest text-slate-300 mb-2">Categorie di peso per fase</div>
+            <div className="text-[10px] font-mono font-black uppercase tracking-widest text-slate-300 mb-2">{tr(lang, "reg_categorie")}</div>
             <table className="w-full text-[10px] font-mono border-collapse">
               <thead>
                 <tr className="text-slate-500">
-                  <th className="text-left font-bold py-1 pr-2">Fase</th>
+                  <th className="text-left font-bold py-1 pr-2">{tr(lang, "reg_fase")}</th>
                   {CATEGORIES.map((c) => (
                     <th key={c.id} className="text-right font-bold py-1 px-1" style={{ color: c.accent }}>{c.emoji} {c.id}ª</th>
                   ))}
@@ -748,7 +757,7 @@ function ScopriSection({ lang }: { lang: Lang }) {
               <tbody>
                 {SOGLIE_PER_FASE.map((s) => (
                   <tr key={s.fase} className="border-t border-slate-850">
-                    <td className="py-1.5 pr-2 text-slate-300">{s.faseLabel}</td>
+                    <td className="py-1.5 pr-2 text-slate-300">{lang === "fr" ? s.faseLabelFr : s.faseLabel}</td>
                     {(["1", "2", "3"] as CategoriaId[]).map((catId) => (
                       <td key={catId} className="py-1.5 px-1 text-right text-slate-200 tabular-nums">{s.soglie[catId]}</td>
                     ))}
@@ -756,16 +765,16 @@ function ScopriSection({ lang }: { lang: Lang }) {
                 ))}
               </tbody>
             </table>
-            <p className="text-[8.5px] font-mono text-slate-500 mt-2 leading-snug">Le soglie salgono di fase in fase. Fonte autoritativa: regolamento ufficiale annuale (amisdesreines.it).</p>
+            <p className="text-[8.5px] font-mono text-slate-500 mt-2 leading-snug">{tr(lang, "reg_soglieNota")}</p>
           </div>
 
           <div className="bg-slate-950 border border-slate-850 rounded-2xl p-3.5 space-y-2 text-[11px] text-slate-300 leading-relaxed">
-            {[
-              ["🩺 Bovine gravide", "Per moderare l'aggressività: almeno 3 mesi (eliminatorie estive), 4 mesi (autunnali)."],
-              ["🐮 Scontro incruento", "Spinta a colpi di corna limate; l'allevatore conduce ma non forza. Vince chi fa sottomettere l'avversaria."],
-              ["🏆 A eliminazione diretta", "La vincitrice di ogni scontro avanza; in finale si incoronano 3 Reines des Reines, una per categoria."],
-              ["🌿 Premi", "Trofeo «Bosquet» (rami con fiori rossi), campanaccio (sonnaille) e collare in cuoio."],
-            ].map(([t, d]) => (
+            {([
+              [tr(lang, "reg_r1t"), tr(lang, "reg_r1d")],
+              [tr(lang, "reg_r2t"), tr(lang, "reg_r2d")],
+              [tr(lang, "reg_r3t"), tr(lang, "reg_r3d")],
+              [tr(lang, "reg_r4t"), tr(lang, "reg_r4d")],
+            ]).map(([t, d]) => (
               <div key={t}><b className="text-slate-100">{t}</b> — {d}</div>
             ))}
           </div>
@@ -786,7 +795,7 @@ function ScopriSection({ lang }: { lang: Lang }) {
           ))}
           <div className="flex items-start gap-2 bg-slate-950 border border-slate-850 rounded-2xl p-3 text-[9px] font-mono text-slate-500 leading-snug">
             <Info className="w-3.5 h-3.5 text-sky-400 flex-shrink-0 mt-0.5" />
-            Fonti ufficiali: {FONTI.filter((f) => f.tipo === "ufficiale" || f.tipo === "regione").map((f) => f.nome).join(" · ")}.
+            {tr(lang, "gloss_fonti")}: {FONTI.filter((f) => f.tipo === "ufficiale" || f.tipo === "regione").map((f) => f.nome).join(" · ")}.
           </div>
         </div>
       )}

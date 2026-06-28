@@ -42,13 +42,16 @@ export const PALETTE = {
  */
 export interface SponsorSlot {
   id: string;
-  posizione: string; // dove appare
-  livello: "Title" | "Categoria" | "Tappa";
-  placeholder: string; // testo mostrato finché lo slot è libero
+  posizione: string; // dove appare (IT)
+  posizioneFr: string;
+  livello: string; // IT
+  livelloFr: string;
+  placeholder: string; // testo mostrato finché lo slot è libero (IT)
+  placeholderFr: string;
 }
 
 export const SPONSOR_SLOTS: SponsorSlot[] = [
-  { id: "title", posizione: "Home e finale", livello: "Title", placeholder: "Title sponsor stagionale" },
-  { id: "cat", posizione: "Tabellone e risultati", livello: "Categoria", placeholder: "Sponsor di categoria" },
-  { id: "tappa", posizione: "Eliminatoria nel comune", livello: "Tappa", placeholder: "Sponsor della tappa" },
+  { id: "title", posizione: "Home e finale", posizioneFr: "Accueil et finale", livello: "Title", livelloFr: "Title", placeholder: "Title sponsor stagionale", placeholderFr: "Title sponsor de la saison" },
+  { id: "cat", posizione: "Tabellone e risultati", posizioneFr: "Tableau et résultats", livello: "Categoria", livelloFr: "Catégorie", placeholder: "Sponsor di categoria", placeholderFr: "Sponsor de catégorie" },
+  { id: "tappa", posizione: "Eliminatoria nel comune", posizioneFr: "Éliminatoire dans la commune", livello: "Tappa", livelloFr: "Étape", placeholder: "Sponsor della tappa", placeholderFr: "Sponsor de l'étape" },
 ] as const;
