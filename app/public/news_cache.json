@@ -1,0 +1,46 @@
+{
+  "generato": "2026-06-28",
+  "fonte": "Aggregatore RSS (AostaSera, Gazzetta Matin, AostaOggi) — solo titolo, estratto e link alla fonte.",
+  "items": [
+    {
+      "id": "n-2026-03-17-gm",
+      "titolo": "69° Concorso regionale Batailles de Reines: un'edizione nel segno del rinnovamento e del territorio",
+      "fonte": "Gazzetta Matin",
+      "url": "https://www.gazzettamatin.com/2026/03/17/69-concorso-regionale-batailles-de-reines-unedizione-nel-segno-del-rinnovamento-e-del-territorio/",
+      "data": "2026-03-17",
+      "estratto": "Presentata la stagione 2026: 15 eliminatorie nei comuni della Valle e gran finale alla Croix-Noire."
+    },
+    {
+      "id": "n-2026-01-26-vdag",
+      "titolo": "Batailles de Reines 2026-2028: meno eliminatorie, più comitati",
+      "fonte": "ValléedAostaGlocal",
+      "url": "https://www.valledaostaglocal.it/2026/01/26/leggi-notizia/argomenti/le-messager-campagnard/articolo/batailles-de-reines-2026-2028-meno-eliminatorie-piu-comitati-e-qualche-colpo-di-scena-sul.html",
+      "data": "2026-01-26",
+      "estratto": "Il nuovo regolamento triennale ridisegna calendario e ruolo dei comitati locali."
+    },
+    {
+      "id": "n-2026-01-aostasera",
+      "titolo": "Le Batailles de Reines ricominciano il 29 marzo: approvato il calendario 2026",
+      "fonte": "AostaSera",
+      "url": "https://aostasera.it/notizie/societa/le-batailles-de-reines-ricominciano-il-29-marzo-approvato-il-calendario-2026/",
+      "data": "2026-01-20",
+      "estratto": "Via alla stagione da Pont-Saint-Martin; pausa estiva per l'alpeggio, ripresa ad agosto."
+    },
+    {
+      "id": "n-2025-10-26-gm",
+      "titolo": "Aosta, alla Croix-Noire il gran finale delle Batailles de Reines",
+      "fonte": "Gazzetta Matin",
+      "url": "https://www.gazzettamatin.com/2025/10/25/aosta-alla-croix-noire-il-gran-finale-delle-batailles-de-reines/",
+      "data": "2025-10-26",
+      "estratto": "139 bovine in arena per la 68ª finale: incoronate le Reines des Reines delle tre categorie."
+    },
+    {
+      "id": "n-2025-emb",
+      "titolo": "Reine de l'Espace Mont-Blanc: la Valle d'Aosta in gara con Vallese e Savoia",
+      "fonte": "AostaSera",
+      "url": "https://aostasera.it/notizie/sport/reine-de-lespace-mont-blanc-la-valle-daosta-cerca-il-poker-in-svizzera/",
+      "data": "2025-09-28",
+      "estratto": "L'incontro internazionale transfrontaliero che riunisce le regine dei tre territori dell'Espace Mont-Blanc."
+    }
+  ]
+}

@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "motion/react";
 import {
   Trophy, CalendarDays, Swords, MapPin, Heart, Check, Sparkles,
   ChevronRight, Star, Crown, Info, Medal, BookOpen, Scroll, Languages,
+  Newspaper, Clock, Megaphone, ExternalLink,
 } from "lucide-react";
 import { CowVisual } from "./CowVisual";
 import { Vatsamon } from "../types";
@@ -12,6 +13,8 @@ import {
   ALBO_DORO, LEGGENDE, ALBO_ANNI, reinaByName, SOGLIE_PER_FASE,
 } from "../data/season";
 import { CULTURA, GLOSSARIO, FONTI } from "../data/bataillesContent";
+import { loadNews, NewsItem } from "../data/news";
+import { SPONSOR_SLOTS } from "../config/brand";
 
 /**
  * STAGIONE — il "second screen" ufficiale della stagione Batailles de Reines.
@@ -24,7 +27,7 @@ import { CULTURA, GLOSSARIO, FONTI } from "../data/bataillesContent";
  * Nessun backend: i risultati live si aggiornano committando il JSON della stagione.
  */
 
-type SubTab = "calendario" | "albo" | "tabellone" | "segui" | "scopri";
+type SubTab = "notizie" | "calendario" | "albo" | "tabellone" | "segui" | "scopri";
 
 const LS_PICKS = "vazzamon_pronostici";
 const LS_FOLLOW = "vazzamon_follow_reine";
@@ -43,7 +46,7 @@ function toISO(d: Date): string {
 }
 
 export function SeasonView({ onReward }: { onReward?: (coins: number, xp: number) => void }) {
-  const [sub, setSub] = useState<SubTab>("calendario");
+  const [sub, setSub] = useState<SubTab>("notizie");
   const [picks, setPicks] = useState<Record<string, string>>(() => loadJSON(LS_PICKS, {}));
   const [followId, setFollowId] = useState<string | null>(() => localStorage.getItem(LS_FOLLOW));
   const [catSel, setCatSel] = useState<CategoriaId>("1");
@@ -119,6 +122,7 @@ export function SeasonView({ onReward }: { onReward?: (coins: number, xp: number
       {/* SUB-TABS */}
       <div className="flex gap-1 bg-slate-950 border border-slate-850 rounded-2xl p-1 overflow-x-auto no-scrollbar">
         {([
+          ["notizie", "Notizie", Newspaper],
           ["calendario", "Calendario", CalendarDays],
           ["albo", "Albo d'Oro", Medal],
           ["tabellone", "Tabellone", Swords],
@@ -145,6 +149,9 @@ export function SeasonView({ onReward }: { onReward?: (coins: number, xp: number
           exit={{ opacity: 0, y: -8 }}
           transition={{ duration: 0.2 }}
         >
+          {sub === "notizie" && (
+            <NewsSection todayISO={todayISO} onGoCalendario={() => setSub("calendario")} onGoTabellone={() => setSub("tabellone")} />
+          )}
           {sub === "calendario" && (
             <CalendarSection nextEventId={nextEventId} todayISO={todayISO} onGoPronostici={() => setSub("tabellone")} />
           )}
@@ -519,6 +526,95 @@ function FollowSection({ followCow, onFollow, onOpenBracket }: {
             </div>
           </button>
         ))}
+      </div>
+    </div>
+  );
+}
+
+// ===========================================================================
+//  NOTIZIE (home dell'hub) — countdown · feed reale · sponsor
+// ===========================================================================
+
+function NewsSection({ todayISO, onGoCalendario, onGoTabellone }: {
+  todayISO: string; onGoCalendario: () => void; onGoTabellone: () => void;
+}) {
+  const [news, setNews] = useState<NewsItem[]>([]);
+  const [generato, setGenerato] = useState<string | undefined>();
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let alive = true;
+    loadNews().then((r) => { if (alive) { setNews(r.items); setGenerato(r.generato); setLoading(false); } });
+    return () => { alive = false; };
+  }, []);
+
+  const next = CALENDAR.find((e) => e.kind === "bataille" && e.data >= todayISO);
+  const giorni = next ? Math.max(0, Math.round((new Date(next.data + "T12:00:00").getTime() - new Date(todayISO + "T12:00:00").getTime()) / 86400000)) : null;
+
+  return (
+    <div className="space-y-3">
+      {/* countdown prossima tappa */}
+      {next && (
+        <div className="bg-gradient-to-br from-amber-950/50 to-slate-950 border border-amber-700/40 rounded-2xl p-4">
+          <div className="flex items-center gap-1.5 text-[9px] font-mono uppercase tracking-widest text-amber-400">
+            <Clock className="w-3 h-3" /> {next.finale ? "Finale regionale" : "Prossima tappa"}
+          </div>
+          <div className="flex items-end justify-between mt-1">
+            <div className="min-w-0">
+              <div className="text-lg font-mono font-black text-slate-100 truncate">{next.finale && <Crown className="inline w-4 h-4 text-amber-400 mb-0.5 mr-1" />}{next.comune}</div>
+              <div className="text-[10px] font-mono text-slate-400 truncate"><MapPin className="inline w-3 h-3 text-slate-500 mb-0.5" /> {next.luogo} · {fmtDate(next.data)}</div>
+            </div>
+            <div className="text-right flex-shrink-0 ml-2">
+              <div className="text-2xl font-mono font-black text-amber-300 tabular-nums leading-none">{giorni}</div>
+              <div className="text-[8px] font-mono uppercase text-slate-500">giorni</div>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-2 mt-3">
+            <button onClick={onGoCalendario} className="bg-slate-900 hover:bg-slate-850 border border-slate-800 text-slate-200 font-mono font-black text-[10px] py-2 rounded-xl flex items-center justify-center gap-1"><CalendarDays className="w-3.5 h-3.5" /> Calendario</button>
+            <button onClick={onGoTabellone} className="bg-amber-500 hover:bg-amber-400 text-[#0b0820] font-mono font-black text-[10px] py-2 rounded-xl flex items-center justify-center gap-1"><Swords className="w-3.5 h-3.5" /> Pronostici</button>
+          </div>
+        </div>
+      )}
+
+      {/* notizie */}
+      <div className="flex items-center justify-between px-1">
+        <h3 className="text-[11px] font-mono font-black uppercase tracking-widest text-slate-300 flex items-center gap-1.5"><Newspaper className="w-3.5 h-3.5 text-amber-400" /> Dal mondo Batailles</h3>
+        {generato && <span className="text-[8px] font-mono text-slate-500">agg. {fmtDate(generato)}</span>}
+      </div>
+
+      {loading ? (
+        <div className="bg-slate-950 border border-slate-850 rounded-2xl p-6 text-center text-[11px] font-mono text-slate-500">Carico le notizie…</div>
+      ) : (
+        news.map((n) => (
+          <a key={n.id} href={n.url} target="_blank" rel="noopener noreferrer"
+            className="block bg-slate-950 border border-slate-850 hover:border-amber-600/40 rounded-2xl p-3 transition-all">
+            <div className="flex items-center gap-2 text-[8.5px] font-mono uppercase tracking-wide text-amber-400 mb-1">
+              <span>{n.fonte}</span><span className="text-slate-600">·</span><span className="text-slate-500">{fmtDate(n.data)}</span>
+              <ExternalLink className="w-3 h-3 text-slate-600 ml-auto" />
+            </div>
+            <div className="text-[12px] font-mono font-black text-slate-100 leading-snug">{n.titolo}</div>
+            {n.estratto && <p className="text-[10px] text-slate-400 leading-snug mt-1">{n.estratto}</p>}
+          </a>
+        ))
+      )}
+
+      {/* sponsor (inventario vendibile) */}
+      <div className="space-y-1.5">
+        <div className="text-[9px] font-mono uppercase tracking-widest text-slate-500 px-1 flex items-center gap-1"><Megaphone className="w-3 h-3" /> Spazio sponsor</div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+          {SPONSOR_SLOTS.map((s) => (
+            <div key={s.id} className="bg-slate-900/60 border border-dashed border-slate-700 rounded-xl p-3 text-center">
+              <div className="text-[8px] font-mono uppercase tracking-widest text-amber-400">{s.livello}</div>
+              <div className="text-[10px] font-mono font-bold text-slate-400 mt-0.5">{s.placeholder}</div>
+              <div className="text-[8px] font-mono text-slate-600 mt-0.5">{s.posizione}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex items-start gap-2 bg-slate-950 border border-slate-850 rounded-2xl p-3 text-[9px] font-mono text-slate-500 leading-snug">
+        <Info className="w-3.5 h-3.5 text-sky-400 flex-shrink-0 mt-0.5" />
+        Notizie aggregate dalle testate locali (titolo + estratto + link alla fonte), aggiornate automaticamente. Fonte ufficiale dei dati gara: amisdesreines.it.
       </div>
     </div>
   );

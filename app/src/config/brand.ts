@@ -34,3 +34,21 @@ export const PALETTE = {
   cat2: "#38bdf8",
   cat3: "#34d399",
 } as const;
+
+/**
+ * SLOT SPONSOR — inventario vendibile (placeholder per la demo). Mostra
+ * all'associazione dove possono comparire gli sponsor; in produzione si popola
+ * con logo/url reali. Non intacca i dati sportivi.
+ */
+export interface SponsorSlot {
+  id: string;
+  posizione: string; // dove appare
+  livello: "Title" | "Categoria" | "Tappa";
+  placeholder: string; // testo mostrato finché lo slot è libero
+}
+
+export const SPONSOR_SLOTS: SponsorSlot[] = [
+  { id: "title", posizione: "Home e finale", livello: "Title", placeholder: "Title sponsor stagionale" },
+  { id: "cat", posizione: "Tabellone e risultati", livello: "Categoria", placeholder: "Sponsor di categoria" },
+  { id: "tappa", posizione: "Eliminatoria nel comune", livello: "Tappa", placeholder: "Sponsor della tappa" },
+] as const;

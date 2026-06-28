@@ -1,0 +1,38 @@
+name: Aggiorna notizie Batailles
+
+# Aggregatore RSS senza backend: genera app/public/news_cache.json e committa.
+# Gira ogni 4 ore e on-demand. Il deploy su Pages riparte al push del file.
+
+on:
+  schedule:
+    - cron: "0 */4 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: news
+  cancel-in-progress: true
+
+jobs:
+  build-news:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Genera news_cache.json
+        run: node app/scripts/build-news.mjs
+      - name: Commit se cambiato
+        run: |
+          if [ -n "$(git status --porcelain app/public/news_cache.json)" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add app/public/news_cache.json
+            git commit -m "chore(news): aggiorna feed Batailles [skip ci]"
+            git push
+          else
+            echo "Nessun cambiamento nelle notizie."
+          fi
