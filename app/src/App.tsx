@@ -1695,14 +1695,14 @@ export default function App() {
     playClickSfx();
     setIsScanning(true);
     setScanProgress(5);
-    setScanMessage("Aggancio antenna satellitare Monte Bianco...");
+    setScanMessage("Osservo la mandria con calma...");
 
     const intervals = [
-      "Caricamento lenti polarizzate d'alpeggio...",
-      "Rilevamento geni della Castana Valdostana...",
-      "Valutazione densità erbe alpine...",
-      "Misurazione percentuale umidità alpeggi COGNE...",
-      "Generazione modello genomico..."
+      "Riconosco il mantello e la razza...",
+      "Valuto la stazza e la cornatura...",
+      "Leggo la grinta nello sguardo...",
+      "Stimo il peso e la categoria...",
+      "Compilo la scheda d'avvistamento..."
     ];
 
     let currentStep = 0;
@@ -1720,7 +1720,7 @@ export default function App() {
 
       clearInterval(timer);
       setScanProgress(100);
-      setScanMessage("DNA sintetizzato correttamente!");
+      setScanMessage("Avvistamento riconosciuto!");
 
       // Supply CP & level calculations
       const str = parsed.stats.strength;
@@ -2632,9 +2632,9 @@ export default function App() {
             <div className="bg-slate-950 rounded-3xl p-5 border border-slate-850 shadow-md">
               <h2 className="text-xl font-mono font-black text-emerald-400 flex items-center gap-1.5 uppercase">
                 <Camera className="w-5 h-5" />
-                Sintesi DNA Spaziale Valdostana
+                Riconoscimento d'Alpeggio
               </h2>
-              <p className="text-xs text-slate-400 mt-1">Carica uno scatto dei pascoli, dei monti vette o di un fiero bovino alpino. Gemini 3.5-flash leggerà i segnali biogeografici della vallata per estrapolare un Vatsamon esclusivo!</p>
+              <p className="text-xs text-slate-400 mt-1">Inquadra o carica la foto di una Reina sui pascoli: ne riconosci la razza, ne valuti stazza, corna e grinta, e registri un avvistamento. Le Reines ufficiali si verificano alle gare.</p>
 
               {!isScanning && (
                 <div className="mt-5 border-2 border-dashed border-slate-800 bg-slate-900/40 rounded-3xl p-8 flex flex-col items-center justify-center text-center space-y-4">
@@ -2643,7 +2643,7 @@ export default function App() {
                       <div className="relative aspect-square rounded-2xl overflow-hidden shadow-md border border-emerald-500/20 bg-black">
                         <video ref={videoRef} className="w-full h-full object-cover" playsInline muted />
                         <div className="absolute inset-5 border border-dashed border-yellow-400/40 rounded-xl flex items-center justify-center pointer-events-none">
-                          <span className="text-[10px] font-mono text-yellow-400 animate-pulse">AGGANCA DNA BOVINO</span>
+                          <span className="text-[10px] font-mono text-yellow-400 animate-pulse">INQUADRA LA REINA</span>
                         </div>
                       </div>
                       <div className="flex gap-2">
@@ -2651,7 +2651,7 @@ export default function App() {
                           onClick={() => processImageScanGo(null)}
                           className="flex-grow bg-emerald-500 hover:bg-emerald-400 text-[#0b0820] font-mono font-bold text-xs py-2.5 rounded-xl transition-all cursor-pointer shadow border-b-2 border-emerald-700"
                         >
-                          Sintonizza Immagine
+                          Riconosci la Reina
                         </button>
                         <button
                           onClick={stopCamera}
@@ -2667,8 +2667,8 @@ export default function App() {
                         📤
                       </div>
                       <div>
-                        <p className="font-extrabold text-slate-200 text-sm">Carica o Scatta una foto alpina</p>
-                        <p className="text-[10px] text-slate-500 mt-0.5">JPEG, PNG supportati. Saranno conservati nel cloud.</p>
+                        <p className="font-extrabold text-slate-200 text-sm">Carica o scatta una foto della Reina</p>
+                        <p className="text-[10px] text-slate-500 mt-0.5">JPEG, PNG. La foto resta sul tuo dispositivo.</p>
                       </div>
 
                       <div className="flex flex-col sm:flex-row items-center justify-center gap-2 pt-2">
@@ -2676,13 +2676,13 @@ export default function App() {
                           onClick={() => fileInputRef.current?.click()}
                           className="w-full sm:w-auto bg-[#10b981] hover:bg-emerald-400 text-[#0b0820] font-mono font-bold text-xs py-2.5 px-4 rounded-xl transition-colors cursor-pointer"
                         >
-                          Carica File No-Limits
+                          Carica una foto
                         </button>
                         <button
                           onClick={startCameraGo}
                           className="w-full sm:w-auto bg-slate-800 hover:bg-slate-700 text-slate-200 font-mono text-xs py-2.5 px-4 rounded-xl transition-colors cursor-pointer"
                         >
-                          Usa Fotocamera AR
+                          Usa la fotocamera
                         </button>
                       </div>
 
@@ -2698,7 +2698,7 @@ export default function App() {
                         onClick={() => processImageScanGo(null)}
                         className="w-full bg-slate-900 hover:bg-slate-850 border border-slate-850 py-2 rounded-xl text-yellow-400 font-mono text-xs font-bold transition-all cursor-pointer shadow active:scale-95"
                       >
-                        🔮 Catalizza Vatsamon Misterioso Subito!
+                        🐮 Avvista una Reina d'alpeggio
                       </button>
                     </div>
                   )}
@@ -2712,7 +2712,7 @@ export default function App() {
                     <RefreshCw className="w-5 h-5 text-emerald-400" />
                   </div>
                   <div>
-                    <h4 className="font-mono font-black text-emerald-400 text-sm">Sintesi Alpeggio in corso...</h4>
+                    <h4 className="font-mono font-black text-emerald-400 text-sm">Riconoscimento in corso...</h4>
                     <p className="text-[10px] text-slate-400 font-mono mt-1 italic">"{scanMessage}"</p>
                   </div>
                   <div className="bg-slate-850 rounded-full h-2 overflow-hidden border border-slate-800">

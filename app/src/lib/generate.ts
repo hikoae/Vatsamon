@@ -1,76 +1,78 @@
 import { Vatsamon } from "../types";
+import { resolveIllustration } from "../data/illustrations";
 
 /**
- * Generazione CLIENT del Vatsamon (sostituisce il server /api/generate-vatsamon).
- * Build statica, niente rete: stesso schema di risposta del server v2.
+ * RICONOSCIMENTO D'ALPEGGIO (client, niente rete) — sostituisce il vecchio
+ * "DNA scanner" sci-fi. Genera un AVVISTAMENTO onesto e coerente col mondo
+ * Batailles: razze da combattimento corrette (Castana / Pezzata Nera / Hérens,
+ * MAI Pezzata Rossa che è da latte), nomi patois reali, 4 statistiche reali
+ * (stazza/corna/testa/grinta) e categoria di peso. È dichiarato come
+ * avvistamento (isReal:false), non spacciato per Reina ufficiale.
  */
 
-const AUTUMN_BREEDS = [
-  "Castana Valdostana",
-  "Pezzata Rossa",
-  "Pezzata Nera",
-  "Evolène",
-];
+const COMBAT_BREEDS = ["Castana", "Pezzata Nera", "Hérens"];
 
-const FUN_COW_NAMES = [
-  "Mont-Blanc Colossus", "Reina di Valsavarenche", "Fontina Champion", "Pianeta Alpeggio",
-  "Corno d'Acciaio", "Grolla Warrior", "Castor e Pollux", "Mocetta Ranger",
-  "Valdostana Suprema", "Gran Paradiso Sentinel", "Mamma Fontina", "Trekking Boss",
-  "Fulmine Alpino", "Brezza d'Alpe", "Dama Bianca", "Fior di Fontina",
+const PATOIS_NAMES = [
+  "Caprice", "Malice", "Vipère", "Briganda", "Guerra", "Victoire", "Papillon", "Baronne",
+  "Amoureuse", "Gitane", "Strega", "Difesa", "Revenge", "Bambola", "Reinette", "Sauvage",
+  "Tempête", "Étoile", "Rebelle", "Mésange", "Bergère", "Fleur", "Moureun", "Peloria",
 ];
 
 const ECO_TIPS = [
   "Rispetta i sentieri segnalati per proteggere i pascoli alpini dal calpestio.",
   "Riporta sempre a valle i tuoi rifiuti: un pascolo pulito dona erba fresca alle Reines.",
-  "Chiedi il permesso prima di entrare nelle stalle e rispetta il silenzio dei boschi.",
-  "Non spaventare le mucche: mantieni una distanza di sicurezza per la loro quiete.",
+  "Mantieni la distanza: avvicìnati con calma, l'allevatore conduce ma non forza.",
   "Acquista la Fontina DOP dai piccoli produttori per sostenere gli alpeggi.",
-];
-
-const LORE_SNIPPETS = [
-  "Una mucca fiera e regale: le sue corna riflettono la luce dorata del tramonto sul Cervino.",
-  "Campionessa indiscussa delle Batailles de Reines, fa tremare d'ammirazione le vette.",
-  "Sviluppa una forza formidabile nutrendosi di trifoglio alpino d'oro e acqua di ghiacciaio.",
-  "Ha un legame ancestrale con la regione: scorta i trekker con silenziosi incoraggiamenti.",
-  "Le leggende narrano che custodisca il segreto della marinatura perfetta della Mocetta.",
 ];
 
 function rnd<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
+function clamp(n: number) { return Math.max(10, Math.min(100, Math.round(n))); }
+
 function simulate(): Omit<Vatsamon, "cp" | "level"> {
-  const breed = rnd(AUTUMN_BREEDS);
-  const name = rnd(FUN_COW_NAMES);
-  const rarityPool: Vatsamon["rarity"][] = ["Comune", "Comune", "Rara", "Rara", "Epica", "Leggendaria"];
+  const breed = rnd(COMBAT_BREEDS);
+  const name = rnd(PATOIS_NAMES);
+  // gli avvistamenti sono per lo più "comuni": le Reines ufficiali si verificano alle gare.
+  const rarityPool: Vatsamon["rarity"][] = ["Comune", "Comune", "Comune", "Rara", "Rara", "Epica"];
   const rarity = rnd(rarityPool);
 
-  let st = 30 + Math.floor(Math.random() * 40);
-  let df = 35 + Math.floor(Math.random() * 45);
-  let ag = 20 + Math.floor(Math.random() * 50);
-  if (rarity === "Leggendaria") { st += 25; df += 20; ag += 15; }
-  else if (rarity === "Epica") { st += 15; df += 15; ag += 10; }
+  // 4 statistiche reali
+  const stazza = 50 + Math.floor(Math.random() * 40);
+  const corna = 45 + Math.floor(Math.random() * 45);
+  const testa = 45 + Math.floor(Math.random() * 40);
+  const grinta = 45 + Math.floor(Math.random() * 45);
+  // peso e categoria di peso coerenti
+  const peso_kg = 480 + Math.floor(Math.random() * 180); // ~480–660 kg
+  const categoria = peso_kg >= 591 ? "1ª" : peso_kg >= 541 ? "2ª" : "3ª";
 
   return {
-    id: "gen-" + Date.now() + "-" + Math.floor(Math.random() * 1000),
+    id: "avvist-" + Date.now() + "-" + Math.floor(Math.random() * 1000),
     breed,
     name,
-    stats: { strength: Math.min(st, 100), defense: Math.min(df, 100), agility: Math.min(ag, 100) },
+    stats: { strength: clamp(corna), defense: clamp(testa), agility: clamp(grinta) },
     rarity,
     eco_tip: rnd(ECO_TIPS),
-    lore: rnd(LORE_SNIPPETS),
+    lore: `Avvistamento d'alpeggio: una ${breed} dal carattere deciso, incrociata sui pascoli. Verifica alle gare per la scheda anagrafe ufficiale.`,
     capturedAt: new Date().toISOString(),
+    isReal: false,
+    realPhoto: null,
+    stats4: { stazza, corna, testa, grinta },
+    potenza: stazza + corna + testa + grinta,
+    peso_kg,
+    categoria,
+    riconoscimento: "Avvistamento d'alpeggio",
+    illustration: resolveIllustration(name, breed),
   };
 }
 
-/** Stessa firma di una risposta del server, ma calcolata in locale. */
+/** Stessa firma del vecchio handler, ma produce un avvistamento coerente. */
 export async function generateVatsamonClient(
   imageBase64: string | null,
   _isDemo = false,
 ): Promise<Vatsamon> {
-  // piccola latenza per far percepire l'analisi
-  await new Promise((r) => setTimeout(r, 400));
+  await new Promise((r) => setTimeout(r, 400)); // breve latenza percepita
   const base = simulate();
-  const cp = 0; // calcolato dal chiamante
-  return { ...base, imageUrl: imageBase64 ?? undefined, cp, level: 15 } as Vatsamon;
+  return { ...base, imageUrl: imageBase64 ?? undefined, cp: 0, level: 8 } as Vatsamon;
 }
