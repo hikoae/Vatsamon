@@ -12,7 +12,7 @@ import {
   winnersFor, cowsByCategory, buildRounds, bracketChampion, roundLabel,
   ALBO_DORO, LEGGENDE, ALBO_ANNI, reinaByName, SOGLIE_PER_FASE,
 } from "../data/season";
-import { CULTURA, GLOSSARIO, FONTI } from "../data/bataillesContent";
+import { CULTURA, GLOSSARIO, FONTI, STORIA } from "../data/bataillesContent";
 import { loadNews, NewsItem } from "../data/news";
 import { SPONSOR_SLOTS } from "../config/brand";
 import { useLang, tr, Lang } from "../i18n/hub";
@@ -706,14 +706,15 @@ function AlboSection({ lang }: { lang: Lang }) {
 //  SCOPRI — cultura · regolamento · glossario
 // ===========================================================================
 
-type ScopriTab = "cultura" | "regolamento" | "glossario";
+type ScopriTab = "storia" | "cultura" | "regolamento" | "glossario";
 
 function ScopriSection({ lang }: { lang: Lang }) {
-  const [tab, setTab] = useState<ScopriTab>("cultura");
+  const [tab, setTab] = useState<ScopriTab>("storia");
   return (
     <div className="space-y-3">
-      <div className="grid grid-cols-3 gap-1.5">
+      <div className="grid grid-cols-2 gap-1.5">
         {([
+          ["storia", tr(lang, "scopri_storia"), Clock],
           ["cultura", tr(lang, "scopri_cultura"), BookOpen],
           ["regolamento", tr(lang, "scopri_regolamento"), Scroll],
           ["glossario", tr(lang, "scopri_glossario"), Languages],
@@ -727,6 +728,32 @@ function ScopriSection({ lang }: { lang: Lang }) {
           </button>
         ))}
       </div>
+
+      {tab === "storia" && (
+        <div>
+          <p className="text-[11px] text-slate-400 leading-relaxed mb-3">{tr(lang, "storia_intro")}</p>
+          <div className="relative pl-5">
+            {/* linea verticale della timeline */}
+            <div className="absolute left-[7px] top-1 bottom-1 w-0.5 bg-gradient-to-b from-amber-500/60 via-slate-700 to-slate-800" />
+            <div className="space-y-3">
+              {STORIA.map((m) => (
+                <div key={m.id} className="relative">
+                  <div className="absolute -left-5 top-1 w-3.5 h-3.5 rounded-full bg-amber-500 border-2 border-slate-950 shadow" />
+                  <div className="bg-slate-950 border border-slate-850 rounded-2xl p-3.5">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-[9px] font-mono font-black uppercase tracking-widest text-amber-400 bg-amber-950/40 border border-amber-700/40 rounded-full px-2 py-0.5">{m.epoca}</span>
+                    </div>
+                    <h4 className="text-[12px] font-mono font-black text-amber-200 flex items-center gap-1.5">
+                      <span className="text-base">{m.emoji}</span> {lang === "fr" ? m.titoloFr : m.titolo}
+                    </h4>
+                    <p className="text-[11px] text-slate-300 leading-relaxed mt-1.5">{lang === "fr" ? m.testoFr : m.testo}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {tab === "cultura" && (
         <div className="space-y-2.5">
