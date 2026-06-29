@@ -1800,74 +1800,81 @@ export default function App() {
           tutto lo schermo senza cornice. */}
       <div className="phone-frame w-full max-w-md min-h-screen flex flex-col relative bg-slate-950/0 lg:shadow-2xl lg:border-x lg:border-slate-800/60">
 
-      {/* 🎒 MAIN HUD STATUS BAR (POKEMON GO STYLE) 🎒 */}
-      <header className="bg-slate-950 border-b-2 border-[#c8102e] p-3 sticky top-0 z-50 shadow-md">
-        <div className="max-w-4xl mx-auto flex items-center justify-between gap-4">
-          
-          {/* Trainer Avatar Info */}
-          <div className="flex items-center gap-3">
-            <div className="relative cursor-pointer" title="Profilo & Salvataggio" onClick={() => { playClickSfx(); setProfileMsg(""); setShowProfile(true); }}>
-              <div className="w-12 h-12 rounded-full border-2 border-emerald-500 bg-slate-850 flex items-center justify-center overflow-hidden shadow-inner">
-                <span className="text-2xl">👨‍🌾</span>
-              </div>
-              <div className="absolute -bottom-1 -right-1 bg-emerald-500 text-[#0b0820] text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow">
-                {trainer.level}
-              </div>
-            </div>
-            <div>
-              <div className="flex items-center gap-1.5">
-                <span className="font-mono font-black text-sm tracking-wide title-gradient">VATSAMON GO</span>
-                <span className="text-[9px] bg-emerald-950/80 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-full font-bold uppercase">
-                  Valle d'Aosta
-                </span>
-              </div>
-              
-              {/* Level progress bar */}
-              <div className="flex items-center gap-2 mt-1">
-                <div className="w-24 bg-slate-800 rounded-full h-2 overflow-hidden border border-slate-700">
-                  <div className="bg-gradient-to-r from-emerald-500 to-green-400 h-2 rounded-full" style={{ width: `${(trainer.xp / trainer.xpToNextLevel) * 100}%` }} />
+      {/* 🎒 HUD ALLEVATORE + NAV come UNICO blocco sticky (niente offset magici) 🎒 */}
+      <div className="sticky top-0 z-50">
+      <header className="bg-slate-950 shadow-md" id="trainer-hud">
+        {/* accento bandiera valdostana: nero | rosso */}
+        <div className="h-1.5 w-full" style={{ background: "linear-gradient(90deg,#1a1626 0 50%, #c8102e 50% 100%)" }} aria-hidden="true" />
+        <div className="border-b-2 border-[#c8102e] px-3 pt-2 pb-2.5">
+          <div className="max-w-4xl mx-auto">
+            {/* riga 1: avatar + identità + audio */}
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="relative cursor-pointer flex-shrink-0" title="Profilo & Salvataggio" onClick={() => { playClickSfx(); setProfileMsg(""); setShowProfile(true); }}>
+                  <div className="w-11 h-11 rounded-full border-2 border-[#c8102e] bg-slate-850 flex items-center justify-center overflow-hidden shadow-inner">
+                    <span className="text-2xl">👨‍🌾</span>
+                  </div>
+                  <div className="absolute -bottom-1 -right-1 bg-[#c8102e] text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow border border-white/30">
+                    {trainer.level}
+                  </div>
                 </div>
-                <span className="text-[9px] font-mono text-slate-400 font-bold">{trainer.xp}/{trainer.xpToNextLevel} XP</span>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-mono font-black text-sm tracking-wide title-gradient">VATSAMON GO</span>
+                    <span className="text-[8px] bg-[#1a1626] text-white border border-[#c8102e]/60 px-1.5 py-0.5 rounded-full font-bold uppercase">Valle d'Aosta</span>
+                  </div>
+                  <div className="text-[9.5px] font-mono text-slate-400 truncate">
+                    <span className="text-amber-400 font-bold">{trainer.level >= 17 ? "Grand Éleveur" : trainer.level >= 13 ? "Capo-Mandria" : trainer.level >= 9 ? "Allevatore" : trainer.level >= 5 ? "Mandriano" : "Apprendista"}</span>
+                    <span className="text-slate-600"> · </span>{trainer.name}
+                  </div>
+                </div>
+              </div>
+              <button
+                onClick={() => { playClickSfx(); setSoundEnabled(!soundEnabled); }}
+                className="p-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 flex-shrink-0"
+              >
+                {soundEnabled ? <Volume2 className="w-3.5 h-3.5 text-emerald-400" /> : <VolumeX className="w-3.5 h-3.5 text-slate-500" />}
+              </button>
+            </div>
+
+            {/* riga 2: barra XP */}
+            <div className="flex items-center gap-2 mt-2">
+              <span className="text-[8px] font-mono font-black text-slate-500 uppercase flex-shrink-0">Lv {trainer.level}</span>
+              <div className="flex-grow bg-slate-800 rounded-full h-2 overflow-hidden border border-slate-700">
+                <div className="bg-gradient-to-r from-[#c8102e] to-amber-400 h-2 rounded-full transition-all" style={{ width: `${Math.min(100, (trainer.xp / trainer.xpToNextLevel) * 100)}%` }} />
+              </div>
+              <span className="text-[8px] font-mono text-slate-400 font-bold flex-shrink-0">{trainer.xp}/{trainer.xpToNextLevel} XP</span>
+            </div>
+
+            {/* riga 3: STATISTICHE — tutte ben visibili */}
+            <div className="grid grid-cols-4 gap-1.5 mt-2">
+              <div className="bg-slate-900 border border-amber-700/40 rounded-xl py-1 text-center" title="Monete">
+                <div className="text-[13px] leading-none">🪙</div>
+                <div className="text-[11px] font-mono font-extrabold text-amber-300 leading-tight">{trainer.coins}</div>
+                <div className="text-[7px] font-mono uppercase text-slate-500">Monete</div>
+              </div>
+              <div className="bg-slate-900 border rounded-xl py-1 text-center" style={{ borderColor: respectTone(respectScore).color + "66" }} id="respect-hud" title={`Rispetto: ${respectTone(respectScore).label} (${respectScore}/100)`}>
+                <div className="text-[13px] leading-none">🌿</div>
+                <div className="text-[11px] font-mono font-extrabold leading-tight" style={{ color: respectTone(respectScore).color }}>{respectScore}</div>
+                <div className="text-[7px] font-mono uppercase text-slate-500">Rispetto</div>
+              </div>
+              <div className="bg-slate-900 border border-emerald-700/40 rounded-xl py-1 text-center" title="Chilometri camminati">
+                <div className="text-[13px] leading-none">🥾</div>
+                <div className="text-[11px] font-mono font-extrabold text-emerald-400 leading-tight">{Math.round(trainer.kmTraveled)}</div>
+                <div className="text-[7px] font-mono uppercase text-slate-500">Km</div>
+              </div>
+              <div className="bg-slate-900 border border-rose-700/40 rounded-xl py-1 text-center" title="Reines nel Libretto di Mandria">
+                <div className="text-[13px] leading-none">🐮</div>
+                <div className="text-[11px] font-mono font-extrabold text-rose-300 leading-tight">{vatsadex.length}</div>
+                <div className="text-[7px] font-mono uppercase text-slate-500">Reines</div>
               </div>
             </div>
           </div>
-
-          {/* Wallet and backpack stats summary */}
-          <div className="flex items-center gap-3">
-            <div className="bg-slate-900 border border-slate-800 rounded-2xl py-1.5 px-3 flex items-center gap-1">
-              <span className="text-amber-400 font-bold">🪙</span>
-              <span className="text-xs font-mono font-extrabold text-amber-300">{trainer.coins}</span>
-            </div>
-
-            <div className="bg-slate-900 border border-slate-800 rounded-2xl py-1.5 px-3 hidden sm:flex items-center gap-1" title="Chilometri Camminati">
-              <span className="text-emerald-400 text-xs">🥾</span>
-              <span className="text-xs font-mono font-extrabold text-slate-300">{trainer.kmTraveled} km</span>
-            </div>
-
-            {/* FASE 4 — Punteggio RISPETTO (esplorazione responsabile) */}
-            <div
-              className="bg-slate-900 border rounded-2xl py-1.5 px-3 flex items-center gap-1"
-              style={{ borderColor: respectTone(respectScore).color }}
-              title={`Rispetto della montagna: ${respectTone(respectScore).label} (${respectScore}/100). Rispondi bene agli incontri educativi per aumentarlo; oltre 70 migliora la rarità degli avvistamenti.`}
-              id="respect-hud"
-            >
-              <span className="text-xs">🌿</span>
-              <span className="text-xs font-mono font-extrabold" style={{ color: respectTone(respectScore).color }}>{respectScore}</span>
-            </div>
-
-            <button
-              onClick={() => { playClickSfx(); setSoundEnabled(!soundEnabled); }}
-              className="p-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300"
-            >
-              {soundEnabled ? <Volume2 className="w-3.5 h-3.5 text-emerald-400" /> : <VolumeX className="w-3.5 h-3.5 text-slate-500" />}
-            </button>
-          </div>
-
         </div>
       </header>
 
       {/* 🧭 PRIMARY MAIN TABS NAVIGATION 🧭 */}
-      <nav className="bg-slate-950/90 border-b border-slate-850 sticky top-[73px] z-40 shadow-inner">
+      <nav className="bg-slate-950/90 border-b border-slate-850 shadow-inner">
         <div className="max-w-md mx-auto grid grid-cols-7 gap-0.5 p-1 text-[11px] font-extrabold">
           <button
             onClick={() => { playClickSfx(); setActiveTab('map'); }}
@@ -1932,6 +1939,7 @@ export default function App() {
           </button>
         </div>
       </nav>
+      </div>
 
       {/* 🗺️ ACTIVE VIEW DISPLAY 🗺️ */}
       <main className="flex-grow p-4 md:p-6 max-w-4xl w-full mx-auto" id="app-viewport">
@@ -3137,6 +3145,10 @@ export default function App() {
       {/* FOOTER GENERAL LEGALS AND RESET ACCENTS */}
       <footer className="bg-slate-950 text-slate-500 text-[10px] text-center py-4 px-6 border-t border-slate-850 mt-12 gap-2 flex flex-col items-center relative z-10">
         <p>© 2026 Vatsamon GO - Un'esplorazione virtuale ecologica della Valle d'Aosta.</p>
+        <p className="flex items-center gap-1.5 text-slate-400 font-mono font-bold">
+          <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ background: "linear-gradient(90deg,#1a1626 0 50%, #c8102e 50% 100%)" }} aria-hidden="true" />
+          versione <span className="text-amber-400">v1.3</span>
+        </p>
         <div className="flex gap-4">
           <button
             onClick={() => {
