@@ -18,7 +18,24 @@ Questa versione porta un grande passo avanti in coerenza, contenuti e divertimen
 - **HUD dell'allevatore** rinnovato: livello, grado, XP e **tutte le statistiche** (monete, rispetto, km, Reines) **sempre ben visibili**.
 - Tante correzioni di coerenza: razze e nomi reali delle Reines ovunque.
 
-## 🔜 In arrivo
-Conversione completa delle sfide della **Lega delle Reines** al nuovo combattimento, **economia a due valute** con i **Gradi Amis des Reines**, e ulteriori rifiniture.
+## 🐂 Lega delle Reines — endgame "La Spinta"
+- Le sfide a castello (**Verrès → Bard**) ora usano "La Spinta": **5 spinte di
+  fila**, il **fiato** delle tue Reines si trascina, dai il **cambio** con saggezza.
+- *Conduci, non forzare* anche qui: martellare innervosisce: la **pazienza** vince.
+
+## 🏅 Identità & Economia
+- **Gradi Amis des Reines** (da Forestiero a **Grand Éleveur**): la tua reputazione
+  cresce con esperienza, Reines affidate e Rispetto.
+- **Due valute**: **Denari d'Alpeggio** (di tutti i giorni) e **Forme di Fontina**
+  (prestigio: si guadagnano vincendo le Leghe e crescendo le Reines).
+- **Stella di Pedigree**: spendi la Fontina in un riconoscimento permanente.
+- **Banda Fase della Stagione**: l'hub sa sempre dove siamo (pre-stagione, inalpa,
+  estive, finale…) e quanti giorni mancano alla Croix-Noire.
+
+## ⚖️ Valutazione del Giudice
+- Per le **Reines rare**, prima dell'affidamento fai il **giudice di Bataille**:
+  ne valuti **stazza, corna e sguardo** in tre gesti. Una buona valutazione
+  conquista la fiducia dell'allevatore (affidamento più probabile) e resta scritta
+  sulla **Carta Anagrafe**.
 
 *Grazie per giocare e diffondere la tradizione delle Batailles de Reines!*

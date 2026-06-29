@@ -41,13 +41,24 @@ fallback di prima classe e il badge [REALE] vale sul pedigree, non sulla foto.
       Test: simulatore + run E2E Playwright (squadra normale e max conquistano
       Verrès con gioco adattivo; forzare perde). Suite verify verde.
 
+- [x] **Economia 2 valute + Gradi Amis des Reines + motore di fase** (FASE 2):
+      Denari + Forme di Fontina (fonti: Leghe/percorsi; sink: Stella di Pedigree),
+      6 Gradi data-driven (prestigio xp+Reines+Rispetto), `faseCorrente()` +
+      banda fase nell'hub. HUD a 5 stat. Test smoke Playwright + verify verde.
+- [x] **Valutazione del Giudice** (FASE 3): 3 gesti (stazza/corna/sguardo) per le
+      Reine rare+ → migliora l'affidamento, scritta sull'Anagrafe. Additivo e
+      isolato (ValutazioneReina). Test E2E Playwright + verify verde.
+- [x] **Refactor `App.tsx`** (FASE 4, parziale): estratte costanti pure overworld
+      + cattura in `data/overworld.ts` e `lib/capture.ts` (−110 righe, comportamento
+      identico). Resta come lavoro futuro lo split a livello di componenti/view.
+
 ## 🟡 Prossimi (blocchi grandi, da fare dedicati e testati a fondo)
-- [ ] **Cattura → Anagrafe** completa (3 gesti di valutazione + affidamento sulla mappa).
-- [ ] **Economia 2 valute + Gradi Amis des Reines** + motore di fase `faseCorrente()`
-      (invasivo: tocca trainer/HUD/ricompense).
+- [ ] **Cattura → Anagrafe**: affidamento "fisico" dell'allevatore sulla mappa
+      (oltre alla valutazione, già fatta).
 - [ ] **Classifiche read-only** (leaderboard già scritta in cloudSave, mai letta) + condivisione carte.
 - [ ] **Mappa/fase + spawn per zona + trail con avatar/milestone**.
-- [ ] **Refactor `App.tsx`** (3300+ righe) in moduli (abilitante, non visibile).
+- [ ] **Refactor `App.tsx`** — split a livello di componenti/view (le viste sono
+      ancora inline nel monolite; estratte finora solo le costanti pure).
 
 ## ⏭️ Fase backend (Firebase)
 - [ ] Leghe d'Alpeggio · push FCM · validazione timer server-side · vision razza.
