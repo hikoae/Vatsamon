@@ -28,7 +28,7 @@ import {
   GraduationCap,
   Trophy
 } from 'lucide-react';
-import { Vatsamon, Hotspot, BackpackItem, Egg, Trainer, BattleState, RarityType } from './types';
+import { Vatsamon, Hotspot, BackpackItem, Trainer, BattleState, RarityType } from './types';
 import { VatsamonAvatar } from './components/VatsamonAvatar';
 import { CowVisual } from './components/CowVisual';
 import { CowCard } from './components/CowCard';
@@ -57,6 +57,11 @@ import { faseCorrente } from './data/fase';
 import { VALUTE, FONTINA_REWARD, costoStellaPedigree, PEDIGREE_STAR_CAP } from './data/economy';
 import { ROUTE_TONE, WILD_BREEDS, WILD_NAMES, ECO_TREK_TIPS, LORE_POOL, BALL_META, BALL_ORDER, DEFAULT_BAG, SEED_COLLECTION } from './data/overworld';
 import { BASE_CATCH, estimateCatch, respectTone, catchDifficulty } from './lib/capture';
+
+// Indice delle Reines reali del bundle (per i codici di salvataggio compatti:
+// si salva l'id + le sole differenze, non l'intera scheda statica).
+const REAL_BY_ID = new Map(REAL_COWS.map(c => [c.id, c]));
+const BAG_BY_ID = new Map(DEFAULT_BAG.map(i => [i.id, i]));
 
 // Fallback coordinate conversion for consistent SVG layout positioning
 export const getSvgCoords = (lat: number, lng: number) => {
@@ -100,9 +105,6 @@ export default function App() {
     return DEFAULT_BAG.map(i => ({ ...i }));
   });
 
-  // Sistema UOVA rimosso (irrealistico): sostituito dalla STALLA genealogica.
-  // Lo stato resta vuoto e inerte per non toccare il simulatore di cammino.
-  const [eggs, setEggs] = useState<Egg[]>([]);
 
   const [trainer, setTrainer] = useState<Trainer>(() => {
     const cached = localStorage.getItem('vazzamon_trainer_go');
@@ -139,7 +141,6 @@ export default function App() {
   // Keep all persistent items secure in localStorage
   useEffect(() => { localStorage.setItem('vazzamon_collection_go', JSON.stringify(vatsadex)); }, [vatsadex]);
   useEffect(() => { localStorage.setItem('vazzamon_bag_go', JSON.stringify(backpack)); }, [backpack]);
-  useEffect(() => { localStorage.setItem('vazzamon_eggs_go', JSON.stringify(eggs)); }, [eggs]);
   useEffect(() => { localStorage.setItem('vazzamon_trainer_go', JSON.stringify(trainer)); }, [trainer]);
   useEffect(() => { localStorage.setItem('vazzamon_respect', String(respectScore)); }, [respectScore]);
   // Rispecchia il Rispetto nell'oggetto trainer così la classifica cloud
@@ -215,7 +216,7 @@ export default function App() {
   useEffect(() => { localStorage.setItem('vazzamon_waypoint_progress', String(waypointProgress)); }, [waypointProgress]);
 
   // ---- 2. VIEW NAVIGATION ----
-  const [activeTab, setActiveTab] = useState<'map' | 'stagione' | 'scanner' | 'eggs' | 'vatsadex' | 'quiz' | 'premi'>('map');
+  const [activeTab, setActiveTab] = useState<'map' | 'stagione' | 'scanner' | 'stalla' | 'vatsadex' | 'quiz' | 'premi'>('map');
   // Battaglia attiva (scena stile Pokémon lanciata dalla mappa).
   const [activeBattle, setActiveBattle] = useState<MapBattle | null>(null);
   const [activeDungeon, setActiveDungeon] = useState<Dungeon | null>(null); // Lega/dungeon in corso
@@ -721,7 +722,7 @@ export default function App() {
     setTrekkingFeed(prev => ["📡 Attivo il GPS reale…", ...prev.slice(0, 8)]);
     gpsWatchRef.current = navigator.geolocation.watchPosition(
       (pos) => { setGpsOn(true); setGpsPos({ lat: pos.coords.latitude, lng: pos.coords.longitude }); },
-      () => setTrekkingFeed(prev => ["⚠️ Permesso GPS negato: usa la demo (tocca la mappa).", ...prev.slice(0, 8)]),
+      () => setTrekkingFeed(prev => ["⚠️ Permesso GPS negato: tocca la mappa per spostarti a mano.", ...prev.slice(0, 8)]),
       { enableHighAccuracy: true, maximumAge: 5000 },
     );
   };
@@ -776,7 +777,6 @@ export default function App() {
   const [levelUpAward, setLevelUpAward] = useState<number | null>(null);
 
   // Hatching egg modal
-  const [hatchingEgg, setHatchingEgg] = useState<Egg | null>(null);
 
   // Interactive Bataille de Reines gym-fighter active state
   const [gymState, setGymState] = useState<BattleState>({
@@ -908,20 +908,99 @@ export default function App() {
   };
 
   // Raccoglie tutte le chiavi di salvataggio (prefisso vazzamon_).
+  // La collezione viene COMPATTATA: le Reines reali del bundle si salvano come
+  // id + sole differenze rispetto alla scheda originale (foto/lore/stat statiche
+  // non si ripetono); le Reines generate o nate in stalla si salvano per intero.
   const collectSave = () => {
     const data: Record<string, string> = {};
     for (let i = 0; i < localStorage.length; i++) {
       const k = localStorage.key(i);
-      if (k && k.startsWith('vazzamon_')) data[k] = localStorage.getItem(k) ?? "";
+      // salta il backup interno (macchinario cloud, non è progresso da esportare)
+      if (k && k.startsWith('vazzamon_') && k !== 'vazzamon_backup_latest') data[k] = localStorage.getItem(k) ?? "";
     }
-    return JSON.stringify({ app: "vatsamon", v: 1, ts: new Date().toISOString(), data });
+    try {
+      const coll = JSON.parse(data['vazzamon_collection_go'] || '[]') as Vatsamon[];
+      data['vazzamon_collection_go'] = JSON.stringify(coll.map(c => {
+        const base = REAL_BY_ID.get(c.id);
+        if (!base) return { f: c }; // generata / nata in stalla → intera
+        const d: Record<string, unknown> = {};
+        for (const key of Object.keys(c) as (keyof Vatsamon)[]) {
+          if (JSON.stringify(c[key]) !== JSON.stringify(base[key])) d[key] = c[key];
+        }
+        return { i: c.id, d };
+      }));
+    } catch { /* lascia la collezione com'è se il parsing fallisce */ }
+    try {
+      // lo zaino è dato statico: salva solo id + quantità (le descrizioni si reidratano)
+      const bag = JSON.parse(data['vazzamon_bag_go'] || '[]') as BackpackItem[];
+      data['vazzamon_bag_go'] = JSON.stringify(bag.map(b => BAG_BY_ID.has(b.id) ? [b.id, b.quantity] : { f: b }));
+    } catch { /* idem */ }
+    return JSON.stringify({ app: "vatsamon", v: 2, data });
   };
-  const encodeSave = () => btoa(unescape(encodeURIComponent(collectSave())));
+
+  // Reidrata una collezione compattata (v2) nella forma completa attesa dal gioco.
+  const rehydrateCollection = (raw: string): string => {
+    try {
+      const mini = JSON.parse(raw) as Array<{ f?: Vatsamon; i?: string; d?: Partial<Vatsamon> }>;
+      if (!Array.isArray(mini) || !mini.length || !('f' in mini[0] || 'i' in mini[0])) return raw; // già completa
+      const full = mini.map(m => {
+        if (m.f) return m.f;
+        const base = REAL_BY_ID.get(m.i ?? '');
+        return base ? { ...base, ...(m.d ?? {}) } : m.d;
+      });
+      return JSON.stringify(full);
+    } catch { return raw; }
+  };
+
+  // Reidrata lo zaino compattato ([id, quantità]) dalle definizioni di DEFAULT_BAG.
+  const rehydrateBag = (raw: string): string => {
+    try {
+      const mini = JSON.parse(raw) as Array<[string, number] | { f: BackpackItem }>;
+      if (!Array.isArray(mini) || !mini.length || !(Array.isArray(mini[0]) || 'f' in (mini[0] as object))) return raw;
+      const full = mini.map(m => {
+        if (Array.isArray(m)) { const base = BAG_BY_ID.get(m[0]); return base ? { ...base, quantity: m[1] } : { id: m[0], name: m[0], description: '', quantity: m[1], type: 'ball' }; }
+        return (m as { f: BackpackItem }).f;
+      });
+      return JSON.stringify(full);
+    } catch { return raw; }
+  };
+
+  // Codice di salvataggio COMPATTO: il JSON viene compresso (gzip) e codificato
+  // in base64url → stringa molto più corta, comoda da passare tra browser.
+  // Prefisso "V~" = compresso; fallback "B~" = base64 puro se gzip non c'è.
+  const encodeSave = async (): Promise<string> => {
+    const json = collectSave();
+    if (typeof CompressionStream === "undefined") {
+      return "B~" + btoa(unescape(encodeURIComponent(json)));
+    }
+    const cs = new CompressionStream("gzip");
+    const stream = new Blob([new TextEncoder().encode(json)]).stream().pipeThrough(cs);
+    const buf = new Uint8Array(await new Response(stream).arrayBuffer());
+    let bin = "";
+    for (let i = 0; i < buf.length; i++) bin += String.fromCharCode(buf[i]);
+    return "V~" + btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  };
+
+  // Decodifica un codice in JSON, riconoscendo i formati: V~ (gzip), B~/base64, JSON grezzo.
+  const decodeSave = async (raw: string): Promise<string> => {
+    if (raw.startsWith("V~")) {
+      const b64 = raw.slice(2).replace(/-/g, "+").replace(/_/g, "/");
+      const bin = atob(b64);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      const ds = new DecompressionStream("gzip");
+      const stream = new Blob([bytes]).stream().pipeThrough(ds);
+      return new TextDecoder().decode(await new Response(stream).arrayBuffer());
+    }
+    if (raw.startsWith("{")) return raw;                          // JSON grezzo
+    const b64 = raw.startsWith("B~") ? raw.slice(2) : raw;         // base64 (con o senza prefisso)
+    return decodeURIComponent(escape(atob(b64)));
+  };
 
   const copySaveCode = async () => {
     playClickSfx();
-    const code = encodeSave();
-    try { await navigator.clipboard.writeText(code); setProfileMsg("Codice di salvataggio copiato negli appunti ✅"); }
+    const code = await encodeSave();
+    try { await navigator.clipboard.writeText(code); setProfileMsg(`Codice copiato negli appunti ✅ (${code.length} caratteri)`); }
     catch { setImportText(code); setProfileMsg("Copia non disponibile: codice mostrato qui sotto, selezionalo a mano."); }
   };
 
@@ -935,16 +1014,21 @@ export default function App() {
     setProfileMsg("File di salvataggio scaricato 💾");
   };
 
-  const importSave = () => {
+  const importSave = async () => {
     playClickSfx();
     const raw = importText.trim();
     if (!raw) { setProfileMsg("Incolla prima un codice o un JSON di salvataggio."); return; }
     try {
-      let json = raw;
-      if (!raw.startsWith("{")) json = decodeURIComponent(escape(atob(raw))); // codice base64
+      const json = await decodeSave(raw);
       const obj = JSON.parse(json);
       const data = obj.data ?? obj;
-      Object.entries(data).forEach(([k, v]) => { if (k.startsWith('vazzamon_')) localStorage.setItem(k, String(v)); });
+      Object.entries(data).forEach(([k, v]) => {
+        if (!k.startsWith('vazzamon_')) return;
+        let val = String(v);
+        if (k === 'vazzamon_collection_go') val = rehydrateCollection(val);
+        else if (k === 'vazzamon_bag_go') val = rehydrateBag(val);
+        localStorage.setItem(k, val);
+      });
       setProfileMsg("Salvataggio importato! Ricarico il gioco…");
       setTimeout(() => window.location.reload(), 700);
     } catch {
@@ -1049,25 +1133,6 @@ export default function App() {
 
     addTrainerXp(120); // Exploration yields XP
 
-    // Incubate eggs & check for hatches
-    let triggeredHatch: Egg | null = null;
-    const updatedEggs = eggs.map(egg => {
-      if (egg.isIncubating) {
-        const walked = Number((egg.kmWalked + distanceStep).toFixed(1));
-        if (walked >= egg.kmRequired && !triggeredHatch) {
-          triggeredHatch = { ...egg, kmWalked: walked };
-          return { ...egg, kmWalked: walked, isIncubating: false }; // trigger hatch flow
-        }
-        return { ...egg, kmWalked: walked };
-      }
-      return egg;
-    });
-    setEggs(updatedEggs);
-
-    if (triggeredHatch) {
-      triggerEggHatching(triggeredHatch);
-    }
-
     // Update trek coordinates progress
     const nextProgress = waypointProgress + 20; // 5 steps of 500m = 2.5km segment
     let nextIndex = safeWaypointIndex;
@@ -1123,43 +1188,6 @@ export default function App() {
       //    di comportamento responsabile in montagna (probabilità separata).
       triggerRespectEncounter();
     }
-  };
-
-  // ---- 6. EGG HATCHERY UTILITIES ----
-  const triggerEggHatching = (egg: Egg) => {
-    const breed = WILD_BREEDS[Math.floor(Math.random() * WILD_BREEDS.length)];
-    const rarity = egg.rarity;
-    
-    let str = 45 + Math.floor(Math.random() * 45);
-    let def = 45 + Math.floor(Math.random() * 45);
-    let agl = 45 + Math.floor(Math.random() * 45);
-    
-    const cp = Math.floor((str * 2 + def + agl) * (1.3 + (rarity === 'Leggendaria' ? 1.0 : rarity === 'Epica' ? 0.5 : 0.2)));
-
-    const hatchedCow: Vatsamon = {
-      id: "hatch-" + Date.now(),
-      breed,
-      name: "Baby " + breed.split(" ")[0],
-      stats: { strength: str, defense: def, agility: agl },
-      rarity,
-      eco_tip: "I piccoli pascoli fioriscono con pazienza. Proteggi i giovani germogli tenendo fermi zaini e tende.",
-      lore: `Schiusa direttamente da un raro uovo montano custodito al caldo dell'incubatore alpino. Mostra una vitalità contagiosa!`,
-      capturedAt: new Date().toISOString(),
-      cp,
-      level: 1
-    };
-
-    setHatchingEgg(egg);
-    // Add to collection
-    setVatsadex(prev => [hatchedCow, ...prev]);
-    // Replace egg in hatchery list with a fresh one
-    setEggs(prev => {
-      const remaining = prev.filter(e => e.id !== egg.id);
-      const nextRarities: RarityType[] = ['Comune', 'Rara', 'Epica'];
-      const nextRarity = nextRarities[Math.floor(Math.random() * nextRarities.length)];
-      const req = nextRarity === 'Epica' ? 5 : nextRarity === 'Rara' ? 3 : 2;
-      return [...remaining, { id: "egg-new-" + Date.now(), rarity: nextRarity, kmWalked: 0, kmRequired: req, isIncubating: true }];
-    });
   };
 
   // ---- 7. POKESTOP INTERACTIVE SPIN WHEEL ----
@@ -1846,8 +1874,8 @@ export default function App() {
           </button>
 
           <button
-            onClick={() => { playClickSfx(); setActiveTab('eggs'); }}
-            className={`flex flex-col items-center py-2 rounded-xl transition-all relative ${activeTab === 'eggs' ? 'nav-active text-white' : 'text-slate-400 hover:bg-slate-900 hover:-translate-y-0.5'}`}
+            onClick={() => { playClickSfx(); setActiveTab('stalla'); }}
+            className={`flex flex-col items-center py-2 rounded-xl transition-all relative ${activeTab === 'stalla' ? 'nav-active text-white' : 'text-slate-400 hover:bg-slate-900 hover:-translate-y-0.5'}`}
           >
             <Gift className="w-4 h-4 mb-0.5" />
             <span>Stalla</span>
@@ -2275,7 +2303,7 @@ export default function App() {
 
               <div>
                 <span className="text-[10px] uppercase font-mono font-bold tracking-widest text-blue-400 px-2.5 py-1 rounded-full bg-blue-950/60 border border-blue-500/20">
-                  PokéStop d'Alpeggio 🏔️
+                  Casera d'Alpeggio 🏔️
                 </span>
                 <h3 className="text-xl font-mono font-black text-slate-100 mt-2">{selectedCasera.name}</h3>
                 <p className="text-xs text-slate-400">{selectedCasera.valley}</p>
@@ -2705,7 +2733,7 @@ export default function App() {
         )}
 
         {/* VIEW 3: CALF GESTATION & WEANING STABLE */}
-        {activeTab === 'eggs' && (
+        {activeTab === 'stalla' && (
           <StallaScreen
             collection={vatsadex}
             onBorn={(cow) => setVatsadex(prev => [cow, ...prev])}
@@ -3210,35 +3238,6 @@ export default function App() {
               className="w-full bg-emerald-500 hover:bg-emerald-400 text-[#0b0820] font-mono font-bold text-xs py-2.5 rounded-xl border-b-4 border-emerald-700 cursor-pointer"
             >
               RITIRA RICOMPENSE!
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* OVERLAY BIRTH / CALVING POPUP */}
-      {hatchingEgg && (
-        <div className="fixed inset-0 bg-slate-950/95 z-55 flex items-center justify-center p-4 backdrop-blur-xs animate-scale-in" id="calving-modal">
-          <div className="bg-gradient-to-br from-emerald-950 via-slate-900 to-slate-900 border-2 border-amber-500 p-8 rounded-3xl max-w-sm w-full text-center space-y-4 shadow-2xl relative overflow-hidden">
-            <div className="absolute top-0 inset-x-0 h-2 bg-gradient-to-r from-yellow-400 via-amber-500 to-emerald-500"></div>
-            
-            <div className="text-4xl">🍼🐮🍼</div>
-            <h1 className="text-3xl font-mono font-black text-amber-400">LIETO EVENTO!</h1>
-            <p className="text-sm text-slate-200">Accompagnandolo nei pascoli alpini, hai completato la crescita e svezzato il vitellino!</p>
-            
-            <div className="bg-slate-950/80 p-5 rounded-2xl border border-slate-850 space-y-3">
-              <span className="text-[10px] font-mono text-emerald-400 uppercase tracking-widest block">È Nata una Nuova Regina!</span>
-              <div className="my-2 flex justify-center text-5xl animate-float">🐮</div>
-              <p className="text-xs text-slate-300">Un dolcissimo vitellino {hatchingEgg.rarity} è cresciuto sano e forte nei nostri pascoli ed è entrato ufficialmente nel tuo **Vatsadex**!</p>
-            </div>
-
-            <button
-              onClick={() => {
-                playMooSfx();
-                setHatchingEgg(null);
-              }}
-              className="w-full bg-amber-500 hover:bg-amber-400 text-[#0b0820] font-mono font-bold text-xs py-2.5 rounded-xl border-b-4 border-amber-700 cursor-pointer"
-            >
-              ACCOGLI IN STALLA! 🌾
             </button>
           </div>
         </div>
