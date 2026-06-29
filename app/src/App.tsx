@@ -39,6 +39,7 @@ import { RespectEncounter } from './components/RespectEncounter';
 import { RESPONSIBLE_QUESTIONS, ResponsibleQuestion } from './data/responsibleQuestions';
 import BattleScene from './components/BattleScene';
 import DungeonRun from './components/DungeonRun';
+import ValutazioneReina from './components/ValutazioneReina';
 import { MAP_BATTLES, MapBattle } from './data/mapBattles';
 import { DUNGEONS, Dungeon } from './data/dungeons';
 import { ARENAS, ArenaId } from './data/arenas';
@@ -848,6 +849,10 @@ export default function App() {
   // Capture mode variables
   const [isCapturingMode, setIsCapturingMode] = useState(false);
   const [encounterCow, setEncounterCow] = useState<Vatsamon | null>(null);
+  // FASE 3 — Valutazione del Giudice (evento speciale per Reine rare+): accuratezza
+  // 0..100 che migliora l'affidamento. null = non ancora valutata.
+  const [valutazione, setValutazione] = useState<number | null>(null);
+  const [showValutazione, setShowValutazione] = useState(false);
   const [selectedBallId, setSelectedBallId] = useState<string>('item-bell-std');
   const [targetRingScale, setTargetRingScale] = useState(1);
   const [hasFedApple, setHasFedApple] = useState(false);
@@ -1343,6 +1348,8 @@ export default function App() {
     playClickSfx();
     setEncounterCow(wild.vatsa);
     setIsCapturingMode(true);
+    setValutazione(null);
+    setShowValutazione(false);
     setCaptureStep('aiming');
     setHasFedApple(false);
     setSelectedBallId('item-bell-std');
@@ -1420,6 +1427,8 @@ export default function App() {
         if (hasFedApple) captureChance *= 1.5;       // mela alpina
         if (rating === 'EXCELLENT') captureChance *= 1.6;
         else if (rating === 'GREAT') captureChance *= 1.35;
+        // FASE 3 — la Valutazione del Giudice conquista la fiducia dell'allevatore.
+        if (valutazione !== null) captureChance *= valutazione >= 85 ? 1.6 : valutazione >= 60 ? 1.3 : 1.1;
       }
 
       const isCaught = Math.random() <= captureChance;
@@ -1429,9 +1438,10 @@ export default function App() {
         setCaptureLogMsg(`Gotcha! ${encounterCow.name} è stata felicemente sintonizzata!`);
         playVictorySfx();
 
-        // Add to permanent collection
-        setVatsadex(prev => [encounterCow, ...prev]);
-        setActiveCombatantId(encounterCow.id);
+        // Add to permanent collection (con la valutazione del giudice, se fatta)
+        const registrata = valutazione !== null ? { ...encounterCow, valutazioneGiudice: valutazione } : encounterCow;
+        setVatsadex(prev => [registrata, ...prev]);
+        setActiveCombatantId(registrata.id);
         
         // Remove from overworld spawns
         setWildCows(prev => prev.filter(c => c.id !== encounterCow.id));
@@ -1770,6 +1780,8 @@ export default function App() {
       setTimeout(() => {
         playMooSfx();
         setEncounterCow(fullySynthesized);
+        setValutazione(null);
+        setShowValutazione(false);
         setIsCapturingMode(true); // Direct to AR catching view!
         setIsScanning(false);
         setScanImage(null);
@@ -2470,6 +2482,20 @@ export default function App() {
                 </div>
               </div>
 
+              {/* FASE 3 — Valutazione del Giudice: evento speciale per Reine rare+ */}
+              {encounterCow.rarity !== 'Comune' && captureStep === 'aiming' && (
+                valutazione === null ? (
+                  <button id="open-valutazione" onClick={() => { playClickSfx(); setShowValutazione(true); }}
+                    className="bg-amber-950/40 border border-amber-600/50 text-amber-300 font-mono font-black text-[11px] py-2 rounded-xl flex items-center justify-center gap-2 hover:bg-amber-900/40">
+                    ⚖️ Valuta la Reina (Giudice) — migliora l'affidamento
+                  </button>
+                ) : (
+                  <div className="bg-emerald-950/40 border border-emerald-600/40 text-emerald-300 font-mono text-[11px] py-2 rounded-xl text-center" id="valutazione-esito">
+                    ⚖️ Valutazione del giudice: <b>{valutazione}/100</b> · affidamento più probabile
+                  </div>
+                )
+              )}
+
               {/* IMMERSIVE MIDDLE STAGE: BOUNCING COW & SHRINKING CAPTURE RING */}
               <div className="flex-grow flex flex-col items-center justify-center relative my-4">
                 
@@ -2671,6 +2697,16 @@ export default function App() {
 
             </div>
           </div>
+        )}
+
+        {/* FASE 3 — Overlay Valutazione del Giudice (sopra l'incontro) */}
+        {showValutazione && encounterCow && (
+          <ValutazioneReina
+            cow={encounterCow}
+            playClick={playClickSfx}
+            onClose={() => setShowValutazione(false)}
+            onDone={(acc) => { setValutazione(acc); setShowValutazione(false); }}
+          />
         )}
 
         {/* VIEW 2: AR LAB DNA SYNTHESIZER SCANNER */}
@@ -3258,7 +3294,7 @@ export default function App() {
             
             <div className="text-4xl">👑🎒⭐</div>
             <h1 className="text-3xl font-mono font-black text-emerald-400">LIVELLO SUPERATO!</h1>
-            <p className="text-sm text-slate-200">Congratulazioni! Sei salito al **Livello {levelUpAward}**!</p>
+            <p className="text-sm text-slate-200">Congratulazioni! Sei salito al <b className="text-amber-300">Livello {levelUpAward}</b>!</p>
             
             <div className="bg-slate-950/80 p-3 rounded-2xl border border-slate-850">
               <h5 className="text-[10px] font-mono text-slate-400 uppercase tracking-wide">Premi Sbloccati d'alta quota</h5>

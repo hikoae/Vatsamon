@@ -25,6 +25,8 @@ export interface Vatsamon {
   allevatore?: string;
   matricola?: string;
   riconoscimento?: string;
+  /** FASE 3 — accuratezza 0..100 della Valutazione del Giudice all'affidamento. */
+  valutazioneGiudice?: number;
   peso_kg?: number;
   pesoStimato?: boolean;
   lat?: number;
