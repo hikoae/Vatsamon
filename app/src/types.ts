@@ -89,6 +89,11 @@ export interface Trainer {
   capturedCount: number;
   kmTraveled: number;
   coins: number;
+  /** Valuta di prestigio: Forme di Fontina (si guadagnano vincendo le Leghe e
+   *  facendo crescere le Reines; si spendono in riconoscimenti permanenti). */
+  fontina?: number;
+  /** Stelle di Pedigree acquistate con la Fontina (prestigio permanente). */
+  pedigreeStars?: number;
   /** FASE 4 — Punteggio Rispetto (0..100), rispecchiato qui per la classifica cloud. */
   respectScore?: number;
 }

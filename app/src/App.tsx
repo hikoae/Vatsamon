@@ -51,6 +51,9 @@ import { soundEngine } from './utils/audio';
 import { generateVatsamonClient } from './lib/generate';
 import { REAL_COWS, REAL_TOTAL, REAL_CASERE, SHOWCASE_BY_RARITY } from './data/realCows';
 import { distanza, fmtDist, RAGGIO_CATTURA } from './lib/geo';
+import { gradoCorrente } from './data/gradi';
+import { faseCorrente } from './data/fase';
+import { VALUTE, FONTINA_REWARD, costoStellaPedigree, PEDIGREE_STAR_CAP } from './data/economy';
 
 // Fallback coordinate conversion for consistent SVG layout positioning
 export const getSvgCoords = (lat: number, lng: number) => {
@@ -247,6 +250,19 @@ export default function App() {
   useEffect(() => {
     setTrainer(prev => prev.respectScore === respectScore ? prev : { ...prev, respectScore });
   }, [respectScore]);
+
+  // ---- FASE 2: Identità (Gradi Amis des Reines), valuta di prestigio (Fontina),
+  //      motore di fase della stagione. Tutto derivato, niente stato nuovo. ----
+  const gradoStato = gradoCorrente({ xp: trainer.xp, capturedCount: trainer.capturedCount, respectScore });
+  const faseStato = faseCorrente(new Date().toISOString().slice(0, 10));
+  const fontina = trainer.fontina ?? 0;
+  const pedigreeStars = trainer.pedigreeStars ?? 0;
+  // Accredita Forme di Fontina (valuta di prestigio) con un avviso nel feed.
+  const guadagnaFontina = (n: number, motivo: string) => {
+    if (n <= 0) return;
+    setTrainer(prev => ({ ...prev, fontina: (prev.fontina ?? 0) + n }));
+    setTrekkingFeed(prev => [`🧀 +${n} ${n === 1 ? 'Forma' : 'Forme'} di Fontina · ${motivo}`, ...prev.slice(0, 8)]);
+  };
 
   // Trekking Waypoints coordinates tracking
   const [currentWaypointIndex, setCurrentWaypointIndex] = useState<number>(() => {
@@ -457,8 +473,10 @@ export default function App() {
         return next;
       });
       if (!dungeonsCleared.includes(d.id)) setDungeonsCleared(prev => [...prev, d.id]);
+      // Prestigio: conquistare una Lega rende Forme di Fontina.
+      setTrainer(prev => ({ ...prev, fontina: (prev.fontina ?? 0) + FONTINA_REWARD.legaConquistata }));
       const items = d.rewardItems.map(r => r.label).join(' · ');
-      setTrekkingFeed(prev => [`🏆 ${d.league} CONQUISTATA! Medaglia ${d.badgeEmoji} · +${d.rewardCoins} 🪙 · +${d.rewardXp} XP · ${items}`, ...prev.slice(0, 8)]);
+      setTrekkingFeed(prev => [`🏆 ${d.league} CONQUISTATA! Medaglia ${d.badgeEmoji} · +${d.rewardCoins} 🪙 · +${FONTINA_REWARD.legaConquistata} 🧀 · +${d.rewardXp} XP · ${items}`, ...prev.slice(0, 8)]);
     } else {
       setTrekkingFeed(prev => [`💀 La ${d.league} ti ha respinto. Rinforza la squadra e riprova!`, ...prev.slice(0, 8)]);
     }
@@ -976,6 +994,18 @@ export default function App() {
     setProfileMsg("Rifornimento completato: +2000 🪙, scorte piene, livello ≥ 12 (arene sbloccate).");
   };
 
+  // SINK Fontina — Stella di Pedigree: riconoscimento permanente alla Désarpa.
+  const buyPedigreeStar = () => {
+    playClickSfx();
+    const owned = trainer.pedigreeStars ?? 0;
+    if (owned >= PEDIGREE_STAR_CAP) { setProfileMsg(`Hai già tutte le ${PEDIGREE_STAR_CAP} Stelle di Pedigree: massimo prestigio raggiunto! ★`); return; }
+    const costo = costoStellaPedigree(owned);
+    if ((trainer.fontina ?? 0) < costo) { setProfileMsg(`Ti servono ${costo} 🧀 Forme di Fontina per la prossima Stella (ne hai ${trainer.fontina ?? 0}). Vinci le Leghe e fai crescere le Reines!`); return; }
+    setTrainer(prev => ({ ...prev, fontina: (prev.fontina ?? 0) - costo, pedigreeStars: (prev.pedigreeStars ?? 0) + 1 }));
+    adjustRespect(3);
+    setProfileMsg(`★ Stella di Pedigree n°${owned + 1} ottenuta! −${costo} 🧀 · prestigio permanente (+Rispetto).`);
+  };
+
   // Raccoglie tutte le chiavi di salvataggio (prefisso vazzamon_).
   const collectSave = () => {
     const data: Record<string, string> = {};
@@ -1150,9 +1180,9 @@ export default function App() {
       // Percorso COMPLETATO al raggiungimento dell'ultima tappa.
       if (nextIndex === activeTrail.length - 1 && !completedRoutes.includes(activeRouteId)) {
         setCompletedRoutes(prev => prev.includes(activeRouteId) ? prev : [...prev, activeRouteId]);
-        setTrainer(prev => ({ ...prev, coins: prev.coins + 200 }));
+        setTrainer(prev => ({ ...prev, coins: prev.coins + 200, fontina: (prev.fontina ?? 0) + FONTINA_REWARD.percorsoCompletato }));
         addTrainerXp(300);
-        setTrekkingFeed(prev => [`🏁 Percorso "${activeRoute.name}" COMPLETATO! +300 XP · +200 🪙 · ora rigiocabile liberamente`, ...prev.slice(0, 8)]);
+        setTrekkingFeed(prev => [`🏁 Percorso "${activeRoute.name}" COMPLETATO! +300 XP · +200 🪙 · +${FONTINA_REWARD.percorsoCompletato} 🧀 · ora rigiocabile liberamente`, ...prev.slice(0, 8)]);
       }
     } else {
       const targetWp = activeTrail[nextWaypointIndex] || activeTrail[0];
@@ -1823,8 +1853,9 @@ export default function App() {
                     <span className="font-mono font-black text-sm tracking-wide title-gradient">VATSAMON GO</span>
                     <span className="text-[8px] bg-[#1a1626] text-white border border-[#c8102e]/60 px-1.5 py-0.5 rounded-full font-bold uppercase">Valle d'Aosta</span>
                   </div>
-                  <div className="text-[9.5px] font-mono text-slate-400 truncate">
-                    <span className="text-amber-400 font-bold">{trainer.level >= 17 ? "Grand Éleveur" : trainer.level >= 13 ? "Capo-Mandria" : trainer.level >= 9 ? "Allevatore" : trainer.level >= 5 ? "Mandriano" : "Apprendista"}</span>
+                  <div className="text-[9.5px] font-mono text-slate-400 truncate" title={gradoStato.grado.perk}>
+                    <span className="text-amber-400 font-bold">{gradoStato.grado.emoji} {gradoStato.grado.nome}</span>
+                    {pedigreeStars > 0 && <span className="text-amber-300"> {'★'.repeat(Math.min(pedigreeStars, 5))}</span>}
                     <span className="text-slate-600"> · </span>{trainer.name}
                   </div>
                 </div>
@@ -1847,11 +1878,16 @@ export default function App() {
             </div>
 
             {/* riga 3: STATISTICHE — tutte ben visibili */}
-            <div className="grid grid-cols-4 gap-1.5 mt-2">
-              <div className="bg-slate-900 border border-amber-700/40 rounded-xl py-1 text-center" title="Monete">
+            <div className="grid grid-cols-5 gap-1.5 mt-2">
+              <div className="bg-slate-900 border border-amber-700/40 rounded-xl py-1 text-center" title="Denari d'Alpeggio">
                 <div className="text-[13px] leading-none">🪙</div>
                 <div className="text-[11px] font-mono font-extrabold text-amber-300 leading-tight">{trainer.coins}</div>
-                <div className="text-[7px] font-mono uppercase text-slate-500">Monete</div>
+                <div className="text-[7px] font-mono uppercase text-slate-500">Denari</div>
+              </div>
+              <div className="bg-slate-900 border rounded-xl py-1 text-center" style={{ borderColor: VALUTE.fontina.colore + "66" }} id="fontina-hud" title="Forme di Fontina — valuta di prestigio">
+                <div className="text-[13px] leading-none">🧀</div>
+                <div className="text-[11px] font-mono font-extrabold leading-tight" style={{ color: VALUTE.fontina.colore }}>{fontina}</div>
+                <div className="text-[7px] font-mono uppercase text-slate-500">Fontina</div>
               </div>
               <div className="bg-slate-900 border rounded-xl py-1 text-center" style={{ borderColor: respectTone(respectScore).color + "66" }} id="respect-hud" title={`Rispetto: ${respectTone(respectScore).label} (${respectScore}/100)`}>
                 <div className="text-[13px] leading-none">🌿</div>
@@ -2974,6 +3010,24 @@ export default function App() {
 
         {/* VIEW: STAGIONE (second screen ufficiale delle Batailles de Reines) */}
         {activeTab === 'stagione' && (
+          <div className="space-y-3">
+            {/* Banda FASE CORRENTE — motore di fase della stagione reale */}
+            <div id="fase-banner" className="rounded-2xl border border-[#c8102e]/40 p-3 flex items-center gap-3" style={{ background: "linear-gradient(90deg,#1a1626,#241a2e)" }}>
+              <span className="text-3xl flex-shrink-0">{faseStato.emoji}</span>
+              <div className="min-w-0 flex-grow">
+                <div className="text-[9px] font-mono uppercase tracking-widest text-amber-400">Fase · {faseStato.label}</div>
+                <div className="text-[10px] text-slate-300 leading-snug">{faseStato.nota}</div>
+                {faseStato.prossimo && (
+                  <div className="text-[9px] text-slate-400 mt-0.5">📍 Prossima: <b className="text-slate-200">{faseStato.prossimo.comune}</b> · {faseStato.prossimo.data}</div>
+                )}
+              </div>
+              {faseStato.giorniAllaFinale >= 0 && (
+                <div className="text-center flex-shrink-0 bg-slate-950/60 rounded-xl px-2.5 py-1.5 border border-amber-700/40">
+                  <div className="text-base font-mono font-black text-amber-300 leading-none">{faseStato.giorniAllaFinale}</div>
+                  <div className="text-[7px] font-mono uppercase text-slate-500">gg alla finale</div>
+                </div>
+              )}
+            </div>
           <SeasonView
             onReward={(coins, xp) => {
               setTrainer(prev => ({ ...prev, coins: prev.coins + coins }));
@@ -2981,6 +3035,7 @@ export default function App() {
               setTrekkingFeed(prev => [`🏆 Tabellone completato! Pronostico finale fatto (+${coins} 🪙 +${xp} XP)`, ...prev.slice(0, 8)]);
             }}
           />
+          </div>
         )}
 
         {/* VIEW 6: SCUOLA D'ALPEGGIO (QUIZ EDUCATIVO) */}
@@ -3102,7 +3157,33 @@ export default function App() {
             <div className="grid grid-cols-3 gap-2 text-center">
               <div className="bg-slate-950 rounded-xl border border-slate-850 py-2"><div className="text-[9px] text-slate-500 font-mono uppercase">Reines</div><div className="text-sm font-mono font-black text-emerald-300">{vatsadex.length}</div></div>
               <div className="bg-slate-950 rounded-xl border border-slate-850 py-2"><div className="text-[9px] text-slate-500 font-mono uppercase">Livello</div><div className="text-sm font-mono font-black text-amber-300">{trainer.level}</div></div>
-              <div className="bg-slate-950 rounded-xl border border-slate-850 py-2"><div className="text-[9px] text-slate-500 font-mono uppercase">Monete</div><div className="text-sm font-mono font-black text-amber-300">{trainer.coins}</div></div>
+              <div className="bg-slate-950 rounded-xl border border-slate-850 py-2"><div className="text-[9px] text-slate-500 font-mono uppercase">Denari</div><div className="text-sm font-mono font-black text-amber-300">{trainer.coins}</div></div>
+            </div>
+
+            {/* PRESTIGIO — grado Amis des Reines + Stella di Pedigree (sink Fontina) */}
+            <div className="bg-slate-950 rounded-2xl border border-amber-700/40 p-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-[9px] text-slate-500 font-mono uppercase tracking-widest">Grado Amis des Reines</div>
+                  <div className="text-sm font-mono font-black text-amber-300">{gradoStato.grado.emoji} {gradoStato.grado.nome}{pedigreeStars > 0 ? ` ${'★'.repeat(Math.min(pedigreeStars, 5))}` : ''}</div>
+                  <div className="text-[9px] text-slate-400 italic">{gradoStato.grado.perk}</div>
+                </div>
+                <div className="text-right">
+                  <div className="text-[9px] text-slate-500 font-mono uppercase">Fontina</div>
+                  <div className="text-base font-mono font-black" style={{ color: VALUTE.fontina.colore }}>🧀 {fontina}</div>
+                </div>
+              </div>
+              {gradoStato.next && (
+                <div>
+                  <div className="flex justify-between text-[8px] font-mono text-slate-500"><span>Prestigio {gradoStato.prestigio}</span><span>→ {gradoStato.next.nome}</span></div>
+                  <div className="h-1.5 rounded-full bg-slate-800 overflow-hidden mt-0.5"><div className="h-full bg-gradient-to-r from-amber-500 to-amber-300" style={{ width: `${Math.round(gradoStato.versoNext * 100)}%` }} /></div>
+                </div>
+              )}
+              <button onClick={buyPedigreeStar} id="buy-pedigree" disabled={pedigreeStars >= PEDIGREE_STAR_CAP}
+                className="w-full bg-amber-600 hover:bg-amber-500 disabled:opacity-40 text-[#0b0820] font-mono font-black text-[11px] py-2.5 rounded-xl border-b-4 border-amber-800">
+                {pedigreeStars >= PEDIGREE_STAR_CAP ? '★ Prestigio massimo raggiunto' : `★ Stella di Pedigree — ${costoStellaPedigree(pedigreeStars)} 🧀`}
+              </button>
+              <p className="text-[8px] text-slate-500 text-center leading-snug">La Désarpa premia chi ha portato lontano la propria mandria: ogni Stella è un riconoscimento permanente (+Rispetto).</p>
             </div>
 
             {/* risorse di test */}
