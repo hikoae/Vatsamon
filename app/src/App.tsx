@@ -46,6 +46,7 @@ import { TREK_ROUTES } from './data/routes';
 import { Challenges } from './components/Challenges';
 import { SeasonView } from './components/SeasonView';
 import { StallaScreen } from './components/StallaScreen';
+import { DailyPanel } from './components/DailyPanel';
 import { soundEngine } from './utils/audio';
 import { generateVatsamonClient } from './lib/generate';
 import { REAL_COWS, REAL_TOTAL, REAL_CASERE, SHOWCASE_BY_RARITY } from './data/realCows';
@@ -3002,6 +3003,16 @@ export default function App() {
         {/* VIEW: PREMI & OBIETTIVI (Sfide del Trekker, spostate qui dal tab Mappa) */}
         {activeTab === 'premi' && (
           <div className="space-y-6" id="premi-view">
+            <DailyPanel
+              captured={trainer.capturedCount}
+              km={trainer.kmTraveled}
+              onReward={(coins, xp) => {
+                setTrainer(prev => ({ ...prev, coins: prev.coins + coins }));
+                addTrainerXp(xp);
+                setTrekkingFeed(prev => [`🐄 Giro di Stalla: +${coins} 🪙 +${xp} XP`, ...prev.slice(0, 8)]);
+              }}
+              playClick={playClickSfx}
+            />
             <div className="bg-slate-950 border border-rose-700/30 rounded-3xl p-4">
               <Challenges
                 stats={{
