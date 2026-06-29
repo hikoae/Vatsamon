@@ -377,4 +377,91 @@ export const QUIZ_QUESTIONS: QuizQuestion[] = [
       "Esplorare bene è curiosità unita a rispetto e prudenza: si osserva, si impara e si protegge. Saper rinunciare (per meteo, stanchezza o per non disturbare) è segno di un vero esploratore, non di debolezza.",
     difficulty: "Difficile",
   },
+
+  // ===== STORIA delle Batailles de Reines (per chi non le conosce) =====
+  {
+    id: "s1",
+    category: "Storia",
+    question: "Come nasce, in origine, la “Bataille de Reines”?",
+    options: [
+      "L'hanno inventata gli allevatori come spettacolo a pagamento.",
+      "Dall'istinto delle mucche: all'alpeggio si spingono per stabilire chi guida la mandria.",
+      "Da un'antica battaglia tra eserciti, poi diventata festa.",
+      "Da una gara di mungitura trasformata in sfida.",
+    ],
+    correctAnswerIndex: 1,
+    explanation:
+      "La bataille non è imposta dall'uomo: quando all'inalpa mandrie diverse si mescolano ai pascoli, le mucche più combattive si sfidano a corna per stabilire la gerarchia. La vincitrice è la «reina» dell'alpeggio. Da quell'istinto è nata la tradizione.",
+    difficulty: "Facile",
+  },
+  {
+    id: "s2",
+    category: "Storia",
+    question: "In che anno nasce l'Association Régionale Amis des Batailles de Reines, con la prima finale regionale?",
+    options: ["1858", "1958", "1981", "2001"],
+    correctAnswerIndex: 1,
+    explanation:
+      "Nel 1958 gli scontri spontanei diventano un vero campionato: nasce l'Association e si disputa la prima finale regionale, con iscrizioni, categorie di peso e calendario. Per questo l'edizione del 2026 è la 69ª.",
+    difficulty: "Medio",
+  },
+  {
+    id: "s3",
+    category: "Storia",
+    question: "Chi, a metà Ottocento, descrisse in patois le battaglie dell'alpeggio di Vertosan?",
+    options: [
+      "Il poeta Jean-Baptiste Cerlogne.",
+      "L'esploratore Edward Whymper.",
+      "Sant'Anselmo d'Aosta.",
+      "Il casato dei Challant.",
+    ],
+    correctAnswerIndex: 0,
+    explanation:
+      "Jean-Baptiste Cerlogne, poeta in patois valdostano, descrisse le battaglie a Vertosan: una delle prime testimonianze scritte, da cui il torneo è noto almeno dal 1858, prima ancora di avere regole ufficiali.",
+    difficulty: "Difficile",
+  },
+  {
+    id: "s4",
+    category: "Storia",
+    question: "Dove si tiene la grande finale regionale delle Batailles de Reines?",
+    options: [
+      "Allo stadio di Torino.",
+      "Sul ghiacciaio del Monte Bianco.",
+      "All'Arena Croix-Noire di Aosta.",
+      "In Piazza Chanoux ad Aosta.",
+    ],
+    correctAnswerIndex: 2,
+    explanation:
+      "La finale ha casa nell'arena permanente della Croix-Noire, alla periferia di Aosta: in autunno migliaia di spettatori incoronano le tre Reines des Reines, una per categoria di peso.",
+    difficulty: "Facile",
+  },
+  {
+    id: "s5",
+    category: "Storia",
+    question: "Oltre confine, in Svizzera, esiste una tradizione “gemella”. Quale?",
+    options: [
+      "I Combats de Reines del Vallese, con le mucche di razza Hérens.",
+      "Una corsa di mucche sul ghiaccio a Zermatt.",
+      "Un concorso di salto a ostacoli per bovine.",
+      "Una gara di velocità in discesa.",
+    ],
+    correctAnswerIndex: 0,
+    explanation:
+      "Nel Vallese svizzero le mucche di razza Hérens animano i «Combats de Reines», con una grande finale ad Aproz. Stessa anima, mondo distinto: due tradizioni vicine ma da non confondere.",
+    difficulty: "Medio",
+  },
+  {
+    id: "s6",
+    category: "Storia",
+    question: "Qual è il premio simbolico della regina, alla désarpa e in finale?",
+    options: [
+      "Una medaglia d'oro.",
+      "Il “bosquet”: rami addobbati con fiori (rossi per la più combattiva).",
+      "Una campana d'argento.",
+      "Un sacco di Fontina DOP.",
+    ],
+    correctAnswerIndex: 1,
+    explanation:
+      "Il riconoscimento tradizionale è il «bosquet», un addobbo di rami e fiori: rossi per la «reina di corne» (la più combattiva), bianchi per la «reina di lasi» (la più produttiva). Un premio identitario, più del valore materiale.",
+    difficulty: "Difficile",
+  },
 ];

@@ -76,6 +76,90 @@ export const CULTURA: SchedaCultura[] = [
   },
 ];
 
+/** Tappa della linea del tempo storica delle Batailles de Reines (IT/FR). */
+export interface MilestoneStoria {
+  id: string;
+  epoca: string;       // etichetta breve (anno/era), es. "1858" o "Da sempre"
+  emoji: string;
+  titolo: string;
+  testo: string;
+  titoloFr: string;
+  testoFr: string;
+}
+
+/**
+ * STORIA — linea del tempo per chi non conosce le Batailles. Fatti verificati:
+ * origine spontanea all'alpe; prime testimonianze scritte di metà '800
+ * (Cerlogne, Vertosan); nascita dell'Association e della finale regionale nel
+ * 1958 (2026 = 69ª edizione); finale all'Arena Croix-Noire di Aosta; tradizione
+ * gemella ma distinta delle Hérens nel Vallese svizzero.
+ */
+export const STORIA: MilestoneStoria[] = [
+  {
+    id: "st-origini", epoca: "Da sempre", emoji: "⛰️",
+    titolo: "Nasce all'alpeggio, per istinto",
+    testo:
+      "La bataille non l'ha inventata l'uomo: quando, all'inalpa, mandrie diverse si mescolano ai pascoli d'alta quota, le mucche più combattive si spingono fronte contro fronte per stabilire chi guida. La vincitrice è la «reina» dell'alpeggio. Tutto qui comincia: dall'istinto, non da una regola.",
+    titoloFr: "Née à l'alpage, par instinct",
+    testoFr:
+      "La bataille n'a pas été inventée par l'homme : quand, à l'inalpe, des troupeaux différents se mêlent aux pâturages d'altitude, les vaches les plus combatives se poussent front contre front pour décider qui mène. La gagnante est la « reine » de l'alpage. Tout commence ici : par l'instinct, pas par une règle.",
+  },
+  {
+    id: "st-1858", epoca: "1858", emoji: "📜",
+    titolo: "Le prime testimonianze scritte",
+    testo:
+      "Le sfide tra mucche sono documentate almeno dalla metà dell'Ottocento. Il poeta in patois Jean-Baptiste Cerlogne descrive le battaglie dell'alpeggio di Vertosan: da qui il torneo è noto e raccontato, prima ancora di avere regole ufficiali.",
+    titoloFr: "Les premiers témoignages écrits",
+    testoFr:
+      "Les défis entre vaches sont attestés au moins depuis le milieu du XIXe siècle. Le poète en patois Jean-Baptiste Cerlogne décrit les batailles de l'alpage de Vertosan : dès lors le tournoi est connu et raconté, avant même d'avoir des règles officielles.",
+  },
+  {
+    id: "st-villaggio", epoca: "Fine '800 – primo '900", emoji: "🔔",
+    titolo: "Appuntamento di villaggio",
+    testo:
+      "Le battaglie diventano un rito comunitario: alla désarpa, la discesa di fine settembre, ci si ritrova per vedere chi è la «reina di corne», la più combattiva. La regina è l'orgoglio dell'allevatore e di tutto il paese.",
+    titoloFr: "Rendez-vous de village",
+    testoFr:
+      "Les batailles deviennent un rite communautaire : à la désalpe, la descente de fin septembre, on se retrouve pour voir qui est la « reine des cornes », la plus combative. La reine est la fierté de l'éleveur et de tout le village.",
+  },
+  {
+    id: "st-1958", epoca: "1958", emoji: "🏆",
+    titolo: "Nasce il campionato",
+    testo:
+      "L'anno della svolta: nasce l'Association Régionale Amis des Batailles de Reines e si disputa la prima finale regionale. Gli scontri spontanei diventano un vero campionato, con iscrizioni, categorie di peso, calendario e regole condivise.",
+    titoloFr: "Naissance du championnat",
+    testoFr:
+      "L'année du tournant : naît l'Association Régionale Amis des Batailles de Reines et se dispute la première finale régionale. Les affrontements spontanés deviennent un véritable championnat, avec inscriptions, catégories de poids, calendrier et règles partagées.",
+  },
+  {
+    id: "st-arena", epoca: "Decenni recenti", emoji: "🏟️",
+    titolo: "La casa della finale: la Croix-Noire",
+    testo:
+      "La grande finale trova casa in un'arena permanente alla periferia di Aosta, la Croix-Noire. Migliaia di spettatori si ritrovano in autunno per incoronare le tre Reines des Reines, una per categoria di peso.",
+    titoloFr: "La maison de la finale : la Croix-Noire",
+    testoFr:
+      "La grande finale trouve sa maison dans une arène permanente à la périphérie d'Aoste, la Croix-Noire. Des milliers de spectateurs se réunissent en automne pour couronner les trois Reines des Reines, une par catégorie de poids.",
+  },
+  {
+    id: "st-oggi", epoca: "Oggi · 2026", emoji: "🐮",
+    titolo: "Una tradizione viva",
+    testo:
+      "Oggi il campionato è alla 69ª edizione: una quindicina di eliminatorie in tutta la regione da fine marzo a ottobre, con la pausa d'alpeggio, e centinaia di bovine in gara nella stagione. Le Batailles restano un simbolo identitario della Valle d'Aosta.",
+    titoloFr: "Une tradition vivante",
+    testoFr:
+      "Aujourd'hui le championnat en est à sa 69e édition : une quinzaine d'éliminatoires dans toute la région de fin mars à octobre, avec la pause d'alpage, et des centaines de vaches en lice dans la saison. Les Batailles restent un symbole identitaire de la Vallée d'Aoste.",
+  },
+  {
+    id: "st-herens", epoca: "Tradizione gemella", emoji: "🇨🇭",
+    titolo: "Le cugine del Vallese",
+    testo:
+      "Oltre confine, nel Vallese svizzero, le mucche di razza Hérens danno vita ai «Combats de Reines», con una grande finale ad Aproz. Stessa anima, mondo distinto: due tradizioni vicine da non confondere.",
+    titoloFr: "Les cousines du Valais",
+    testoFr:
+      "De l'autre côté de la frontière, en Valais suisse, les vaches de race Hérens animent les « Combats de Reines », avec une grande finale à Aproz. Même âme, monde distinct : deux traditions voisines à ne pas confondre.",
+  },
+];
+
 /** Voce di glossario IT/FR/patois (pronta per i18n). */
 export interface GlossarioVoce {
   chiave: string;
