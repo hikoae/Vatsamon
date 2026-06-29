@@ -17,14 +17,20 @@ fallback di prima classe e il badge [REALE] vale sul pedigree, non sulla foto.
 - [ ] **Campionesse storiche** (Falchetta, Suisse, Bandit, Sirène) come record
       completi nel dataset + alias case-insensitive in `reinaByName`.
 
-## ✅ Fatto
+## ✅ Fatto (testato + committato)
 - [x] Piano di redesign (`GAME_REDESIGN.md`).
+- [x] **Stalla genealogica** (sostituisce le uova): monta con tori, gravidanza
+      come cura, nascita del moudzon con ereditarietà, crescita a stadi. (10/10 test)
+- [x] **Restyling grafico moderno** (vetro, profondità, micro-interazioni).
+- [x] **Scanner → "Riconoscimento d'Alpeggio"** (via DNA sci-fi; razze/nomi reali,
+      avvistamento onesto).
+- [x] **Coerenza overworld + combattimento**: razze/nomi selvatici reali,
+      nomi-mossa ripuliti dagli eccessi.
 
-## 🟡 In corso / prossimi (ordine del piano)
-- [ ] **Stalla genealogica** (sostituisce le uova): monta con tori, gravidanza
-      come cura, nascita del moudzon con ereditarietà, crescita a stadi.
-- [ ] **Battaglia "La Spinta"** (incruenta, barra di spinta + fiato + calma).
-- [ ] **Cattura → Anagrafe** (affidamento; veloce per i comuni, piena per le rare).
+## 🟡 Prossimi (ordine del piano)
+- [ ] **Battaglia "La Spinta"** (incruenta, barra di spinta + fiato + calma) —
+      riscrittura del motore di combattimento (la più grossa/rischiosa).
+- [ ] **Cattura → Anagrafe** completa (3 gesti di valutazione + affidamento).
 - [ ] **Economia 2 valute + Gradi Amis des Reines** + motore di fase `faseCorrente()`.
 - [ ] **Mappa/fase + spawn per zona + trail con avatar/milestone**.
 - [ ] **Retention statico** (daily seed, streak, classifiche read-only, condivisione).
