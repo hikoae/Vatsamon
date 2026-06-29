@@ -125,13 +125,13 @@ export default function DungeonRun({
       if (res.missed) pushLog([`${A.name} usa ${move.name}… ma manca!`]);
       else {
         if (side === "p") oppHpAdd(-res.dmg); else teamHpAdd(activeIdx, -res.dmg);
-        pushLog([`${A.name} usa ${move.name}: ${res.dmg} danni${res.crit ? " (CRIT!)" : ""}`]);
+        pushLog([`${A.name} usa ${move.name}: ${res.dmg} di spinta${res.crit ? " (spinta decisa!)" : ""}`]);
         setHit(side === "p" ? "o" : "p"); if (res.crit || move.category === "speciale") setShake(true);
         const eff = effectivenessLabel(res.mult); if (eff) pushLog([eff]);
         await wait(140); setHit(null); setShake(false);
       }
     } else if (move.category === "difesa") { if (side === "p") { s.pDef = true; s.pEnergy = cap(s.pEnergy + move.energy); } else { s.oDef = true; s.oEnergy = cap(s.oEnergy + move.energy); } pushLog([`${A.name} usa ${move.name}: si protegge.`]); }
-    else if (move.category === "cura") { const h = move.amount || 60; if (side === "p") teamHpAdd(activeIdx, h, A.maxHp); else oppHpAdd(h, D.maxHp); if (side === "p") s.pEnergy = cap(s.pEnergy + move.energy); else s.oEnergy = cap(s.oEnergy + move.energy); pushLog([`${A.name} usa ${move.name}: +${h} HP.`]); }
+    else if (move.category === "cura") { const h = move.amount || 60; if (side === "p") teamHpAdd(activeIdx, h, A.maxHp); else oppHpAdd(h, D.maxHp); if (side === "p") s.pEnergy = cap(s.pEnergy + move.energy); else s.oEnergy = cap(s.oEnergy + move.energy); pushLog([`${A.name} usa ${move.name}: +${h} di tenuta.`]); }
     else { const amt = move.amount || 30; if (move.buffStat === "atk") { if (side === "p") s.pAtkBuff = Math.min(100, s.pAtkBuff + amt); else s.oAtkBuff = Math.min(100, s.oAtkBuff + amt); } else { if (side === "p") s.pDefBuff = Math.min(100, s.pDefBuff + amt); else s.oDefBuff = Math.min(100, s.oDefBuff + amt); } if (side === "p") s.pEnergy = cap(s.pEnergy + move.energy); else s.oEnergy = cap(s.oEnergy + move.energy); pushLog([`${A.name} usa ${move.name}!`]); }
     rerender();
     await wait(380);
@@ -144,7 +144,7 @@ export default function DungeonRun({
     resetTransient();
     stRef.current.oppHp = oppsRef.current[next].maxHp;
     setOppIdx(next);
-    pushLog([`⬇️ ${dungeon.opponents[oppIdx].name} sconfitto! Sfidante ${next + 1}: ${dungeon.opponents[next].name}`]);
+    pushLog([`⬇️ ${dungeon.opponents[oppIdx].name} si ritira! Sfidante ${next + 1}: ${dungeon.opponents[next].name}`]);
     rerender();
     await wait(500);
   };
@@ -185,7 +185,7 @@ export default function DungeonRun({
     if (!eff || !owned || owned.quantity <= 0) return;
     playClick(); setBusy(true); setShowBag(false);
     const s = stRef.current; const A = teamRef.current[activeIdx];
-    if (eff.kind === "heal") { teamHpAdd(activeIdx, eff.amount, A.maxHp); pushLog([`🎒 ${ITEM_LABEL[id]?.name}: +${eff.amount} HP a ${A.name}`]); }
+    if (eff.kind === "heal") { teamHpAdd(activeIdx, eff.amount, A.maxHp); pushLog([`🎒 ${ITEM_LABEL[id]?.name}: +${eff.amount} tenuta a ${A.name}`]); }
     else if (eff.kind === "buff_atk") { s.pAtkBuff = Math.min(100, s.pAtkBuff + eff.amount); pushLog([`🎒 ${ITEM_LABEL[id]?.name}: ATK +${eff.amount}%`]); }
     else if (eff.kind === "buff_def") { s.pDefBuff = Math.min(100, s.pDefBuff + eff.amount); pushLog([`🎒 ${ITEM_LABEL[id]?.name}: DIF +${eff.amount}%`]); }
     else { s.pEnergy = cap(s.pEnergy + eff.amount); pushLog([`🎒 ${ITEM_LABEL[id]?.name}: Adrenalina +${eff.amount}`]); }
@@ -217,7 +217,7 @@ export default function DungeonRun({
         </div>
         <div className="flex-1 overflow-y-auto p-4 space-y-3">
           <p className="text-[11px] text-slate-300 text-center bg-slate-900/70 border border-slate-800 rounded-2xl p-3">
-            {dungeon.blurb}<br /><b className="text-amber-400">5 battaglie di fila</b> (4 sfidanti + Campione). Gli HP si trascinano: curi solo con gli oggetti. Se tutta la squadra va KO, riparti da capo.
+            {dungeon.blurb}<br /><b className="text-amber-400">5 battaglie di fila</b> (4 sfidanti + Campione). La tenuta si trascina: la recuperi solo con gli oggetti. Se tutta la mandria si ritira, riparti da capo.
           </p>
           <div className="text-[10px] font-mono text-slate-400 text-center">Scegli fino a 4 Reines per la squadra ({picked.length}/4):</div>
           <div className="grid grid-cols-3 gap-2">
@@ -329,7 +329,7 @@ export default function DungeonRun({
               {teamRef.current.map((f, i) => (
                 <button key={i} disabled={busy || i === activeIdx || st.teamHp[i] <= 0} onClick={() => switchTo(i)} className="flex items-center gap-2 bg-slate-900 border border-slate-800 rounded-xl p-2 text-left disabled:opacity-40">
                   <CowVisual cow={f.visual} className="w-9 h-9" />
-                  <div><div className="text-[10px] font-mono font-black text-slate-100">{TYPES[f.type].emoji} {f.name}</div><div className="text-[8px] font-mono text-slate-400">{st.teamHp[i] <= 0 ? "KO" : `${Math.round(st.teamHp[i])}/${f.maxHp} HP`}</div></div>
+                  <div><div className="text-[10px] font-mono font-black text-slate-100">{TYPES[f.type].emoji} {f.name}</div><div className="text-[8px] font-mono text-slate-400">{st.teamHp[i] <= 0 ? "si ritira" : `${Math.round(st.teamHp[i])}/${f.maxHp} tenuta`}</div></div>
                 </button>
               ))}
             </div>
@@ -344,7 +344,7 @@ export default function DungeonRun({
               return (
                 <button key={b.id} onClick={() => useItem(b.id)} disabled={busy} className="w-full flex items-center gap-3 bg-slate-900 border border-slate-800 rounded-xl p-2 text-left disabled:opacity-40">
                   <span className="text-xl">{meta?.emoji}</span>
-                  <div className="flex-grow"><div className="text-[11px] font-mono font-black text-slate-100">{meta?.name}</div><div className="text-[9px] text-slate-400">{eff.kind === "heal" ? `Cura ${eff.amount} HP` : eff.kind === "buff_atk" ? `ATK +${eff.amount}%` : eff.kind === "buff_def" ? `DIF +${eff.amount}%` : `Adrenalina +${eff.amount}`}</div></div>
+                  <div className="flex-grow"><div className="text-[11px] font-mono font-black text-slate-100">{meta?.name}</div><div className="text-[9px] text-slate-400">{eff.kind === "heal" ? `Recupera ${eff.amount} tenuta` : eff.kind === "buff_atk" ? `ATK +${eff.amount}%` : eff.kind === "buff_def" ? `DIF +${eff.amount}%` : `Adrenalina +${eff.amount}`}</div></div>
                   <span className="text-[10px] font-mono text-amber-400">×{b.quantity}</span>
                 </button>
               );
@@ -362,7 +362,7 @@ export default function DungeonRun({
         )}
         {phase === "lost" && (
           <div className="text-center space-y-2 py-1">
-            <div className="text-lg font-mono font-black text-rose-500">💀 Squadra sconfitta</div>
+            <div className="text-lg font-mono font-black text-rose-500">😔 La tua mandria si ritira</div>
             <div className="text-[11px] font-mono text-slate-300">La {dungeon.league} ti ha respinto. Rinforza la squadra e riprova!</div>
             <button onClick={() => { playClick(); onClose(); }} className="w-full bg-slate-900 border border-slate-800 text-slate-300 font-mono font-black text-xs py-2.5 rounded-xl">Torna alla mappa</button>
           </div>

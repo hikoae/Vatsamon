@@ -174,13 +174,13 @@ if (await nearBtn.count()) {
   await page.waitForTimeout(500);
   let bGuard = 0;
   while (bGuard++ < 80) {
-    const ended = await page.locator("#battle-scene .font-mono.font-black", { hasText: /Hai vinto|Hai perso/ }).first().isVisible().catch(() => false);
+    const ended = await page.locator("#battle-scene .font-mono.font-black", { hasText: /si ritira/ }).first().isVisible().catch(() => false);
     if (ended) break;
     const mv = page.locator("#battle-moves button:not([disabled])").first();
     if (await mv.count()) await mv.click().catch(() => {});
     await page.waitForTimeout(350);
   }
-  const bDone = await page.locator("#battle-scene").getByText(/Hai vinto|Hai perso/).first().isVisible().catch(() => false);
+  const bDone = await page.locator("#battle-scene").getByText(/si ritira/).first().isVisible().catch(() => false);
   note(`battaglia sulla mappa conclusa: ${bDone}`);
   if (!bDone) problems.push("la battaglia sulla mappa non si conclude");
   await page.screenshot({ path: `${OUT}/v2int-7-battlescene.png` });
