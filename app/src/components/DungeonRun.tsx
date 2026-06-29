@@ -3,14 +3,11 @@ import { motion } from "motion/react";
 import { Backpack, X, Repeat } from "lucide-react";
 import { Vatsamon, BackpackItem } from "../types";
 import { CowVisual } from "./CowVisual";
+import { Fighter, buildPlayerFighter, buildScaledBoss } from "../lib/battle";
 import {
-  Fighter,
-  buildPlayerFighter,
-  buildScaledBoss,
-  computeDamage,
-  pickOpponentMove,
-} from "../lib/battle";
-import { BattleMove, TYPES, effectivenessLabel, BATTLE_ITEMS, cowType } from "../data/combat";
+  Spintatore, SpintaState, AzioneId, AZIONI, spintatoreFromFighter, initSpinta, applyAzione, pickAzioneAvversaria,
+} from "../lib/spinta";
+import { BATTLE_ITEMS } from "../data/combat";
 import { Dungeon } from "../data/dungeons";
 import { REAL_COWS } from "../data/realCows";
 
@@ -24,22 +21,8 @@ const ITEM_LABEL: Record<string, { name: string; emoji: string }> = {
   "item-energy-grappa": { name: "Grappa alla Genziana", emoji: "🥃" },
 };
 
-interface St {
-  teamHp: number[];
-  oppHp: number;
-  pEnergy: number; oEnergy: number;
-  pAtkBuff: number; pDefBuff: number; oAtkBuff: number; oDefBuff: number;
-  pDef: boolean; oDef: boolean;
-}
-
 export default function DungeonRun({
-  dungeon,
-  playerCows,
-  backpack,
-  onConsumeItem,
-  onResult,
-  onClose,
-  playClick,
+  dungeon, playerCows, backpack, onConsumeItem, onResult, onClose, playClick,
 }: {
   dungeon: Dungeon;
   playerCows: Vatsamon[];
@@ -57,125 +40,107 @@ export default function DungeonRun({
   const [busy, setBusy] = useState(false);
   const [showBag, setShowBag] = useState(false);
   const [showSwitch, setShowSwitch] = useState(false);
-  const [hit, setHit] = useState<"p" | "o" | null>(null);
+  const [lunge, setLunge] = useState<"p" | "o" | null>(null);
   const [shake, setShake] = useState(false);
 
-  const teamRef = useRef<Fighter[]>([]);
-  const oppsRef = useRef<Fighter[]>([]);
-  const stRef = useRef<St>({ teamHp: [], oppHp: 0, pEnergy: 0, oEnergy: 0, pAtkBuff: 0, pDefBuff: 0, oAtkBuff: 0, oDefBuff: 0, pDef: false, oDef: false });
+  const teamRef = useRef<Spintatore[]>([]);
+  const oppsRef = useRef<Spintatore[]>([]);
+  const fiatoRef = useRef<number[]>([]); // fiato per Reina della squadra (si trascina)
+  const stRef = useRef<SpintaState>({ barra: 50, fiatoP: 0, fiatoO: 0, calma: 80, reggiP: false, reggiO: false, esito: "corso" });
   const [, force] = useState(0);
   const rerender = () => force((n) => n + 1);
   const st = stRef.current;
-  const pushLog = (lines: string[]) => setLog((prev) => [...[...lines].reverse(), ...prev].slice(0, 6));
-  const cap = (n: number) => Math.max(0, Math.min(100, n));
+  const pushLog = (line: string) => setLog((prev) => [line, ...prev].slice(0, 6));
 
   const active = teamRef.current[activeIdx];
   const opp = oppsRef.current[oppIdx];
 
-  // ---- Avvio dungeon: costruisce squadra + 5 avversari scalati sulla media squadra ----
   const start = () => {
     playClick();
     const cows = picked.map((id) => playerCows.find((c) => c.id === id)!).filter(Boolean);
-    const team = cows.map(buildPlayerFighter);
+    const teamF = cows.map(buildPlayerFighter);
+    const team = teamF.map(spintatoreFromFighter);
     teamRef.current = team;
+    fiatoRef.current = team.map((s) => s.fiatoMax);
     const avg = {
-      atk: team.reduce((s, f) => s + f.atk, 0) / team.length,
-      def: team.reduce((s, f) => s + f.def, 0) / team.length,
-      agi: team.reduce((s, f) => s + f.agi, 0) / team.length,
-      maxHp: team.reduce((s, f) => s + f.maxHp, 0) / team.length,
+      atk: teamF.reduce((s, f) => s + f.atk, 0) / teamF.length,
+      def: teamF.reduce((s, f) => s + f.def, 0) / teamF.length,
+      agi: teamF.reduce((s, f) => s + f.agi, 0) / teamF.length,
+      maxHp: teamF.reduce((s, f) => s + f.maxHp, 0) / teamF.length,
     };
-    const ref = { ...team[0], atk: avg.atk, def: avg.def, agi: avg.agi, maxHp: avg.maxHp };
+    const ref: Fighter = { ...teamF[0], atk: avg.atk, def: avg.def, agi: avg.agi, maxHp: avg.maxHp };
     oppsRef.current = dungeon.opponents.map((o) => {
       const visual = REAL_COWS.find((c) => c.name === o.name) ||
         REAL_COWS.filter((c) => c.rarity === o.rarity && c.realPhoto)[0] ||
         REAL_COWS.filter((c) => c.realPhoto)[0] || REAL_COWS[0];
-      return buildScaledBoss(ref, { ...visual, name: o.name }, o.type, o.powerFactor, o.rarity);
+      return spintatoreFromFighter(buildScaledBoss(ref, { ...visual, name: o.name }, o.type, o.powerFactor, o.rarity));
     });
-    stRef.current = {
-      teamHp: team.map((f) => f.maxHp),
-      oppHp: oppsRef.current[0].maxHp,
-      pEnergy: 0, oEnergy: 0, pAtkBuff: 0, pDefBuff: 0, oAtkBuff: 0, oDefBuff: 0, pDef: false, oDef: false,
-    };
+    const s0 = initSpinta(team[0], oppsRef.current[0]);
+    s0.fiatoP = fiatoRef.current[0];
+    stRef.current = s0;
     setActiveIdx(0); setOppIdx(0);
-    setLog([`${dungeon.emoji} ${dungeon.league}: 5 sfide consecutive! Sfidante 1 — ${dungeon.opponents[0].name}`]);
+    setLog([`${dungeon.emoji} ${dungeon.league}: 5 spinte consecutive! Sfidante 1 — ${dungeon.opponents[0].name}`]);
     setShowBag(false); setShowSwitch(false);
     setPhase("fight"); rerender();
   };
 
-  const resetTransient = () => {
-    const s = stRef.current;
-    s.pEnergy = 0; s.oEnergy = 0; s.pAtkBuff = 0; s.pDefBuff = 0; s.oAtkBuff = 0; s.oDefBuff = 0; s.pDef = false; s.oDef = false;
-  };
-
-  // Utility HP (oppHp + teamHp[]) chiuse sullo stato.
-  const oppHpGet = () => stRef.current.oppHp;
-  const oppHpAdd = (d: number, max = Infinity) => { stRef.current.oppHp = Math.max(0, Math.min(max, stRef.current.oppHp + d)); };
-  const teamHpAdd = (i: number, d: number, max = Infinity) => { const s = stRef.current; s.teamHp[i] = Math.max(0, Math.min(max, s.teamHp[i] + d)); };
-
-  const performTurn = async (side: "p" | "o", move: BattleMove) => {
+  const performTurn = async (side: "p" | "o", azione: AzioneId) => {
     const A = side === "p" ? teamRef.current[activeIdx] : oppsRef.current[oppIdx];
-    const D = side === "p" ? oppsRef.current[oppIdx] : teamRef.current[activeIdx];
-    const s = stRef.current;
-    // calcola e applica (gestiamo gli HP qui, non in applyMove, per chiarezza)
-    if (move.category === "attacco" || move.category === "speciale") {
-      const defending = side === "p" ? s.oDef : s.pDef;
-      const res = computeDamage(A, D, move, defending, side === "p" ? s.pAtkBuff : s.oAtkBuff, side === "p" ? s.oDefBuff : s.pDefBuff);
-      if (side === "p") s.oDef = false; else s.pDef = false;
-      if (move.category === "speciale") { if (side === "p") s.pEnergy = 0; else s.oEnergy = 0; } else { if (side === "p") s.pEnergy = cap(s.pEnergy + move.energy); else s.oEnergy = cap(s.oEnergy + move.energy); }
-      if (res.missed) pushLog([`${A.name} usa ${move.name}… ma manca!`]);
-      else {
-        if (side === "p") oppHpAdd(-res.dmg); else teamHpAdd(activeIdx, -res.dmg);
-        pushLog([`${A.name} usa ${move.name}: ${res.dmg} di spinta${res.crit ? " (spinta decisa!)" : ""}`]);
-        setHit(side === "p" ? "o" : "p"); if (res.crit || move.category === "speciale") setShake(true);
-        const eff = effectivenessLabel(res.mult); if (eff) pushLog([eff]);
-        await wait(140); setHit(null); setShake(false);
-      }
-    } else if (move.category === "difesa") { if (side === "p") { s.pDef = true; s.pEnergy = cap(s.pEnergy + move.energy); } else { s.oDef = true; s.oEnergy = cap(s.oEnergy + move.energy); } pushLog([`${A.name} usa ${move.name}: si protegge.`]); }
-    else if (move.category === "cura") { const h = move.amount || 60; if (side === "p") teamHpAdd(activeIdx, h, A.maxHp); else oppHpAdd(h, D.maxHp); if (side === "p") s.pEnergy = cap(s.pEnergy + move.energy); else s.oEnergy = cap(s.oEnergy + move.energy); pushLog([`${A.name} usa ${move.name}: +${h} di tenuta.`]); }
-    else { const amt = move.amount || 30; if (move.buffStat === "atk") { if (side === "p") s.pAtkBuff = Math.min(100, s.pAtkBuff + amt); else s.oAtkBuff = Math.min(100, s.oAtkBuff + amt); } else { if (side === "p") s.pDefBuff = Math.min(100, s.pDefBuff + amt); else s.oDefBuff = Math.min(100, s.oDefBuff + amt); } if (side === "p") s.pEnergy = cap(s.pEnergy + move.energy); else s.oEnergy = cap(s.oEnergy + move.energy); pushLog([`${A.name} usa ${move.name}!`]); }
+    const B = side === "p" ? oppsRef.current[oppIdx] : teamRef.current[activeIdx];
+    setLunge(side); await wait(150);
+    const r = applyAzione(side, azione, stRef.current, A, B);
+    stRef.current = r.state;
+    fiatoRef.current[activeIdx] = r.state.fiatoP; // il fiato della Reina attiva si trascina
+    pushLog(r.log);
     rerender();
-    await wait(380);
+    setLunge(null);
+    if (azione === "incalza" || azione === "gira") { setShake(true); await wait(150); setShake(false); }
+    await wait(240);
   };
 
-  // Avversario sconfitto → prossimo, oppure dungeon vinto
+  // L'avversaria cede → prossimo sfidante (il fiato della tua Reina si trascina)
   const advanceOpponent = async () => {
     if (oppIdx >= oppsRef.current.length - 1) { setPhase("won"); onResult(true); return; }
     const next = oppIdx + 1;
-    resetTransient();
-    stRef.current.oppHp = oppsRef.current[next].maxHp;
+    const s = initSpinta(teamRef.current[activeIdx], oppsRef.current[next]);
+    s.fiatoP = fiatoRef.current[activeIdx]; // carry
+    stRef.current = s;
     setOppIdx(next);
-    pushLog([`⬇️ ${dungeon.opponents[oppIdx].name} si ritira! Sfidante ${next + 1}: ${dungeon.opponents[next].name}`]);
+    pushLog(`⬇️ ${dungeon.opponents[oppIdx].name} cede e si ritira! Sfidante ${next + 1}: ${dungeon.opponents[next].name}`);
     rerender();
     await wait(500);
   };
 
-  // Reina KO → passa alla prossima viva, oppure dungeon fallito
-  const afterPlayerHit = (): boolean => {
-    const s = stRef.current;
-    if (s.teamHp[activeIdx] > 0) return true;
-    pushLog([`💀 ${teamRef.current[activeIdx].name} è esausta!`]);
-    const nextAlive = s.teamHp.findIndex((hp) => hp > 0);
+  // La tua Reina cede → entra la prossima viva (riparte la spinta sullo stesso sfidante)
+  const cowRetreats = (): boolean => {
+    fiatoRef.current[activeIdx] = 0;
+    pushLog(`💨 ${teamRef.current[activeIdx].name} cede e si ritira.`);
+    const nextAlive = fiatoRef.current.findIndex((f) => f > 0);
     if (nextAlive === -1) { setPhase("lost"); onResult(false); return false; }
+    const s = initSpinta(teamRef.current[nextAlive], oppsRef.current[oppIdx]);
+    s.fiatoP = fiatoRef.current[nextAlive];
+    stRef.current = s;
     setActiveIdx(nextAlive);
-    pushLog([`➡️ Scende in campo ${teamRef.current[nextAlive].name}!`]);
+    pushLog(`➡️ Scende in campo ${teamRef.current[nextAlive].name}!`);
+    rerender();
     return true;
   };
 
   const opponentTurn = async () => {
-    const O = oppsRef.current[oppIdx];
-    const move = pickOpponentMove(O, stRef.current.oppHp / O.maxHp, stRef.current.oEnergy);
-    await performTurn("o", move);
-    if (!afterPlayerHit()) return;
+    await performTurn("o", pickAzioneAvversaria(stRef.current, oppsRef.current[oppIdx], teamRef.current[activeIdx]));
+    // la spinta può risolversi anche nel turno avversario (es. risoluzione a tempo)
+    if (stRef.current.esito === "vinto") { await advanceOpponent(); setBusy(false); return; }
+    if (stRef.current.esito === "perso") { if (!cowRetreats()) return; }
     setBusy(false);
   };
 
-  const doMove = async (move: BattleMove) => {
+  const doAction = async (azione: AzioneId) => {
     if (busy || phase !== "fight") return;
-    if (move.category === "speciale" && st.pEnergy < move.energy) return;
     playClick(); setBusy(true); setShowBag(false); setShowSwitch(false);
-    await performTurn("p", move);
-    if (oppHpGet() <= 0) { await advanceOpponent(); setBusy(false); return; }
-    await wait(250);
+    await performTurn("p", azione);
+    if (stRef.current.esito === "vinto") { await advanceOpponent(); setBusy(false); return; }
+    if (stRef.current.esito === "perso") { if (!cowRetreats()) return; }
+    await wait(220);
     await opponentTurn();
   };
 
@@ -185,27 +150,26 @@ export default function DungeonRun({
     if (!eff || !owned || owned.quantity <= 0) return;
     playClick(); setBusy(true); setShowBag(false);
     const s = stRef.current; const A = teamRef.current[activeIdx];
-    if (eff.kind === "heal") { teamHpAdd(activeIdx, eff.amount, A.maxHp); pushLog([`🎒 ${ITEM_LABEL[id]?.name}: +${eff.amount} tenuta a ${A.name}`]); }
-    else if (eff.kind === "buff_atk") { s.pAtkBuff = Math.min(100, s.pAtkBuff + eff.amount); pushLog([`🎒 ${ITEM_LABEL[id]?.name}: ATK +${eff.amount}%`]); }
-    else if (eff.kind === "buff_def") { s.pDefBuff = Math.min(100, s.pDefBuff + eff.amount); pushLog([`🎒 ${ITEM_LABEL[id]?.name}: DIF +${eff.amount}%`]); }
-    else { s.pEnergy = cap(s.pEnergy + eff.amount); pushLog([`🎒 ${ITEM_LABEL[id]?.name}: Adrenalina +${eff.amount}`]); }
+    if (eff.kind === "buff_atk" || eff.kind === "buff_def") { s.calma = Math.min(100, s.calma + eff.amount); pushLog(`🎒 ${ITEM_LABEL[id]?.name}: +calma.`); }
+    else { s.fiatoP = Math.min(A.fiatoMax, s.fiatoP + eff.amount); fiatoRef.current[activeIdx] = s.fiatoP; pushLog(`🎒 ${ITEM_LABEL[id]?.name}: +${eff.amount} fiato a ${A.name}.`); }
     onConsumeItem(id); rerender();
-    await wait(500);
-    await opponentTurn();
-  };
-
-  const switchTo = async (idx: number) => {
-    if (busy || phase !== "fight" || idx === activeIdx || stRef.current.teamHp[idx] <= 0) return;
-    playClick(); setBusy(true); setShowSwitch(false);
-    setActiveIdx(idx);
-    pushLog([`🔄 Entra in campo ${teamRef.current[idx].name}!`]);
-    resetTransient();
-    rerender();
     await wait(450);
     await opponentTurn();
   };
 
-  // ====== RENDER ======
+  const switchTo = async (idx: number) => {
+    if (busy || phase !== "fight" || idx === activeIdx || fiatoRef.current[idx] <= 0) return;
+    playClick(); setBusy(true); setShowSwitch(false);
+    const s = stRef.current;
+    s.fiatoP = fiatoRef.current[idx]; s.calma = 80;
+    setActiveIdx(idx);
+    pushLog(`🔄 Entra in campo ${teamRef.current[idx].name}!`);
+    rerender();
+    await wait(420);
+    await opponentTurn();
+  };
+
+  // ====== RENDER team select ======
   if (phase === "team") {
     const sorted = [...playerCows].sort((a, b) => b.cp - a.cp);
     return (
@@ -217,19 +181,18 @@ export default function DungeonRun({
         </div>
         <div className="flex-1 overflow-y-auto p-4 space-y-3">
           <p className="text-[11px] text-slate-300 text-center bg-slate-900/70 border border-slate-800 rounded-2xl p-3">
-            {dungeon.blurb}<br /><b className="text-amber-400">5 battaglie di fila</b> (4 sfidanti + Campione). La tenuta si trascina: la recuperi solo con gli oggetti. Se tutta la mandria si ritira, riparti da capo.
+            {dungeon.blurb}<br /><b className="text-amber-400">5 spinte di fila</b> (4 sfidanti + Campione). Il <b>fiato</b> delle tue Reines si trascina: dai il cambio con saggezza. Se tutta la mandria si ritira, riparti da capo.
           </p>
           <div className="text-[10px] font-mono text-slate-400 text-center">Scegli fino a 4 Reines per la squadra ({picked.length}/4):</div>
           <div className="grid grid-cols-3 gap-2">
             {sorted.map((c) => {
               const sel = picked.includes(c.id);
-              const tm = TYPES[cowType(c)];
               return (
                 <button key={c.id} onClick={() => { playClick(); setPicked((p) => p.includes(c.id) ? p.filter((x) => x !== c.id) : p.length < 4 ? [...p, c.id] : p); }}
-                  className={`rounded-xl border-2 p-1.5 ${sel ? "border-rose-500 bg-rose-950/60" : "border-slate-700 bg-slate-900/70"}`}>
+                  className={`rounded-xl border-2 p-1.5 ${sel ? "border-emerald-500 bg-emerald-950/50" : "border-slate-700 bg-slate-900/70"}`}>
                   <CowVisual cow={c} className="w-full h-14" />
                   <div className="text-[8px] font-mono text-slate-200 truncate mt-0.5">{c.name}</div>
-                  <div className="text-[8px] font-mono" style={{ color: tm.color }}>{tm.emoji} CP{c.cp}</div>
+                  <div className="text-[8px] font-mono text-amber-400">CP{c.cp}</div>
                 </button>
               );
             })}
@@ -237,99 +200,98 @@ export default function DungeonRun({
         </div>
         <div className="p-3 bg-slate-950/80 border-t border-slate-800 flex gap-2">
           <button onClick={() => { playClick(); onClose(); }} className="flex-1 bg-slate-900 border border-slate-800 text-slate-300 font-mono font-bold text-xs py-3 rounded-xl">Annulla</button>
-          <button onClick={start} disabled={picked.length === 0} id="dungeon-start" className="flex-1 nav-active text-white font-mono font-black text-xs py-3 rounded-xl disabled:opacity-40">Entra nella Lega! ⚔️</button>
+          <button onClick={start} disabled={picked.length === 0} id="dungeon-start" className="flex-1 nav-active text-white font-mono font-black text-xs py-3 rounded-xl disabled:opacity-40">Entra nella Lega! 🐂</button>
         </div>
       </div>
     );
   }
 
   if (!active || !opp) return null;
-  const oppMax = opp.maxHp;
-  const oppPct = Math.round((st.oppHp / oppMax) * 100);
-  const aPct = Math.round((st.teamHp[activeIdx] / active.maxHp) * 100);
+  const barraP = Math.round(st.barra);
   const bagItems = backpack.filter((b) => BATTLE_ITEMS[b.id] && b.quantity > 0);
 
   return (
     <div className="fixed inset-0 z-[70] flex flex-col bg-slate-950 text-slate-100" id="dungeon-scene">
       <div className="absolute inset-0 -z-10" style={{ background: "linear-gradient(180deg,#cdd5e3 0%,#e2e8f0 35%,#dcfce7 70%,#bbf7d0 100%)" }} />
       <div className="flex items-center justify-between px-4 py-2 bg-slate-950/75 backdrop-blur border-b border-slate-800">
-        <span className="text-xs font-mono font-black">{dungeon.emoji} {dungeon.league} · Sfida {oppIdx + 1}/5</span>
+        <span className="text-xs font-mono font-black">{dungeon.emoji} {dungeon.league} · Spinta {oppIdx + 1}/5</span>
         <button onClick={() => { playClick(); onClose(); }} className="bg-slate-900/70 rounded-full p-1.5"><X size={16} /></button>
       </div>
 
       {phase === "fight" && (
-        <motion.div animate={shake ? { x: [0, -9, 8, -5, 0] } : {}} transition={{ duration: 0.35 }} className="relative flex-1 overflow-hidden">
+        <motion.div animate={shake ? { x: [0, -8, 7, -5, 0] } : {}} transition={{ duration: 0.35 }} className="relative flex-1 overflow-hidden">
           {/* avversario */}
-          <div className="absolute top-3 right-3 flex flex-col items-end gap-1" style={{ width: "60%" }}>
-            <Plate name={opp.name} type={opp.type} hp={st.oppHp} max={oppMax} pct={oppPct} energy={st.oEnergy} champion={oppIdx === 4} />
-            <motion.div animate={hit === "o" ? { x: [0, -8, 8, 0] } : {}} transition={{ duration: 0.25 }}>
-              <div className="rounded-2xl overflow-hidden border-2 border-rose-400/60 shadow-xl" style={{ filter: hit === "o" ? "brightness(2)" : "none", transition: "filter .12s" }}>
-                <CowVisual cow={opp.visual} className="w-24 h-24" />
-              </div>
+          <div className="absolute top-16 right-3 flex flex-col items-end gap-1" style={{ width: "60%" }}>
+            <Plate name={opp.name} breed={opp.breed} fiato={st.fiatoO} fiatoMax={opp.fiatoMax} calma={st.calmaO ?? 80} champion={oppIdx === 4} />
+            <motion.div animate={lunge === "o" ? { x: -34, y: 34 } : { x: 0, y: 0 }} transition={{ duration: 0.15 }}>
+              <div className="rounded-2xl overflow-hidden border-2 border-rose-400/60 shadow-xl"><CowVisual cow={opp.visual} className="w-24 h-24" /></div>
             </motion.div>
           </div>
           {/* giocatore */}
           <div className="absolute bottom-3 left-3 flex flex-col items-start gap-1" style={{ width: "60%" }}>
-            <Plate name={active.name} type={active.type} hp={st.teamHp[activeIdx]} max={active.maxHp} pct={aPct} energy={st.pEnergy} atkB={st.pAtkBuff} defB={st.pDefBuff} def={st.pDef} />
-            <motion.div animate={hit === "p" ? { x: [0, -8, 8, 0] } : {}} transition={{ duration: 0.25 }}>
-              <div className="rounded-2xl overflow-hidden border-2 border-emerald-400/70 shadow-xl" style={{ filter: hit === "p" ? "brightness(2)" : "none", transition: "filter .12s" }}>
-                <CowVisual cow={active.visual} className="w-28 h-28" />
-              </div>
+            <Plate name={active.name} breed={active.breed} fiato={st.fiatoP} fiatoMax={active.fiatoMax} calma={st.calma} />
+            <motion.div animate={lunge === "p" ? { x: 34, y: -34 } : { x: 0, y: 0 }} transition={{ duration: 0.15 }}>
+              <div className="rounded-2xl overflow-hidden border-2 border-emerald-400/70 shadow-xl"><CowVisual cow={active.visual} className="w-28 h-28" /></div>
             </motion.div>
+          </div>
+
+          {/* BARRA DI SPINTA */}
+          <div className="absolute top-2 left-1/2 -translate-x-1/2 w-[78%] max-w-sm">
+            <div className="flex justify-between text-[8px] font-mono font-black mb-0.5"><span className="text-emerald-600">{active.name}</span><span className="text-slate-700">SPINTA</span><span className="text-rose-500">{opp.name}</span></div>
+            <div className="relative h-4 rounded-full bg-rose-400/40 border border-slate-700 overflow-hidden shadow-inner">
+              <div className="absolute inset-y-0 left-0 bg-gradient-to-r from-emerald-500 to-emerald-400 transition-all duration-500" style={{ width: `${barraP}%` }} />
+              <div className="absolute inset-y-0 w-0.5 bg-slate-900/60" style={{ left: "50%" }} />
+            </div>
           </div>
         </motion.div>
       )}
 
-      {/* roster squadra */}
+      {/* roster squadra (fiato che si trascina) */}
       {phase === "fight" && (
         <div className="flex justify-center gap-1.5 px-3 py-1.5 bg-slate-950/70">
           {teamRef.current.map((f, i) => {
-            const hp = st.teamHp[i]; const ko = hp <= 0; const cur = i === activeIdx;
+            const fi = fiatoRef.current[i]; const out = fi <= 0; const cur = i === activeIdx;
             return (
-              <div key={i} className={`flex flex-col items-center rounded-lg px-1.5 py-1 border ${cur ? "border-emerald-500 bg-emerald-950/40" : ko ? "border-slate-800 bg-slate-900/40 opacity-50" : "border-slate-700 bg-slate-900/60"}`}>
-                <span className="text-[8px] font-mono text-slate-200 truncate max-w-[52px]">{ko ? "💀" : TYPES[f.type].emoji} {f.name.slice(0, 6)}</span>
-                <div className="w-12 h-1 rounded-full bg-slate-800 overflow-hidden mt-0.5"><div className="h-full" style={{ width: `${Math.round((hp / f.maxHp) * 100)}%`, background: hp / f.maxHp > 0.4 ? "#10b981" : "#ef4444" }} /></div>
+              <div key={i} className={`flex flex-col items-center rounded-lg px-1.5 py-1 border ${cur ? "border-emerald-500 bg-emerald-950/40" : out ? "border-slate-800 bg-slate-900/40 opacity-50" : "border-slate-700 bg-slate-900/60"}`}>
+                <span className="text-[8px] font-mono text-slate-200 truncate max-w-[52px]">{out ? "💨" : "🐮"} {f.name.slice(0, 6)}</span>
+                <div className="w-12 h-1 rounded-full bg-slate-800 overflow-hidden mt-0.5"><div className="h-full bg-sky-400" style={{ width: `${Math.max(0, Math.round((fi / f.fiatoMax) * 100))}%` }} /></div>
               </div>
             );
           })}
         </div>
       )}
 
-      {/* pannello comandi */}
       <div className="bg-slate-950/85 backdrop-blur border-t border-slate-800 p-3 space-y-2">
-        <div className="bg-slate-900/80 border border-slate-800 rounded-xl px-3 py-2 h-[52px] overflow-y-auto no-scrollbar">
+        <div className="bg-slate-900/80 border border-slate-800 rounded-xl px-3 py-2 h-[50px] overflow-y-auto no-scrollbar">
           {log.map((l, i) => <div key={i} className={`text-[10px] font-mono leading-snug ${i === 0 ? "text-slate-100" : "text-slate-500"}`}>❖ {l}</div>)}
         </div>
 
         {phase === "fight" && !showBag && !showSwitch && (
           <>
             <div className="grid grid-cols-2 gap-2" id="dungeon-moves">
-              {active.moveset.map((m) => {
-                const locked = m.category === "speciale" && st.pEnergy < m.energy; const col = TYPES[m.type].color;
-                return (
-                  <button key={m.id} onClick={() => doMove(m)} disabled={busy || locked} className="text-left rounded-xl border p-2 disabled:opacity-40" style={{ background: col + "18", borderColor: col + "66" }}>
-                    <div className="text-[11px] font-mono font-black text-slate-100 leading-tight">{m.emoji} {m.name}</div>
-                    <div className="text-[8px] font-mono mt-0.5" style={{ color: col }}>{TYPES[m.type].emoji}{TYPES[m.type].name}{m.category === "speciale" ? (locked ? ` ⚡${st.pEnergy}/100` : " ⚡") : ""}</div>
-                  </button>
-                );
-              })}
+              {AZIONI.map((a) => (
+                <button key={a.id} onClick={() => doAction(a.id)} disabled={busy} title={a.desc} className="text-left rounded-xl border p-2 disabled:opacity-40 bg-slate-900 border-slate-700 hover:border-amber-500/60">
+                  <div className="text-[11px] font-mono font-black text-slate-100 leading-tight">{a.emoji} {a.label}</div>
+                  <div className="text-[8px] font-mono text-slate-400 leading-tight mt-0.5 line-clamp-2">{a.desc}</div>
+                </button>
+              ))}
             </div>
             <div className="flex gap-2">
               <button onClick={() => { playClick(); setShowSwitch(true); }} disabled={busy} className="flex-1 flex items-center justify-center gap-1.5 bg-slate-900 border border-emerald-700/40 text-emerald-600 font-mono font-black text-xs py-2 rounded-xl disabled:opacity-40"><Repeat className="w-4 h-4" /> Cambia</button>
               <button onClick={() => { playClick(); setShowBag(true); }} disabled={busy} className="flex-1 flex items-center justify-center gap-1.5 bg-slate-900 border border-amber-700/40 text-amber-400 font-mono font-black text-xs py-2 rounded-xl disabled:opacity-40"><Backpack className="w-4 h-4" /> Zaino ({bagItems.reduce((n, b) => n + b.quantity, 0)})</button>
-              <button onClick={() => { playClick(); onClose(); }} disabled={busy} className="px-3 bg-slate-900 border border-slate-800 text-slate-300 font-mono font-bold text-xs py-2 rounded-xl disabled:opacity-40">Fuggi</button>
+              <button onClick={() => { playClick(); onClose(); }} disabled={busy} className="px-3 bg-slate-900 border border-slate-800 text-slate-300 font-mono font-bold text-xs py-2 rounded-xl disabled:opacity-40">Ritìrati</button>
             </div>
           </>
         )}
 
         {phase === "fight" && showSwitch && (
           <div className="space-y-1.5">
-            <div className="text-[10px] font-mono text-slate-400 text-center">Cambia Reina (consuma il turno)</div>
+            <div className="text-[10px] font-mono text-slate-400 text-center">Dai il cambio (consuma il turno)</div>
             <div className="grid grid-cols-2 gap-2">
               {teamRef.current.map((f, i) => (
-                <button key={i} disabled={busy || i === activeIdx || st.teamHp[i] <= 0} onClick={() => switchTo(i)} className="flex items-center gap-2 bg-slate-900 border border-slate-800 rounded-xl p-2 text-left disabled:opacity-40">
+                <button key={i} disabled={busy || i === activeIdx || fiatoRef.current[i] <= 0} onClick={() => switchTo(i)} className="flex items-center gap-2 bg-slate-900 border border-slate-800 rounded-xl p-2 text-left disabled:opacity-40">
                   <CowVisual cow={f.visual} className="w-9 h-9" />
-                  <div><div className="text-[10px] font-mono font-black text-slate-100">{TYPES[f.type].emoji} {f.name}</div><div className="text-[8px] font-mono text-slate-400">{st.teamHp[i] <= 0 ? "si ritira" : `${Math.round(st.teamHp[i])}/${f.maxHp} tenuta`}</div></div>
+                  <div><div className="text-[10px] font-mono font-black text-slate-100">🐮 {f.name}</div><div className="text-[8px] font-mono text-slate-400">{fiatoRef.current[i] <= 0 ? "si ritira" : `${Math.round(fiatoRef.current[i])} fiato`}</div></div>
                 </button>
               ))}
             </div>
@@ -341,10 +303,11 @@ export default function DungeonRun({
           <div className="space-y-1.5">
             {bagItems.length === 0 ? <p className="text-[10px] text-slate-500 text-center py-2">Zaino vuoto!</p> : bagItems.map((b) => {
               const meta = ITEM_LABEL[b.id]; const eff = BATTLE_ITEMS[b.id];
+              const desc = eff.kind === "buff_atk" || eff.kind === "buff_def" ? `Calma +${eff.amount}` : `Fiato +${eff.amount}`;
               return (
                 <button key={b.id} onClick={() => useItem(b.id)} disabled={busy} className="w-full flex items-center gap-3 bg-slate-900 border border-slate-800 rounded-xl p-2 text-left disabled:opacity-40">
                   <span className="text-xl">{meta?.emoji}</span>
-                  <div className="flex-grow"><div className="text-[11px] font-mono font-black text-slate-100">{meta?.name}</div><div className="text-[9px] text-slate-400">{eff.kind === "heal" ? `Recupera ${eff.amount} tenuta` : eff.kind === "buff_atk" ? `ATK +${eff.amount}%` : eff.kind === "buff_def" ? `DIF +${eff.amount}%` : `Adrenalina +${eff.amount}`}</div></div>
+                  <div className="flex-grow"><div className="text-[11px] font-mono font-black text-slate-100">{meta?.name}</div><div className="text-[9px] text-slate-400">{desc}</div></div>
                   <span className="text-[10px] font-mono text-amber-400">×{b.quantity}</span>
                 </button>
               );
@@ -372,23 +335,25 @@ export default function DungeonRun({
   );
 }
 
-/** Targhetta HP/Adrenalina di un combattente nel dungeon. */
-function Plate({ name, type, hp, max, pct, energy, atkB = 0, defB = 0, def = false, champion = false }: {
-  name: string; type: keyof typeof TYPES; hp: number; max: number; pct: number; energy: number; atkB?: number; defB?: number; def?: boolean; champion?: boolean;
+/** Targhetta Fiato (+ Calma per il giocatore) di un combattente nel dungeon. */
+function Plate({ name, breed, fiato, fiatoMax, calma, champion = false }: {
+  name: string; breed: string; fiato: number; fiatoMax: number; calma?: number; champion?: boolean;
 }) {
-  const tm = TYPES[type];
+  const fiatoPct = Math.max(0, Math.min(100, Math.round((fiato / fiatoMax) * 100)));
   return (
     <div className={`bg-slate-950/85 border rounded-xl px-2.5 py-1.5 shadow-lg ${champion ? "border-amber-500" : "border-slate-700"}`} style={{ minWidth: 150 }}>
       <div className="flex items-center justify-between gap-2">
         <span className="text-[11px] font-mono font-black text-slate-100 truncate">{champion ? "👑 " : ""}{name}</span>
-        <span className="text-[8px] font-mono px-1 rounded" style={{ background: tm.color + "22", color: tm.color }}>{tm.emoji}{tm.name}</span>
+        <span className="text-[7px] font-mono text-slate-400">{breed}</span>
       </div>
-      <div className="h-2 rounded-full bg-slate-800 overflow-hidden border border-slate-700 mt-1"><div className="h-full transition-all duration-500" style={{ width: `${pct}%`, background: pct > 50 ? "#10b981" : pct > 20 ? "#f59e0b" : "#ef4444" }} /></div>
-      <div className="flex items-center justify-between mt-0.5">
-        <span className="text-[8px] font-mono text-slate-400">{Math.round(hp)}/{max}</span>
-        <div className="flex gap-1">{def && <span className="text-[7px]">🛡️</span>}{atkB > 0 && <span className="text-[7px] text-rose-500 font-mono">A+{atkB}</span>}{defB > 0 && <span className="text-[7px] text-blue-400 font-mono">D+{defB}</span>}</div>
-      </div>
-      <div className="h-1 rounded-full bg-slate-800 overflow-hidden mt-1"><div className="h-full bg-amber-400 transition-all" style={{ width: `${energy}%` }} /></div>
+      <div className="text-[7px] font-mono text-slate-500 mt-0.5">FIATO</div>
+      <div className="h-2 rounded-full bg-slate-800 overflow-hidden border border-slate-700"><div className="h-full bg-sky-400 transition-all duration-400" style={{ width: `${fiatoPct}%` }} /></div>
+      {calma !== undefined && (
+        <>
+          <div className="text-[7px] font-mono text-slate-500 mt-0.5">CALMA</div>
+          <div className="h-1.5 rounded-full bg-slate-800 overflow-hidden"><div className="h-full transition-all duration-400" style={{ width: `${calma}%`, background: calma < 35 ? "#ef4444" : "#a78bfa" }} /></div>
+        </>
+      )}
     </div>
   );
 }

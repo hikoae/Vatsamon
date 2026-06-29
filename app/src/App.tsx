@@ -2039,7 +2039,7 @@ export default function App() {
                     </button>
                   );
                 })}
-              <p className="text-[9px] text-slate-500 text-center">Endgame: 5 battaglie di fila, gli HP si trascinano. Ricompense rare.</p>
+              <p className="text-[9px] text-slate-500 text-center">Endgame: 5 spinte di fila, il fiato si trascina. Ricompense rare.</p>
             </div>
 
             <div className="order-first bg-slate-950 rounded-3xl p-3 sm:p-5 border border-slate-850 relative overflow-hidden shadow-2xl">
