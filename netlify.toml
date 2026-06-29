@@ -7,7 +7,8 @@
   publish = "dist"
 
 [build.environment]
-  NODE_VERSION = "20"
+  # Node 22 LTS: allineato all'ambiente di test/CI (Node 20 è in deprecazione).
+  NODE_VERSION = "22"
 
 # SPA fallback (tutte le rotte → index.html)
 [[redirects]]
