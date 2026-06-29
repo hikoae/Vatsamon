@@ -45,6 +45,7 @@ import { ARENAS, ArenaId } from './data/arenas';
 import { TREK_ROUTES } from './data/routes';
 import { Challenges } from './components/Challenges';
 import { SeasonView } from './components/SeasonView';
+import { StallaScreen } from './components/StallaScreen';
 import { soundEngine } from './utils/audio';
 import { generateVatsamonClient } from './lib/generate';
 import { REAL_COWS, REAL_TOTAL, REAL_CASERE, SHOWCASE_BY_RARITY } from './data/realCows';
@@ -74,8 +75,10 @@ const ROUTE_TONE: Record<string, { border: string; bg: string; text: string }> =
 };
 
 // Procedural overworld spawn pool
-const WILD_BREEDS = ["Castana Valdostana", "Pezzata Rossa", "Pezzata Nera", "Evolène"];
-const WILD_NAMES = ["Fulmine Alpino", "Brezza d'Alpe", "Corno di Roccia", "Dama Bianca", "Fior di Fontina", "Rugiada Bianca", "Spirito dei Ghiacciai"];
+// Razze da combattimento reali (niente Pezzata Rossa da latte né Evolène).
+const WILD_BREEDS = ["Castana", "Pezzata Nera", "Hérens"];
+// Nomi patois autentici dal corpus reale delle Reines.
+const WILD_NAMES = ["Caprice", "Malice", "Vipère", "Briganda", "Guerra", "Victoire", "Papillon", "Strega", "Difesa", "Reinette", "Sauvage", "Tempête"];
 const ECO_TREK_TIPS = [
   "Resta sul sentiero. Calpestare i pascoli danneggia i delicati fiori d'alpeggio necessari alle api.",
   "Riporta a valle le bucce di frutta. Alle alte quote impiegano anni a decomporsi e attraggono fauna nociva.",
@@ -196,16 +199,9 @@ export default function App() {
     return DEFAULT_BAG.map(i => ({ ...i }));
   });
 
-  const [eggs, setEggs] = useState<Egg[]>(() => {
-    const cached = localStorage.getItem('vazzamon_eggs_go');
-    if (cached) {
-      try { return JSON.parse(cached); } catch (e) { console.error(e); }
-    }
-    return [
-      { id: 'egg-1', rarity: 'Comune', kmWalked: 0, kmRequired: 2, isIncubating: true },
-      { id: 'egg-2', rarity: 'Epica', kmWalked: 0, kmRequired: 5, isIncubating: true }
-    ];
-  });
+  // Sistema UOVA rimosso (irrealistico): sostituito dalla STALLA genealogica.
+  // Lo stato resta vuoto e inerte per non toccare il simulatore di cammino.
+  const [eggs, setEggs] = useState<Egg[]>([]);
 
   const [trainer, setTrainer] = useState<Trainer>(() => {
     const cached = localStorage.getItem('vazzamon_trainer_go');
@@ -911,8 +907,8 @@ export default function App() {
     }
 
     const randBreed = WILD_BREEDS[Math.floor(Math.random() * WILD_BREEDS.length)];
-    const randName = WILD_NAMES[Math.floor(Math.random() * WILD_NAMES.length)] + " Selvatico";
-    const rarities: RarityType[] = ['Comune', 'Comune', 'Rara', 'Rara', 'Epica', 'Leggendaria'];
+    const randName = WILD_NAMES[Math.floor(Math.random() * WILD_NAMES.length)];
+    const rarities: RarityType[] = ['Comune', 'Comune', 'Comune', 'Rara', 'Rara', 'Epica'];
     let randRarity = rarities[Math.floor(Math.random() * rarities.length)];
 
     // FASE 4 — EFFETTO DEL RISPETTO sul gameplay: un esploratore rispettoso della
@@ -1701,14 +1697,14 @@ export default function App() {
     playClickSfx();
     setIsScanning(true);
     setScanProgress(5);
-    setScanMessage("Aggancio antenna satellitare Monte Bianco...");
+    setScanMessage("Osservo la mandria con calma...");
 
     const intervals = [
-      "Caricamento lenti polarizzate d'alpeggio...",
-      "Rilevamento geni della Castana Valdostana...",
-      "Valutazione densità erbe alpine...",
-      "Misurazione percentuale umidità alpeggi COGNE...",
-      "Generazione modello genomico..."
+      "Riconosco il mantello e la razza...",
+      "Valuto la stazza e la cornatura...",
+      "Leggo la grinta nello sguardo...",
+      "Stimo il peso e la categoria...",
+      "Compilo la scheda d'avvistamento..."
     ];
 
     let currentStep = 0;
@@ -1726,7 +1722,7 @@ export default function App() {
 
       clearInterval(timer);
       setScanProgress(100);
-      setScanMessage("DNA sintetizzato correttamente!");
+      setScanMessage("Avvistamento riconosciuto!");
 
       // Supply CP & level calculations
       const str = parsed.stats.strength;
@@ -1902,8 +1898,7 @@ export default function App() {
             className={`flex flex-col items-center py-2 rounded-xl transition-all relative ${activeTab === 'eggs' ? 'nav-active text-white' : 'text-slate-400 hover:bg-slate-900 hover:-translate-y-0.5'}`}
           >
             <Gift className="w-4 h-4 mb-0.5" />
-            <span>Vitelli</span>
-            <span className="absolute top-1.5 right-2 w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>
+            <span>Stalla</span>
           </button>
 
           <button
@@ -2639,9 +2634,9 @@ export default function App() {
             <div className="bg-slate-950 rounded-3xl p-5 border border-slate-850 shadow-md">
               <h2 className="text-xl font-mono font-black text-emerald-400 flex items-center gap-1.5 uppercase">
                 <Camera className="w-5 h-5" />
-                Sintesi DNA Spaziale Valdostana
+                Riconoscimento d'Alpeggio
               </h2>
-              <p className="text-xs text-slate-400 mt-1">Carica uno scatto dei pascoli, dei monti vette o di un fiero bovino alpino. Gemini 3.5-flash leggerà i segnali biogeografici della vallata per estrapolare un Vatsamon esclusivo!</p>
+              <p className="text-xs text-slate-400 mt-1">Inquadra o carica la foto di una Reina sui pascoli: ne riconosci la razza, ne valuti stazza, corna e grinta, e registri un avvistamento. Le Reines ufficiali si verificano alle gare.</p>
 
               {!isScanning && (
                 <div className="mt-5 border-2 border-dashed border-slate-800 bg-slate-900/40 rounded-3xl p-8 flex flex-col items-center justify-center text-center space-y-4">
@@ -2650,7 +2645,7 @@ export default function App() {
                       <div className="relative aspect-square rounded-2xl overflow-hidden shadow-md border border-emerald-500/20 bg-black">
                         <video ref={videoRef} className="w-full h-full object-cover" playsInline muted />
                         <div className="absolute inset-5 border border-dashed border-yellow-400/40 rounded-xl flex items-center justify-center pointer-events-none">
-                          <span className="text-[10px] font-mono text-yellow-400 animate-pulse">AGGANCA DNA BOVINO</span>
+                          <span className="text-[10px] font-mono text-yellow-400 animate-pulse">INQUADRA LA REINA</span>
                         </div>
                       </div>
                       <div className="flex gap-2">
@@ -2658,7 +2653,7 @@ export default function App() {
                           onClick={() => processImageScanGo(null)}
                           className="flex-grow bg-emerald-500 hover:bg-emerald-400 text-[#0b0820] font-mono font-bold text-xs py-2.5 rounded-xl transition-all cursor-pointer shadow border-b-2 border-emerald-700"
                         >
-                          Sintonizza Immagine
+                          Riconosci la Reina
                         </button>
                         <button
                           onClick={stopCamera}
@@ -2674,8 +2669,8 @@ export default function App() {
                         📤
                       </div>
                       <div>
-                        <p className="font-extrabold text-slate-200 text-sm">Carica o Scatta una foto alpina</p>
-                        <p className="text-[10px] text-slate-500 mt-0.5">JPEG, PNG supportati. Saranno conservati nel cloud.</p>
+                        <p className="font-extrabold text-slate-200 text-sm">Carica o scatta una foto della Reina</p>
+                        <p className="text-[10px] text-slate-500 mt-0.5">JPEG, PNG. La foto resta sul tuo dispositivo.</p>
                       </div>
 
                       <div className="flex flex-col sm:flex-row items-center justify-center gap-2 pt-2">
@@ -2683,13 +2678,13 @@ export default function App() {
                           onClick={() => fileInputRef.current?.click()}
                           className="w-full sm:w-auto bg-[#10b981] hover:bg-emerald-400 text-[#0b0820] font-mono font-bold text-xs py-2.5 px-4 rounded-xl transition-colors cursor-pointer"
                         >
-                          Carica File No-Limits
+                          Carica una foto
                         </button>
                         <button
                           onClick={startCameraGo}
                           className="w-full sm:w-auto bg-slate-800 hover:bg-slate-700 text-slate-200 font-mono text-xs py-2.5 px-4 rounded-xl transition-colors cursor-pointer"
                         >
-                          Usa Fotocamera AR
+                          Usa la fotocamera
                         </button>
                       </div>
 
@@ -2705,7 +2700,7 @@ export default function App() {
                         onClick={() => processImageScanGo(null)}
                         className="w-full bg-slate-900 hover:bg-slate-850 border border-slate-850 py-2 rounded-xl text-yellow-400 font-mono text-xs font-bold transition-all cursor-pointer shadow active:scale-95"
                       >
-                        🔮 Catalizza Vatsamon Misterioso Subito!
+                        🐮 Avvista una Reina d'alpeggio
                       </button>
                     </div>
                   )}
@@ -2719,7 +2714,7 @@ export default function App() {
                     <RefreshCw className="w-5 h-5 text-emerald-400" />
                   </div>
                   <div>
-                    <h4 className="font-mono font-black text-emerald-400 text-sm">Sintesi Alpeggio in corso...</h4>
+                    <h4 className="font-mono font-black text-emerald-400 text-sm">Riconoscimento in corso...</h4>
                     <p className="text-[10px] text-slate-400 font-mono mt-1 italic">"{scanMessage}"</p>
                   </div>
                   <div className="bg-slate-850 rounded-full h-2 overflow-hidden border border-slate-800">
@@ -2734,82 +2729,16 @@ export default function App() {
 
         {/* VIEW 3: CALF GESTATION & WEANING STABLE */}
         {activeTab === 'eggs' && (
-          <div className="space-y-6" id="hatchery-tab-view">
-            <div className="bg-slate-950 border border-slate-850 rounded-3xl p-5 shadow-sm">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4">
-                <div>
-                  <h2 className="text-xl font-mono font-black text-emerald-400 flex items-center gap-1.5 uppercase">
-                    <Gift className="w-5 h-5" />
-                    Culla dei Vitellini Alpini
-                  </h2>
-                  <p className="text-xs text-slate-400">I piccoli vitellini necessitano che tu cammini o simuli l'escursionismo per completare la crescita e lo svezzamento d'alta quota. Accompagnali nei pascoli alpini per far nascere nuove splendide Regine!</p>
-                </div>
-                
-                {/* Walk triggers direct step inside the hatchery */}
-                <button
-                  onClick={handleSimulatedWalk}
-                  className="bg-slate-900 hover:bg-slate-850 border border-slate-800 text-slate-300 font-mono font-black text-xs py-2 px-4 rounded-xl flex items-center gap-1.5 cursor-pointer shadow"
-                >
-                  <Footprints className="w-4 h-4 text-emerald-400" />
-                  PASSO 500m!
-                </button>
-              </div>
-
-              {/* Grid of incubating calves */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {eggs.map((egg) => {
-                  const progressPct = Math.min((egg.kmWalked / egg.kmRequired) * 100, 100);
-                  const rarityLabelColor = 
-                    egg.rarity === 'Epica' ? 'text-purple-400 border-purple-500/20' :
-                    egg.rarity === 'Rara' ? 'text-blue-400 border-blue-500/20' : 'text-slate-400 border-slate-800';
-
-                  return (
-                    <div key={egg.id} className="bg-slate-900 border border-slate-800 rounded-3xl p-5 relative overflow-hidden flex items-center gap-4 group hover:border-slate-700 transition-colors">
-                      
-                      {/* Glass Tube Capsule Overlay */}
-                      <div className="w-16 h-24 rounded-full border-2 border-slate-800 bg-slate-950 flex flex-col justify-end p-1 relative overflow-hidden shadow-inner group-hover:border-slate-700">
-                        {/* Bubbles or liquid gradient indicating incubation progress */}
-                        <div className="absolute inset-x-0 bottom-0 bg-emerald-500/10 transition-all duration-500" style={{ height: `${progressPct}%` }}></div>
-                        
-                        {/* Animated Calf weaning graphics */}
-                        <div className="w-12 h-12 bg-amber-100 rounded-full border-2 border-amber-600/40 shadow-md mx-auto mb-4 flex items-center justify-center animate-float relative">
-                          <span className="text-2xl">🍼</span>
-                        </div>
-
-                        {/* Tiny glass reflection strip */}
-                        <div className="absolute right-1.5 top-2 bottom-2 w-1.5 rounded-full bg-white/5 pointer-events-none"></div>
-                      </div>
-
-                      <div className="flex-grow space-y-2">
-                        <div>
-                          <span className={`text-[9px] uppercase font-mono font-bold px-2 py-0.5 rounded-full border bg-slate-950 tracking-wide ${rarityLabelColor}`}>
-                            Vitellino · {egg.rarity}
-                          </span>
-                          <h4 className="font-mono font-extrabold text-sm text-slate-100 mt-1.5">Svezzamento e Crescita</h4>
-                        </div>
-
-                        <div className="space-y-1">
-                          <div className="flex justify-between text-[11px] font-mono text-slate-400">
-                            <span>Sviluppo Vitello</span>
-                            <span className="font-bold text-slate-200">{egg.kmWalked} / {egg.kmRequired} km</span>
-                          </div>
-                          
-                          {/* Progress slider bar */}
-                          <div className="bg-slate-950 border border-slate-850 rounded-full h-2 overflow-hidden shadow-inner">
-                            <div className="bg-gradient-to-r from-amber-500 to-yellow-400 h-2 rounded-full" style={{ width: `${progressPct}%` }} />
-                          </div>
-                        </div>
-
-                        <p className="text-[9.5px] text-slate-500">Accompagna il vitellino nelle camminate d'alta quota per completare la crescita e vederlo svezzato in stalla!</p>
-                      </div>
-
-                    </div>
-                  );
-                })}
-              </div>
-
-            </div>
-          </div>
+          <StallaScreen
+            collection={vatsadex}
+            onBorn={(cow) => setVatsadex(prev => [cow, ...prev])}
+            onUpdateCow={(updated) => setVatsadex(prev => prev.map(c => c.id === updated.id ? updated : c))}
+            onReward={(coins, xp) => {
+              if (coins) setTrainer(prev => ({ ...prev, coins: prev.coins + coins }));
+              if (xp) addTrainerXp(xp);
+            }}
+            playClick={playClickSfx}
+          />
         )}
 
         {/* VIEW 4: DETAILS/VATSADEX SHEET LIST */}

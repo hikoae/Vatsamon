@@ -163,14 +163,14 @@ export default function BattleScene({
     if (r.kind === "atk") {
       if (r.missed) pushLog([`${r.attacker} usa ${r.name}… ma manca!`]);
       else {
-        pushLog([`${r.attacker} usa ${r.name}: ${r.dmg} danni${r.crit ? " (CRITICO!)" : ""}`]);
+        pushLog([`${r.attacker} usa ${r.name}: ${r.dmg} di spinta${r.crit ? " (spinta decisa!)" : ""}`]);
         setHit(tgt); spawnFx(tgt, r.type); spawnFloat(tgt, `-${r.dmg}${r.crit ? "!" : ""}`, "#fb7185");
         if (r.crit || r.special) { setShake(true); }
         const eff = effectivenessLabel(r.mult); if (eff) pushLog([eff]);
         await wait(150); setHit(null); setShake(false);
       }
     } else if (r.kind === "heal") {
-      pushLog([`${r.attacker} usa ${r.name}: +${r.heal} HP`]);
+      pushLog([`${r.attacker} usa ${r.name}: +${r.heal} di tenuta`]);
       spawnFloat(side, `+${r.heal}`, "#34d399");
     } else {
       pushLog([`${r.attacker} usa ${r.name}!`]);
@@ -204,7 +204,7 @@ export default function BattleScene({
     if (!eff || !owned || owned.quantity <= 0) return;
     playClick(); setBusy(true); setShowBag(false);
     const s = stRef.current; const lbl = ITEM_LABEL[id]?.name || "Oggetto";
-    if (eff.kind === "heal") { s.pHp = Math.min(s.pMax, s.pHp + eff.amount); spawnFloat("p", `+${eff.amount}`, "#34d399"); pushLog([`🎒 ${lbl}: +${eff.amount} HP`]); }
+    if (eff.kind === "heal") { s.pHp = Math.min(s.pMax, s.pHp + eff.amount); spawnFloat("p", `+${eff.amount}`, "#34d399"); pushLog([`🎒 ${lbl}: +${eff.amount} di tenuta`]); }
     else if (eff.kind === "buff_atk") { s.pAtkBuff = Math.min(100, s.pAtkBuff + eff.amount); pushLog([`🎒 ${lbl}: attacco +${eff.amount}%`]); }
     else if (eff.kind === "buff_def") { s.pDefBuff = Math.min(100, s.pDefBuff + eff.amount); pushLog([`🎒 ${lbl}: difesa +${eff.amount}%`]); }
     else { s.pEnergy = cap(s.pEnergy + eff.amount); pushLog([`🎒 ${lbl}: Adrenalina +${eff.amount}`]); }
@@ -295,7 +295,7 @@ export default function BattleScene({
                       <span className="text-xl">{meta?.emoji}</span>
                       <div className="flex-grow">
                         <div className="text-[11px] font-mono font-black text-slate-100">{meta?.name}</div>
-                        <div className="text-[9px] text-slate-400">{eff.kind === "heal" ? `Cura ${eff.amount} HP` : eff.kind === "buff_atk" ? `Attacco +${eff.amount}%` : eff.kind === "buff_def" ? `Difesa +${eff.amount}%` : `Adrenalina +${eff.amount}`}</div>
+                        <div className="text-[9px] text-slate-400">{eff.kind === "heal" ? `Recupera ${eff.amount} tenuta` : eff.kind === "buff_atk" ? `Attacco +${eff.amount}%` : eff.kind === "buff_def" ? `Difesa +${eff.amount}%` : `Adrenalina +${eff.amount}`}</div>
                       </div>
                       <span className="text-[10px] font-mono text-amber-400">×{b.quantity}</span>
                     </button>
@@ -308,7 +308,7 @@ export default function BattleScene({
           {phase === "end" && (
             <div className="text-center space-y-2 py-1">
               <div className={`text-lg font-mono font-black ${winner === "player" ? "text-emerald-600" : "text-rose-500"}`}>
-                {winner === "player" ? "🏆 Hai vinto!" : "😔 Hai perso"}
+                {winner === "player" ? "🏆 La rivale cede e si ritira!" : "😔 La tua Reina si ritira"}
               </div>
               <button onClick={() => { playClick(); onClose(); }} className="w-full nav-active text-white font-mono font-black text-xs py-2.5 rounded-xl">Torna alla mappa</button>
             </div>

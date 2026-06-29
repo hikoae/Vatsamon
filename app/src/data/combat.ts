@@ -112,26 +112,26 @@ export interface BattleMove {
 
 // Mosse base d'attacco per tipo (affidabili, caricano l'Adrenalina).
 const BASIC: Record<VatsaType, BattleMove> = {
-  corna:    { id: "corna_basic",    name: "Incornata della Suocera", emoji: "🐂", type: "corna",    category: "attacco", power: 0.85, accuracy: 0.95, energy: 25, desc: "Spintone frontale carico di rancore famigliare." },
-  prato:    { id: "prato_basic",    name: "Ruttino Erbivoro Tattico", emoji: "🌿", type: "prato",    category: "attacco", power: 0.85, accuracy: 0.95, energy: 25, desc: "Eruttazione mirata profumata di trifoglio alpino." },
+  corna:    { id: "corna_basic",    name: "Incornata Decisa", emoji: "🐂", type: "corna",    category: "attacco", power: 0.85, accuracy: 0.95, energy: 25, desc: "Spinta frontale a corna limate, decisa e pulita." },
+  prato:    { id: "prato_basic",    name: "Spinta del Pascolo", emoji: "🌿", type: "prato",    category: "attacco", power: 0.85, accuracy: 0.95, energy: 25, desc: "Una spinta nutrita di trifoglio alpino." },
   tempesta: { id: "tempesta_basic", name: "Föhn Furioso",            emoji: "⛈️", type: "tempesta", category: "attacco", power: 0.85, accuracy: 0.95, energy: 25, desc: "Una folata calda che spettina pure i ghiacciai." },
   latte:    { id: "latte_basic",    name: "Spruzzo di Fontina",      emoji: "🥛", type: "latte",    category: "attacco", power: 0.85, accuracy: 0.95, energy: 25, desc: "Getto lattiginoso ad alta pressione DOP." },
-  roccia:   { id: "roccia_basic",   name: "Sassata del Cugino",      emoji: "🪨", type: "roccia",   category: "attacco", power: 0.85, accuracy: 0.95, energy: 25, desc: "Un masso lanciato con affetto rude di montagna." },
+  roccia:   { id: "roccia_basic",   name: "Spallata di Roccia",      emoji: "🪨", type: "roccia",   category: "attacco", power: 0.85, accuracy: 0.95, energy: 25, desc: "Salda come la roccia della montagna." },
 };
 
 // Mosse SPECIALI per tipo (potenti, richiedono Adrenalina carica).
 const SPECIAL: Record<VatsaType, BattleMove> = {
-  corna:    { id: "corna_sp",    name: "Testata Termonucleare",     emoji: "💥", type: "corna",    category: "speciale", power: 1.95, accuracy: 0.9, energy: 100, desc: "Capocciata da fine del mondo: richiede Adrenalina piena." },
-  prato:    { id: "prato_sp",    name: "Fotosintesi Aggressiva",    emoji: "🌻", type: "prato",    category: "speciale", power: 1.9, accuracy: 0.9, energy: 100, desc: "Assorbe il sole e lo restituisce in faccia all'avversario." },
-  tempesta: { id: "tempesta_sp", name: "Grandinata Express",        emoji: "🌪️", type: "tempesta", category: "speciale", power: 1.9, accuracy: 0.88, energy: 100, desc: "Chicchi di grandine grossi come campanacci." },
-  latte:    { id: "latte_sp",    name: "Diluvio di Latte Crudo",    emoji: "🌊", type: "latte",    category: "speciale", power: 1.9, accuracy: 0.9, energy: 100, desc: "Uno tsunami caseario travolgente." },
-  roccia:   { id: "roccia_sp",   name: "Valanga Vendicativa",       emoji: "🏔️", type: "roccia",   category: "speciale", power: 2.0, accuracy: 0.85, energy: 100, desc: "Mezza montagna in testa al malcapitato." },
+  corna:    { id: "corna_sp",    name: "Testata della Reine",     emoji: "💥", type: "corna",    category: "speciale", power: 1.95, accuracy: 0.9, energy: 100, desc: "La spinta decisiva della regina: richiede Adrenalina piena." },
+  prato:    { id: "prato_sp",    name: "Pieno di Sole",    emoji: "🌻", type: "prato",    category: "speciale", power: 1.9, accuracy: 0.9, energy: 100, desc: "Assorbe il sole e lo restituisce in faccia all'avversario." },
+  tempesta: { id: "tempesta_sp", name: "Grandinata d'Alta Quota",        emoji: "🌪️", type: "tempesta", category: "speciale", power: 1.9, accuracy: 0.88, energy: 100, desc: "Chicchi di grandine grossi come campanacci." },
+  latte:    { id: "latte_sp",    name: "Fiume di Latte",    emoji: "🌊", type: "latte",    category: "speciale", power: 1.9, accuracy: 0.9, energy: 100, desc: "Una piena di latte d'alpeggio travolgente." },
+  roccia:   { id: "roccia_sp",   name: "Valanga d'Autunno",       emoji: "🏔️", type: "roccia",   category: "speciale", power: 2.0, accuracy: 0.85, energy: 100, desc: "Travolge come una valanga di fine stagione." },
 };
 
 // Mossa firma per le Leggendarie (sostituisce la speciale).
 const SIGNATURE: BattleMove = {
   id: "signature",
-  name: "Muggito dell'Apocalisse",
+  name: "Muggito della Mandria",
   emoji: "🔱",
   type: "corna",
   category: "speciale",

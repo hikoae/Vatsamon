@@ -304,3 +304,41 @@ button:active { transform: scale(0.95); }
     box-shadow: 0 0 0 100vmax rgba(12, 10, 24, 0.92);
   }
 }
+
+/* ============================================================
+   RESTYLING — vetro, profondità e micro-gioia (globale, 2025)
+   Tocca tutta l'app via i selettori strutturali, senza cambiare
+   il palette né introdurre transform sugli antenati dei modali.
+   ============================================================ */
+
+/* Header e tab-bar in VETRO SMERIGLIATO (glassmorphism). */
+header {
+  backdrop-filter: blur(16px) saturate(1.5);
+  -webkit-backdrop-filter: blur(16px) saturate(1.5);
+  background-color: color-mix(in srgb, var(--color-slate-950) 68%, transparent) !important;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-slate-700) 45%, transparent) !important;
+}
+nav.sticky {
+  backdrop-filter: blur(16px) saturate(1.4);
+  -webkit-backdrop-filter: blur(16px) saturate(1.4);
+  background-color: color-mix(in srgb, var(--color-slate-950) 72%, transparent) !important;
+}
+
+/* PROFONDITÀ morbida e moderna sulle card (ombre stratificate). */
+.rounded-3xl { box-shadow: 0 12px 32px -18px rgba(36, 24, 64, 0.34), 0 2px 8px -3px rgba(36, 24, 64, 0.12); }
+.rounded-2xl { box-shadow: 0 8px 20px -14px rgba(36, 24, 64, 0.26); }
+/* le scene full-screen non devono avere doppia ombra */
+#battle-scene, #dungeon-scene, .encounter-flash { box-shadow: none; }
+
+/* MICRO-INTERAZIONI: tocco più "soft-3d", pillola nav che si solleva. */
+button:active { transform: scale(0.94) translateY(1px); }
+.nav-active { transform: translateY(-2px); }
+
+/* Bottoni-azione primari (CTA piene) con leggero gradiente vivo e lucentezza. */
+.btn-cta {
+  background-image: linear-gradient(160deg, #e08a0a 0%, #d97706 100%);
+  box-shadow: 0 8px 18px -6px rgba(217, 119, 6, 0.5), inset 0 1px 0 rgba(255,255,255,0.35);
+}
+
+/* Anelli/badge "LIVE" e puntini animati un filo più morbidi. */
+.animate-pulse { animation-duration: 1.8s; }
