@@ -13,6 +13,10 @@ export default defineConfig(({ mode }) => ({
     tailwindcss(),
     VitePWA({
       registerType: "autoUpdate",
+      // Registriamo noi il SW (src/main.tsx via virtual:pwa-register) per avere
+      // l'auto-reload quando esce una nuova versione: lo script iniettato di
+      // default si limita a registrare, senza ricaricare la pagina.
+      injectRegister: false,
       includeAssets: ["favicon.svg", "apple-touch-icon.png", "cow-silhouette.svg", "photos/*.jpg"],
       manifest: {
         name: "Vatsamon — la Vatsadex delle Reines",
@@ -32,6 +36,11 @@ export default defineConfig(({ mode }) => ({
       workbox: {
         globPatterns: ["**/*.{js,css,html,svg,png,jpg,woff2}"],
         maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
+        // La nuova versione prende subito il controllo e pulisce le cache vecchie,
+        // così un reload basta a vedere l'aggiornamento (niente blocchi infiniti).
+        skipWaiting: true,
+        clientsClaim: true,
+        cleanupOutdatedCaches: true,
         runtimeCaching: [
           {
             urlPattern: ({ url }) => url.host.includes("tile.openstreetmap.org"),
