@@ -39,6 +39,7 @@ import { RespectEncounter } from './components/RespectEncounter';
 import { RESPONSIBLE_QUESTIONS, ResponsibleQuestion } from './data/responsibleQuestions';
 import BattleScene from './components/BattleScene';
 import DungeonRun from './components/DungeonRun';
+import ValutazioneReina from './components/ValutazioneReina';
 import { MAP_BATTLES, MapBattle } from './data/mapBattles';
 import { DUNGEONS, Dungeon } from './data/dungeons';
 import { ARENAS, ArenaId } from './data/arenas';
@@ -51,6 +52,11 @@ import { soundEngine } from './utils/audio';
 import { generateVatsamonClient } from './lib/generate';
 import { REAL_COWS, REAL_TOTAL, REAL_CASERE, SHOWCASE_BY_RARITY } from './data/realCows';
 import { distanza, fmtDist, RAGGIO_CATTURA } from './lib/geo';
+import { gradoCorrente } from './data/gradi';
+import { faseCorrente } from './data/fase';
+import { VALUTE, FONTINA_REWARD, costoStellaPedigree, PEDIGREE_STAR_CAP } from './data/economy';
+import { ROUTE_TONE, WILD_BREEDS, WILD_NAMES, ECO_TREK_TIPS, LORE_POOL, BALL_META, BALL_ORDER, DEFAULT_BAG, SEED_COLLECTION } from './data/overworld';
+import { BASE_CATCH, estimateCatch, respectTone, catchDifficulty } from './lib/capture';
 
 // Fallback coordinate conversion for consistent SVG layout positioning
 export const getSvgCoords = (lat: number, lng: number) => {
@@ -67,112 +73,6 @@ export const getSvgCoords = (lat: number, lng: number) => {
     y: Math.max(5, Math.min(95, y))
   };
 };
-
-// Classi statiche per l'accento colore dei percorsi (Tailwind JIT-safe).
-const ROUTE_TONE: Record<string, { border: string; bg: string; text: string }> = {
-  emerald: { border: "border-emerald-400", bg: "bg-emerald-500/10", text: "text-emerald-300" },
-  sky: { border: "border-sky-400", bg: "bg-sky-500/10", text: "text-sky-300" },
-  amber: { border: "border-amber-400", bg: "bg-amber-500/10", text: "text-amber-300" },
-};
-
-// Procedural overworld spawn pool
-// Razze da combattimento reali (niente Pezzata Rossa da latte né Evolène).
-const WILD_BREEDS = ["Castana", "Pezzata Nera", "Hérens"];
-// Nomi patois autentici dal corpus reale delle Reines.
-const WILD_NAMES = ["Caprice", "Malice", "Vipère", "Briganda", "Guerra", "Victoire", "Papillon", "Strega", "Difesa", "Reinette", "Sauvage", "Tempête"];
-const ECO_TREK_TIPS = [
-  "Resta sul sentiero. Calpestare i pascoli danneggia i delicati fiori d'alpeggio necessari alle api.",
-  "Riporta a valle le bucce di frutta. Alle alte quote impiegano anni a decomporsi e attraggono fauna nociva.",
-  "Chiudi sempre i recinti dei pascoli alle tue spalle per impedire alle bovine di disperdersi nei canaloni.",
-  "Rispetta il silenzio. I rumori forti stressano le regine al pascolo riducendone la qualità del latte.",
-  "Pulisci gli scarponi prima di cambiare vallata per evitare di propagare spore floristiche infestanti."
-];
-const LORE_POOL = [
-  "Notata spesso a saltellare gioiosamente tra le rocce della Val d'Ayas, predilige l'erba fresca coperta di rugiada.",
-  "Una fiera combattente nota per la sua astuzia. Ama farsi grattare la fronte dagli escursionisti rispettosi.",
-  "Si dice custodisca gli antichi segreti degli alchimisti della Fontina DOP tra i boschi sacri del Gran Paradiso.",
-  "Leggerissima nei movimenti, si camuffa tra i banchi di nebbia per sorprendere i trekker pigri con simpatici baccani."
-];
-
-// ===== Linea "Vatsa-ball": i campanacci-cattura in stile Poké Ball =====
-// Tre potenze crescenti + la Master garantita. `mult` moltiplica il tasso di
-// cattura base; `mult: null` = cattura garantita (100%). Colori inline per
-// evitare il purge di Tailwind sui nomi di classe dinamici.
-interface BallMeta {
-  short: string; full: string; description: string; emoji: string;
-  mult: number | null; color: string; bestFor: string;
-}
-const BALL_META: Record<string, BallMeta> = {
-  'item-bell-std':    { short: 'Vatsa-ball',        full: 'Vatsa-ball',         emoji: '🔔', mult: 1.0,  color: '#f59e0b', bestFor: 'Comuni · Rare',        description: 'Campanaccio in ottone risonante. Il rintocco base per le catture ordinarie.' },
-  'item-bell-giga':   { short: 'Super Vatsa-ball',  full: 'Super Vatsa-ball',   emoji: '🛎️', mult: 2.2,  color: '#38bdf8', bestFor: 'Rare · Epiche',        description: 'Campana d\'acciaio dal rintocco profondo. Più che raddoppia la presa: ideale sulle Epiche.' },
-  'item-bell-iper':   { short: 'Iper Vatsa-ball',   full: 'Iper Vatsa-ball',    emoji: '⚜️', mult: 4.0,  color: '#a78bfa', bestFor: 'Epiche · Leggendarie', description: 'Bronzo runico d\'alta quota. Risonanza ipnotica che doma anche le Reines Leggendarie.' },
-  'item-bell-master': { short: 'Master Vatsa-ball', full: 'Master Vatsa-ball',  emoji: '⭐', mult: null, color: '#fb7185', bestFor: 'Cattura garantita',    description: 'Manufatto in platino della tradizione. Cattura garantita al 100%: usala con saggezza.' },
-};
-const BALL_ORDER = ['item-bell-std', 'item-bell-giga', 'item-bell-iper', 'item-bell-master'];
-
-// Backpack di partenza: la linea completa di Vatsa-ball a scorte decrescenti.
-const DEFAULT_BAG: BackpackItem[] = [
-  { id: 'item-bell-std',    name: 'Vatsa-ball',        description: BALL_META['item-bell-std'].description,    quantity: 20, type: 'ball' },
-  { id: 'item-bell-giga',   name: 'Super Vatsa-ball',  description: BALL_META['item-bell-giga'].description,   quantity: 8,  type: 'ball' },
-  { id: 'item-bell-iper',   name: 'Iper Vatsa-ball',   description: BALL_META['item-bell-iper'].description,   quantity: 3,  type: 'ball' },
-  { id: 'item-bell-master', name: 'Master Vatsa-ball', description: BALL_META['item-bell-master'].description, quantity: 1,  type: 'ball' },
-  { id: 'item-apple', name: 'Mela Alpina d\'Oro', description: 'Frutto profumatissimo. Addolcisce i Vatsamon selvatici del 50%.', quantity: 6, type: 'food' },
-  { id: 'item-hay', name: 'Fieno delle Vette', description: 'Nutriente speciale usato per aumentare il livello e CP dei Vatsamon.', quantity: 12, type: 'candy' },
-  // Oggetti da BATTAGLIA (usabili dallo zaino durante la Bataille a turni)
-  { id: 'item-potion-milk', name: 'Secchio di Latte', description: 'Cura 60 HP in battaglia. Latte tiepido d\'alpeggio, rimette in piedi qualsiasi Reina.', quantity: 5, type: 'potion' },
-  { id: 'item-potion-fontina', name: 'Fetta di Fontina DOP', description: 'Cura 130 HP in battaglia. Energia casearia concentrata.', quantity: 2, type: 'potion' },
-  { id: 'item-buff-genepy', name: 'Genepy del Pastore', description: 'In battaglia: aumenta l\'Attacco del 40%. Distillato d\'erbe che accende la grinta.', quantity: 3, type: 'buff' },
-  { id: 'item-buff-bell', name: 'Campanaccio Fortunato', description: 'In battaglia: aumenta la Difesa del 40%. Il suo rintocco rassicura la mandria.', quantity: 3, type: 'buff' },
-  { id: 'item-energy-grappa', name: 'Grappa alla Genziana', description: 'In battaglia: carica +60 Adrenalina per le mosse speciali. Da usare con prudenza!', quantity: 2, type: 'buff' },
-];
-
-// Tasso di cattura base per rarità (prima di ball / mela / precisione del lancio).
-const BASE_CATCH: Record<RarityType, number> = {
-  Comune: 0.45, Rara: 0.30, Epica: 0.18, Leggendaria: 0.09,
-};
-
-// Stima "a riposo" del tasso di cattura (ball + mela, precisione media) → 0..1.
-// Mostrata in anticipo per far capire quanto sarà facile, in stile Pokémon GO.
-function estimateCatch(rarity: RarityType | undefined, ballId: string, fedApple: boolean): number {
-  const meta = BALL_META[ballId];
-  if (meta && meta.mult === null) return 1;
-  let p = BASE_CATCH[rarity ?? 'Comune'];
-  p *= meta?.mult ?? 1;
-  if (fedApple) p *= 1.5;
-  return Math.max(0, Math.min(1, p));
-}
-
-// FASE 4 — Colore/etichetta del Punteggio Rispetto (0..100) per l'HUD.
-// Alto = verde (esploratore modello), basso = rosso (poco rispettoso).
-function respectTone(score: number): { color: string; label: string } {
-  if (score >= 80) return { color: '#10b981', label: 'Esemplare' };
-  if (score >= 60) return { color: '#22c55e', label: 'Buono' };
-  if (score >= 40) return { color: '#eab308', label: 'Discreto' };
-  if (score >= 20) return { color: '#f97316', label: 'Scarso' };
-  return { color: '#ef4444', label: 'Critico' };
-}
-
-// Anello colorato di difficoltà (verde→rosso) come il cerchio target di Pokémon GO.
-function catchDifficulty(p: number): { color: string; label: string } {
-  if (p >= 1)    return { color: '#10b981', label: 'GARANTITA' };
-  if (p >= 0.6)  return { color: '#22c55e', label: 'FACILE' };
-  if (p >= 0.35) return { color: '#eab308', label: 'MEDIA' };
-  if (p >= 0.15) return { color: '#f97316', label: 'DIFFICILE' };
-  return { color: '#ef4444', label: 'ARDUA' };
-}
-
-/** Collezione iniziale "demo-ready": alcune Reines reali già catturate, con varietà
- *  di rarità e foto. Usata solo al primo avvio (nessun salvataggio presente). */
-function SEED_COLLECTION(): Vatsamon[] {
-  const withPhoto = REAL_COWS.filter(c => c.realPhoto);
-  const byR = (r: string) => withPhoto.filter(c => c.rarity === r);
-  const picks = [
-    ...byR('Leggendaria').slice(0, 2),
-    ...byR('Epica').slice(0, 2),
-    ...byR('Rara').slice(0, 4),
-  ];
-  return picks.map(c => ({ ...c, capturedAt: '2026-05-29' }));
-}
 
 export default function App() {
   // ---- 1. PERSISTENT STATS ----
@@ -247,6 +147,19 @@ export default function App() {
   useEffect(() => {
     setTrainer(prev => prev.respectScore === respectScore ? prev : { ...prev, respectScore });
   }, [respectScore]);
+
+  // ---- FASE 2: Identità (Gradi Amis des Reines), valuta di prestigio (Fontina),
+  //      motore di fase della stagione. Tutto derivato, niente stato nuovo. ----
+  const gradoStato = gradoCorrente({ xp: trainer.xp, capturedCount: trainer.capturedCount, respectScore });
+  const faseStato = faseCorrente(new Date().toISOString().slice(0, 10));
+  const fontina = trainer.fontina ?? 0;
+  const pedigreeStars = trainer.pedigreeStars ?? 0;
+  // Accredita Forme di Fontina (valuta di prestigio) con un avviso nel feed.
+  const guadagnaFontina = (n: number, motivo: string) => {
+    if (n <= 0) return;
+    setTrainer(prev => ({ ...prev, fontina: (prev.fontina ?? 0) + n }));
+    setTrekkingFeed(prev => [`🧀 +${n} ${n === 1 ? 'Forma' : 'Forme'} di Fontina · ${motivo}`, ...prev.slice(0, 8)]);
+  };
 
   // Trekking Waypoints coordinates tracking
   const [currentWaypointIndex, setCurrentWaypointIndex] = useState<number>(() => {
@@ -457,8 +370,10 @@ export default function App() {
         return next;
       });
       if (!dungeonsCleared.includes(d.id)) setDungeonsCleared(prev => [...prev, d.id]);
+      // Prestigio: conquistare una Lega rende Forme di Fontina.
+      setTrainer(prev => ({ ...prev, fontina: (prev.fontina ?? 0) + FONTINA_REWARD.legaConquistata }));
       const items = d.rewardItems.map(r => r.label).join(' · ');
-      setTrekkingFeed(prev => [`🏆 ${d.league} CONQUISTATA! Medaglia ${d.badgeEmoji} · +${d.rewardCoins} 🪙 · +${d.rewardXp} XP · ${items}`, ...prev.slice(0, 8)]);
+      setTrekkingFeed(prev => [`🏆 ${d.league} CONQUISTATA! Medaglia ${d.badgeEmoji} · +${d.rewardCoins} 🪙 · +${FONTINA_REWARD.legaConquistata} 🧀 · +${d.rewardXp} XP · ${items}`, ...prev.slice(0, 8)]);
     } else {
       setTrekkingFeed(prev => [`💀 La ${d.league} ti ha respinto. Rinforza la squadra e riprova!`, ...prev.slice(0, 8)]);
     }
@@ -830,6 +745,10 @@ export default function App() {
   // Capture mode variables
   const [isCapturingMode, setIsCapturingMode] = useState(false);
   const [encounterCow, setEncounterCow] = useState<Vatsamon | null>(null);
+  // FASE 3 — Valutazione del Giudice (evento speciale per Reine rare+): accuratezza
+  // 0..100 che migliora l'affidamento. null = non ancora valutata.
+  const [valutazione, setValutazione] = useState<number | null>(null);
+  const [showValutazione, setShowValutazione] = useState(false);
   const [selectedBallId, setSelectedBallId] = useState<string>('item-bell-std');
   const [targetRingScale, setTargetRingScale] = useState(1);
   const [hasFedApple, setHasFedApple] = useState(false);
@@ -974,6 +893,18 @@ export default function App() {
     });
     setTrainer(prev => ({ ...prev, coins: prev.coins + 2000, level: Math.max(prev.level, 12), xpToNextLevel: Math.max(prev.xpToNextLevel, 1000) }));
     setProfileMsg("Rifornimento completato: +2000 🪙, scorte piene, livello ≥ 12 (arene sbloccate).");
+  };
+
+  // SINK Fontina — Stella di Pedigree: riconoscimento permanente alla Désarpa.
+  const buyPedigreeStar = () => {
+    playClickSfx();
+    const owned = trainer.pedigreeStars ?? 0;
+    if (owned >= PEDIGREE_STAR_CAP) { setProfileMsg(`Hai già tutte le ${PEDIGREE_STAR_CAP} Stelle di Pedigree: massimo prestigio raggiunto! ★`); return; }
+    const costo = costoStellaPedigree(owned);
+    if ((trainer.fontina ?? 0) < costo) { setProfileMsg(`Ti servono ${costo} 🧀 Forme di Fontina per la prossima Stella (ne hai ${trainer.fontina ?? 0}). Vinci le Leghe e fai crescere le Reines!`); return; }
+    setTrainer(prev => ({ ...prev, fontina: (prev.fontina ?? 0) - costo, pedigreeStars: (prev.pedigreeStars ?? 0) + 1 }));
+    adjustRespect(3);
+    setProfileMsg(`★ Stella di Pedigree n°${owned + 1} ottenuta! −${costo} 🧀 · prestigio permanente (+Rispetto).`);
   };
 
   // Raccoglie tutte le chiavi di salvataggio (prefisso vazzamon_).
@@ -1150,9 +1081,9 @@ export default function App() {
       // Percorso COMPLETATO al raggiungimento dell'ultima tappa.
       if (nextIndex === activeTrail.length - 1 && !completedRoutes.includes(activeRouteId)) {
         setCompletedRoutes(prev => prev.includes(activeRouteId) ? prev : [...prev, activeRouteId]);
-        setTrainer(prev => ({ ...prev, coins: prev.coins + 200 }));
+        setTrainer(prev => ({ ...prev, coins: prev.coins + 200, fontina: (prev.fontina ?? 0) + FONTINA_REWARD.percorsoCompletato }));
         addTrainerXp(300);
-        setTrekkingFeed(prev => [`🏁 Percorso "${activeRoute.name}" COMPLETATO! +300 XP · +200 🪙 · ora rigiocabile liberamente`, ...prev.slice(0, 8)]);
+        setTrekkingFeed(prev => [`🏁 Percorso "${activeRoute.name}" COMPLETATO! +300 XP · +200 🪙 · +${FONTINA_REWARD.percorsoCompletato} 🧀 · ora rigiocabile liberamente`, ...prev.slice(0, 8)]);
       }
     } else {
       const targetWp = activeTrail[nextWaypointIndex] || activeTrail[0];
@@ -1313,6 +1244,8 @@ export default function App() {
     playClickSfx();
     setEncounterCow(wild.vatsa);
     setIsCapturingMode(true);
+    setValutazione(null);
+    setShowValutazione(false);
     setCaptureStep('aiming');
     setHasFedApple(false);
     setSelectedBallId('item-bell-std');
@@ -1390,6 +1323,8 @@ export default function App() {
         if (hasFedApple) captureChance *= 1.5;       // mela alpina
         if (rating === 'EXCELLENT') captureChance *= 1.6;
         else if (rating === 'GREAT') captureChance *= 1.35;
+        // FASE 3 — la Valutazione del Giudice conquista la fiducia dell'allevatore.
+        if (valutazione !== null) captureChance *= valutazione >= 85 ? 1.6 : valutazione >= 60 ? 1.3 : 1.1;
       }
 
       const isCaught = Math.random() <= captureChance;
@@ -1399,9 +1334,10 @@ export default function App() {
         setCaptureLogMsg(`Gotcha! ${encounterCow.name} è stata felicemente sintonizzata!`);
         playVictorySfx();
 
-        // Add to permanent collection
-        setVatsadex(prev => [encounterCow, ...prev]);
-        setActiveCombatantId(encounterCow.id);
+        // Add to permanent collection (con la valutazione del giudice, se fatta)
+        const registrata = valutazione !== null ? { ...encounterCow, valutazioneGiudice: valutazione } : encounterCow;
+        setVatsadex(prev => [registrata, ...prev]);
+        setActiveCombatantId(registrata.id);
         
         // Remove from overworld spawns
         setWildCows(prev => prev.filter(c => c.id !== encounterCow.id));
@@ -1740,6 +1676,8 @@ export default function App() {
       setTimeout(() => {
         playMooSfx();
         setEncounterCow(fullySynthesized);
+        setValutazione(null);
+        setShowValutazione(false);
         setIsCapturingMode(true); // Direct to AR catching view!
         setIsScanning(false);
         setScanImage(null);
@@ -1823,8 +1761,9 @@ export default function App() {
                     <span className="font-mono font-black text-sm tracking-wide title-gradient">VATSAMON GO</span>
                     <span className="text-[8px] bg-[#1a1626] text-white border border-[#c8102e]/60 px-1.5 py-0.5 rounded-full font-bold uppercase">Valle d'Aosta</span>
                   </div>
-                  <div className="text-[9.5px] font-mono text-slate-400 truncate">
-                    <span className="text-amber-400 font-bold">{trainer.level >= 17 ? "Grand Éleveur" : trainer.level >= 13 ? "Capo-Mandria" : trainer.level >= 9 ? "Allevatore" : trainer.level >= 5 ? "Mandriano" : "Apprendista"}</span>
+                  <div className="text-[9.5px] font-mono text-slate-400 truncate" title={gradoStato.grado.perk}>
+                    <span className="text-amber-400 font-bold">{gradoStato.grado.emoji} {gradoStato.grado.nome}</span>
+                    {pedigreeStars > 0 && <span className="text-amber-300"> {'★'.repeat(Math.min(pedigreeStars, 5))}</span>}
                     <span className="text-slate-600"> · </span>{trainer.name}
                   </div>
                 </div>
@@ -1847,11 +1786,16 @@ export default function App() {
             </div>
 
             {/* riga 3: STATISTICHE — tutte ben visibili */}
-            <div className="grid grid-cols-4 gap-1.5 mt-2">
-              <div className="bg-slate-900 border border-amber-700/40 rounded-xl py-1 text-center" title="Monete">
+            <div className="grid grid-cols-5 gap-1.5 mt-2">
+              <div className="bg-slate-900 border border-amber-700/40 rounded-xl py-1 text-center" title="Denari d'Alpeggio">
                 <div className="text-[13px] leading-none">🪙</div>
                 <div className="text-[11px] font-mono font-extrabold text-amber-300 leading-tight">{trainer.coins}</div>
-                <div className="text-[7px] font-mono uppercase text-slate-500">Monete</div>
+                <div className="text-[7px] font-mono uppercase text-slate-500">Denari</div>
+              </div>
+              <div className="bg-slate-900 border rounded-xl py-1 text-center" style={{ borderColor: VALUTE.fontina.colore + "66" }} id="fontina-hud" title="Forme di Fontina — valuta di prestigio">
+                <div className="text-[13px] leading-none">🧀</div>
+                <div className="text-[11px] font-mono font-extrabold leading-tight" style={{ color: VALUTE.fontina.colore }}>{fontina}</div>
+                <div className="text-[7px] font-mono uppercase text-slate-500">Fontina</div>
               </div>
               <div className="bg-slate-900 border rounded-xl py-1 text-center" style={{ borderColor: respectTone(respectScore).color + "66" }} id="respect-hud" title={`Rispetto: ${respectTone(respectScore).label} (${respectScore}/100)`}>
                 <div className="text-[13px] leading-none">🌿</div>
@@ -2434,6 +2378,20 @@ export default function App() {
                 </div>
               </div>
 
+              {/* FASE 3 — Valutazione del Giudice: evento speciale per Reine rare+ */}
+              {encounterCow.rarity !== 'Comune' && captureStep === 'aiming' && (
+                valutazione === null ? (
+                  <button id="open-valutazione" onClick={() => { playClickSfx(); setShowValutazione(true); }}
+                    className="bg-amber-950/40 border border-amber-600/50 text-amber-300 font-mono font-black text-[11px] py-2 rounded-xl flex items-center justify-center gap-2 hover:bg-amber-900/40">
+                    ⚖️ Valuta la Reina (Giudice) — migliora l'affidamento
+                  </button>
+                ) : (
+                  <div className="bg-emerald-950/40 border border-emerald-600/40 text-emerald-300 font-mono text-[11px] py-2 rounded-xl text-center" id="valutazione-esito">
+                    ⚖️ Valutazione del giudice: <b>{valutazione}/100</b> · affidamento più probabile
+                  </div>
+                )
+              )}
+
               {/* IMMERSIVE MIDDLE STAGE: BOUNCING COW & SHRINKING CAPTURE RING */}
               <div className="flex-grow flex flex-col items-center justify-center relative my-4">
                 
@@ -2635,6 +2593,16 @@ export default function App() {
 
             </div>
           </div>
+        )}
+
+        {/* FASE 3 — Overlay Valutazione del Giudice (sopra l'incontro) */}
+        {showValutazione && encounterCow && (
+          <ValutazioneReina
+            cow={encounterCow}
+            playClick={playClickSfx}
+            onClose={() => setShowValutazione(false)}
+            onDone={(acc) => { setValutazione(acc); setShowValutazione(false); }}
+          />
         )}
 
         {/* VIEW 2: AR LAB DNA SYNTHESIZER SCANNER */}
@@ -2974,6 +2942,24 @@ export default function App() {
 
         {/* VIEW: STAGIONE (second screen ufficiale delle Batailles de Reines) */}
         {activeTab === 'stagione' && (
+          <div className="space-y-3">
+            {/* Banda FASE CORRENTE — motore di fase della stagione reale */}
+            <div id="fase-banner" className="rounded-2xl border border-[#c8102e]/40 p-3 flex items-center gap-3" style={{ background: "linear-gradient(90deg,#1a1626,#241a2e)" }}>
+              <span className="text-3xl flex-shrink-0">{faseStato.emoji}</span>
+              <div className="min-w-0 flex-grow">
+                <div className="text-[9px] font-mono uppercase tracking-widest text-amber-400">Fase · {faseStato.label}</div>
+                <div className="text-[10px] text-slate-300 leading-snug">{faseStato.nota}</div>
+                {faseStato.prossimo && (
+                  <div className="text-[9px] text-slate-400 mt-0.5">📍 Prossima: <b className="text-slate-200">{faseStato.prossimo.comune}</b> · {faseStato.prossimo.data}</div>
+                )}
+              </div>
+              {faseStato.giorniAllaFinale >= 0 && (
+                <div className="text-center flex-shrink-0 bg-slate-950/60 rounded-xl px-2.5 py-1.5 border border-amber-700/40">
+                  <div className="text-base font-mono font-black text-amber-300 leading-none">{faseStato.giorniAllaFinale}</div>
+                  <div className="text-[7px] font-mono uppercase text-slate-500">gg alla finale</div>
+                </div>
+              )}
+            </div>
           <SeasonView
             onReward={(coins, xp) => {
               setTrainer(prev => ({ ...prev, coins: prev.coins + coins }));
@@ -2981,6 +2967,7 @@ export default function App() {
               setTrekkingFeed(prev => [`🏆 Tabellone completato! Pronostico finale fatto (+${coins} 🪙 +${xp} XP)`, ...prev.slice(0, 8)]);
             }}
           />
+          </div>
         )}
 
         {/* VIEW 6: SCUOLA D'ALPEGGIO (QUIZ EDUCATIVO) */}
@@ -3102,7 +3089,33 @@ export default function App() {
             <div className="grid grid-cols-3 gap-2 text-center">
               <div className="bg-slate-950 rounded-xl border border-slate-850 py-2"><div className="text-[9px] text-slate-500 font-mono uppercase">Reines</div><div className="text-sm font-mono font-black text-emerald-300">{vatsadex.length}</div></div>
               <div className="bg-slate-950 rounded-xl border border-slate-850 py-2"><div className="text-[9px] text-slate-500 font-mono uppercase">Livello</div><div className="text-sm font-mono font-black text-amber-300">{trainer.level}</div></div>
-              <div className="bg-slate-950 rounded-xl border border-slate-850 py-2"><div className="text-[9px] text-slate-500 font-mono uppercase">Monete</div><div className="text-sm font-mono font-black text-amber-300">{trainer.coins}</div></div>
+              <div className="bg-slate-950 rounded-xl border border-slate-850 py-2"><div className="text-[9px] text-slate-500 font-mono uppercase">Denari</div><div className="text-sm font-mono font-black text-amber-300">{trainer.coins}</div></div>
+            </div>
+
+            {/* PRESTIGIO — grado Amis des Reines + Stella di Pedigree (sink Fontina) */}
+            <div className="bg-slate-950 rounded-2xl border border-amber-700/40 p-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-[9px] text-slate-500 font-mono uppercase tracking-widest">Grado Amis des Reines</div>
+                  <div className="text-sm font-mono font-black text-amber-300">{gradoStato.grado.emoji} {gradoStato.grado.nome}{pedigreeStars > 0 ? ` ${'★'.repeat(Math.min(pedigreeStars, 5))}` : ''}</div>
+                  <div className="text-[9px] text-slate-400 italic">{gradoStato.grado.perk}</div>
+                </div>
+                <div className="text-right">
+                  <div className="text-[9px] text-slate-500 font-mono uppercase">Fontina</div>
+                  <div className="text-base font-mono font-black" style={{ color: VALUTE.fontina.colore }}>🧀 {fontina}</div>
+                </div>
+              </div>
+              {gradoStato.next && (
+                <div>
+                  <div className="flex justify-between text-[8px] font-mono text-slate-500"><span>Prestigio {gradoStato.prestigio}</span><span>→ {gradoStato.next.nome}</span></div>
+                  <div className="h-1.5 rounded-full bg-slate-800 overflow-hidden mt-0.5"><div className="h-full bg-gradient-to-r from-amber-500 to-amber-300" style={{ width: `${Math.round(gradoStato.versoNext * 100)}%` }} /></div>
+                </div>
+              )}
+              <button onClick={buyPedigreeStar} id="buy-pedigree" disabled={pedigreeStars >= PEDIGREE_STAR_CAP}
+                className="w-full bg-amber-600 hover:bg-amber-500 disabled:opacity-40 text-[#0b0820] font-mono font-black text-[11px] py-2.5 rounded-xl border-b-4 border-amber-800">
+                {pedigreeStars >= PEDIGREE_STAR_CAP ? '★ Prestigio massimo raggiunto' : `★ Stella di Pedigree — ${costoStellaPedigree(pedigreeStars)} 🧀`}
+              </button>
+              <p className="text-[8px] text-slate-500 text-center leading-snug">La Désarpa premia chi ha portato lontano la propria mandria: ogni Stella è un riconoscimento permanente (+Rispetto).</p>
             </div>
 
             {/* risorse di test */}
@@ -3177,7 +3190,7 @@ export default function App() {
             
             <div className="text-4xl">👑🎒⭐</div>
             <h1 className="text-3xl font-mono font-black text-emerald-400">LIVELLO SUPERATO!</h1>
-            <p className="text-sm text-slate-200">Congratulazioni! Sei salito al **Livello {levelUpAward}**!</p>
+            <p className="text-sm text-slate-200">Congratulazioni! Sei salito al <b className="text-amber-300">Livello {levelUpAward}</b>!</p>
             
             <div className="bg-slate-950/80 p-3 rounded-2xl border border-slate-850">
               <h5 className="text-[10px] font-mono text-slate-400 uppercase tracking-wide">Premi Sbloccati d'alta quota</h5>
