@@ -116,7 +116,8 @@ export function StallaScreen({ collection, onBorn, onUpdateCow, onReward, playCl
         <h2 className="text-lg font-mono font-black text-amber-300 uppercase tracking-wide flex items-center gap-2">🐮 Stalla</h2>
         <p className="text-[11px] text-slate-400 leading-snug mt-1">
           Allevamento e genealogia: dalla <b className="text-amber-200">monta</b> con un toro alla{" "}
-          <b className="text-amber-200">nascita</b> del moudzon, che eredita la linea di sangue. Niente più uova: si cresce con la cura.
+          <b className="text-amber-200">nascita</b> del moudzon, che eredita la linea di sangue, fino alla{" "}
+          <b className="text-amber-200">crescita</b> in Reina. Tutto con la cura quotidiana.
         </p>
       </div>
 
