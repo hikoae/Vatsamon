@@ -75,8 +75,10 @@ const ROUTE_TONE: Record<string, { border: string; bg: string; text: string }> =
 };
 
 // Procedural overworld spawn pool
-const WILD_BREEDS = ["Castana Valdostana", "Pezzata Rossa", "Pezzata Nera", "Evolène"];
-const WILD_NAMES = ["Fulmine Alpino", "Brezza d'Alpe", "Corno di Roccia", "Dama Bianca", "Fior di Fontina", "Rugiada Bianca", "Spirito dei Ghiacciai"];
+// Razze da combattimento reali (niente Pezzata Rossa da latte né Evolène).
+const WILD_BREEDS = ["Castana", "Pezzata Nera", "Hérens"];
+// Nomi patois autentici dal corpus reale delle Reines.
+const WILD_NAMES = ["Caprice", "Malice", "Vipère", "Briganda", "Guerra", "Victoire", "Papillon", "Strega", "Difesa", "Reinette", "Sauvage", "Tempête"];
 const ECO_TREK_TIPS = [
   "Resta sul sentiero. Calpestare i pascoli danneggia i delicati fiori d'alpeggio necessari alle api.",
   "Riporta a valle le bucce di frutta. Alle alte quote impiegano anni a decomporsi e attraggono fauna nociva.",
@@ -905,8 +907,8 @@ export default function App() {
     }
 
     const randBreed = WILD_BREEDS[Math.floor(Math.random() * WILD_BREEDS.length)];
-    const randName = WILD_NAMES[Math.floor(Math.random() * WILD_NAMES.length)] + " Selvatico";
-    const rarities: RarityType[] = ['Comune', 'Comune', 'Rara', 'Rara', 'Epica', 'Leggendaria'];
+    const randName = WILD_NAMES[Math.floor(Math.random() * WILD_NAMES.length)];
+    const rarities: RarityType[] = ['Comune', 'Comune', 'Comune', 'Rara', 'Rara', 'Epica'];
     let randRarity = rarities[Math.floor(Math.random() * rarities.length)];
 
     // FASE 4 — EFFETTO DEL RISPETTO sul gameplay: un esploratore rispettoso della
