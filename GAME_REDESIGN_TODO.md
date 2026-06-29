@@ -27,14 +27,21 @@ fallback di prima classe e il badge [REALE] vale sul pedigree, non sulla foto.
 - [x] **Coerenza overworld + combattimento**: razze/nomi selvatici reali,
       nomi-mossa ripuliti dagli eccessi.
 
-## 🟡 Prossimi (ordine del piano)
-- [ ] **Battaglia "La Spinta"** (incruenta, barra di spinta + fiato + calma) —
-      riscrittura del motore di combattimento (la più grossa/rischiosa).
-- [ ] **Cattura → Anagrafe** completa (3 gesti di valutazione + affidamento).
-- [ ] **Economia 2 valute + Gradi Amis des Reines** + motore di fase `faseCorrente()`.
+- [x] **Combattimento incruento** (Tenuta/spinta/"cede e si ritira") in
+      BattleScene + DungeonRun. *(reskin sicuro; la UI push-meter completa resta sotto)*
+- [x] **Retention — "Il Giro di Stalla"**: streak giornaliero + 3 missioni daily
+      deterministiche (tab Premi). (6/6 test) — **LIVE su main**
+
+## 🟡 Prossimi (blocchi grandi, da fare dedicati e testati a fondo)
+- [ ] **"La Spinta" — UI push-meter completa** (barra di spinta + fiato + calma +
+      4 azioni allevatore): riscrittura del motore in BattleScene **e** DungeonRun.
+      La più grossa/rischiosa: va fatta come blocco singolo con test dedicati.
+- [ ] **Cattura → Anagrafe** completa (3 gesti di valutazione + affidamento sulla mappa).
+- [ ] **Economia 2 valute + Gradi Amis des Reines** + motore di fase `faseCorrente()`
+      (invasivo: tocca trainer/HUD/ricompense).
+- [ ] **Classifiche read-only** (leaderboard già scritta in cloudSave, mai letta) + condivisione carte.
 - [ ] **Mappa/fase + spawn per zona + trail con avatar/milestone**.
-- [ ] **Retention statico** (daily seed, streak, classifiche read-only, condivisione).
-- [ ] **Refactor `App.tsx`** (3284 righe) in moduli.
+- [ ] **Refactor `App.tsx`** (3300+ righe) in moduli (abilitante, non visibile).
 
 ## ⏭️ Fase backend (Firebase)
 - [ ] Leghe d'Alpeggio · push FCM · validazione timer server-side · vision razza.
