@@ -35,10 +35,13 @@ fallback di prima classe e il badge [REALE] vale sul pedigree, non sulla foto.
 - [x] **"La Spinta" — push-meter (BattleScene)**: barra di spinta + fiato + calma +
       4 azioni allevatore; motore puro `lib/spinta.ts`. Mappa/arene. — **LIVE** (suite verde)
 
+- [x] **"La Spinta" — conversione DungeonRun** (Lega delle Reines): gauntlet a
+      push-meter completo (fiato che si trascina, calma simmetrica, risoluzione a
+      tempo → nessuno stallo). Bilanciamento curva boss (campione 1.15→1.31).
+      Test: simulatore + run E2E Playwright (squadra normale e max conquistano
+      Verrès con gioco adattivo; forzare perde). Suite verify verde.
+
 ## 🟡 Prossimi (blocchi grandi, da fare dedicati e testati a fondo)
-- [ ] **"La Spinta" — conversione DungeonRun** (Lega delle Reines): oggi ancora
-      sul motore precedente (incruento-reskin). Riscrittura gauntlet a push-meter,
-      con test dedicato (i dungeon sono level-gated → serve harness apposito).
 - [ ] **Cattura → Anagrafe** completa (3 gesti di valutazione + affidamento sulla mappa).
 - [ ] **Economia 2 valute + Gradi Amis des Reines** + motore di fase `faseCorrente()`
       (invasivo: tocca trainer/HUD/ricompense).

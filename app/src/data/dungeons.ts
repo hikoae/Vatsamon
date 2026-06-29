@@ -48,7 +48,7 @@ function gauntlet(
   types: [VatsaType, VatsaType, VatsaType, VatsaType, VatsaType],
   bump: number,
 ): DungeonOpponent[] {
-  const pf = [0.92, 1.0, 1.08, 1.16, 1.3].map((x) => +(x + bump).toFixed(2));
+  const pf = [0.9, 0.98, 1.05, 1.1, 1.15].map((x) => +(x + bump).toFixed(2));
   return names.map(([name, title], i) => ({
     name,
     title,
