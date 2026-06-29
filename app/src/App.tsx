@@ -45,6 +45,7 @@ import { ARENAS, ArenaId } from './data/arenas';
 import { TREK_ROUTES } from './data/routes';
 import { Challenges } from './components/Challenges';
 import { SeasonView } from './components/SeasonView';
+import { StallaScreen } from './components/StallaScreen';
 import { soundEngine } from './utils/audio';
 import { generateVatsamonClient } from './lib/generate';
 import { REAL_COWS, REAL_TOTAL, REAL_CASERE, SHOWCASE_BY_RARITY } from './data/realCows';
@@ -196,16 +197,9 @@ export default function App() {
     return DEFAULT_BAG.map(i => ({ ...i }));
   });
 
-  const [eggs, setEggs] = useState<Egg[]>(() => {
-    const cached = localStorage.getItem('vazzamon_eggs_go');
-    if (cached) {
-      try { return JSON.parse(cached); } catch (e) { console.error(e); }
-    }
-    return [
-      { id: 'egg-1', rarity: 'Comune', kmWalked: 0, kmRequired: 2, isIncubating: true },
-      { id: 'egg-2', rarity: 'Epica', kmWalked: 0, kmRequired: 5, isIncubating: true }
-    ];
-  });
+  // Sistema UOVA rimosso (irrealistico): sostituito dalla STALLA genealogica.
+  // Lo stato resta vuoto e inerte per non toccare il simulatore di cammino.
+  const [eggs, setEggs] = useState<Egg[]>([]);
 
   const [trainer, setTrainer] = useState<Trainer>(() => {
     const cached = localStorage.getItem('vazzamon_trainer_go');
@@ -1902,8 +1896,7 @@ export default function App() {
             className={`flex flex-col items-center py-2 rounded-xl transition-all relative ${activeTab === 'eggs' ? 'nav-active text-white' : 'text-slate-400 hover:bg-slate-900 hover:-translate-y-0.5'}`}
           >
             <Gift className="w-4 h-4 mb-0.5" />
-            <span>Vitelli</span>
-            <span className="absolute top-1.5 right-2 w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>
+            <span>Stalla</span>
           </button>
 
           <button
@@ -2734,82 +2727,16 @@ export default function App() {
 
         {/* VIEW 3: CALF GESTATION & WEANING STABLE */}
         {activeTab === 'eggs' && (
-          <div className="space-y-6" id="hatchery-tab-view">
-            <div className="bg-slate-950 border border-slate-850 rounded-3xl p-5 shadow-sm">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4">
-                <div>
-                  <h2 className="text-xl font-mono font-black text-emerald-400 flex items-center gap-1.5 uppercase">
-                    <Gift className="w-5 h-5" />
-                    Culla dei Vitellini Alpini
-                  </h2>
-                  <p className="text-xs text-slate-400">I piccoli vitellini necessitano che tu cammini o simuli l'escursionismo per completare la crescita e lo svezzamento d'alta quota. Accompagnali nei pascoli alpini per far nascere nuove splendide Regine!</p>
-                </div>
-                
-                {/* Walk triggers direct step inside the hatchery */}
-                <button
-                  onClick={handleSimulatedWalk}
-                  className="bg-slate-900 hover:bg-slate-850 border border-slate-800 text-slate-300 font-mono font-black text-xs py-2 px-4 rounded-xl flex items-center gap-1.5 cursor-pointer shadow"
-                >
-                  <Footprints className="w-4 h-4 text-emerald-400" />
-                  PASSO 500m!
-                </button>
-              </div>
-
-              {/* Grid of incubating calves */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {eggs.map((egg) => {
-                  const progressPct = Math.min((egg.kmWalked / egg.kmRequired) * 100, 100);
-                  const rarityLabelColor = 
-                    egg.rarity === 'Epica' ? 'text-purple-400 border-purple-500/20' :
-                    egg.rarity === 'Rara' ? 'text-blue-400 border-blue-500/20' : 'text-slate-400 border-slate-800';
-
-                  return (
-                    <div key={egg.id} className="bg-slate-900 border border-slate-800 rounded-3xl p-5 relative overflow-hidden flex items-center gap-4 group hover:border-slate-700 transition-colors">
-                      
-                      {/* Glass Tube Capsule Overlay */}
-                      <div className="w-16 h-24 rounded-full border-2 border-slate-800 bg-slate-950 flex flex-col justify-end p-1 relative overflow-hidden shadow-inner group-hover:border-slate-700">
-                        {/* Bubbles or liquid gradient indicating incubation progress */}
-                        <div className="absolute inset-x-0 bottom-0 bg-emerald-500/10 transition-all duration-500" style={{ height: `${progressPct}%` }}></div>
-                        
-                        {/* Animated Calf weaning graphics */}
-                        <div className="w-12 h-12 bg-amber-100 rounded-full border-2 border-amber-600/40 shadow-md mx-auto mb-4 flex items-center justify-center animate-float relative">
-                          <span className="text-2xl">🍼</span>
-                        </div>
-
-                        {/* Tiny glass reflection strip */}
-                        <div className="absolute right-1.5 top-2 bottom-2 w-1.5 rounded-full bg-white/5 pointer-events-none"></div>
-                      </div>
-
-                      <div className="flex-grow space-y-2">
-                        <div>
-                          <span className={`text-[9px] uppercase font-mono font-bold px-2 py-0.5 rounded-full border bg-slate-950 tracking-wide ${rarityLabelColor}`}>
-                            Vitellino · {egg.rarity}
-                          </span>
-                          <h4 className="font-mono font-extrabold text-sm text-slate-100 mt-1.5">Svezzamento e Crescita</h4>
-                        </div>
-
-                        <div className="space-y-1">
-                          <div className="flex justify-between text-[11px] font-mono text-slate-400">
-                            <span>Sviluppo Vitello</span>
-                            <span className="font-bold text-slate-200">{egg.kmWalked} / {egg.kmRequired} km</span>
-                          </div>
-                          
-                          {/* Progress slider bar */}
-                          <div className="bg-slate-950 border border-slate-850 rounded-full h-2 overflow-hidden shadow-inner">
-                            <div className="bg-gradient-to-r from-amber-500 to-yellow-400 h-2 rounded-full" style={{ width: `${progressPct}%` }} />
-                          </div>
-                        </div>
-
-                        <p className="text-[9.5px] text-slate-500">Accompagna il vitellino nelle camminate d'alta quota per completare la crescita e vederlo svezzato in stalla!</p>
-                      </div>
-
-                    </div>
-                  );
-                })}
-              </div>
-
-            </div>
-          </div>
+          <StallaScreen
+            collection={vatsadex}
+            onBorn={(cow) => setVatsadex(prev => [cow, ...prev])}
+            onUpdateCow={(updated) => setVatsadex(prev => prev.map(c => c.id === updated.id ? updated : c))}
+            onReward={(coins, xp) => {
+              if (coins) setTrainer(prev => ({ ...prev, coins: prev.coins + coins }));
+              if (xp) addTrainerXp(xp);
+            }}
+            playClick={playClickSfx}
+          />
         )}
 
         {/* VIEW 4: DETAILS/VATSADEX SHEET LIST */}

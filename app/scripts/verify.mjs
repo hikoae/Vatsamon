@@ -14,7 +14,7 @@ const PNG = Buffer.from(
   "base64",
 );
 
-const TABS = ["Mappa", "AR Scan", "Vitelli", "Vatsadex"];
+const TABS = ["Mappa", "AR Scan", "Stalla", "Vatsadex"];
 const problems = [];
 const note = (m) => console.log("  • " + m);
 

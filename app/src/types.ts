@@ -39,6 +39,17 @@ export interface Vatsamon {
   attack?: number;
   defense4?: number;
   funFact?: string;
+
+  // ===== Genealogia / Stalla (nati in stalla) =====
+  bornInStalla?: boolean;
+  stage?: 'moudzon' | 'manza' | 'giovenca' | 'reina';
+  ageMonths?: number;
+  geneticStats4?: { stazza: number; corna: number; testa: number; grinta: number };
+  motherId?: string;
+  fatherId?: string;
+  fatherName?: string;
+  generation?: number;
+  lineTrait?: string;
 }
 
 export interface Hotspot {
