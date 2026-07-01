@@ -1,5 +1,9 @@
 # Stato attuale di `app/` — baseline per il merge
 
+> ⚠️ **DOCUMENTO SUPERATO** (fotografa la baseline pre-merge: 5 tab, App.tsx
+> 2584 righe, 6 chiavi). Per lo stato reale vedi **[`AUDIT_2026-07.md`](AUDIT_2026-07.md)**
+> e `HANDOFF.md`.
+
 Inventario verificato (codice ispezionato, non a memoria) della build attuale,
 da usare come base per unire un'altra repo mantenendo il più possibile.
 

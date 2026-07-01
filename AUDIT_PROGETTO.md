@@ -1,5 +1,9 @@
 # Audit progetto Vatsamon
 
+> ⚠️ **DOCUMENTO SUPERATO** (cita componenti che non esistono più, conteggi
+> righe obsoleti). L'audit aggiornato è **[`AUDIT_2026-07.md`](AUDIT_2026-07.md)**;
+> il piano derivato è **[`ROADMAP_V1.4.md`](ROADMAP_V1.4.md)**.
+
 Audit svolto su `app/`, cioe la PWA attiva indicata dal README. `materiali/` e trattata come archivio di fonti, prototipi, dataset e challenge.
 
 ## Sintesi
