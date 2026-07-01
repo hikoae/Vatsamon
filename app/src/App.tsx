@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import L from 'leaflet';
 import {
+  Mountain,
+  Warehouse,
   Compass,
   Camera,
   BookOpen,
@@ -20,7 +22,7 @@ import {
 } from 'lucide-react';
 import { Vatsamon, Hotspot, BackpackItem, Trainer, RarityType } from './types';
 import { normalizeSaveKey } from './lib/migrateSaveKeys';
-import { APP_VERSION } from './config/brand';
+import { APP_VERSION, BRAND } from './config/brand';
 import { VatsamonAvatar } from './components/VatsamonAvatar';
 import { CowVisual } from './components/CowVisual';
 import { TrailOverlay } from './components/TrailOverlay';
@@ -1520,153 +1522,74 @@ export default function App() {
       {/* CORNICE "TELEFONO": su desktop l'esperienza resta in una colonna centrata
           di larghezza massima mobile, con bordo/ombra ai lati; su mobile occupa
           tutto lo schermo senza cornice. */}
-      <div className="phone-frame w-full max-w-md min-h-screen flex flex-col relative bg-slate-950/0 lg:shadow-2xl lg:border-x lg:border-slate-800/60">
+      <div className="phone-frame w-full max-w-md min-h-screen flex flex-col relative bg-slate-950/0 lg:shadow-2xl lg:border-x lg:border-slate-800/60 pb-24">
 
-      {/* 🎒 HUD ALLEVATORE + NAV come UNICO blocco sticky (niente offset magici) 🎒 */}
-      <div className="sticky top-0 z-50">
+      {/* 🎒 HUD ALLEVATORE — 1 riga compatta + barra XP sottile (sticky, safe-area) 🎒 */}
+      <div className="sticky top-0 z-40" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
       <header className="bg-slate-950 shadow-md" id="trainer-hud">
         {/* accento bandiera valdostana: nero | rosso */}
         <div className="h-1.5 w-full" style={{ background: "linear-gradient(90deg,#1a1626 0 50%, #c8102e 50% 100%)" }} aria-hidden="true" />
-        <div className="border-b-2 border-[#c8102e] px-3 pt-2 pb-2.5">
-          <div className="max-w-4xl mx-auto">
-            {/* riga 1: avatar + identità + audio */}
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2.5 min-w-0">
-                <div className="relative cursor-pointer flex-shrink-0" title="Profilo & Salvataggio" onClick={() => { playClickSfx(); setProfileMsg(""); setShowProfile(true); }}>
-                  <div className="w-11 h-11 rounded-full border-2 border-[#c8102e] bg-slate-850 flex items-center justify-center overflow-hidden shadow-inner">
-                    <span className="text-2xl">👨‍🌾</span>
-                  </div>
-                  <div className="absolute -bottom-1 -right-1 bg-[#c8102e] text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow border border-white/30">
-                    {trainer.level}
-                  </div>
-                </div>
-                <div className="min-w-0">
-                  <div className="flex items-center gap-1.5">
-                    <span className="font-mono font-black text-sm tracking-wide title-gradient">VATSAMON GO</span>
-                    <span className="text-[8px] bg-[#1a1626] text-white border border-[#c8102e]/60 px-1.5 py-0.5 rounded-full font-bold uppercase">Valle d'Aosta</span>
-                  </div>
-                  <div className="text-[9.5px] font-mono text-slate-400 truncate" title={gradoStato.grado.perk}>
-                    <span className="text-amber-400 font-bold">{gradoStato.grado.emoji} {gradoStato.grado.nome}</span>
-                    {pedigreeStars > 0 && <span className="text-amber-300"> {'★'.repeat(Math.min(pedigreeStars, 5))}</span>}
-                    <span className="text-slate-600"> · </span>{trainer.name}
-                  </div>
-                </div>
+        <div className="px-2.5 py-1.5 flex items-center justify-between gap-1.5">
+          {/* identità: avatar + nome gioco + grado → apre il Profilo */}
+          <button
+            aria-label="Profilo e salvataggio"
+            onClick={() => { playClickSfx(); setProfileMsg(""); setShowProfile(true); }}
+            className="flex items-center gap-2 min-w-0 text-left rounded-xl px-1 py-1 hover:bg-slate-900 transition-colors"
+          >
+            <div className="relative flex-shrink-0">
+              <div className="w-10 h-10 rounded-full border-2 border-[#c8102e] bg-slate-850 flex items-center justify-center overflow-hidden shadow-inner">
+                <span className="text-xl">👨‍🌾</span>
               </div>
-              <button
-                onClick={() => { playClickSfx(); setSoundEnabled(!soundEnabled); }}
-                className="p-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 flex-shrink-0"
-              >
-                {soundEnabled ? <Volume2 className="w-3.5 h-3.5 text-emerald-400" /> : <VolumeX className="w-3.5 h-3.5 text-slate-500" />}
-              </button>
+              <div className="absolute -bottom-1 -right-1 bg-[#c8102e] text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow border border-white/30">
+                {trainer.level}
+              </div>
             </div>
+            <div className="min-w-0">
+              <div className="font-mono font-black text-[13px] tracking-wide title-gradient leading-tight">{BRAND.gameName.toUpperCase()}</div>
+              <div className="text-[9.5px] font-mono text-slate-400 truncate max-w-[110px]" title={gradoStato.grado.perk}>
+                <span className="text-amber-400 font-bold">{gradoStato.grado.emoji} {gradoStato.grado.nome}</span>
+                {pedigreeStars > 0 && <span className="text-amber-300"> {'★'.repeat(Math.min(pedigreeStars, 5))}</span>}
+              </div>
+            </div>
+          </button>
 
-            {/* riga 2: barra XP */}
-            <div className="flex items-center gap-2 mt-2">
-              <span className="text-[8px] font-mono font-black text-slate-500 uppercase flex-shrink-0">Lv {trainer.level}</span>
-              <div className="flex-grow bg-slate-800 rounded-full h-2 overflow-hidden border border-slate-700">
-                <div className="bg-gradient-to-r from-[#c8102e] to-amber-400 h-2 rounded-full transition-all" style={{ width: `${Math.min(100, (trainer.xp / trainer.xpToNextLevel) * 100)}%` }} />
-              </div>
-              <span className="text-[8px] font-mono text-slate-400 font-bold flex-shrink-0">{trainer.xp}/{trainer.xpToNextLevel} XP</span>
+          {/* chip risorse + premi + audio */}
+          <div className="flex items-center gap-1 flex-shrink-0">
+            <div className="bg-slate-900 border border-amber-700/40 rounded-xl px-1.5 py-1 min-h-[40px] flex flex-col items-center justify-center min-w-[42px]" title="Denari d'Alpeggio">
+              <span className="text-[11px] leading-none">🪙</span>
+              <span className="text-[10.5px] font-mono font-extrabold text-amber-300 leading-tight tabular-nums">{trainer.coins}</span>
             </div>
-
-            {/* riga 3: STATISTICHE — tutte ben visibili */}
-            <div className="grid grid-cols-5 gap-1.5 mt-2">
-              <div className="bg-slate-900 border border-amber-700/40 rounded-xl py-1 text-center" title="Denari d'Alpeggio">
-                <div className="text-[13px] leading-none">🪙</div>
-                <div className="text-[11px] font-mono font-extrabold text-amber-300 leading-tight">{trainer.coins}</div>
-                <div className="text-[7px] font-mono uppercase text-slate-500">Denari</div>
-              </div>
-              <div className="bg-slate-900 border rounded-xl py-1 text-center" style={{ borderColor: VALUTE.fontina.colore + "66" }} id="fontina-hud" title="Forme di Fontina — valuta di prestigio">
-                <div className="text-[13px] leading-none">🧀</div>
-                <div className="text-[11px] font-mono font-extrabold leading-tight" style={{ color: VALUTE.fontina.colore }}>{fontina}</div>
-                <div className="text-[7px] font-mono uppercase text-slate-500">Fontina</div>
-              </div>
-              <div className="bg-slate-900 border rounded-xl py-1 text-center" style={{ borderColor: respectTone(respectScore).color + "66" }} id="respect-hud" title={`Rispetto: ${respectTone(respectScore).label} (${respectScore}/100)`}>
-                <div className="text-[13px] leading-none">🌿</div>
-                <div className="text-[11px] font-mono font-extrabold leading-tight" style={{ color: respectTone(respectScore).color }}>{respectScore}</div>
-                <div className="text-[7px] font-mono uppercase text-slate-500">Rispetto</div>
-              </div>
-              <div className="bg-slate-900 border border-emerald-700/40 rounded-xl py-1 text-center" title="Chilometri camminati">
-                <div className="text-[13px] leading-none">🥾</div>
-                <div className="text-[11px] font-mono font-extrabold text-emerald-400 leading-tight">{Math.round(trainer.kmTraveled)}</div>
-                <div className="text-[7px] font-mono uppercase text-slate-500">Km</div>
-              </div>
-              <div className="bg-slate-900 border border-rose-700/40 rounded-xl py-1 text-center" title="Reines nel Libretto di Mandria">
-                <div className="text-[13px] leading-none">🐮</div>
-                <div className="text-[11px] font-mono font-extrabold text-rose-300 leading-tight">{vatsadex.length}</div>
-                <div className="text-[7px] font-mono uppercase text-slate-500">Reines</div>
-              </div>
+            <div className="bg-slate-900 border rounded-xl px-1.5 py-1 min-h-[40px] flex flex-col items-center justify-center min-w-[38px]" style={{ borderColor: VALUTE.fontina.colore + "66" }} id="fontina-hud" title="Forme di Fontina — valuta di prestigio">
+              <span className="text-[11px] leading-none">🧀</span>
+              <span className="text-[10.5px] font-mono font-extrabold leading-tight tabular-nums" style={{ color: VALUTE.fontina.colore }}>{fontina}</span>
             </div>
+            <div className="bg-slate-900 border rounded-xl px-1.5 py-1 min-h-[40px] flex flex-col items-center justify-center min-w-[38px]" style={{ borderColor: respectTone(respectScore).color + "66" }} id="respect-hud" title={`Rispetto: ${respectTone(respectScore).label} (${respectScore}/100)`}>
+              <span className="text-[11px] leading-none">🌿</span>
+              <span className="text-[10.5px] font-mono font-extrabold leading-tight tabular-nums" style={{ color: respectTone(respectScore).color }}>{respectScore}</span>
+            </div>
+            <button
+              id="premi-chip"
+              aria-label="Giro di Stalla: premi e missioni del giorno"
+              onClick={() => { playClickSfx(); setActiveTab('premi'); }}
+              className={`rounded-xl px-2 min-h-[40px] min-w-[40px] flex items-center justify-center border transition-colors ${activeTab === 'premi' ? 'nav-active text-white border-transparent' : 'bg-slate-900 border-slate-800 text-amber-300 hover:bg-slate-800'}`}
+            >
+              <Gift className="w-[18px] h-[18px]" />
+            </button>
+            <button
+              aria-label={soundEnabled ? 'Disattiva audio' : 'Attiva audio'}
+              onClick={() => { playClickSfx(); setSoundEnabled(!soundEnabled); }}
+              className="rounded-xl px-2 min-h-[40px] min-w-[40px] flex items-center justify-center bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300"
+            >
+              {soundEnabled ? <Volume2 className="w-[18px] h-[18px] text-emerald-400" /> : <VolumeX className="w-[18px] h-[18px] text-slate-500" />}
+            </button>
           </div>
         </div>
-      </header>
 
-      {/* 🧭 PRIMARY MAIN TABS NAVIGATION 🧭 */}
-      <nav className="bg-slate-950/90 border-b border-slate-850 shadow-inner">
-        <div className="max-w-md mx-auto grid grid-cols-7 gap-0.5 p-1 text-[11px] font-extrabold">
-          <button
-            onClick={() => { playClickSfx(); setActiveTab('map'); }}
-            className={`flex flex-col items-center py-2 rounded-xl transition-all ${activeTab === 'map' ? 'nav-active text-white' : 'text-slate-400 hover:bg-slate-900 hover:-translate-y-0.5'}`}
-          >
-            <Compass className="w-4 h-4 mb-0.5" />
-            <span>Mappa</span>
-          </button>
-
-          <button
-            onClick={() => { playClickSfx(); setActiveTab('stagione'); }}
-            className={`flex flex-col items-center py-2 rounded-xl transition-all relative ${activeTab === 'stagione' ? 'nav-active text-white' : 'text-slate-400 hover:bg-slate-900 hover:-translate-y-0.5'}`}
-          >
-            <Trophy className="w-4 h-4 mb-0.5" />
-            <span>Stagione</span>
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span>
-          </button>
-
-          <button
-            onClick={() => { playClickSfx(); setActiveTab('scanner'); }}
-            className={`flex flex-col items-center py-2 rounded-xl transition-all ${activeTab === 'scanner' ? 'nav-active text-white' : 'text-slate-400 hover:bg-slate-900 hover:-translate-y-0.5'}`}
-          >
-            <Camera className="w-4 h-4 mb-0.5" />
-            <span>AR Scan</span>
-          </button>
-
-          <button
-            onClick={() => { playClickSfx(); setActiveTab('stalla'); }}
-            className={`flex flex-col items-center py-2 rounded-xl transition-all relative ${activeTab === 'stalla' ? 'nav-active text-white' : 'text-slate-400 hover:bg-slate-900 hover:-translate-y-0.5'}`}
-          >
-            <Gift className="w-4 h-4 mb-0.5" />
-            <span>Stalla</span>
-          </button>
-
-          <button
-            onClick={() => { playClickSfx(); setActiveTab('vatsadex'); }}
-            className={`flex flex-col items-center py-2 rounded-xl transition-all relative ${activeTab === 'vatsadex' ? 'nav-active text-white' : 'text-slate-400 hover:bg-slate-900 hover:-translate-y-0.5'}`}
-          >
-            <BookOpen className="w-4 h-4 mb-0.5" />
-            <span>Vatsadex</span>
-            {vatsadex.length > 0 && (
-              <span className="absolute top-1 right-2 bg-amber-500 text-[#0b0820] text-[9px] px-1.5 rounded-full font-black">
-                {vatsadex.length}
-              </span>
-            )}
-          </button>
-
-          <button
-            onClick={() => { playClickSfx(); setActiveTab('quiz'); }}
-            className={`flex flex-col items-center py-2 rounded-xl transition-all ${activeTab === 'quiz' ? 'nav-active text-white' : 'text-slate-400 hover:bg-slate-900 hover:-translate-y-0.5'}`}
-          >
-            <GraduationCap className="w-4 h-4 mb-0.5" />
-            <span>Scuola</span>
-          </button>
-
-          <button
-            onClick={() => { playClickSfx(); setActiveTab('premi'); }}
-            className={`flex flex-col items-center py-2 rounded-xl transition-all ${activeTab === 'premi' ? 'nav-active text-white' : 'text-slate-400 hover:bg-slate-900 hover:-translate-y-0.5'}`}
-          >
-            <Gift className="w-4 h-4 mb-0.5" />
-            <span>Premi</span>
-          </button>
+        {/* barra XP sottile a tutta larghezza */}
+        <div className="h-1.5 bg-slate-800 w-full" title={`Lv ${trainer.level} · ${trainer.xp}/${trainer.xpToNextLevel} XP`}>
+          <div className="bg-gradient-to-r from-[#c8102e] to-amber-400 h-full transition-all" style={{ width: `${Math.min(100, (trainer.xp / trainer.xpToNextLevel) * 100)}%` }} />
         </div>
-      </nav>
+      </header>
       </div>
 
       {/* 🗺️ ACTIVE VIEW DISPLAY 🗺️ */}
@@ -2537,6 +2460,19 @@ export default function App() {
                 </div>
               )}
             </div>
+          {/* ingresso alla Scuola d'Alpeggio (il quiz non è più una tab) */}
+          <button
+            id="quiz-entry"
+            onClick={() => { playClickSfx(); setActiveTab('quiz'); }}
+            className="w-full bg-slate-950 border border-emerald-800/50 rounded-2xl p-3 flex items-center gap-3 text-left hover:border-emerald-600/60 transition-colors"
+          >
+            <GraduationCap className="w-6 h-6 text-emerald-400 flex-shrink-0" />
+            <div className="min-w-0 flex-grow">
+              <div className="text-[12px] font-mono font-black text-emerald-300 uppercase">Scuola d'Alpeggio</div>
+              <div className="text-[10px] text-slate-400 truncate">Quiz su tradizioni, regole e rispetto{quizBest > 0 ? ` · record ${quizBest}` : ''}</div>
+            </div>
+            <span className="text-slate-500 text-lg" aria-hidden="true">›</span>
+          </button>
           <SeasonView
             onReward={(coins, xp) => {
               setTrainer(prev => ({ ...prev, coins: prev.coins + coins }));
@@ -2612,6 +2548,70 @@ export default function App() {
         </div>
 
       </main>
+
+      {/* 🧭 NAV PRINCIPALE IN BASSO — 5 destinazioni, zona pollice, safe-area 🧭 */}
+      <nav
+        id="bottom-nav"
+        className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md z-40 bg-slate-950/95 backdrop-blur border-t border-slate-850 shadow-[0_-4px_16px_rgba(0,0,0,0.25)]"
+        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+      >
+        <div className="grid grid-cols-5 items-end gap-1 px-2 pt-1.5 pb-1.5 text-[11px] font-extrabold">
+          <button
+            onClick={() => { playClickSfx(); setActiveTab('map'); }}
+            aria-label="Alpeggio: mappa ed esplorazione"
+            className={`flex flex-col items-center justify-center gap-0.5 min-h-[48px] py-1.5 rounded-xl transition-all ${activeTab === 'map' ? 'nav-active text-white' : 'text-slate-400 hover:bg-slate-900'}`}
+          >
+            <Mountain className="w-5 h-5" />
+            <span>Alpeggio</span>
+          </button>
+
+          <button
+            onClick={() => { playClickSfx(); setActiveTab('stagione'); }}
+            aria-label="Stagione: calendario, notizie e tabellone"
+            className={`flex flex-col items-center justify-center gap-0.5 min-h-[48px] py-1.5 rounded-xl transition-all ${activeTab === 'stagione' ? 'nav-active text-white' : 'text-slate-400 hover:bg-slate-900'}`}
+          >
+            <Trophy className="w-5 h-5" />
+            <span>Stagione</span>
+          </button>
+
+          {/* bottone centrale rialzato: Scatta la Reina */}
+          <button
+            onClick={() => { playClickSfx(); setActiveTab('scanner'); }}
+            aria-label="Scatta la Reina: fotocamera"
+            className="flex flex-col items-center justify-end gap-0.5 group"
+          >
+            <span
+              className={`-mt-7 w-14 h-14 rounded-full flex items-center justify-center border-4 border-slate-950 shadow-lg transition-transform group-active:scale-95 ${activeTab === 'scanner' ? 'bg-gradient-to-br from-[#c8102e] to-amber-500 text-white' : 'bg-[#c8102e] text-white group-hover:brightness-110'}`}
+            >
+              <Camera className="w-6 h-6" />
+            </span>
+            <span className={activeTab === 'scanner' ? 'text-white' : 'text-slate-400'}>Scatta</span>
+          </button>
+
+          <button
+            onClick={() => { playClickSfx(); setActiveTab('stalla'); }}
+            aria-label="Stalla: allevamento e genealogia"
+            className={`flex flex-col items-center justify-center gap-0.5 min-h-[48px] py-1.5 rounded-xl transition-all ${activeTab === 'stalla' ? 'nav-active text-white' : 'text-slate-400 hover:bg-slate-900'}`}
+          >
+            <Warehouse className="w-5 h-5" />
+            <span>Stalla</span>
+          </button>
+
+          <button
+            onClick={() => { playClickSfx(); setActiveTab('vatsadex'); }}
+            aria-label="Libretto di Mandria: la tua collezione"
+            className={`relative flex flex-col items-center justify-center gap-0.5 min-h-[48px] py-1.5 rounded-xl transition-all ${activeTab === 'vatsadex' ? 'nav-active text-white' : 'text-slate-400 hover:bg-slate-900'}`}
+          >
+            <BookOpen className="w-5 h-5" />
+            <span>Libretto</span>
+            {vatsadex.length > 0 && (
+              <span className="absolute top-0.5 right-1.5 bg-amber-500 text-[#0b0820] text-[9px] px-1.5 rounded-full font-black">
+                {vatsadex.length}
+              </span>
+            )}
+          </button>
+        </div>
+      </nav>
 
       {/* Flash d'incontro casuale (transizione stile Pokémon) */}
       {encounterFlash && <div className="encounter-flash" />}

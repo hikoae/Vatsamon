@@ -14,7 +14,7 @@ const PNG = Buffer.from(
   "base64",
 );
 
-const TABS = ["Mappa", "AR Scan", "Stalla", "Vatsadex"];
+const TABS = ["Alpeggio", "Scatta", "Stalla", "Libretto"];
 const problems = [];
 const note = (m) => console.log("  • " + m);
 
@@ -97,14 +97,22 @@ for (const t of TABS) {
 }
 
 // Vatsadex: card catalogo reali X/73
-await clickTab(page, "Vatsadex");
+await clickTab(page, "Libretto");
 const cat = await page.locator("text=/Reines reali:\\s*\\d+\\/73/").isVisible().catch(() => false);
 note(`catalogo reali X/73: ${cat}`);
 if (!cat) problems.push("manca la card catalogo reali X/73");
 await page.screenshot({ path: `${OUT}/v2int-3-dex.png` });
 
-// Quiz "Scuola d'Alpeggio": completa il flusso fino al risultato
-await page.locator("nav button", { hasText: "Scuola" }).first().click();
+// Premi/Giro di Stalla: raggiungibile dal chip nell'HUD
+await page.locator("#premi-chip").click();
+await page.waitForTimeout(400);
+const premiOpen = await page.locator("#premi-view").isVisible().catch(() => false);
+note(`vista Premi dal chip HUD: ${premiOpen}`);
+if (!premiOpen) problems.push("il chip Premi nell'HUD non apre la vista");
+
+// Quiz "Scuola d'Alpeggio": ingresso dalla Stagione, poi flusso fino al risultato
+await clickTab(page, "Stagione");
+await page.locator("#quiz-entry").click();
 await page.waitForTimeout(400);
 let quizGuard = 0;
 while (quizGuard++ < 15) {
@@ -124,8 +132,8 @@ note(`quiz completato: ${quizDone}`);
 if (!quizDone) problems.push("quiz non arriva al risultato");
 await page.screenshot({ path: `${OUT}/v2int-6-quiz.png` });
 
-// AR Scan → upload → cattura interattiva (master ball garantita)
-await clickTab(page, "AR Scan");
+// Scatta (scanner) → upload → cattura interattiva (master ball garantita)
+await clickTab(page, "Scatta");
 await page.waitForTimeout(300);
 const fileInput = page.locator('input[type="file"]').first();
 if (await fileInput.count()) {
@@ -159,7 +167,7 @@ if (await encounter.isVisible().catch(() => false)) {
 }
 
 // ===== BATTAGLIE SULLA MAPPA (scena stile Pokémon) =====
-await clickTab(page, "Mappa");
+await clickTab(page, "Alpeggio");
 await page.waitForTimeout(500);
 // assicura GPS attivo (posizione vicino al Pastore)
 const gpsOnNow = await page.locator("#gps-btn", { hasText: "GPS attivo" }).isVisible().catch(() => false);
