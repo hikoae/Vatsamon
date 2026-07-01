@@ -52,6 +52,16 @@ export default defineConfig(({ mode }) => ({
               expiration: { maxEntries: 500, maxAgeSeconds: 60 * 60 * 24 * 30 },
             },
           },
+          {
+            // Riconoscitore "Scatta la Reina" (~18MB): NON in precache, ma
+            // cache-first al primo uso → poi funziona anche offline in alpeggio.
+            urlPattern: ({ url }) => url.pathname.includes("/models/ssdlite/"),
+            handler: "CacheFirst",
+            options: {
+              cacheName: "detector-model",
+              expiration: { maxEntries: 8 },
+            },
+          },
         ],
       },
     }),

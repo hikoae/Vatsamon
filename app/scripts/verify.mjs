@@ -132,13 +132,29 @@ note(`quiz completato: ${quizDone}`);
 if (!quizDone) problems.push("quiz non arriva al risultato");
 await page.screenshot({ path: `${OUT}/v2int-6-quiz.png` });
 
-// Scatta (scanner) → upload → cattura interattiva (master ball garantita)
+// Scatta la Reina → verifica on-device (COCO-SSD) → cattura interattiva
 await clickTab(page, "Scatta");
 await page.waitForTimeout(300);
 const fileInput = page.locator('input[type="file"]').first();
 if (await fileInput.count()) {
-  await fileInput.setInputFiles({ name: "mucca.png", mimeType: "image/png", buffer: PNG });
-  await page.waitForTimeout(3500); // analisi → entra in cattura
+  // 1) NON-bovina: un PNG 1×1 deve essere rifiutato con cortesia
+  //    (il primo riconoscimento include il caricamento del modello ~18MB)
+  await fileInput.setInputFiles({ name: "pixel.png", mimeType: "image/png", buffer: PNG });
+  const rejected = await page.locator("#sighting-rejected").waitFor({ state: "visible", timeout: 120000 }).then(() => true).catch(() => false);
+  note(`scanner rifiuta ciò che non è bovina: ${rejected}`);
+  if (!rejected) problems.push("il riconoscitore non rifiuta le foto senza bovine");
+  await page.locator("#sighting-rejected button").click().catch(() => {});
+  await page.waitForTimeout(300);
+
+  // 2) foto VERA di una Reina → verificata → si apre la cattura
+  await fileInput.setInputFiles(new URL("../public/photos/BESKIADA.jpg", import.meta.url).pathname);
+  const confirmBtn = page.locator("#sighting-confirm");
+  const verified = await confirmBtn.waitFor({ state: "visible", timeout: 60000 }).then(() => true).catch(() => false);
+  note(`bovina reale verificata dal riconoscitore: ${verified}`);
+  if (!verified) problems.push("il riconoscitore non verifica la foto reale della Reina");
+  await page.screenshot({ path: `${OUT}/v2int-4a-verificata.png` });
+  if (verified) await confirmBtn.click();
+  await page.waitForTimeout(1200);
   const capturing = await page.locator("#throw-btn").isVisible().catch(() => false);
   note(`scanner → cattura aperta: ${capturing}`);
   if (!capturing) problems.push("scanner non porta alla cattura");

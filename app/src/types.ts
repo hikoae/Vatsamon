@@ -21,6 +21,9 @@ export interface Vatsamon {
   // ===== Campi delle bovine REALI (Batailles de Reines) =====
   isReal?: boolean;
   realPhoto?: string | null; // URL foto reale (o null se senza foto)
+  /** "Scatta la Reina": id della foto del giocatore in IndexedDB (SOLO su
+   *  questo dispositivo; nel cloud viaggia solo l'id, mai l'immagine). */
+  sightingPhotoId?: string;
   comune?: string;
   allevatore?: string;
   matricola?: string;

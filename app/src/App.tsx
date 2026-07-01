@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import L from 'leaflet';
 import {
   Mountain,
@@ -12,7 +12,6 @@ import {
   Sparkles,
   ShieldAlert,
   MapPin,
-  RefreshCw,
   X,
   RotateCw,
   Gift,
@@ -22,6 +21,7 @@ import {
 } from 'lucide-react';
 import { Vatsamon, Hotspot, BackpackItem, Trainer, RarityType } from './types';
 import { normalizeSaveKey } from './lib/migrateSaveKeys';
+import { savePhoto } from './lib/photoStore';
 import { APP_VERSION, BRAND } from './config/brand';
 import { VatsamonAvatar } from './components/VatsamonAvatar';
 import { CowVisual } from './components/CowVisual';
@@ -41,6 +41,7 @@ import { Challenges } from './components/Challenges';
 import { SeasonView } from './components/SeasonView';
 import { StallaScreen } from './components/StallaScreen';
 import { VatsadexView } from './components/VatsadexView';
+import { ScattaView } from './components/ScattaView';
 import { DailyPanel } from './components/DailyPanel';
 import { soundEngine } from './utils/audio';
 import { generateVatsamonClient } from './lib/generate';
@@ -752,13 +753,6 @@ export default function App() {
   const [captureStep, setCaptureStep] = useState<'aiming' | 'flying' | 'wobbling' | 'secured' | 'escaped'>('aiming');
   const [captureLogMsg, setCaptureLogMsg] = useState('');
 
-  // Scanner upload parameters
-  const [isScanning, setIsScanning] = useState(false);
-  const [scanProgress, setScanProgress] = useState(0);
-  const [scanMessage, setScanMessage] = useState('');
-  const [cameraStreamActive, setCameraStreamActive] = useState(false);
-  const videoRef = useRef<HTMLVideoElement | null>(null);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   // Backpack general item utility drawer
   const [activeCombatantId, setActiveCombatantId] = useState<string>(() => vatsadex[0]?.id || "");
@@ -1417,100 +1411,34 @@ export default function App() {
   };
 
   // ---- 10. REAL-TIME TAP-AND-DODGE GYM BATTLES ----
-  // ---- 11. SCANNER CLIENT (simulato) ----
-  const processImageScanGo = async (imgBase64: string | null) => {
-    playClickSfx();
-    setIsScanning(true);
-    setScanProgress(5);
-    setScanMessage("Osservo la mandria con calma...");
+  // ---- 11. SCATTA LA REINA: dall'avvistamento verificato alla cattura ----
+  // La verifica on-device avviene in ScattaView; qui la foto (già ritagliata)
+  // viene archiviata in IndexedDB e l'avvistamento entra nel flusso di
+  // avvicinamento col campanaccio come qualsiasi altra Reina.
+  const handleSighting = async (photoDataUrl: string | null) => {
+    const parsed = await generateVatsamonClient(null);
+    const str = parsed.stats.strength;
+    const def = parsed.stats.defense;
+    const agl = parsed.stats.agility;
+    const calculatedCp = Math.floor((str * 2 + def + agl) * (1.1 + (parsed.rarity === 'Leggendaria' ? 1.0 : parsed.rarity === 'Epica' ? 0.5 : parsed.rarity === 'Rara' ? 0.2 : 0)));
 
-    const intervals = [
-      "Riconosco il mantello e la razza...",
-      "Valuto la stazza e la cornatura...",
-      "Leggo la grinta nello sguardo...",
-      "Stimo il peso e la categoria...",
-      "Compilo la scheda d'avvistamento..."
-    ];
-
-    let currentStep = 0;
-    const timer = setInterval(() => {
-      if (currentStep < intervals.length) {
-        setScanProgress(p => Math.min(p + 18, 90));
-        setScanMessage(intervals[currentStep]);
-        currentStep++;
+    let sightingPhotoId: string | undefined;
+    if (photoDataUrl) {
+      try {
+        sightingPhotoId = `sight-${Date.now()}`;
+        const blob = await (await fetch(photoDataUrl)).blob();
+        await savePhoto(sightingPhotoId, blob);
+      } catch {
+        sightingPhotoId = undefined; // quota piena: la carta userà l'illustrazione
       }
-    }, 550);
-
-    try {
-      // Build statica: generazione client (niente server), stesso schema.
-      const parsed: Vatsamon = await generateVatsamonClient(imgBase64, false);
-
-      clearInterval(timer);
-      setScanProgress(100);
-      setScanMessage("Avvistamento riconosciuto!");
-
-      // Supply CP & level calculations
-      const str = parsed.stats.strength;
-      const def = parsed.stats.defense;
-      const agl = parsed.stats.agility;
-      const calculatedCp = Math.floor((str * 2 + def + agl) * (1.1 + (parsed.rarity === 'Leggendaria' ? 1.0 : parsed.rarity === 'Epica' ? 0.5 : parsed.rarity === 'Rara' ? 0.2 : 0)));
-
-      const fullySynthesized: Vatsamon = {
-        ...parsed,
-        cp: calculatedCp,
-        level: 15
-      };
-
-      setTimeout(() => {
-        playMooSfx();
-        setEncounterCow(fullySynthesized);
-        setValutazione(null);
-        setShowValutazione(false);
-        setIsCapturingMode(true); // Direct to AR catching view!
-        setIsScanning(false);
-        stopCamera();
-      }, 700);
-
-    } catch (e) {
-      console.error(e);
-      clearInterval(timer);
-      setIsScanning(false);
     }
-  };
 
-  const handleFileUploadGo = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      const res = reader.result as string;
-      processImageScanGo(res);
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const startCameraGo = async () => {
-    playClickSfx();
-    try {
-      setCameraStreamActive(true);
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        videoRef.current.play().catch(e => console.log(e));
-      }
-    } catch (err) {
-      console.warn("Camera hardware not available, falling back beautifully.", err);
-    }
-  };
-
-  const stopCamera = () => {
-    if (videoRef.current && videoRef.current.srcObject) {
-      const stream = videoRef.current.srcObject as MediaStream;
-      stream.getTracks().forEach(track => track.stop());
-      videoRef.current.srcObject = null;
-    }
-    setCameraStreamActive(false);
+    const fullySynthesized: Vatsamon = { ...parsed, cp: calculatedCp, level: 15, sightingPhotoId };
+    playMooSfx();
+    setEncounterCow(fullySynthesized);
+    setValutazione(null);
+    setShowValutazione(false);
+    setIsCapturingMode(true); // → approccio col campanaccio
   };
 
   return (
@@ -2312,103 +2240,9 @@ export default function App() {
           />
         )}
 
-        {/* VIEW 2: SCANNER (simulato — diventa "Scatta la Reina" reale in S2) */}
+        {/* VIEW 2: SCATTA LA REINA — riconoscimento fotografico on-device */}
         {activeTab === 'scanner' && (
-          <div className="space-y-6" id="scanner-view">
-            <div className="bg-slate-950 rounded-3xl p-5 border border-slate-850 shadow-md">
-              <h2 className="text-xl font-mono font-black text-emerald-400 flex items-center gap-1.5 uppercase">
-                <Camera className="w-5 h-5" />
-                Riconoscimento d'Alpeggio
-              </h2>
-              <p className="text-xs text-slate-400 mt-1">Inquadra o carica la foto di una Reina sui pascoli: ne riconosci la razza, ne valuti stazza, corna e grinta, e registri un avvistamento. Le Reines ufficiali si verificano alle gare.</p>
-
-              {!isScanning && (
-                <div className="mt-5 border-2 border-dashed border-slate-800 bg-slate-900/40 rounded-3xl p-8 flex flex-col items-center justify-center text-center space-y-4">
-                  {cameraStreamActive ? (
-                    <div className="w-full max-w-sm space-y-4">
-                      <div className="relative aspect-square rounded-2xl overflow-hidden shadow-md border border-emerald-500/20 bg-black">
-                        <video ref={videoRef} className="w-full h-full object-cover" playsInline muted />
-                        <div className="absolute inset-5 border border-dashed border-yellow-400/40 rounded-xl flex items-center justify-center pointer-events-none">
-                          <span className="text-[10px] font-mono text-yellow-400 animate-pulse">INQUADRA LA REINA</span>
-                        </div>
-                      </div>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => processImageScanGo(null)}
-                          className="flex-grow bg-emerald-500 hover:bg-emerald-400 text-[#0b0820] font-mono font-bold text-xs py-2.5 rounded-xl transition-all cursor-pointer shadow border-b-2 border-emerald-700"
-                        >
-                          Riconosci la Reina
-                        </button>
-                        <button
-                          onClick={stopCamera}
-                          className="bg-slate-800 hover:bg-slate-705 text-slate-400 py-2.5 px-4 rounded-xl text-xs"
-                        >
-                          Annulla
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="space-y-4 max-w-sm">
-                      <div className="w-16 h-16 rounded-full bg-emerald-950/60 border border-emerald-500/20 flex items-center justify-center text-emerald-400 text-2xl mx-auto shadow-inner">
-                        📤
-                      </div>
-                      <div>
-                        <p className="font-extrabold text-slate-200 text-sm">Carica o scatta una foto della Reina</p>
-                        <p className="text-[10px] text-slate-500 mt-0.5">JPEG, PNG. La foto resta sul tuo dispositivo.</p>
-                      </div>
-
-                      <div className="flex flex-col sm:flex-row items-center justify-center gap-2 pt-2">
-                        <button
-                          onClick={() => fileInputRef.current?.click()}
-                          className="w-full sm:w-auto bg-[#10b981] hover:bg-emerald-400 text-[#0b0820] font-mono font-bold text-xs py-2.5 px-4 rounded-xl transition-colors cursor-pointer"
-                        >
-                          Carica una foto
-                        </button>
-                        <button
-                          onClick={startCameraGo}
-                          className="w-full sm:w-auto bg-slate-800 hover:bg-slate-700 text-slate-200 font-mono text-xs py-2.5 px-4 rounded-xl transition-colors cursor-pointer"
-                        >
-                          Usa la fotocamera
-                        </button>
-                      </div>
-
-                      <input type="file" ref={fileInputRef} onChange={handleFileUploadGo} className="hidden" accept="image/*" />
-
-                      <div className="py-2 flex items-center text-slate-700 text-[10px] uppercase font-mono tracking-widest justify-center">
-                        <div className="flex-grow border-t border-slate-800"></div>
-                        <span className="mx-3">oppure</span>
-                        <div className="flex-grow border-t border-slate-800"></div>
-                      </div>
-
-                      <button
-                        onClick={() => processImageScanGo(null)}
-                        className="w-full bg-slate-900 hover:bg-slate-850 border border-slate-850 py-2 rounded-xl text-yellow-400 font-mono text-xs font-bold transition-all cursor-pointer shadow active:scale-95"
-                      >
-                        🐮 Avvista una Reina d'alpeggio
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Loader progressing overlay */}
-              {isScanning && (
-                <div className="py-8 space-y-4 max-w-sm mx-auto text-center animate-pulse" id="scan-bar-loader">
-                  <div className="w-14 h-14 mx-auto rounded-full border-4 border-slate-800 border-t-emerald-500 animate-spin flex items-center justify-center">
-                    <RefreshCw className="w-5 h-5 text-emerald-400" />
-                  </div>
-                  <div>
-                    <h4 className="font-mono font-black text-emerald-400 text-sm">Riconoscimento in corso...</h4>
-                    <p className="text-[10px] text-slate-400 font-mono mt-1 italic">"{scanMessage}"</p>
-                  </div>
-                  <div className="bg-slate-850 rounded-full h-2 overflow-hidden border border-slate-800">
-                    <div className="bg-emerald-500 h-2 rounded-full transition-all duration-300" style={{ width: `${scanProgress}%` }} />
-                  </div>
-                </div>
-              )}
-
-            </div>
-          </div>
+          <ScattaView onSighting={handleSighting} playClick={playClickSfx} />
         )}
 
         {/* VIEW 3: CALF GESTATION & WEANING STABLE */}
