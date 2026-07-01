@@ -18,7 +18,6 @@ import { normalizeSaveKey } from "./migrateSaveKeys";
 export const SAVE_KEYS = [
   "vatsamon_collection_go",
   "vatsamon_bag_go",
-  "vatsamon_eggs_go",
   "vatsamon_trainer_go",
   "vatsamon_waypoint_idx",
   "vatsamon_waypoint_progress",
@@ -31,6 +30,13 @@ export const SAVE_KEYS = [
   "vatsamon_onboarded",
   "vatsamon_respect",
   "vatsamon_dungeons",
+  // Sistemi v1.3 che vivevano fuori dal sync (persi al cambio dispositivo):
+  "vatsamon_stalla_preg",          // gravidanza in corso (StallaScreen)
+  "vatsamon_daily",                // streak + missioni del giorno (DailyPanel)
+  "vatsamon_pronostici",           // pronostici sul tabellone (SeasonView)
+  "vatsamon_follow_reine",         // reine seguite (SeasonView)
+  "vatsamon_pronostici_rewarded",  // pronostici già premiati (SeasonView)
+  "vatsamon_lang",                 // lingua IT/FR dell'hub
 ] as const;
 
 export interface CloudSave {
@@ -131,6 +137,8 @@ async function updateLeaderboard(uid: string) {
     const trainer = JSON.parse(localStorage.getItem("vatsamon_trainer_go") || "{}");
     const collection = JSON.parse(localStorage.getItem("vatsamon_collection_go") || "[]");
     const badges = JSON.parse(localStorage.getItem("vatsamon_badges") || "[]");
+    // Il Rispetto vive nella sua chiave dedicata, non dentro al trainer.
+    const respect = Number(localStorage.getItem("vatsamon_respect")) || trainer.respectScore || 0;
     const dexCount = Array.isArray(collection)
       ? collection.filter((c: { isReal?: boolean }) => c?.isReal).length
       : 0;
@@ -139,7 +147,7 @@ async function updateLeaderboard(uid: string) {
       {
         name: trainer.name || "Allenatore",
         level: trainer.level || 1,
-        respect: trainer.respectScore || 0,
+        respect,
         dexCount,
         badges: Array.isArray(badges) ? badges.length : 0,
         updatedAt: serverTimestamp(),

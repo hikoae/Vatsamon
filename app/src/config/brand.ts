@@ -6,6 +6,9 @@
  * la decisione finale sul brand col cliente è un'unica modifica.
  */
 
+/** Versione mostrata nell'app (fonte unica; package.json va tenuto allineato). */
+export const APP_VERSION = "1.4.0-dev";
+
 export const BRAND = {
   /** Nome dell'hub istituzionale (titolo ufficiale dell'evento). */
   hubName: "Batailles de Reines",

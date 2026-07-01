@@ -30,6 +30,7 @@ import {
 } from 'lucide-react';
 import { Vatsamon, Hotspot, BackpackItem, Trainer, BattleState, RarityType } from './types';
 import { normalizeSaveKey } from './lib/migrateSaveKeys';
+import { APP_VERSION } from './config/brand';
 import { VatsamonAvatar } from './components/VatsamonAvatar';
 import { CowVisual } from './components/CowVisual';
 import { CowCard } from './components/CowCard';
@@ -3192,17 +3193,11 @@ export default function App() {
         <p>© 2026 Vatsamon GO - Un'esplorazione virtuale ecologica della Valle d'Aosta.</p>
         <p className="flex items-center gap-1.5 text-slate-400 font-mono font-bold">
           <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ background: "linear-gradient(90deg,#1a1626 0 50%, #c8102e 50% 100%)" }} aria-hidden="true" />
-          versione <span className="text-amber-400">v1.3</span>
+          versione <span className="text-amber-400">v{APP_VERSION}</span>
         </p>
         <div className="flex gap-4">
           <button
-            onClick={() => {
-              const confirmReset = window.confirm("Cancellare tutti i progressi memorizzati nel Vatsadex?");
-              if (confirmReset) {
-                localStorage.clear();
-                window.location.reload();
-              }
-            }}
+            onClick={resetAll}
             className="text-[9px] text-slate-500 hover:text-rose-500 underline decoration-dotted underline-offset-2 cursor-pointer transition-colors"
           >
             Cancella memoria locale (Reset)

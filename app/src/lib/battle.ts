@@ -6,13 +6,12 @@ import {
   cowType,
   cowMoveset,
   movesetForType,
-  typeMultiplier,
 } from "../data/combat";
 
 /**
- * Motore di combattimento a turni "serio" (stile Pokémon):
- * tipi + efficacie, STAB, critici, varianza, mosse speciali ad Adrenalina,
- * difesa/cura/buff e oggetti dallo zaino. Usato da BattleTurnBased.
+ * Modello del combattente e builder (giocatore / Pastore / boss scalato).
+ * Il motore di risoluzione vivo è "La Spinta" (lib/spinta.ts), che deriva lo
+ * Spintatore da questo Fighter; il vecchio motore a danno/HP è stato rimosso.
  */
 
 export interface Fighter {
@@ -84,74 +83,6 @@ export function buildOpponentFighter(p: Pastore): Fighter {
     moveset: cowMoveset(fakeCow),
     visual: { name: p.cowName, breed: p.cowBreed, rarity: "Epica", realPhoto: null },
   };
-}
-
-export interface DamageResult {
-  dmg: number;
-  missed: boolean;
-  crit: boolean;
-  mult: number; // efficacia di tipo applicata
-}
-
-/**
- * Calcola il danno di una mossa d'attacco/speciale.
- * @param defending il difensore ha usato una mossa "difesa" (danno dimezzato)
- * @param atkBuff bonus attacco accumulato dall'attaccante (in %, es. 35)
- * @param defBuff bonus difesa accumulato dal difensore (in %)
- */
-export function computeDamage(
-  attacker: Fighter,
-  defender: Fighter,
-  move: BattleMove,
-  defending: boolean,
-  atkBuff: number,
-  defBuff: number,
-): DamageResult {
-  if (move.category !== "attacco" && move.category !== "speciale")
-    return { dmg: 0, missed: false, crit: false, mult: 1 };
-  if (Math.random() > move.accuracy) return { dmg: 0, missed: true, crit: false, mult: 1 };
-
-  const mult = typeMultiplier(move.type, defender.type);
-  const stab = move.type === attacker.type ? 1.15 : 1; // bonus tipo coerente
-  // Varianza ampia (±28%) e crit più frequente: rende gli scontri meno
-  // deterministici (più "fun", come i range/crit di Pokémon).
-  const variance = 0.72 + Math.random() * 0.56;
-  const crit = Math.random() < 0.12;
-
-  const atk = attacker.atk * (1 + atkBuff / 100);
-  const def = defender.def * (1 + defBuff / 100);
-  // Difesa a RAPPORTO (mitigazione %), non sottrattiva: scala morbida, niente
-  // "gradino" in cui il danno crolla a zero (testato in simulazione).
-  const DEF_K = 55;
-  let base = atk * move.power * mult * stab * variance * (DEF_K / (DEF_K + def));
-  if (crit) base *= 1.6;
-  if (defending) base *= 0.5;
-  return { dmg: Math.max(4, Math.round(base)), missed: false, crit, mult };
-}
-
-/** IA avversaria: sceglie una mossa in modo sensato dal proprio set. */
-export function pickOpponentMove(
-  opp: Fighter,
-  oppHpRatio: number,
-  oppEnergy: number,
-): BattleMove {
-  const set = opp.moveset;
-  const special = set.find((m) => m.category === "speciale");
-  const heal = set.find((m) => m.category === "cura");
-  const defend = set.find((m) => m.category === "difesa");
-  const buff = set.find((m) => m.category === "buff");
-  const attacks = set.filter((m) => m.category === "attacco");
-  const r = Math.random();
-
-  // Speciale se carico
-  if (special && oppEnergy >= special.energy && r < 0.85) return special;
-  // Curarsi se molto ferito
-  if (heal && oppHpRatio < 0.3 && r < 0.5) return heal;
-  // Difendersi/buffarsi a volte
-  if (defend && r < 0.18) return defend;
-  if (buff && r < 0.3) return buff;
-  // Altrimenti un attacco base
-  return attacks[Math.floor(Math.random() * attacks.length)] || set[0];
 }
 
 /**

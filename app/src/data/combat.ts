@@ -47,30 +47,6 @@ export const TYPES: Record<VatsaType, TypeMeta> = {
 };
 
 /**
- * Ciclo di superiorità (ognuno è SUPER-EFFICACE contro il successivo):
- *   Corna → Prato → Tempesta → Latte → Roccia → (Corna)
- * Di conseguenza è poco efficace contro il precedente.
- */
-const CYCLE: VatsaType[] = ["corna", "prato", "tempesta", "latte", "roccia"];
-
-/** Moltiplicatore di efficacia del tipo attaccante contro il tipo difensore.
- *  Valori "morbidi" (1.5 / 0.7) per bilanciamento: il tipo conta ma non decide
- *  da solo la battaglia (testato in simulazione). */
-export function typeMultiplier(attacker: VatsaType, defender: VatsaType): number {
-  if (attacker === defender) return 1;
-  const ai = CYCLE.indexOf(attacker);
-  if (CYCLE[(ai + 1) % CYCLE.length] === defender) return 1.5;    // super-efficace
-  if (CYCLE[(ai + 4) % CYCLE.length] === defender) return 0.7;    // poco efficace
-  return 1;
-}
-
-export function effectivenessLabel(mult: number): string {
-  if (mult > 1) return "È SUPER-EFFICACE! 💥";
-  if (mult < 1) return "Non è molto efficace…";
-  return "";
-}
-
-/**
  * Assegna il tipo a una Reina in base a quale delle 4 statistiche reali è la sua
  * più "spiccata" (percentile più alto nella distribuzione del dataset). Questo
  * dà una distribuzione equilibrata fra tutti e 5 i tipi (la stazza non domina
