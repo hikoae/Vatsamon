@@ -192,15 +192,15 @@ export function CowCard({ cow }: { cow: Vatsamon }) {
               <div className="flex-grow min-w-0">
                 <div className="flex items-center gap-1.5 flex-wrap">
                   <span className="text-[11px] font-mono font-black text-slate-100 truncate">{m.name}</span>
-                  <span className={`text-[7.5px] font-mono font-bold px-1 py-0.5 rounded border uppercase ${CAT_STYLE[m.category]}`}>{m.category}</span>
-                  <span className="text-[7.5px] font-mono px-1 py-0.5 rounded" style={{ background: mt.color + "22", color: mt.color }}>{mt.emoji}</span>
-                  {m.category === "speciale" && <span className="text-[7.5px]">⚡</span>}
+                  <span className={`text-[9.5px] font-mono font-bold px-1 py-0.5 rounded border uppercase ${CAT_STYLE[m.category]}`}>{m.category}</span>
+                  <span className="text-[9.5px] font-mono px-1 py-0.5 rounded" style={{ background: mt.color + "22", color: mt.color }}>{mt.emoji}</span>
+                  {m.category === "speciale" && <span className="text-[9.5px]">⚡</span>}
                 </div>
-                <div className="text-[8.5px] text-slate-500 leading-tight truncate">{m.desc}</div>
+                <div className="text-[10px] text-slate-500 leading-tight truncate">{m.desc}</div>
               </div>
               <span className="flex-shrink-0 text-right font-mono leading-none">
                 <span className="block text-xs font-black text-[#211b3a]">{right.v}</span>
-                <span className="block text-[7px] text-slate-500 uppercase">{right.u}</span>
+                <span className="block text-[9px] text-slate-500 uppercase">{right.u}</span>
               </span>
             </div>
           );

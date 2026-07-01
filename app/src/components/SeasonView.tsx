@@ -260,7 +260,7 @@ function CalendarSection({ lang, nextEventId, todayISO, onGoPronostici }: {
                     {ev.categorie.map((c) => {
                       const cat = CATEGORIES.find((x) => x.id === c)!;
                       return (
-                        <span key={c} className="text-[8.5px] font-mono font-bold px-1.5 py-0.5 rounded-md" style={{ color: cat.accent, background: `${cat.accent}1a` }}>
+                        <span key={c} className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded-md" style={{ color: cat.accent, background: `${cat.accent}1a` }}>
                           {cat.emoji} {lang === "fr" ? cat.labelFr : cat.label}
                         </span>
                       );
@@ -540,7 +540,7 @@ function FollowSection({ lang, followCow, onFollow, onOpenBracket }: {
             <CowVisual cow={cow} className="w-9 h-9 flex-shrink-0" />
             <div className="min-w-0">
               <div className="text-[10px] font-mono font-bold text-slate-200 truncate">{cow.name}</div>
-              <div className="text-[8.5px] font-mono text-slate-500 truncate">{cow.comune ?? "—"}</div>
+              <div className="text-[10px] font-mono text-slate-500 truncate">{cow.comune ?? "—"}</div>
             </div>
           </button>
         ))}
@@ -584,7 +584,7 @@ function NewsSection({ lang, todayISO, onGoCalendario, onGoTabellone }: {
             </div>
             <div className="text-right flex-shrink-0 ml-2">
               <div className="text-2xl font-mono font-black text-amber-300 tabular-nums leading-none">{giorni}</div>
-              <div className="text-[8px] font-mono uppercase text-slate-500">{tr(lang, "news_giorni")}</div>
+              <div className="text-[10px] font-mono uppercase text-slate-500">{tr(lang, "news_giorni")}</div>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-2 mt-3">
@@ -597,7 +597,7 @@ function NewsSection({ lang, todayISO, onGoCalendario, onGoTabellone }: {
       {/* notizie */}
       <div className="flex items-center justify-between px-1">
         <h3 className="text-[11px] font-mono font-black uppercase tracking-widest text-slate-300 flex items-center gap-1.5"><Newspaper className="w-3.5 h-3.5 text-amber-400" /> {tr(lang, "news_dalMondo")}</h3>
-        {generato && <span className="text-[8px] font-mono text-slate-500">{tr(lang, "news_agg")} {fmtDate(generato, lang)}</span>}
+        {generato && <span className="text-[10px] font-mono text-slate-500">{tr(lang, "news_agg")} {fmtDate(generato, lang)}</span>}
       </div>
 
       {loading ? (
@@ -606,7 +606,7 @@ function NewsSection({ lang, todayISO, onGoCalendario, onGoTabellone }: {
         news.map((n) => (
           <a key={n.id} href={n.url} target="_blank" rel="noopener noreferrer"
             className="block bg-slate-950 border border-slate-850 hover:border-amber-600/40 rounded-2xl p-3 transition-all">
-            <div className="flex items-center gap-2 text-[8.5px] font-mono uppercase tracking-wide text-amber-400 mb-1">
+            <div className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-wide text-amber-400 mb-1">
               <span>{n.fonte}</span><span className="text-slate-600">·</span><span className="text-slate-500">{fmtDate(n.data, lang)}</span>
               <ExternalLink className="w-3 h-3 text-slate-600 ml-auto" />
             </div>
@@ -622,9 +622,9 @@ function NewsSection({ lang, todayISO, onGoCalendario, onGoTabellone }: {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
           {SPONSOR_SLOTS.map((s) => (
             <div key={s.id} className="bg-slate-900/60 border border-dashed border-slate-700 rounded-xl p-3 text-center">
-              <div className="text-[8px] font-mono uppercase tracking-widest text-amber-400">{lang === "fr" ? s.livelloFr : s.livello}</div>
+              <div className="text-[10px] font-mono uppercase tracking-widest text-amber-400">{lang === "fr" ? s.livelloFr : s.livello}</div>
               <div className="text-[10px] font-mono font-bold text-slate-400 mt-0.5">{lang === "fr" ? s.placeholderFr : s.placeholder}</div>
-              <div className="text-[8px] font-mono text-slate-600 mt-0.5">{lang === "fr" ? s.posizioneFr : s.posizione}</div>
+              <div className="text-[10px] font-mono text-slate-600 mt-0.5">{lang === "fr" ? s.posizioneFr : s.posizione}</div>
             </div>
           ))}
         </div>
@@ -659,7 +659,7 @@ function AlboSection({ lang }: { lang: Lang }) {
             <div key={l.nome} className="bg-gradient-to-br from-amber-950/40 to-slate-950 border border-amber-700/40 rounded-2xl p-3 flex gap-2.5">
               {cow ? <CowVisual cow={cow} className="w-12 h-12 flex-shrink-0" /> : <div className="w-12 h-12 rounded-xl bg-slate-900 flex items-center justify-center text-2xl flex-shrink-0">👑</div>}
               <div className="min-w-0">
-                <div className="text-[8px] font-mono uppercase tracking-widest text-amber-400">{lang === "fr" ? l.titoloFr : l.titolo}</div>
+                <div className="text-[10px] font-mono uppercase tracking-widest text-amber-400">{lang === "fr" ? l.titoloFr : l.titolo}</div>
                 <div className="text-sm font-mono font-black text-amber-200 truncate">{l.nome}</div>
                 <p className="text-[9.5px] font-mono text-slate-400 leading-snug mt-0.5">{lang === "fr" ? l.descrFr : l.descr}</p>
               </div>
@@ -684,9 +684,9 @@ function AlboSection({ lang }: { lang: Lang }) {
                 <div key={catId} className="bg-slate-900/70 rounded-xl p-2 flex items-center gap-2" style={{ borderLeft: `3px solid ${cat.accent}` }}>
                   {cow ? <CowVisual cow={cow} className="w-8 h-8 flex-shrink-0" /> : <div className="w-8 h-8 rounded-lg bg-slate-950 flex items-center justify-center text-base flex-shrink-0">{cat.emoji}</div>}
                   <div className="min-w-0">
-                    <div className="text-[8px] font-mono uppercase" style={{ color: cat.accent }}>{lang === "fr" ? cat.labelFr : cat.label}</div>
+                    <div className="text-[10px] font-mono uppercase" style={{ color: cat.accent }}>{lang === "fr" ? cat.labelFr : cat.label}</div>
                     <div className="text-[11px] font-mono font-black text-slate-200 truncate">{h?.nome ?? "—"}</div>
-                    <div className="text-[8.5px] font-mono text-slate-500 truncate">{h?.allevatore}{(lang === "fr" ? h?.noteFr ?? h?.note : h?.note) ? ` · ${lang === "fr" ? h?.noteFr ?? h?.note : h?.note}` : ""}</div>
+                    <div className="text-[10px] font-mono text-slate-500 truncate">{h?.allevatore}{(lang === "fr" ? h?.noteFr ?? h?.note : h?.note) ? ` · ${lang === "fr" ? h?.noteFr ?? h?.note : h?.note}` : ""}</div>
                   </div>
                 </div>
               );
@@ -792,7 +792,7 @@ function ScopriSection({ lang }: { lang: Lang }) {
                 ))}
               </tbody>
             </table>
-            <p className="text-[8.5px] font-mono text-slate-500 mt-2 leading-snug">{tr(lang, "reg_soglieNota")}</p>
+            <p className="text-[10px] font-mono text-slate-500 mt-2 leading-snug">{tr(lang, "reg_soglieNota")}</p>
           </div>
 
           <div className="bg-slate-950 border border-slate-850 rounded-2xl p-3.5 space-y-2 text-[11px] text-slate-300 leading-relaxed">
@@ -833,7 +833,7 @@ function ScopriSection({ lang }: { lang: Lang }) {
 function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div className="bg-slate-900 rounded-lg border border-slate-850 py-1.5 px-1">
-      <div className="text-[8px] font-mono uppercase text-slate-500 truncate">{label}</div>
+      <div className="text-[10px] font-mono uppercase text-slate-500 truncate">{label}</div>
       <div className="text-[11px] font-mono font-black text-slate-200 truncate">{value}</div>
     </div>
   );

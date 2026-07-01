@@ -191,8 +191,8 @@ export default function DungeonRun({
                 <button key={c.id} onClick={() => { playClick(); setPicked((p) => p.includes(c.id) ? p.filter((x) => x !== c.id) : p.length < 4 ? [...p, c.id] : p); }}
                   className={`rounded-xl border-2 p-1.5 ${sel ? "border-emerald-500 bg-emerald-950/50" : "border-slate-700 bg-slate-900/70"}`}>
                   <CowVisual cow={c} className="w-full h-14" />
-                  <div className="text-[8px] font-mono text-slate-200 truncate mt-0.5">{c.name}</div>
-                  <div className="text-[8px] font-mono text-amber-400">CP{c.cp}</div>
+                  <div className="text-[10px] font-mono text-slate-200 truncate mt-0.5">{c.name}</div>
+                  <div className="text-[10px] font-mono text-amber-400">CP{c.cp}</div>
                 </button>
               );
             })}
@@ -237,7 +237,7 @@ export default function DungeonRun({
 
           {/* BARRA DI SPINTA */}
           <div className="absolute top-2 left-1/2 -translate-x-1/2 w-[78%] max-w-sm">
-            <div className="flex justify-between text-[8px] font-mono font-black mb-0.5"><span className="text-emerald-600">{active.name}</span><span className="text-slate-700">SPINTA</span><span className="text-rose-500">{opp.name}</span></div>
+            <div className="flex justify-between text-[10px] font-mono font-black mb-0.5"><span className="text-emerald-600">{active.name}</span><span className="text-slate-700">SPINTA</span><span className="text-rose-500">{opp.name}</span></div>
             <div className="relative h-4 rounded-full bg-rose-400/40 border border-slate-700 overflow-hidden shadow-inner">
               <div className="absolute inset-y-0 left-0 bg-gradient-to-r from-emerald-500 to-emerald-400 transition-all duration-500" style={{ width: `${barraP}%` }} />
               <div className="absolute inset-y-0 w-0.5 bg-slate-900/60" style={{ left: "50%" }} />
@@ -253,7 +253,7 @@ export default function DungeonRun({
             const fi = fiatoRef.current[i]; const out = fi <= 0; const cur = i === activeIdx;
             return (
               <div key={i} className={`flex flex-col items-center rounded-lg px-1.5 py-1 border ${cur ? "border-emerald-500 bg-emerald-950/40" : out ? "border-slate-800 bg-slate-900/40 opacity-50" : "border-slate-700 bg-slate-900/60"}`}>
-                <span className="text-[8px] font-mono text-slate-200 truncate max-w-[52px]">{out ? "💨" : "🐮"} {f.name.slice(0, 6)}</span>
+                <span className="text-[10px] font-mono text-slate-200 truncate max-w-[52px]">{out ? "💨" : "🐮"} {f.name.slice(0, 6)}</span>
                 <div className="w-12 h-1 rounded-full bg-slate-800 overflow-hidden mt-0.5"><div className="h-full bg-sky-400" style={{ width: `${Math.max(0, Math.round((fi / f.fiatoMax) * 100))}%` }} /></div>
               </div>
             );
@@ -272,7 +272,7 @@ export default function DungeonRun({
               {AZIONI.map((a) => (
                 <button key={a.id} onClick={() => doAction(a.id)} disabled={busy} title={a.desc} className="text-left rounded-xl border p-2 disabled:opacity-40 bg-slate-900 border-slate-700 hover:border-amber-500/60">
                   <div className="text-[11px] font-mono font-black text-slate-100 leading-tight">{a.emoji} {a.label}</div>
-                  <div className="text-[8px] font-mono text-slate-400 leading-tight mt-0.5 line-clamp-2">{a.desc}</div>
+                  <div className="text-[10px] font-mono text-slate-400 leading-tight mt-0.5 line-clamp-2">{a.desc}</div>
                 </button>
               ))}
             </div>
@@ -291,7 +291,7 @@ export default function DungeonRun({
               {teamRef.current.map((f, i) => (
                 <button key={i} disabled={busy || i === activeIdx || fiatoRef.current[i] <= 0} onClick={() => switchTo(i)} className="flex items-center gap-2 bg-slate-900 border border-slate-800 rounded-xl p-2 text-left disabled:opacity-40">
                   <CowVisual cow={f.visual} className="w-9 h-9" />
-                  <div><div className="text-[10px] font-mono font-black text-slate-100">🐮 {f.name}</div><div className="text-[8px] font-mono text-slate-400">{fiatoRef.current[i] <= 0 ? "si ritira" : `${Math.round(fiatoRef.current[i])} fiato`}</div></div>
+                  <div><div className="text-[10px] font-mono font-black text-slate-100">🐮 {f.name}</div><div className="text-[10px] font-mono text-slate-400">{fiatoRef.current[i] <= 0 ? "si ritira" : `${Math.round(fiatoRef.current[i])} fiato`}</div></div>
                 </button>
               ))}
             </div>
@@ -344,13 +344,13 @@ function Plate({ name, breed, fiato, fiatoMax, calma, champion = false }: {
     <div className={`bg-slate-950/85 border rounded-xl px-2.5 py-1.5 shadow-lg ${champion ? "border-amber-500" : "border-slate-700"}`} style={{ minWidth: 150 }}>
       <div className="flex items-center justify-between gap-2">
         <span className="text-[11px] font-mono font-black text-slate-100 truncate">{champion ? "👑 " : ""}{name}</span>
-        <span className="text-[7px] font-mono text-slate-400">{breed}</span>
+        <span className="text-[9px] font-mono text-slate-400">{breed}</span>
       </div>
-      <div className="text-[7px] font-mono text-slate-500 mt-0.5">FIATO</div>
+      <div className="text-[9px] font-mono text-slate-500 mt-0.5">FIATO</div>
       <div className="h-2 rounded-full bg-slate-800 overflow-hidden border border-slate-700"><div className="h-full bg-sky-400 transition-all duration-400" style={{ width: `${fiatoPct}%` }} /></div>
       {calma !== undefined && (
         <>
-          <div className="text-[7px] font-mono text-slate-500 mt-0.5">CALMA</div>
+          <div className="text-[9px] font-mono text-slate-500 mt-0.5">CALMA</div>
           <div className="h-1.5 rounded-full bg-slate-800 overflow-hidden"><div className="h-full transition-all duration-400" style={{ width: `${calma}%`, background: calma < 35 ? "#ef4444" : "#a78bfa" }} /></div>
         </>
       )}

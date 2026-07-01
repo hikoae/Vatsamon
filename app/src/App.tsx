@@ -480,7 +480,7 @@ export default function App() {
                      <span class="text-base">🍼</span>
                      ${cooldownActive ? '' : '<span class="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-yellow-400 rounded-full border border-white animate-ping"></span>'}
                    </div>
-                   <div class="px-1.5 py-0.5 rounded bg-[#211b3a]/95 border border-[#3a3460] text-[8px] text-white font-mono font-bold whitespace-nowrap shadow-sm" style="transform: translateY(-12px);">
+                   <div class="px-1.5 py-0.5 rounded bg-[#211b3a]/95 border border-[#3a3460] text-[10px] text-white font-mono font-bold whitespace-nowrap shadow-sm" style="transform: translateY(-12px);">
                      ${hp.name.substring(0, 10)}...
                    </div>
                  </div>`,
@@ -519,11 +519,11 @@ export default function App() {
           html: `<div class="flex flex-col items-center">
                    <div class="w-11 h-11 rounded-full bg-[#211b3a] border-2 ${ringCol} flex items-center justify-center shadow-lg relative cursor-pointer hover:scale-110 transition-transform overflow-hidden" style="transform: translateY(-8px);${photoStyle}">
                      ${inner}
-                     <span class="absolute -top-1 -right-1 bg-amber-500 text-[#0b0820] font-mono text-[7px] font-black px-1 rounded-full leading-tight">
+                     <span class="absolute -top-1 -right-1 bg-amber-500 text-[#0b0820] font-mono text-[9px] font-black px-1 rounded-full leading-tight">
                        CP${wc.vatsa.cp}
                      </span>
                    </div>
-                   <div class="px-1 py-0.2 rounded border text-[7px] font-mono font-bold whitespace-nowrap shadow-sm ${labelCls}" style="transform: translateY(-10px);">
+                   <div class="px-1 py-0.2 rounded border text-[9px] font-mono font-bold whitespace-nowrap shadow-sm ${labelCls}" style="transform: translateY(-10px);">
                      ${label}
                    </div>
                  </div>`,
@@ -566,9 +566,9 @@ export default function App() {
             html: `<div class="flex flex-col items-center ${inRange ? '' : 'opacity-70'}">
                      <div class="w-11 h-11 rounded-full border-2 ${ring} bg-[#211b3a] flex items-center justify-center shadow-lg overflow-hidden relative" style="${photo}">
                        ${inner}
-                       <span class="absolute -top-1 -right-1 bg-emerald-500 text-[#0b0820] font-mono text-[7px] font-black px-1 rounded-full">CP${rc.cp}</span>
+                       <span class="absolute -top-1 -right-1 bg-emerald-500 text-[#0b0820] font-mono text-[9px] font-black px-1 rounded-full">CP${rc.cp}</span>
                      </div>
-                     <div class="px-1 rounded bg-emerald-900/90 border border-emerald-700 text-[7px] text-emerald-200 font-mono font-bold whitespace-nowrap mt-0.5">REALE · ${rc.rarity}</div>
+                     <div class="px-1 rounded bg-emerald-900/90 border border-emerald-700 text-[9px] text-emerald-200 font-mono font-bold whitespace-nowrap mt-0.5">REALE · ${rc.rarity}</div>
                    </div>`,
             iconSize: [44, 56], iconAnchor: [22, 28],
           });
@@ -580,7 +580,7 @@ export default function App() {
                      <div class="w-10 h-10 rounded-full border-2 border-dashed border-slate-500 bg-[#211b3a]/80 flex items-center justify-center shadow-lg">
                        <span class="text-lg">❓</span>
                      </div>
-                     <div class="px-1 rounded bg-slate-900/90 border border-slate-700 text-[7px] text-slate-300 font-mono font-bold whitespace-nowrap mt-0.5">REINA ?</div>
+                     <div class="px-1 rounded bg-slate-900/90 border border-slate-700 text-[9px] text-slate-300 font-mono font-bold whitespace-nowrap mt-0.5">REINA ?</div>
                    </div>`,
             iconSize: [40, 52], iconAnchor: [20, 26],
           });
@@ -623,9 +623,9 @@ export default function App() {
           html: `<div class="flex flex-col items-center ${inRange && !locked ? '' : 'opacity-75'}">
                    <div class="w-12 h-12 rounded-2xl border-2 flex items-center justify-center shadow-lg relative ${inRange && !locked ? 'animate-bounce' : ''}" style="border-color:${ring};background:#211b3a;transform:translateY(-8px);">
                      <span class="text-2xl">${locked ? '🔒' : mb.emoji}</span>
-                     <span class="absolute -top-1 -right-1 text-[7px] font-mono font-black px-1 rounded-full" style="background:${ring};color:#0b0820;">${mb.kind === 'arena' ? 'BOSS' : 'VS'}</span>
+                     <span class="absolute -top-1 -right-1 text-[9px] font-mono font-black px-1 rounded-full" style="background:${ring};color:#0b0820;">${mb.kind === 'arena' ? 'BOSS' : 'VS'}</span>
                    </div>
-                   <div class="px-1 rounded border text-[7px] font-mono font-bold whitespace-nowrap shadow-sm" style="background:#211b3a;border-color:${ring}55;color:${ring};transform:translateY(-10px);">${locked ? `🔒 Lv ${mb.reqLevel}` : (inRange ? '⚔️ SFIDA' : `${fmtDist(d)}`)}</div>
+                   <div class="px-1 rounded border text-[9px] font-mono font-bold whitespace-nowrap shadow-sm" style="background:#211b3a;border-color:${ring}55;color:${ring};transform:translateY(-10px);">${locked ? `🔒 Lv ${mb.reqLevel}` : (inRange ? '⚔️ SFIDA' : `${fmtDist(d)}`)}</div>
                  </div>`,
           iconSize: [48, 60], iconAnchor: [24, 30],
         });
@@ -647,10 +647,10 @@ export default function App() {
           html: `<div class="flex flex-col items-center ${inRange && !locked ? '' : 'opacity-75'}">
                    <div class="w-14 h-14 rounded-2xl border-2 flex items-center justify-center shadow-xl relative ${inRange && !locked ? 'animate-pulse' : ''}" style="border-color:${ring};background:#1a1430;transform:translateY(-8px);">
                      <span class="text-3xl">${locked ? '🔒' : dg.emoji}</span>
-                     <span class="absolute -top-1 -right-1 text-[7px] font-mono font-black px-1 rounded-full" style="background:${ring};color:#fff;">LEGA</span>
+                     <span class="absolute -top-1 -right-1 text-[9px] font-mono font-black px-1 rounded-full" style="background:${ring};color:#fff;">LEGA</span>
                      ${cleared ? '<span class="absolute -bottom-1 -right-1 text-[10px]">✅</span>' : ''}
                    </div>
-                   <div class="px-1 rounded border text-[7px] font-mono font-bold whitespace-nowrap shadow-sm" style="background:#1a1430;border-color:${ring}66;color:${ring};transform:translateY(-10px);">${locked ? `🔒 Lv ${dg.reqLevel}` : (inRange ? '🏰 ENTRA' : `${fmtDist(d)}`)}</div>
+                   <div class="px-1 rounded border text-[9px] font-mono font-bold whitespace-nowrap shadow-sm" style="background:#1a1430;border-color:${ring}66;color:${ring};transform:translateY(-10px);">${locked ? `🔒 Lv ${dg.reqLevel}` : (inRange ? '🏰 ENTRA' : `${fmtDist(d)}`)}</div>
                  </div>`,
           iconSize: [56, 70], iconAnchor: [28, 35],
         });
@@ -1629,9 +1629,9 @@ export default function App() {
                         </div>
                       </div>
                       <p className="text-[9px] text-slate-500 leading-snug mt-1.5 line-clamp-2">{route.description}</p>
-                      {locked && <span className="absolute top-2 right-2 text-[8px] font-mono font-black text-slate-400">🔒 Lv {route.reqLevel}</span>}
-                      {!locked && completed && <span className="absolute top-2 right-2 text-[8px] font-mono font-black text-emerald-500">✓ FATTO</span>}
-                      {!locked && !completed && active && <span className={`absolute top-2 right-2 text-[8px] font-mono font-black ${t.text}`}>● ATTIVO</span>}
+                      {locked && <span className="absolute top-2 right-2 text-[10px] font-mono font-black text-slate-400">🔒 Lv {route.reqLevel}</span>}
+                      {!locked && completed && <span className="absolute top-2 right-2 text-[10px] font-mono font-black text-emerald-500">✓ FATTO</span>}
+                      {!locked && !completed && active && <span className={`absolute top-2 right-2 text-[10px] font-mono font-black ${t.text}`}>● ATTIVO</span>}
                     </button>
                   );
                 })}
@@ -1758,13 +1758,13 @@ export default function App() {
                       Tappa Attuale
                     </span>
                     <div className="font-mono text-[11px] font-black text-slate-100 truncate">{currentWaypoint.name}</div>
-                    <div className="text-slate-400 text-[8.5px]">Coordinate: <span className="text-emerald-300 font-bold">{playerLat.toFixed(4)}°N, {playerLng.toFixed(4)}°E</span></div>
+                    <div className="text-slate-400 text-[10px]">Coordinate: <span className="text-emerald-300 font-bold">{playerLat.toFixed(4)}°N, {playerLng.toFixed(4)}°E</span></div>
                     
                     <div className="pt-1">
                       <div className="w-full bg-slate-900 rounded-full h-1 relative overflow-hidden">
                         <div className="bg-emerald-400 h-full transition-all duration-500" style={{ width: `${waypointProgress}%` }} />
                       </div>
-                      <div className="text-[7.5px] text-slate-500 flex justify-between mt-1">
+                      <div className="text-[9.5px] text-slate-500 flex justify-between mt-1">
                         <span>Punto Successivo</span>
                         <span>{waypointProgress}%</span>
                       </div>
@@ -1772,7 +1772,7 @@ export default function App() {
                   </div>
 
                   {/* Leaflet Tip Ribbon overlay */}
-                  <div className="absolute bottom-2.5 right-2.5 bg-slate-950/80 border border-slate-850 rounded-full py-0.5 px-3 text-[8.5px] text-slate-400 font-mono tracking-tight text-center whitespace-nowrap backdrop-blur-xs z-35">
+                  <div className="absolute bottom-2.5 right-2.5 bg-slate-950/80 border border-slate-850 rounded-full py-0.5 px-3 text-[10px] text-slate-400 font-mono tracking-tight text-center whitespace-nowrap backdrop-blur-xs z-35">
                     🧀 Tocca i campanacci sulla mappa reale per interagire
                   </div>
                 </div>
@@ -1815,7 +1815,7 @@ export default function App() {
                           <div className={`w-8 h-8 rounded-full ${onCooldown ? 'bg-slate-700 border-slate-500' : 'bg-blue-500 border-white'} text-white flex items-center justify-center border-2 shadow-lg transition-transform hover:scale-110`}>
                             <RotateCw className={`w-4 h-4 ${onCooldown ? 'text-slate-400' : 'text-blue-200 animate-spin-slow'}`} />
                           </div>
-                          <span className="text-[8px] bg-slate-950/80 font-mono text-slate-300 py-0.5 px-1.5 rounded-md mt-1 group-hover/marker:bg-slate-950 border border-slate-800">
+                          <span className="text-[10px] bg-slate-950/80 font-mono text-slate-300 py-0.5 px-1.5 rounded-md mt-1 group-hover/marker:bg-slate-950 border border-slate-800">
                             {hp.name.split(" ")[0]} 🥛
                           </span>
                         </div>
@@ -1837,7 +1837,7 @@ export default function App() {
                           <div className="absolute -inset-1.5 bg-yellow-500/20 rounded-full animate-ping opacity-60"></div>
                           <VatsamonAvatar breed={wc.vatsa.breed} rarity={wc.vatsa.rarity} className="w-14 h-14 bg-slate-950/40 rounded-full border border-amber-500/30 p-1 backdrop-blur-xs transition-transform group-hover/cow:scale-125" />
                         </div>
-                        <span className="text-[8px] font-mono font-black bg-slate-950/95 text-yellow-400 border border-amber-500/20 px-1.5 py-0.5 rounded shadow">
+                        <span className="text-[10px] font-mono font-black bg-slate-950/95 text-yellow-400 border border-amber-500/20 px-1.5 py-0.5 rounded shadow">
                           Potenza {wc.vatsa.cp}
                         </span>
                       </div>
@@ -2238,16 +2238,16 @@ export default function App() {
                             >
                               {/* badge quantità */}
                               <span
-                                className="absolute -top-1.5 -right-1.5 min-w-4 h-4 px-1 rounded-full text-[8px] font-mono font-black flex items-center justify-center text-[#0b0820]"
+                                className="absolute -top-1.5 -right-1.5 min-w-4 h-4 px-1 rounded-full text-[10px] font-mono font-black flex items-center justify-center text-[#0b0820]"
                                 style={{ backgroundColor: meta.color }}
                               >
                                 {qty}
                               </span>
                               <span className="text-lg leading-none">{meta.emoji}</span>
-                              <span className="text-[8px] font-mono font-bold mt-1 leading-tight" style={{ color: selected ? meta.color : '#cbd5e1' }}>
+                              <span className="text-[10px] font-mono font-bold mt-1 leading-tight" style={{ color: selected ? meta.color : '#cbd5e1' }}>
                                 {meta.short}
                               </span>
-                              <span className="text-[8px] font-mono font-black mt-0.5" style={{ color: meta.color }}>
+                              <span className="text-[10px] font-mono font-black mt-0.5" style={{ color: meta.color }}>
                                 {meta.mult === null ? '100%' : `×${meta.mult}`}
                               </span>
                             </button>
@@ -2456,7 +2456,7 @@ export default function App() {
               {faseStato.giorniAllaFinale >= 0 && (
                 <div className="text-center flex-shrink-0 bg-slate-950/60 rounded-xl px-2.5 py-1.5 border border-amber-700/40">
                   <div className="text-base font-mono font-black text-amber-300 leading-none">{faseStato.giorniAllaFinale}</div>
-                  <div className="text-[7px] font-mono uppercase text-slate-500">gg alla finale</div>
+                  <div className="text-[9px] font-mono uppercase text-slate-500">gg alla finale</div>
                 </div>
               )}
             </div>
@@ -2684,7 +2684,7 @@ export default function App() {
               </div>
               {gradoStato.next && (
                 <div>
-                  <div className="flex justify-between text-[8px] font-mono text-slate-500"><span>Prestigio {gradoStato.prestigio}</span><span>→ {gradoStato.next.nome}</span></div>
+                  <div className="flex justify-between text-[10px] font-mono text-slate-500"><span>Prestigio {gradoStato.prestigio}</span><span>→ {gradoStato.next.nome}</span></div>
                   <div className="h-1.5 rounded-full bg-slate-800 overflow-hidden mt-0.5"><div className="h-full bg-gradient-to-r from-amber-500 to-amber-300" style={{ width: `${Math.round(gradoStato.versoNext * 100)}%` }} /></div>
                 </div>
               )}
@@ -2692,7 +2692,7 @@ export default function App() {
                 className="w-full bg-amber-600 hover:bg-amber-500 disabled:opacity-40 text-[#0b0820] font-mono font-black text-[11px] py-2.5 rounded-xl border-b-4 border-amber-800">
                 {pedigreeStars >= PEDIGREE_STAR_CAP ? '★ Prestigio massimo raggiunto' : `★ Stella di Pedigree — ${costoStellaPedigree(pedigreeStars)} 🧀`}
               </button>
-              <p className="text-[8px] text-slate-500 text-center leading-snug">La Désarpa premia chi ha portato lontano la propria mandria: ogni Stella è un riconoscimento permanente (+Rispetto).</p>
+              <p className="text-[10px] text-slate-500 text-center leading-snug">La Désarpa premia chi ha portato lontano la propria mandria: ogni Stella è un riconoscimento permanente (+Rispetto).</p>
             </div>
 
             {/* risorse di test */}
@@ -2720,7 +2720,7 @@ export default function App() {
                 value={importText}
                 onChange={(e) => setImportText(e.target.value)}
                 placeholder="Incolla qui il codice di salvataggio…"
-                className="w-full h-20 bg-slate-950 border border-slate-800 rounded-xl p-2 text-[10px] font-mono text-slate-200 resize-none no-scrollbar"
+                className="w-full h-20 bg-slate-950 border border-slate-800 rounded-xl p-2 text-[11px] font-code text-slate-200 resize-none no-scrollbar"
               />
               <button onClick={importSave} className="w-full bg-blue-600 hover:bg-blue-500 text-white font-mono font-black text-xs py-2.5 rounded-xl border-b-4 border-blue-800">IMPORTA SALVATAGGIO</button>
             </div>

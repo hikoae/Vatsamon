@@ -2,6 +2,17 @@
 @import "tailwindcss";
 
 @theme {
+  /* ===== TIPOGRAFIA "REGISTRO ALPINO" =====
+     Inter = UI e dati (tabular-nums dove serve). Fraunces = display/titoli.
+     NB TRANSIZIONE: --font-mono è mappato su Inter di proposito — il vecchio
+     stile "terminale" usava font-mono su quasi ogni etichetta (391 usi); così
+     l'intera app passa a Inter senza toccare ogni classe. Il monospazio VERO
+     resta disponibile come `font-code` (codici di salvataggio). */
+  --font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Fraunces Variable', Georgia, 'Times New Roman', serif;
+  --font-code: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
   --animate-wobble: wobble 1s ease-in-out infinite;
   --animate-spin-slow: spin 4s linear infinite;
   --animate-float: float 3s ease-in-out infinite;
@@ -342,3 +353,32 @@ button:active { transform: scale(0.94) translateY(1px); }
 
 /* Anelli/badge "LIVE" e puntini animati un filo più morbidi. */
 .animate-pulse { animation-duration: 1.8s; }
+
+/* ============================================================
+   ACCESSIBILITÀ (v1.4)
+   ============================================================ */
+
+/* Titoli in Fraunces (display serif, tono storico-istituzionale). */
+h1, h2, .font-display {
+  font-family: var(--font-display);
+  letter-spacing: 0.01em;
+}
+
+/* Focus da tastiera SEMPRE visibile: vince anche su focus:outline-none. */
+*:focus-visible {
+  outline: 2px solid var(--color-red-650) !important;
+  outline-offset: 2px !important;
+  border-radius: 4px;
+}
+
+/* Riduzione del movimento: spegne aurore, sheen, ping e float continui. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .aurora-bg { animation: none; filter: blur(26px) saturate(1); }
+  .holo-sheen, .pulse-glow, .sparkle { animation: none; }
+}

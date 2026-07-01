@@ -206,7 +206,7 @@ export function StallaScreen({ collection, onBorn, onUpdateCow, onReward, playCl
                     className={`flex flex-col items-center gap-0.5 p-1.5 rounded-xl border transition-all ${motherId === c.id ? "border-amber-500 bg-amber-500/15" : "border-slate-850 bg-slate-900 hover:border-amber-600/50"}`}
                   >
                     <CowVisual cow={c} className="w-9 h-9" />
-                    <span className="text-[8px] font-mono font-bold text-slate-300 truncate w-full text-center">{c.name}</span>
+                    <span className="text-[10px] font-mono font-bold text-slate-300 truncate w-full text-center">{c.name}</span>
                   </button>
                 ))}
               </div>
@@ -227,7 +227,7 @@ export function StallaScreen({ collection, onBorn, onUpdateCow, onReward, playCl
                   <span className="text-xl">🐂</span>
                   <div className="min-w-0 flex-grow">
                     <div className="text-[11px] font-mono font-black text-slate-200">{t.nome} <span className="text-[9px] text-slate-500">· {t.razza}</span></div>
-                    <div className="text-[8.5px] font-mono text-slate-500 truncate">{t.descr}</div>
+                    <div className="text-[10px] font-mono text-slate-500 truncate">{t.descr}</div>
                   </div>
                   {toroId === t.id && <Check className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />}
                 </button>
@@ -241,7 +241,7 @@ export function StallaScreen({ collection, onBorn, onUpdateCow, onReward, playCl
             <div className="grid grid-cols-4 gap-1.5 text-center">
               {([["Stazza", preview.stazza], ["Corna", preview.corna], ["Testa", preview.testa], ["Grinta", preview.grinta]] as [string, number][]).map(([l, v]) => (
                 <div key={l} className="bg-slate-950 rounded-lg border border-slate-850 py-1">
-                  <div className="text-[7.5px] font-mono uppercase text-slate-500">{l}</div>
+                  <div className="text-[9.5px] font-mono uppercase text-slate-500">{l}</div>
                   <div className="text-[12px] font-mono font-black text-amber-300 tabular-nums">{mother ? v : "—"}</div>
                 </div>
               ))}
@@ -271,12 +271,12 @@ export function StallaScreen({ collection, onBorn, onUpdateCow, onReward, playCl
               <div key={c.id} className="flex items-center gap-2.5 bg-slate-900/60 rounded-xl p-2 border border-slate-850">
                 <CowVisual cow={c} className="w-11 h-11 flex-shrink-0" />
                 <div className="min-w-0 flex-grow">
-                  <div className="text-[11px] font-mono font-black text-slate-200 truncate">{c.name} <span className="text-[8px] text-slate-500">G{c.generation ?? 1}</span></div>
-                  <div className="text-[8.5px] font-mono text-amber-400">{STAGE_LABEL[stage]} · {c.peso_kg ?? 42} kg</div>
-                  {c.lineTrait && <div className="text-[8px] font-mono text-slate-500 truncate italic">{c.lineTrait}</div>}
+                  <div className="text-[11px] font-mono font-black text-slate-200 truncate">{c.name} <span className="text-[10px] text-slate-500">G{c.generation ?? 1}</span></div>
+                  <div className="text-[10px] font-mono text-amber-400">{STAGE_LABEL[stage]} · {c.peso_kg ?? 42} kg</div>
+                  {c.lineTrait && <div className="text-[10px] font-mono text-slate-500 truncate italic">{c.lineTrait}</div>}
                 </div>
                 {isReina ? (
-                  <span className="text-[8px] font-mono font-black text-emerald-400 px-2">✓ adulta</span>
+                  <span className="text-[10px] font-mono font-black text-emerald-400 px-2">✓ adulta</span>
                 ) : (
                   <button
                     data-grow={c.id}
@@ -310,7 +310,7 @@ export function StallaScreen({ collection, onBorn, onUpdateCow, onReward, playCl
               <div className="grid grid-cols-4 gap-1.5">
                 {([["Stazza", justBorn.geneticStats4?.stazza], ["Corna", justBorn.geneticStats4?.corna], ["Testa", justBorn.geneticStats4?.testa], ["Grinta", justBorn.geneticStats4?.grinta]] as [string, number][]).map(([l, v]) => (
                   <div key={l} className="bg-slate-950 rounded-lg border border-slate-850 py-1">
-                    <div className="text-[7px] font-mono uppercase text-slate-500">{l}</div>
+                    <div className="text-[9px] font-mono uppercase text-slate-500">{l}</div>
                     <div className="text-[11px] font-mono font-black text-amber-300 tabular-nums">{v}</div>
                   </div>
                 ))}

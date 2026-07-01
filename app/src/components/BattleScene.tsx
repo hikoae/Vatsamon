@@ -149,7 +149,7 @@ export default function BattleScene({
 
           {/* BARRA DI SPINTA (contesa) */}
           <div className="absolute top-2 left-1/2 -translate-x-1/2 w-[78%] max-w-sm">
-            <div className="flex justify-between text-[8px] font-mono font-black mb-0.5">
+            <div className="flex justify-between text-[10px] font-mono font-black mb-0.5">
               <span className="text-emerald-600">{player.name}</span>
               <span className="text-slate-700">SPINTA</span>
               <span className="text-rose-500">{opp.name}</span>
@@ -177,7 +177,7 @@ export default function BattleScene({
                   <button key={a.id} onClick={() => doAction(a.id)} disabled={busy} title={a.desc}
                     className="text-left rounded-xl border p-2 transition-all disabled:opacity-40 bg-slate-900 border-slate-700 hover:border-amber-500/60">
                     <div className="text-[11px] font-mono font-black text-slate-100 leading-tight">{a.emoji} {a.label}</div>
-                    <div className="text-[8px] font-mono text-slate-400 leading-tight mt-0.5 line-clamp-2">{a.desc}</div>
+                    <div className="text-[10px] font-mono text-slate-400 leading-tight mt-0.5 line-clamp-2">{a.desc}</div>
                   </button>
                 ))}
               </div>
@@ -247,8 +247,8 @@ function IntroPanel({ battle, playerCows, cowId, setCowId, onStart, onClose, pla
                 <button key={c.id} onClick={() => { playClick(); setCowId(c.id); }}
                   className={`flex-shrink-0 rounded-xl border-2 p-1.5 ${cowId === c.id ? "border-emerald-500 bg-emerald-950/40" : "border-slate-700 bg-slate-900/70"}`}>
                   <CowVisual cow={c} className="w-12 h-12" />
-                  <div className="text-[8px] font-mono text-slate-200 truncate w-12">{c.name}</div>
-                  <div className="text-[8px] font-mono text-amber-400">CP{c.cp}</div>
+                  <div className="text-[10px] font-mono text-slate-200 truncate w-12">{c.name}</div>
+                  <div className="text-[10px] font-mono text-amber-400">CP{c.cp}</div>
                 </button>
               ))}
             </div>
@@ -275,15 +275,15 @@ function Combatant({ pos, s, fiato, calma, lunge }: {
       <div className={`bg-slate-950/85 border border-slate-700 rounded-xl px-2.5 py-1.5 shadow-lg ${top ? "self-start" : "self-end"}`} style={{ minWidth: 150 }}>
         <div className="flex items-center justify-between gap-2">
           <span className="text-[11px] font-mono font-black text-slate-100 truncate">{s.name}</span>
-          <span className="text-[7px] font-mono text-slate-400">{s.breed}</span>
+          <span className="text-[9px] font-mono text-slate-400">{s.breed}</span>
         </div>
-        <div className="text-[7px] font-mono text-slate-500 mt-0.5">FIATO</div>
+        <div className="text-[9px] font-mono text-slate-500 mt-0.5">FIATO</div>
         <div className="h-2 rounded-full bg-slate-800 overflow-hidden border border-slate-700">
           <div className="h-full bg-sky-400 transition-all duration-400" style={{ width: `${fiatoPct}%` }} />
         </div>
         {calma !== undefined && (
           <>
-            <div className="text-[7px] font-mono text-slate-500 mt-0.5">CALMA</div>
+            <div className="text-[9px] font-mono text-slate-500 mt-0.5">CALMA</div>
             <div className="h-1.5 rounded-full bg-slate-800 overflow-hidden">
               <div className="h-full transition-all duration-400" style={{ width: `${calma}%`, background: calma < 35 ? "#ef4444" : "#a78bfa" }} />
             </div>

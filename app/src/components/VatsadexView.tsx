@@ -56,7 +56,7 @@ export function VatsadexView({
             <span className="text-xl">🔔</span>
             <div className="text-left font-mono">
               <div className="font-black text-[9px] uppercase">Rintocco d'Onore</div>
-              <div className="text-[8px] text-slate-400">Richiamo ornamentale vacca</div>
+              <div className="text-[10px] text-slate-400">Richiamo ornamentale vacca</div>
             </div>
           </div>
         </div>
@@ -102,10 +102,10 @@ export function VatsadexView({
                   className={`relative bg-gradient-to-b to-slate-950 border-2 ${tone} rounded-2xl p-2 flex flex-col items-center gap-1.5 transition-transform hover:-translate-y-1 overflow-hidden`}
                 >
                   <div className="holo-sheen absolute inset-0 pointer-events-none opacity-50 rounded-2xl" />
-                  <span className={`relative text-[8px] font-mono font-black uppercase tracking-widest ${txt}`}>{cow.rarity}</span>
+                  <span className={`relative text-[10px] font-mono font-black uppercase tracking-widest ${txt}`}>{cow.rarity}</span>
                   <CowVisual cow={cow} className="relative w-16 h-16" />
                   <span className="relative text-[10px] font-mono font-black text-slate-100 truncate max-w-full">{cow.name}</span>
-                  <span className="relative text-[8px] font-mono text-amber-300">Potenza {cow.cp}</span>
+                  <span className="relative text-[10px] font-mono text-amber-300">Potenza {cow.cp}</span>
                 </button>
               );
             })}
@@ -169,7 +169,7 @@ export function VatsadexView({
                       className={`relative bg-slate-900 border-2 rounded-2xl p-3 text-center cursor-pointer transition-all hover:-translate-y-1 overflow-hidden group shadow ${edgeColor}`}
                     >
                       {isActiveBuddy && (
-                        <div className="absolute top-1.5 right-1.5 bg-rose-600 text-[8px] font-mono font-black text-white px-2 py-0.5 rounded-full uppercase shadow">
+                        <div className="absolute top-1.5 right-1.5 bg-rose-600 text-[10px] font-mono font-black text-white px-2 py-0.5 rounded-full uppercase shadow">
                           DI PUNTA 👑
                         </div>
                       )}
