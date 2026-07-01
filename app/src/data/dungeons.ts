@@ -70,7 +70,7 @@ export const DUNGEONS: Dungeon[] = [
     accent: "#d97706",
     rewardCoins: 800, rewardXp: 900,
     rewardItems: [
-      { id: "item-bell-iper", qty: 2, label: "Iper Vatsa-ball ×2" },
+      { id: "item-bell-iper", qty: 2, label: "Campanaccio Runico ×2" },
       { id: "item-potion-fontina", qty: 3, label: "Fetta di Fontina ×3" },
     ],
     badgeName: "Sigillo di Verrès", badgeEmoji: "🏯",
@@ -112,7 +112,7 @@ export const DUNGEONS: Dungeon[] = [
     accent: "#f59e0b",
     rewardCoins: 1500, rewardXp: 1600,
     rewardItems: [
-      { id: "item-bell-master", qty: 1, label: "Master Vatsa-ball ×1" },
+      { id: "item-bell-master", qty: 1, label: "Campanaccio di Platino ×1" },
       { id: "item-potion-fontina", qty: 4, label: "Fetta di Fontina ×4" },
     ],
     badgeName: "Stemma di Fénis", badgeEmoji: "🏰",
@@ -133,7 +133,7 @@ export const DUNGEONS: Dungeon[] = [
     accent: "#10b981",
     rewardCoins: 2000, rewardXp: 2100,
     rewardItems: [
-      { id: "item-bell-master", qty: 1, label: "Master Vatsa-ball ×1" },
+      { id: "item-bell-master", qty: 1, label: "Campanaccio di Platino ×1" },
       { id: "item-buff-genepy", qty: 4, label: "Genepy del Pastore ×4" },
       { id: "item-energy-grappa", qty: 3, label: "Grappa alla Genziana ×3" },
     ],
@@ -155,7 +155,7 @@ export const DUNGEONS: Dungeon[] = [
     accent: "#64748b",
     rewardCoins: 3500, rewardXp: 3500,
     rewardItems: [
-      { id: "item-bell-master", qty: 2, label: "Master Vatsa-ball ×2" },
+      { id: "item-bell-master", qty: 2, label: "Campanaccio di Platino ×2" },
       { id: "item-potion-fontina", qty: 6, label: "Fetta di Fontina ×6" },
       { id: "item-buff-bell", qty: 5, label: "Campanaccio Fortunato ×5" },
     ],

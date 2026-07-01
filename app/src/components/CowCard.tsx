@@ -115,7 +115,7 @@ export function CowCard({ cow }: { cow: Vatsamon }) {
       <div className="relative text-center space-y-0.5">
         <h1 className="text-2xl font-mono font-black text-[#211b3a] tracking-tight leading-none uppercase">{cow.name}</h1>
         <div className="text-xs text-slate-400 font-mono">
-          CP <b className="text-amber-600">{cow.cp}</b> • Lv {cow.level} • {cow.breed}
+          Potenza <b className="text-amber-600">{cow.cp}</b> • Lv {cow.level} • {cow.breed}
           {cow.categoria ? ` • ${cow.categoria}` : ""}
         </div>
       </div>

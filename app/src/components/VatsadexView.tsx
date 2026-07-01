@@ -44,9 +44,9 @@ export function VatsadexView({
           <div>
             <h2 className="text-xl font-mono font-black text-emerald-400 flex items-center gap-1.5 uppercase">
               <BookOpen className="w-5 h-5 text-emerald-500" />
-              Vatsadex Collezione
+              Libretto di Mandria
             </h2>
-            <p className="text-xs text-slate-400">Archivio biometrico del genoma delle bovine sintonizzate durante le tue scalate.</p>
+            <p className="text-xs text-slate-400">Il tuo Vatsadex: le Reines che ti sono state affidate lungo il cammino.</p>
           </div>
 
           <div
@@ -105,7 +105,7 @@ export function VatsadexView({
                   <span className={`relative text-[8px] font-mono font-black uppercase tracking-widest ${txt}`}>{cow.rarity}</span>
                   <CowVisual cow={cow} className="relative w-16 h-16" />
                   <span className="relative text-[10px] font-mono font-black text-slate-100 truncate max-w-full">{cow.name}</span>
-                  <span className="relative text-[8px] font-mono text-amber-300">CP {cow.cp}</span>
+                  <span className="relative text-[8px] font-mono text-amber-300">Potenza {cow.cp}</span>
                 </button>
               );
             })}
@@ -145,7 +145,7 @@ export function VatsadexView({
           {/* Grid cards collection display */}
           {collection.length === 0 ? (
             <div className="text-center py-10 bg-slate-900/10 border border-slate-850 rounded-2xl p-6">
-              <p className="text-slate-500 text-xs font-mono">Nessuna Regina sintonizzata corrispondente ai criteri.</p>
+              <p className="text-slate-500 text-xs font-mono">Nessuna Reina corrisponde ai criteri di ricerca.</p>
             </div>
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 bg-slate-950" id="collection-grid">
@@ -170,7 +170,7 @@ export function VatsadexView({
                     >
                       {isActiveBuddy && (
                         <div className="absolute top-1.5 right-1.5 bg-rose-600 text-[8px] font-mono font-black text-white px-2 py-0.5 rounded-full uppercase shadow">
-                          BUDDY 👑
+                          DI PUNTA 👑
                         </div>
                       )}
 
@@ -186,7 +186,7 @@ export function VatsadexView({
                           {cow.name}
                         </h4>
                         <span className="text-[9px] bg-slate-950 font-mono font-black text-yellow-400 border border-slate-800 px-1.5 py-0.5 rounded-md mt-1 shadow-sm uppercase">
-                          CP {cow.cp}
+                          Potenza {cow.cp}
                         </span>
                       </div>
 
@@ -230,7 +230,7 @@ export function VatsadexView({
                     : 'bg-rose-600 hover:bg-rose-500 text-white'
                 }`}
               >
-                {activeCombatantId === selected.id ? 'BUDDY ATTIVO 👑' : 'IMPOSTA COMPAGNO'}
+                {activeCombatantId === selected.id ? 'REINA DI PUNTA 👑' : 'SCEGLI DI PUNTA'}
               </button>
 
               {/* Power Up */}
@@ -241,7 +241,7 @@ export function VatsadexView({
                 }}
                 className="flex-1 bg-amber-500 hover:bg-amber-400 text-[#0b0820] font-mono font-black text-[11px] py-2.5 px-3 rounded-xl transition-all cursor-pointer shadow border-b-4 border-amber-700 flex items-center justify-center gap-1"
               >
-                🔋 NOCCIOLO CP (+75)
+                🌾 RAZIONE D'ALPEGGIO (+75)
               </button>
 
               {/* Transfer */}

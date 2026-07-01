@@ -23,10 +23,10 @@ export default defineConfig(({ mode }) => ({
       manifest: {
         name: "Vatsamon — la Vatsadex delle Reines",
         short_name: "Vatsamon",
-        description: "Cattura le mucche reali delle Bataille de Reines valdostane.",
+        description: "Il gioco delle Batailles de Reines: le mucche reali della Valle d'Aosta.",
         lang: "it",
-        theme_color: "#0f172a",
-        background_color: "#0f172a",
+        theme_color: "#f5f3fb",
+        background_color: "#f5f3fb",
         display: "standalone",
         orientation: "portrait",
         icons: [

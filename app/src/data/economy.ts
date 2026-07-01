@@ -2,7 +2,7 @@
  * ECONOMIA — MVP a 2 valute (coerente con il mondo Batailles de Reines).
  *
  *  • DENARI D'ALPEGGIO (soft, `trainer.coins`, 🪙): si guadagnano camminando,
- *    nelle casere, nelle sfide; si spendono in Vatsa-ball, cure e oggetti.
+ *    nelle casere, nelle sfide; si spendono in campanacci, cure e oggetti.
  *  • FORME DI FONTINA (prestigio, `trainer.fontina`, 🧀): rare. Si guadagnano
  *    vincendo le Leghe delle Reines e portando i moudzon fino a Reina; si
  *    spendono in riconoscimenti permanenti (Stelle di Pedigree alla Désarpa).

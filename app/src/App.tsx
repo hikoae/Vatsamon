@@ -88,8 +88,8 @@ export default function App() {
     if (cached) {
       try {
         const parsed: BackpackItem[] = JSON.parse(cached);
-        // Migrazione: assicura che esista l'intera linea di Vatsa-ball anche per
-        // i salvataggi vecchi (es. nuova Iper Vatsa-ball), senza azzerare le scorte.
+        // Migrazione: assicura che esista l'intera linea di campanacci anche per
+        // i salvataggi vecchi (es. nuovo Campanaccio Runico), senza azzerare le scorte.
         DEFAULT_BAG.forEach(def => {
           if (!parsed.find(p => p.id === def.id)) parsed.push({ ...def });
         });
@@ -203,7 +203,7 @@ export default function App() {
   // Track hiking feeds to avoid intrusive standard popups
   const [trekkingFeed, setTrekkingFeed] = useState<string[]>([
     "Benvenuto in Valle d'Aosta! Preparati all'escursionismo alpino.",
-    "Bussola sintonizzata: sei attualmente ad Aosta Centro 🏰."
+    "Bussola pronta: sei attualmente ad Aosta Centro 🏰."
   ]);
 
   useEffect(() => { localStorage.setItem('vatsamon_waypoint_idx', String(currentWaypointIndex)); }, [currentWaypointIndex]);
@@ -1179,7 +1179,7 @@ export default function App() {
       const odds = Math.random();
 
       // Normal base items
-      looted.push("+4 Vatsa-ball");
+      looted.push("+4 Campanacci d'Ottone");
       setBackpack(prev => prev.map(item => item.id === 'item-bell-std' ? { ...item, quantity: item.quantity + 4 } : item));
       
       if (odds > 0.4) {
@@ -1187,11 +1187,11 @@ export default function App() {
         setBackpack(prev => prev.map(item => item.id === 'item-apple' ? { ...item, quantity: item.quantity + 2 } : item));
       }
       if (odds > 0.7) {
-        looted.push("+1 Super Vatsa-ball");
+        looted.push("+1 Campanaccio d'Acciaio");
         setBackpack(prev => prev.map(item => item.id === 'item-bell-giga' ? { ...item, quantity: item.quantity + 1 } : item));
       }
       if (odds > 0.88) {
-        looted.push("+1 Iper Vatsa-ball");
+        looted.push("+1 Campanaccio Runico");
         setBackpack(prev => prev.map(item => item.id === 'item-bell-iper' ? { ...item, quantity: item.quantity + 1 } : item));
       }
       if (odds > 0.9) {
@@ -1311,11 +1311,11 @@ export default function App() {
     }, 2200);
 
     setTimeout(() => {
-      // Tasso finale: rarità base × potenza della Vatsa-ball × mela × precisione lancio.
+      // Tasso finale: rarità base × potenza del campanaccio × mela × precisione lancio.
       const ballMeta = BALL_META[selectedBallId];
       let captureChance: number;
       if (ballMeta && ballMeta.mult === null) {
-        captureChance = 1.0; // Master Vatsa-ball: cattura garantita
+        captureChance = 1.0; // Campanaccio di Platino: cattura garantita
       } else {
         captureChance = BASE_CATCH[encounterCow?.rarity ?? 'Comune'];
         captureChance *= ballMeta?.mult ?? 1;       // potenza della ball
@@ -1330,7 +1330,7 @@ export default function App() {
 
       if (isCaught && encounterCow) {
         setCaptureStep('secured');
-        setCaptureLogMsg(`Gotcha! ${encounterCow.name} è stata felicemente sintonizzata!`);
+        setCaptureLogMsg(`${encounterCow.name} si fida di te! Registrata nel Libretto di Mandria.`);
         playVictorySfx();
 
         // Add to permanent collection (con la valutazione del giudice, se fatta)
@@ -1417,7 +1417,7 @@ export default function App() {
   };
 
   // ---- 10. REAL-TIME TAP-AND-DODGE GYM BATTLES ----
-  // ---- 11. GEMINI DNA SCANNER BACKEND HANDLERS ----
+  // ---- 11. SCANNER CLIENT (simulato) ----
   const processImageScanGo = async (imgBase64: string | null) => {
     playClickSfx();
     setIsScanning(true);
@@ -1719,7 +1719,7 @@ export default function App() {
                       onClick={() => { playClickSfx(); setMapMode('radar'); }}
                       className={`font-mono text-[10px] font-bold px-2.5 py-1.5 rounded-lg transition-all ${mapMode === 'radar' ? 'bg-emerald-500 text-[#0b0820] font-black' : 'text-slate-400 hover:bg-slate-850'}`}
                     >
-                      Radar Sonar
+                      Sguardo del Pastore
                     </button>
                   </div>
 
@@ -1838,7 +1838,7 @@ export default function App() {
                           <VatsamonAvatar breed={wc.vatsa.breed} rarity={wc.vatsa.rarity} className="w-14 h-14 bg-slate-950/40 rounded-full border border-amber-500/30 p-1 backdrop-blur-xs transition-transform group-hover/cow:scale-125" />
                         </div>
                         <span className="text-[8px] font-mono font-black bg-slate-950/95 text-yellow-400 border border-amber-500/20 px-1.5 py-0.5 rounded shadow">
-                          CP {wc.vatsa.cp}
+                          Potenza {wc.vatsa.cp}
                         </span>
                       </div>
                     </button>
@@ -1935,7 +1935,7 @@ export default function App() {
               </h4>
               <div className="bg-slate-900/60 border border-slate-850/80 rounded-2xl p-3 max-h-[140px] overflow-y-auto space-y-2 no-scrollbar">
                 {trekkingFeed.length === 0 ? (
-                  <p className="text-[10px] text-slate-500 font-mono">Inizia a camminare per sintonizzare nuovi eventi sul sentiero...</p>
+                  <p className="text-[10px] text-slate-500 font-mono">Inizia a camminare per incontrare nuovi eventi sul sentiero...</p>
                 ) : (
                   trekkingFeed.map((feedItem, index) => (
                     <div key={index} className="flex items-start gap-1.5 text-[10px] font-mono leading-relaxed border-b border-slate-850/30 pb-1.5 last:border-0 last:pb-0">
@@ -2080,8 +2080,8 @@ export default function App() {
                 </div>
 
                 <div className="text-right">
-                  <div className="text-[10px] text-slate-500 font-mono">PUNTI COMBAT</div>
-                  <div className="font-mono font-black text-xl text-yellow-400 leading-none">CP {encounterCow.cp}</div>
+                  <div className="text-[10px] text-slate-500 font-mono">POTENZA</div>
+                  <div className="font-mono font-black text-xl text-yellow-400 leading-none">{encounterCow.cp}</div>
                 </div>
               </div>
 
@@ -2135,7 +2135,7 @@ export default function App() {
                         <span className="text-3xl">🔔</span>
                         <span className="absolute -top-1 -right-1 bg-red-500 w-3 h-3 rounded-full animate-ping"></span>
                       </div>
-                      <span className="text-[10px] font-mono font-bold text-amber-300 mt-2 animate-pulse">SI SVEGLIERÀ?</span>
+                      <span className="text-[10px] font-mono font-bold text-amber-300 mt-2 animate-pulse">SI FIDERÀ?</span>
                     </div>
                   )}
 
@@ -2213,7 +2213,7 @@ export default function App() {
                       </div>
                     </div>
 
-                    {/* Selettore Vatsa-ball in stile Poké Ball: una tessera per potenza */}
+                    {/* Selettore del campanaccio: una tessera per potenza di richiamo */}
                     <div id="ball-selector" className="space-y-1">
                       <div className="flex items-center justify-between text-[9px] font-mono uppercase tracking-wider text-slate-400">
                         <span>Scegli il campanaccio</span>
@@ -2245,7 +2245,7 @@ export default function App() {
                               </span>
                               <span className="text-lg leading-none">{meta.emoji}</span>
                               <span className="text-[8px] font-mono font-bold mt-1 leading-tight" style={{ color: selected ? meta.color : '#cbd5e1' }}>
-                                {meta.short.replace('Vatsa-ball', '').trim() || 'Base'}
+                                {meta.short}
                               </span>
                               <span className="text-[8px] font-mono font-black mt-0.5" style={{ color: meta.color }}>
                                 {meta.mult === null ? '100%' : `×${meta.mult}`}
@@ -2277,7 +2277,7 @@ export default function App() {
                         id="throw-btn"
                       >
                         <span className="text-lg">{selMeta?.emoji ?? '📢'}</span>
-                        <span>LANCIA {selMeta?.short.replace('Vatsa-ball', '').trim() || ''}</span>
+                        <span>SUONA · {selMeta?.short || ''}</span>
                       </button>
                     </div>
 
@@ -2312,7 +2312,7 @@ export default function App() {
           />
         )}
 
-        {/* VIEW 2: AR LAB DNA SYNTHESIZER SCANNER */}
+        {/* VIEW 2: SCANNER (simulato — diventa "Scatta la Reina" reale in S2) */}
         {activeTab === 'scanner' && (
           <div className="space-y-6" id="scanner-view">
             <div className="bg-slate-950 rounded-3xl p-5 border border-slate-850 shadow-md">
@@ -2734,7 +2734,7 @@ export default function App() {
 
       {/* FOOTER GENERAL LEGALS AND RESET ACCENTS */}
       <footer className="bg-slate-950 text-slate-500 text-[10px] text-center py-4 px-6 border-t border-slate-850 mt-12 gap-2 flex flex-col items-center relative z-10">
-        <p>© 2026 Vatsamon GO - Un'esplorazione virtuale ecologica della Valle d'Aosta.</p>
+        <p>© 2026 {BRAND.gameName} — il gioco delle Batailles de Reines · Vallée d'Aoste.</p>
         <p className="flex items-center gap-1.5 text-slate-400 font-mono font-bold">
           <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ background: "linear-gradient(90deg,#1a1626 0 50%, #c8102e 50% 100%)" }} aria-hidden="true" />
           versione <span className="text-amber-400">v{APP_VERSION}</span>
@@ -2767,7 +2767,7 @@ export default function App() {
               <h5 className="text-[10px] font-mono text-slate-400 uppercase tracking-wide">Premi Sbloccati d'alta quota</h5>
               <div className="flex justify-center gap-4 text-xs font-mono font-bold text-amber-300 mt-2">
                 <span>+50 Monete 🪙</span>
-                <span>+5 Super Vatsa-ball 🛎️</span>
+                <span>+5 Campanacci d'Acciaio 🛎️</span>
               </div>
             </div>
 
