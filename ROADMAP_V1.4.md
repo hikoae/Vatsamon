@@ -248,6 +248,10 @@ verificato, niente invenzioni).
 
 ## F. Piano di release v1.4
 
+> **STATO (01/07/2026)**: Sprint 0 ✅ · Sprint 1 ✅ (design token completi e
+> icone custom rimandati: fatto nav/HUD/safe-area/lessico/tipografia/a11y) ·
+> Sprint 2 ✅ (Scatta la Reina live) · Sprint 3-4 da fare.
+
 Ordine pensato per rischio/valore; ogni sprint termina con typecheck + build
 + Playwright verde + screenshot.
 

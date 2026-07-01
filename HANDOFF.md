@@ -4,7 +4,7 @@
 > file citati al bisogno) invece di rileggere tutto il codice. Mantienilo
 > aggiornato a fine sessione.
 >
-> Ultimo aggiornamento: 2026-06-01 · Branch di sviluppo: `claude/pokemon-go-mobile-game-8IkzM`
+> Ultimo aggiornamento: 2026-07-01 · Branch di sviluppo: `claude/vatsamon-audit-redesign-ig2l5t` (v1.4 in corso)
 
 ---
 
@@ -13,11 +13,13 @@
 - **Cos'è**: PWA mobile stile **Pokémon GO** con le **vere Reines** (mucche valdostane)
   della Bataille de Reines 2026. React 19 + Vite 6 + TS, Tailwind v4, Firebase, Leaflet.
 - **Repo**: `hikoae/vazzamon` (⚠️ da rinominare in `vatsamon` su GitHub: Settings → Repository name) · **app dir**: `app/` · **live**: `vatsamon.netlify.app`
-- **Branch di lavoro**: `claude/pokemon-go-mobile-game-8IkzM`. Si fa merge su `main` per il deploy Netlify.
+- **Branch di lavoro**: `claude/vatsamon-audit-redesign-ig2l5t` (v1.4). Si fa merge su `main` per il deploy Netlify.
 - **Comandi**: `cd app && npm install && npm run dev` · build: `npm run build`
-- **⚠️ TASK APERTO PRIORITARIO**: il tab "Vitelli/uova" usa la metafora dell'**uovo**
-  (egg/schiusa). **LE MUCCHE NON FANNO UOVA.** Va riprogettato in sistema di
-  **gravidanza/parto/gestazione**. Vedi §7.
+- **v1.4 in corso** (vedi `ROADMAP_V1.4.md` e `AUDIT_2026-07.md`): fatti
+  Sprint 0 (bugfix+refactor), Sprint 1 (nav in basso 5 tab, HUD 1 riga,
+  safe-area, lessico bonificato, Fraunces+Inter) e Sprint 2 (**Scatta la
+  Reina**: riconoscimento bovina on-device con COCO-SSD vendorizzato in
+  `public/models/ssdlite`, foto in IndexedDB via `lib/photoStore.ts`).
 
 ---
 
@@ -95,7 +97,6 @@
 ### Altro
 - `components/QuizScreen.tsx` + `data/quiz.ts` — "Scuola d'Alpeggio".
 - `components/Challenges.tsx` — sfide (spostate nel tab "Premi").
-- `components/HatchScene.tsx` — ⚠️ animazione nascita ma **usa metafora UOVO** → da riprogettare (vedi §7). NON ancora importato/usato in App.tsx.
 - `data/realCows.ts` — dataset bovine reali (`REAL_COWS`, `REAL_TOTAL`, `REAL_CASERE`, `SHOWCASE_BY_RARITY`).
 - `data/trails.ts`, `data/routes.ts` — percorsi/sentieri. `lib/geo.ts` — distanze GPS, `RAGGIO_CATTURA`.
 - `utils/audio.ts` — `soundEngine` (click/moo/victory/ecc.).
@@ -104,7 +105,8 @@
 
 ## 3. Navigazione / tab
 
-`activeTab: 'map' | 'scanner' | 'eggs' | 'vatsadex' | 'quiz' | 'premi'`
+`activeTab: 'map' | 'stagione' | 'scanner' | 'stalla' | 'vatsadex' | 'quiz' | 'premi'`
+**NAV IN BASSO (5 tab)**: Alpeggio(map) · Stagione · **Scatta**(scanner, bottone centrale) · Stalla · Libretto(vatsadex). Quiz = card `#quiz-entry` dentro Stagione; Premi = chip `#premi-chip` nell'HUD.
 - **Mappa** (`map`): mappa GRANDE in cima (h-460/540), poi selettore percorsi, "Sfide nei dintorni", "Lega delle Reines · Dungeon".
 - **Scanner** (`scanner`): genera Vatsamon da foto (Gemini client).
 - **Vitelli** (`eggs`): ⚠️ tab da riprogettare (gravidanza, non uova). `id="hatchery-tab-view"` in App.tsx ~riga 2725.
