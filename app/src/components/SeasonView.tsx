@@ -30,9 +30,9 @@ import { useLang, tr, Lang } from "../i18n/hub";
 
 type SubTab = "notizie" | "calendario" | "albo" | "tabellone" | "segui" | "scopri";
 
-const LS_PICKS = "vazzamon_pronostici";
-const LS_FOLLOW = "vazzamon_follow_reine";
-const LS_REWARDED = "vazzamon_pronostici_rewarded";
+const LS_PICKS = "vatsamon_pronostici";
+const LS_FOLLOW = "vatsamon_follow_reine";
+const LS_REWARDED = "vatsamon_pronostici_rewarded";
 
 function loadJSON<T>(key: string, fallback: T): T {
   try { const raw = localStorage.getItem(key); return raw ? (JSON.parse(raw) as T) : fallback; } catch { return fallback; }

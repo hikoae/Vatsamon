@@ -9,7 +9,7 @@ import { useEffect, useState } from "react";
 
 export type Lang = "it" | "fr";
 
-const LS_LANG = "vazzamon_lang";
+const LS_LANG = "vatsamon_lang";
 
 const DICT = {
   it: {

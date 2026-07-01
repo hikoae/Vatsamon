@@ -1,6 +1,6 @@
 # Configurazione deploy Netlify (sito collegato a questo repo GitHub).
 # La app sta in app/. Build con base "/" (Netlify serve dalla radice del dominio,
-# a differenza di GitHub Pages che usa /vazzamon/). publish è relativo a base.
+# a differenza di GitHub Pages che usa /vatsamon/). publish è relativo a base.
 [build]
   base = "app"
   command = "npm run build -- --base=/"

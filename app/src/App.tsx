@@ -29,6 +29,7 @@ import {
   Trophy
 } from 'lucide-react';
 import { Vatsamon, Hotspot, BackpackItem, Trainer, BattleState, RarityType } from './types';
+import { normalizeSaveKey } from './lib/migrateSaveKeys';
 import { VatsamonAvatar } from './components/VatsamonAvatar';
 import { CowVisual } from './components/CowVisual';
 import { CowCard } from './components/CowCard';
@@ -82,7 +83,7 @@ export const getSvgCoords = (lat: number, lng: number) => {
 export default function App() {
   // ---- 1. PERSISTENT STATS ----
   const [vatsadex, setVatsadex] = useState<Vatsamon[]>(() => {
-    const cached = localStorage.getItem('vazzamon_collection_go');
+    const cached = localStorage.getItem('vatsamon_collection_go');
     if (cached) {
       try { return JSON.parse(cached); } catch (e) { console.error(e); }
     }
@@ -90,7 +91,7 @@ export default function App() {
   });
 
   const [backpack, setBackpack] = useState<BackpackItem[]>(() => {
-    const cached = localStorage.getItem('vazzamon_bag_go');
+    const cached = localStorage.getItem('vatsamon_bag_go');
     if (cached) {
       try {
         const parsed: BackpackItem[] = JSON.parse(cached);
@@ -107,7 +108,7 @@ export default function App() {
 
 
   const [trainer, setTrainer] = useState<Trainer>(() => {
-    const cached = localStorage.getItem('vazzamon_trainer_go');
+    const cached = localStorage.getItem('vatsamon_trainer_go');
     if (cached) {
       try { return JSON.parse(cached); } catch (e) { console.error(e); }
     }
@@ -127,7 +128,7 @@ export default function App() {
   // SAVE_KEYS in cloudSave.ts per la sincronizzazione cloud). Un Rispetto alto
   // dà un piccolo vantaggio di gameplay (vedi spawnWildCowAtRandom: bonus rarità).
   const [respectScore, setRespectScore] = useState<number>(() => {
-    const cached = localStorage.getItem('vazzamon_respect');
+    const cached = localStorage.getItem('vatsamon_respect');
     if (cached !== null) {
       const n = Number(cached);
       if (!Number.isNaN(n)) return Math.max(0, Math.min(100, n));
@@ -139,10 +140,10 @@ export default function App() {
     setRespectScore(prev => Math.max(0, Math.min(100, prev + delta)));
 
   // Keep all persistent items secure in localStorage
-  useEffect(() => { localStorage.setItem('vazzamon_collection_go', JSON.stringify(vatsadex)); }, [vatsadex]);
-  useEffect(() => { localStorage.setItem('vazzamon_bag_go', JSON.stringify(backpack)); }, [backpack]);
-  useEffect(() => { localStorage.setItem('vazzamon_trainer_go', JSON.stringify(trainer)); }, [trainer]);
-  useEffect(() => { localStorage.setItem('vazzamon_respect', String(respectScore)); }, [respectScore]);
+  useEffect(() => { localStorage.setItem('vatsamon_collection_go', JSON.stringify(vatsadex)); }, [vatsadex]);
+  useEffect(() => { localStorage.setItem('vatsamon_bag_go', JSON.stringify(backpack)); }, [backpack]);
+  useEffect(() => { localStorage.setItem('vatsamon_trainer_go', JSON.stringify(trainer)); }, [trainer]);
+  useEffect(() => { localStorage.setItem('vatsamon_respect', String(respectScore)); }, [respectScore]);
   // Rispecchia il Rispetto nell'oggetto trainer così la classifica cloud
   // (leaderboard in cloudSave.ts, che legge trainer.respectScore) resta accurata.
   useEffect(() => {
@@ -164,32 +165,32 @@ export default function App() {
 
   // Trekking Waypoints coordinates tracking
   const [currentWaypointIndex, setCurrentWaypointIndex] = useState<number>(() => {
-    const cached = localStorage.getItem('vazzamon_waypoint_idx');
+    const cached = localStorage.getItem('vatsamon_waypoint_idx');
     return cached ? Number(cached) : 0; // si parte dalla prima tappa del percorso
   });
   const [waypointProgress, setWaypointProgress] = useState<number>(() => {
-    const cached = localStorage.getItem('vazzamon_waypoint_progress');
+    const cached = localStorage.getItem('vatsamon_waypoint_progress');
     return cached ? Number(cached) : 0;
   });
 
   // Percorso di trekking attivo (3 itinerari selezionabili).
   const [activeRouteId, setActiveRouteId] = useState<string>(() => {
-    return localStorage.getItem('vazzamon_active_route_id') || TREK_ROUTES[0].id;
+    return localStorage.getItem('vatsamon_active_route_id') || TREK_ROUTES[0].id;
   });
-  useEffect(() => { localStorage.setItem('vazzamon_active_route_id', activeRouteId); }, [activeRouteId]);
+  useEffect(() => { localStorage.setItem('vatsamon_active_route_id', activeRouteId); }, [activeRouteId]);
   const activeRoute = TREK_ROUTES.find(r => r.id === activeRouteId) ?? TREK_ROUTES[0];
   const activeTrail = activeRoute.coords;
 
   // ---- Progressione Fase 2: percorsi completati + bovine scoperte (fog-of-war) ----
   const [completedRoutes, setCompletedRoutes] = useState<string[]>(() => {
-    try { return JSON.parse(localStorage.getItem('vazzamon_completed_routes') || '[]'); } catch { return []; }
+    try { return JSON.parse(localStorage.getItem('vatsamon_completed_routes') || '[]'); } catch { return []; }
   });
-  useEffect(() => { localStorage.setItem('vazzamon_completed_routes', JSON.stringify(completedRoutes)); }, [completedRoutes]);
+  useEffect(() => { localStorage.setItem('vatsamon_completed_routes', JSON.stringify(completedRoutes)); }, [completedRoutes]);
 
   const [discoveredCows, setDiscoveredCows] = useState<string[]>(() => {
-    try { return JSON.parse(localStorage.getItem('vazzamon_discovered_cows') || '[]'); } catch { return []; }
+    try { return JSON.parse(localStorage.getItem('vatsamon_discovered_cows') || '[]'); } catch { return []; }
   });
-  useEffect(() => { localStorage.setItem('vazzamon_discovered_cows', JSON.stringify(discoveredCows)); }, [discoveredCows]);
+  useEffect(() => { localStorage.setItem('vatsamon_discovered_cows', JSON.stringify(discoveredCows)); }, [discoveredCows]);
   const DISCOVERY_RADIUS = 1500; // metri: entro questo raggio una Reina viene "avvistata"
   // Cambia percorso: riparte dalla prima tappa.
   const selectRoute = (id: string) => {
@@ -212,8 +213,8 @@ export default function App() {
     "Bussola sintonizzata: sei attualmente ad Aosta Centro 🏰."
   ]);
 
-  useEffect(() => { localStorage.setItem('vazzamon_waypoint_idx', String(currentWaypointIndex)); }, [currentWaypointIndex]);
-  useEffect(() => { localStorage.setItem('vazzamon_waypoint_progress', String(waypointProgress)); }, [waypointProgress]);
+  useEffect(() => { localStorage.setItem('vatsamon_waypoint_idx', String(currentWaypointIndex)); }, [currentWaypointIndex]);
+  useEffect(() => { localStorage.setItem('vatsamon_waypoint_progress', String(waypointProgress)); }, [waypointProgress]);
 
   // ---- 2. VIEW NAVIGATION ----
   const [activeTab, setActiveTab] = useState<'map' | 'stagione' | 'scanner' | 'stalla' | 'vatsadex' | 'quiz' | 'premi'>('map');
@@ -221,32 +222,32 @@ export default function App() {
   const [activeBattle, setActiveBattle] = useState<MapBattle | null>(null);
   const [activeDungeon, setActiveDungeon] = useState<Dungeon | null>(null); // Lega/dungeon in corso
   const [dungeonsCleared, setDungeonsCleared] = useState<string[]>(() => {
-    try { return JSON.parse(localStorage.getItem('vazzamon_dungeons') || '[]'); } catch { return []; }
+    try { return JSON.parse(localStorage.getItem('vatsamon_dungeons') || '[]'); } catch { return []; }
   });
-  useEffect(() => { localStorage.setItem('vazzamon_dungeons', JSON.stringify(dungeonsCleared)); }, [dungeonsCleared]);
+  useEffect(() => { localStorage.setItem('vatsamon_dungeons', JSON.stringify(dungeonsCleared)); }, [dungeonsCleared]);
   const [encounterFlash, setEncounterFlash] = useState(false); // flash d'incontro casuale
   // FASE 4: incontro educativo casuale (guardaparco/pastore) attivo, o null.
   const [respectEncounter, setRespectEncounter] = useState<ResponsibleQuestion | null>(null);
   // Quiz "Scuola d'Alpeggio": miglior punteggio persistito.
   const [quizBest, setQuizBest] = useState<number>(() => {
-    const saved = localStorage.getItem('vazzamon_quiz_go');
+    const saved = localStorage.getItem('vatsamon_quiz_go');
     return saved ? parseInt(saved, 10) : 0;
   });
   // Medaglie delle Arene conquistate (bonus permanenti).
   const [trainerBadges, setTrainerBadges] = useState<ArenaId[]>(() => {
-    const saved = localStorage.getItem('vazzamon_badges');
+    const saved = localStorage.getItem('vatsamon_badges');
     return saved ? JSON.parse(saved) : ['cogne', 'gran_paradiso'];
   });
   useEffect(() => {
-    localStorage.setItem('vazzamon_badges', JSON.stringify(trainerBadges));
+    localStorage.setItem('vatsamon_badges', JSON.stringify(trainerBadges));
   }, [trainerBadges]);
   // Sfide riscosse (per non riscuotere due volte la ricompensa).
   const [claimedChallenges, setClaimedChallenges] = useState<string[]>(() => {
-    const saved = localStorage.getItem('vazzamon_challenges_go');
+    const saved = localStorage.getItem('vatsamon_challenges_go');
     return saved ? JSON.parse(saved) : [];
   });
   useEffect(() => {
-    localStorage.setItem('vazzamon_challenges_go', JSON.stringify(claimedChallenges));
+    localStorage.setItem('vatsamon_challenges_go', JSON.stringify(claimedChallenges));
   }, [claimedChallenges]);
   const [soundEnabled, setSoundEnabled] = useState(true);
 
@@ -907,7 +908,7 @@ export default function App() {
     setProfileMsg(`★ Stella di Pedigree n°${owned + 1} ottenuta! −${costo} 🧀 · prestigio permanente (+Rispetto).`);
   };
 
-  // Raccoglie tutte le chiavi di salvataggio (prefisso vazzamon_).
+  // Raccoglie tutte le chiavi di salvataggio (prefisso vatsamon_).
   // La collezione viene COMPATTATA: le Reines reali del bundle si salvano come
   // id + sole differenze rispetto alla scheda originale (foto/lore/stat statiche
   // non si ripetono); le Reines generate o nate in stalla si salvano per intero.
@@ -916,11 +917,11 @@ export default function App() {
     for (let i = 0; i < localStorage.length; i++) {
       const k = localStorage.key(i);
       // salta il backup interno (macchinario cloud, non è progresso da esportare)
-      if (k && k.startsWith('vazzamon_') && k !== 'vazzamon_backup_latest') data[k] = localStorage.getItem(k) ?? "";
+      if (k && k.startsWith('vatsamon_') && k !== 'vatsamon_backup_latest') data[k] = localStorage.getItem(k) ?? "";
     }
     try {
-      const coll = JSON.parse(data['vazzamon_collection_go'] || '[]') as Vatsamon[];
-      data['vazzamon_collection_go'] = JSON.stringify(coll.map(c => {
+      const coll = JSON.parse(data['vatsamon_collection_go'] || '[]') as Vatsamon[];
+      data['vatsamon_collection_go'] = JSON.stringify(coll.map(c => {
         const base = REAL_BY_ID.get(c.id);
         if (!base) return { f: c }; // generata / nata in stalla → intera
         const d: Record<string, unknown> = {};
@@ -932,8 +933,8 @@ export default function App() {
     } catch { /* lascia la collezione com'è se il parsing fallisce */ }
     try {
       // lo zaino è dato statico: salva solo id + quantità (le descrizioni si reidratano)
-      const bag = JSON.parse(data['vazzamon_bag_go'] || '[]') as BackpackItem[];
-      data['vazzamon_bag_go'] = JSON.stringify(bag.map(b => BAG_BY_ID.has(b.id) ? [b.id, b.quantity] : { f: b }));
+      const bag = JSON.parse(data['vatsamon_bag_go'] || '[]') as BackpackItem[];
+      data['vatsamon_bag_go'] = JSON.stringify(bag.map(b => BAG_BY_ID.has(b.id) ? [b.id, b.quantity] : { f: b }));
     } catch { /* idem */ }
     return JSON.stringify({ app: "vatsamon", v: 2, data });
   };
@@ -1022,11 +1023,13 @@ export default function App() {
       const json = await decodeSave(raw);
       const obj = JSON.parse(json);
       const data = obj.data ?? obj;
-      Object.entries(data).forEach(([k, v]) => {
-        if (!k.startsWith('vazzamon_')) return;
+      Object.entries(data).forEach(([rawKey, v]) => {
+        // accetta anche i codici esportati prima della rinomina (vazzamon_*)
+        const k = normalizeSaveKey(rawKey);
+        if (!k.startsWith('vatsamon_')) return;
         let val = String(v);
-        if (k === 'vazzamon_collection_go') val = rehydrateCollection(val);
-        else if (k === 'vazzamon_bag_go') val = rehydrateBag(val);
+        if (k === 'vatsamon_collection_go') val = rehydrateCollection(val);
+        else if (k === 'vatsamon_bag_go') val = rehydrateBag(val);
         localStorage.setItem(k, val);
       });
       setProfileMsg("Salvataggio importato! Ricarico il gioco…");
@@ -1041,7 +1044,8 @@ export default function App() {
     if (!window.confirm("Azzerare TUTTI i progressi? L'operazione non è reversibile.")) return;
     for (let i = localStorage.length - 1; i >= 0; i--) {
       const k = localStorage.key(i);
-      if (k && k.startsWith('vazzamon_')) localStorage.removeItem(k);
+      // azzera anche le copie legacy pre-rinomina, o la migrazione le farebbe risorgere
+      if (k && (k.startsWith('vatsamon_') || k.startsWith('vazzamon_'))) localStorage.removeItem(k);
     }
     window.location.reload();
   };
@@ -3015,7 +3019,7 @@ export default function App() {
                 addTrainerXp(correct * 30);
                 if (correct > quizBest) {
                   setQuizBest(correct);
-                  localStorage.setItem('vazzamon_quiz_go', String(correct));
+                  localStorage.setItem('vatsamon_quiz_go', String(correct));
                 }
                 setTrekkingFeed(prev => [`🎓 Scuola d'Alpeggio: ${correct}/${totale} risposte giuste (+${coinsWon} 🪙)`, ...prev.slice(0, 8)]);
               }}

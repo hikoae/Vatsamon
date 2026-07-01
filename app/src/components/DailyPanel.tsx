@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Flame, Check, Footprints, Sparkles } from "lucide-react";
 import { DailyMission, missionsForDay, todayKey, yesterdayKey } from "../data/dailyMissions";
 
-const LS = "vazzamon_daily";
+const LS = "vatsamon_daily";
 
 interface DailyState {
   day: string;

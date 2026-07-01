@@ -44,7 +44,7 @@ page.on("pageerror", (e) => !isEnvNoise(e.message) && errors.push("PAGEERROR: " 
 // In modalità locale i nuovi utenti vedono l'onboarding: per testare il gioco
 // pre-segniamo lo storage come "onboardato" così App si carica direttamente.
 await page.addInitScript(() => {
-  localStorage.setItem("vazzamon_onboarded", JSON.stringify({ verify: true }));
+  localStorage.setItem("vatsamon_onboarded", JSON.stringify({ verify: true }));
 });
 
 await page.goto(APP_URL, { waitUntil: "networkidle" });

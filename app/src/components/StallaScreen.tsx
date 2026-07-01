@@ -8,7 +8,7 @@ import {
   STAGE_LABEL, stageForAge, CARE_COOLDOWN_MS, CARE_PROGRESS, CARE_BENESSERE, GROW_COOLDOWN_MS, GROW_MONTHS,
 } from "../data/breeding";
 
-const LS_PREG = "vazzamon_stalla_preg";
+const LS_PREG = "vatsamon_stalla_preg";
 
 /**
  * STALLA — allevamento e genealogia (sostituisce la "Culla dei Vitellini" a uova).

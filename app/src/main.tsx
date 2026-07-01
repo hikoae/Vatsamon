@@ -1,3 +1,6 @@
+// La migrazione delle chiavi di salvataggio DEVE girare prima di ogni lettura
+// di localStorage (rinomina vazzamon_ → vatsamon_).
+import './lib/migrateSaveKeys';
 import {StrictMode} from 'react';
 import {createRoot} from 'react-dom/client';
 import {registerSW} from 'virtual:pwa-register';

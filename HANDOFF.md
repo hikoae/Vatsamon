@@ -12,7 +12,7 @@
 
 - **Cos'è**: PWA mobile stile **Pokémon GO** con le **vere Reines** (mucche valdostane)
   della Bataille de Reines 2026. React 19 + Vite 6 + TS, Tailwind v4, Firebase, Leaflet.
-- **Repo**: `hikoae/vazzamon` · **app dir**: `/home/user/vazzamon/app` · **live**: `vatsamon.netlify.app`
+- **Repo**: `hikoae/vazzamon` (⚠️ da rinominare in `vatsamon` su GitHub: Settings → Repository name) · **app dir**: `app/` · **live**: `vatsamon.netlify.app`
 - **Branch di lavoro**: `claude/pokemon-go-mobile-game-8IkzM`. Si fa merge su `main` per il deploy Netlify.
 - **Comandi**: `cd app && npm install && npm run dev` · build: `npm run build`
 - **⚠️ TASK APERTO PRIORITARIO**: il tab "Vitelli/uova" usa la metafora dell'**uovo**
@@ -119,13 +119,16 @@
 
 Tutto in `App.tsx` come `useState`, persistito in localStorage con chiavi in `cloudSave.ts → SAVE_KEYS`:
 ```
-vazzamon_collection_go, vazzamon_bag_go, vazzamon_eggs_go, vazzamon_trainer_go,
-vazzamon_waypoint_idx, vazzamon_waypoint_progress, vazzamon_active_route_id,
-vazzamon_quiz_go, vazzamon_badges, vazzamon_challenges_go, vazzamon_completed_routes,
-vazzamon_discovered_cows, vazzamon_onboarded, vazzamon_respect, vazzamon_dungeons
+vatsamon_collection_go, vatsamon_bag_go, vatsamon_eggs_go, vatsamon_trainer_go,
+vatsamon_waypoint_idx, vatsamon_waypoint_progress, vatsamon_active_route_id,
+vatsamon_quiz_go, vatsamon_badges, vatsamon_challenges_go, vatsamon_completed_routes,
+vatsamon_discovered_cows, vatsamon_onboarded, vatsamon_respect, vatsamon_dungeons
 ```
 - localStorage = cache di sessione; **Firestore = verità**. Migrazione al primo login se ci sono progressi locali.
-- ⚠️ Se rinomini `Egg`→`Pregnancy`, valuta se cambiare anche la chiave `vazzamon_eggs_go`
+- Le chiavi legacy `vazzamon_*` vengono migrate una tantum all'avvio da
+  `lib/migrateSaveKeys.ts` (copiate, mai sovrascritte); cloud e codici export
+  legacy sono normalizzati in lettura.
+- ⚠️ Se rinomini `Egg`→`Pregnancy`, valuta se cambiare anche la chiave `vatsamon_eggs_go`
   (consiglio: tieni la chiave o aggiungi migrazione, per non perdere salvataggi esistenti).
 
 ---
@@ -201,7 +204,7 @@ con cooldown che dà un piccolo boost. Animazione parto: mucca trema → flash �
 
 ## 10. Riferimenti
 
-- Transcript pre-compattazione (se servono dettagli esatti): `/root/.claude/projects/-home-user-vazzamon/`
+- Transcript pre-compattazione (se servono dettagli esatti): `/root/.claude/projects/-home-user-vatsamon/`
 - Altri doc storici nel repo: `STATO_ATTUALE.md`, `MERGE_PLAN.md`, `FIREBASE_SETUP.md`, `AUDIT_PROGETTO.md`.
 </content>
 </invoke>

@@ -6,8 +6,10 @@ import { VitePWA } from "vite-plugin-pwa";
 
 export default defineConfig(({ mode }) => ({
   // Base = nome del repo GitHub (il sito Pages vive su hikoae.github.io/<repo>/).
-  // Il repo si chiama "vazzamon": gli asset devono puntare a /vazzamon/.
-  base: mode === "development" ? "/" : "/vazzamon/",
+  // Il progetto si chiama "vatsamon": rinominare anche il repo GitHub in
+  // Settings → General → Repository name (GitHub reindirizza il vecchio nome).
+  // Netlify (sito live) ignora questo valore: builda con --base=/ da netlify.toml.
+  base: mode === "development" ? "/" : "/vatsamon/",
   plugins: [
     react(),
     tailwindcss(),

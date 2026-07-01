@@ -23,12 +23,12 @@ import {
   hasExistingProgress,
 } from "../lib/cloudSave";
 
-const OWNER_KEY = "vazzamon_owner_uid";
+const OWNER_KEY = "vatsamon_owner_uid";
 type Phase = "resolving" | "login" | "onboarding" | "ready";
 
 /** Segna lo storage come "già onboardato" (per giocatori migrati/grandfathered). */
 function markOnboarded(reason: string) {
-  localStorage.setItem("vazzamon_onboarded", JSON.stringify({ [reason]: true, at: Date.now() }));
+  localStorage.setItem("vatsamon_onboarded", JSON.stringify({ [reason]: true, at: Date.now() }));
 }
 
 export default function AuthGate() {
@@ -57,7 +57,7 @@ export default function AuthGate() {
         sessionUid.current = "guest";
         backupLocalSave("local-start");
         const forced = new URLSearchParams(location.search).has("onboard");
-        if (localStorage.getItem("vazzamon_onboarded") && !forced) {
+        if (localStorage.getItem("vatsamon_onboarded") && !forced) {
           setPhase("ready");
           return;
         }
@@ -95,7 +95,7 @@ export default function AuthGate() {
         // Il cloud è la verità: backup del locale, poi idrata.
         backupLocalSave("cloud-hydrate");
         writeLocalSave(cloud!.keys);
-        if (!localStorage.getItem("vazzamon_onboarded")) markOnboarded("from-cloud");
+        if (!localStorage.getItem("vatsamon_onboarded")) markOnboarded("from-cloud");
         setPhase("ready");
         return;
       }
@@ -104,7 +104,7 @@ export default function AuthGate() {
       if (hasExistingProgress()) {
         // Migra i progressi locali esistenti dentro al nuovo account (niente wipe).
         backupLocalSave("migrate-to-account");
-        if (!localStorage.getItem("vazzamon_onboarded")) markOnboarded("migrated");
+        if (!localStorage.getItem("vatsamon_onboarded")) markOnboarded("migrated");
         try {
           await saveCloudSave(user.uid);
         } catch {
