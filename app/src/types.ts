@@ -100,19 +100,3 @@ export interface Trainer {
   respectScore?: number;
 }
 
-export interface BattleState {
-  playerVatsamon: Vatsamon | null;
-  opponentVatsamon: Vatsamon | null;
-  playerHp: number;
-  opponentHp: number;
-  playerMaxHp: number;
-  opponentMaxHp: number;
-  energy: number; // 0 to 100 for charging special attack
-  opponentEnergy: number;
-  status: 'idle' | 'intro' | 'active' | 'dodge' | 'special_anim' | 'ended';
-  history: string[];
-  winner: 'player' | 'opponent' | null;
-  opponentStatsModifier: number;
-  playerAttackAnim: boolean;
-  opponentAttackAnim: boolean;
-}

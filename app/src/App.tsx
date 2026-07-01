@@ -1,34 +1,26 @@
 import React, { useState, useEffect, useRef } from 'react';
 import L from 'leaflet';
-import { 
-  Compass, 
-  Camera, 
-  BookOpen, 
-  Swords, 
-  Volume2, 
-  VolumeX, 
-  Sparkles, 
-  ShieldAlert, 
-  Award, 
-  MapPin, 
-  Zap, 
-  Shield, 
-  Upload, 
-  RefreshCw, 
+import {
+  Compass,
+  Camera,
+  BookOpen,
+  Swords,
+  Volume2,
+  VolumeX,
+  Sparkles,
+  ShieldAlert,
+  Award,
+  MapPin,
+  RefreshCw,
   X,
-  Play,
   Search,
   RotateCw,
-  TrendingUp,
-  User,
-  ShoppingBag,
   Gift,
   Footprints,
-  Plus,
   GraduationCap,
   Trophy
 } from 'lucide-react';
-import { Vatsamon, Hotspot, BackpackItem, Trainer, BattleState, RarityType } from './types';
+import { Vatsamon, Hotspot, BackpackItem, Trainer, RarityType } from './types';
 import { normalizeSaveKey } from './lib/migrateSaveKeys';
 import { APP_VERSION } from './config/brand';
 import { VatsamonAvatar } from './components/VatsamonAvatar';
@@ -44,7 +36,7 @@ import DungeonRun from './components/DungeonRun';
 import ValutazioneReina from './components/ValutazioneReina';
 import { MAP_BATTLES, MapBattle } from './data/mapBattles';
 import { DUNGEONS, Dungeon } from './data/dungeons';
-import { ARENAS, ArenaId } from './data/arenas';
+import { ArenaId } from './data/arenas';
 import { TREK_ROUTES } from './data/routes';
 import { Challenges } from './components/Challenges';
 import { SeasonView } from './components/SeasonView';
@@ -761,7 +753,6 @@ export default function App() {
   const [captureLogMsg, setCaptureLogMsg] = useState('');
 
   // Scanner upload parameters
-  const [scanImage, setScanImage] = useState<string | null>(null);
   const [isScanning, setIsScanning] = useState(false);
   const [scanProgress, setScanProgress] = useState(0);
   const [scanMessage, setScanMessage] = useState('');
@@ -777,28 +768,6 @@ export default function App() {
 
   // Level Up overlay reward popup
   const [levelUpAward, setLevelUpAward] = useState<number | null>(null);
-
-  // Hatching egg modal
-
-  // Interactive Bataille de Reines gym-fighter active state
-  const [gymState, setGymState] = useState<BattleState>({
-    playerVatsamon: null,
-    opponentVatsamon: null,
-    playerHp: 100,
-    opponentHp: 100,
-    playerMaxHp: 100,
-    opponentMaxHp: 100,
-    energy: 20,
-    opponentEnergy: 0,
-    status: 'idle',
-    history: [],
-    winner: null,
-    opponentStatsModifier: 0,
-    playerAttackAnim: false,
-    opponentAttackAnim: false
-  });
-  const [activeDodgeEffect, setActiveDodgeEffect] = useState(false);
-  const battleLoopRef = useRef<NodeJS.Timeout | null>(null);
 
   // ---- 3. AUDIO MANAGEMENT & EVENT SFX ----
   const playClickSfx = () => { if (soundEnabled) soundEngine.playClick(); };
@@ -1454,214 +1423,6 @@ export default function App() {
   };
 
   // ---- 10. REAL-TIME TAP-AND-DODGE GYM BATTLES ----
-  const handleInitiateGymMatch = () => {
-    playClickSfx();
-    const activeBuddy = vatsadex.find(c => c.id === activeCombatantId) || vatsadex[0];
-    if (!activeBuddy) {
-      alert("Sblocca un Vatsamon prima di sfidare l'arena!");
-      return;
-    }
-
-    // Avversari = vere Reines (preferendo le più forti) per una sfida autentica
-    const bosses = REAL_COWS.filter(c => c.rarity === 'Leggendaria' || c.rarity === 'Epica');
-    const opponentCowPool = bosses.length ? bosses : REAL_COWS;
-    const opponentModel = opponentCowPool[Math.floor(Math.random() * opponentCowPool.length)];
-    
-    // Scale opponent matching user level
-    const oppPowerMult = 1.0 + (trainer.level * 0.1);
-    const scaledOpponent: Vatsamon = {
-      ...opponentModel,
-      id: "opponent-boss",
-      name: `${opponentModel.name} Boss`,
-      cp: Math.floor(opponentModel.cp * oppPowerMult)
-    };
-
-    setGymState({
-      playerVatsamon: activeBuddy,
-      opponentVatsamon: scaledOpponent,
-      playerHp: 300 + activeBuddy.level * 15,
-      opponentHp: 280 + scaledOpponent.level * 25,
-      playerMaxHp: 300 + activeBuddy.level * 15,
-      opponentMaxHp: 280 + scaledOpponent.level * 25,
-      energy: 0,
-      opponentEnergy: 0,
-      status: 'intro',
-      history: [
-        `🥊 Benvenuti all'Arena "Bataille de Reines" d'Aosta!`,
-        `👉 Tappa col tempismo giusto per colpire ed accumulare energia!`,
-        `🛡️ Clicca "SCHIVA" quando l'avversario carica per dimezzare il danno!`,
-        `⚔️ Combattenti: ${activeBuddy.name} (CP ${activeBuddy.cp}) vs ${scaledOpponent.name} (CP ${scaledOpponent.cp})`
-      ],
-      winner: null,
-      opponentStatsModifier: 0,
-      playerAttackAnim: false,
-      opponentAttackAnim: false
-    });
-  };
-
-  // Start continuous background AI attack generator loop when combat begins
-  useEffect(() => {
-    if (gymState.status === 'active') {
-      battleLoopRef.current = setInterval(() => {
-        // AI Bot logic attacking player periodically
-        setGymState(prev => {
-          if (prev.status !== 'active') return prev;
-
-          // Decide if AI casts standard attack or super move
-          const isSuperReady = prev.opponentEnergy >= 100;
-          let dmg = Math.floor(12 + (prev.opponentVatsamon?.stats.strength || 50) * 0.15 + (Math.random() * 8));
-          let actionName = "Spallata";
-
-          if (isSuperReady) {
-            dmg = Math.floor(dmg * 2.3);
-            actionName = "🔥 INCORNATA DEVASTANTE";
-          }
-
-          // Dodge mechanics
-          let isDodged = false;
-          let finalDmg = dmg;
-          if (activeDodgeEffect) {
-            isDodged = true;
-            finalDmg = Math.floor(dmg * 0.15); // reduce damage by 85%
-          }
-
-          const logs = [...prev.history];
-          logs.push(
-            isDodged 
-              ? `⚡ ${prev.opponentVatsamon?.name} lancia ${actionName}, MA HAI SCHIVATO CON SUCCESSO! Subito solo ${finalDmg} danni!`
-              : `💥 ${prev.opponentVatsamon?.name} sferra ${actionName} infliggendo ${finalDmg} danni!`
-          );
-
-          const nextPlayerHp = Math.max(0, prev.playerHp - finalDmg);
-          const nextOpponentEnergy = isSuperReady ? 0 : Math.min(100, prev.opponentEnergy + 20);
-
-          let status: BattleState['status'] = prev.status;
-          let winner: BattleState['winner'] = prev.winner;
-          if (nextPlayerHp <= 0) {
-            status = 'ended';
-            winner = 'opponent';
-            logs.push(`💀 Il tuo Vatsamon ha ceduto! Sconfitta dignitosa. Sali di livello nel Vatsadex per riprovare.`);
-            if (battleLoopRef.current) clearInterval(battleLoopRef.current);
-          }
-
-          // Trigger hit sfx
-          playHitSfx();
-
-          return {
-            ...prev,
-            playerHp: nextPlayerHp,
-            opponentEnergy: nextOpponentEnergy,
-            opponentAttackAnim: true,
-            status,
-            winner,
-            history: logs.slice(-8) // keep history short and neat
-          };
-        });
-
-        // clear animation triggers after animation completed
-        setTimeout(() => {
-          setGymState(prev => ({ ...prev, opponentAttackAnim: false }));
-        }, 300);
-
-      }, 1800);
-    }
-
-    return () => {
-      if (battleLoopRef.current) clearInterval(battleLoopRef.current);
-    };
-  }, [gymState.status, activeDodgeEffect]);
-
-  const handlePlayerTapAttack = () => {
-    if (gymState.status === 'intro') {
-      playClickSfx();
-      setGymState(prev => ({ ...prev, status: 'active' }));
-      return;
-    }
-    if (gymState.status !== 'active') return;
-
-    playHitSfx();
-    
-    setGymState(prev => {
-      if (prev.status !== 'active' || !prev.playerVatsamon) return prev;
-
-      const dmg = Math.floor(8 + prev.playerVatsamon.stats.strength * 0.12 + Math.random() * 6);
-      const nextOppHp = Math.max(0, prev.opponentHp - dmg);
-      const nextEnergy = Math.min(100, prev.energy + 10);
-      const logs = [...prev.history];
-      logs.push(`⚔️ ${prev.playerVatsamon.name} attacca infliggendo ${dmg} danni!`);
-
-      let status: BattleState['status'] = prev.status;
-      let winner: BattleState['winner'] = prev.winner;
-      if (nextOppHp <= 0) {
-        status = 'ended';
-        winner = 'player';
-        logs.push(`🏆 EPIC WIN! ${prev.playerVatsamon.name} si laurea Reina indiscussa dell'Arena! Sbloccati premi favolosi.`);
-        if (battleLoopRef.current) clearInterval(battleLoopRef.current);
-
-        // Award resources to Trainer
-        addTrainerXp(500);
-        setTrainer(t => ({ ...t, coins: t.coins + 60 }));
-      }
-
-      return {
-        ...prev,
-        opponentHp: nextOppHp,
-        energy: nextEnergy,
-        playerAttackAnim: true,
-        status,
-        winner,
-        history: logs.slice(-8)
-      };
-    });
-
-    setTimeout(() => {
-      setGymState(prev => ({ ...prev, playerAttackAnim: false }));
-    }, 200);
-  };
-
-  const handlePlayerDodge = () => {
-    if (gymState.status !== 'active' || activeDodgeEffect) return;
-    playClickSfx();
-    setActiveDodgeEffect(true);
-    
-    // Dodge visual cooldown lasts 450ms
-    setTimeout(() => {
-      setActiveDodgeEffect(false);
-    }, 450);
-  };
-
-  const handlePlayerSuperAttack = () => {
-    if (gymState.status !== 'active' || gymState.energy < 100 || !gymState.playerVatsamon) return;
-    playVictorySfx();
-
-    setGymState(prev => {
-      const critDmg = Math.floor((15 + (prev.playerVatsamon?.stats.strength || 50) * 0.2) * 2.5);
-      const nextOppHp = Math.max(0, prev.opponentHp - critDmg);
-      const logs = [...prev.history];
-      logs.push(`🌟✨ SPECTACULAR STRIKE! ${prev.playerVatsamon?.name} sferra "RUGITO DELLA COGNE" infliggendo ${critDmg} danni devastanti!`);
-
-      let status: BattleState['status'] = prev.status;
-      let winner: BattleState['winner'] = prev.winner;
-      if (nextOppHp <= 0) {
-        status = 'ended';
-        winner = 'player';
-        logs.push(`🏆 EPIC WIN! ${prev.playerVatsamon?.name} ha sconfitto il Boss!`);
-        if (battleLoopRef.current) clearInterval(battleLoopRef.current);
-        addTrainerXp(500);
-        setTrainer(t => ({ ...t, coins: t.coins + 60 }));
-      }
-
-      return {
-        ...prev,
-        opponentHp: nextOppHp,
-        energy: 0, // reset special energy gauge
-        status,
-        winner,
-        history: logs.slice(-8)
-      };
-    });
-  };
-
   // ---- 11. GEMINI DNA SCANNER BACKEND HANDLERS ----
   const processImageScanGo = async (imgBase64: string | null) => {
     playClickSfx();
@@ -1713,7 +1474,6 @@ export default function App() {
         setShowValutazione(false);
         setIsCapturingMode(true); // Direct to AR catching view!
         setIsScanning(false);
-        setScanImage(null);
         stopCamera();
       }, 700);
 
@@ -1731,7 +1491,6 @@ export default function App() {
     const reader = new FileReader();
     reader.onloadend = () => {
       const res = reader.result as string;
-      setScanImage(res);
       processImageScanGo(res);
     };
     reader.readAsDataURL(file);
@@ -2743,9 +2502,10 @@ export default function App() {
             collection={vatsadex}
             onBorn={(cow) => setVatsadex(prev => [cow, ...prev])}
             onUpdateCow={(updated) => setVatsadex(prev => prev.map(c => c.id === updated.id ? updated : c))}
-            onReward={(coins, xp) => {
+            onReward={(coins, xp, fontinaN) => {
               if (coins) setTrainer(prev => ({ ...prev, coins: prev.coins + coins }));
               if (xp) addTrainerXp(xp);
+              if (fontinaN) guadagnaFontina(fontinaN, 'un moudzon di stalla è diventato Reina');
             }}
             playClick={playClickSfx}
           />

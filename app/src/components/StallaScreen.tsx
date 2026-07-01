@@ -7,6 +7,7 @@ import {
   TORI, Toro, Pregnancy, Stats4, stats4Of, predictStats, inheritRazza, birthCalf, growCow,
   STAGE_LABEL, stageForAge, CARE_COOLDOWN_MS, CARE_PROGRESS, CARE_BENESSERE, GROW_COOLDOWN_MS, GROW_MONTHS,
 } from "../data/breeding";
+import { FONTINA_REWARD } from "../data/economy";
 
 const LS_PREG = "vatsamon_stalla_preg";
 
@@ -19,7 +20,8 @@ export function StallaScreen({ collection, onBorn, onUpdateCow, onReward, playCl
   collection: Vatsamon[];
   onBorn: (cow: Vatsamon) => void;
   onUpdateCow: (cow: Vatsamon) => void;
-  onReward: (coins: number, xp: number) => void;
+  /** fontina: Forme di Fontina di prestigio (es. moudzon che diventa Reina). */
+  onReward: (coins: number, xp: number, fontina?: number) => void;
   playClick: () => void;
 }) {
   const [preg, setPreg] = useState<Pregnancy | null>(() => {
@@ -98,9 +100,13 @@ export function StallaScreen({ collection, onBorn, onUpdateCow, onReward, playCl
   function cresci(cow: Vatsamon) {
     if (now - (growCd[cow.id] ?? 0) < GROW_COOLDOWN_MS) return;
     playClick();
-    onUpdateCow(growCow(cow, GROW_MONTHS));
+    const grown = growCow(cow, GROW_MONTHS);
+    onUpdateCow(grown);
     setGrowCd((p) => ({ ...p, [cow.id]: now }));
-    onReward(0, 50);
+    // Traguardo di prestigio: il moudzon è diventato Reina adulta → Fontina.
+    const eraReina = (cow.stage ?? stageForAge(cow.ageMonths ?? 0)) === "reina";
+    const diventataReina = !eraReina && grown.stage === "reina";
+    onReward(0, 50, diventataReina ? FONTINA_REWARD.reinaCresciuta : 0);
   }
 
   const CARE_ACTIONS: [string, string, string][] = [
