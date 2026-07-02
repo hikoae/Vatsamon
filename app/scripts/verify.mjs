@@ -197,6 +197,13 @@ if (await nearBtn.count()) {
   const sceneOpen = await page.locator("#battle-scene").isVisible().catch(() => false);
   note(`scena di battaglia aperta: ${sceneOpen}`);
   if (!sceneOpen) problems.push("la scena di battaglia non si apre dal pannello sfide");
+  // VIGILIA: porta una scorta nello Sac e compi il rito della limatura
+  await page.locator("[data-sac]").first().click().catch(() => {});
+  const startDisabledPrima = await page.locator("#battle-start").isDisabled().catch(() => false);
+  note(`vigilia: ingaggio bloccato prima della limatura: ${startDisabledPrima}`);
+  if (!startDisabledPrima) problems.push("la limatura delle corna non è obbligatoria");
+  await page.locator("#rito-limatura").click();
+  await page.waitForTimeout(250);
   await page.locator("#battle-start").click().catch(() => {});
   await page.waitForTimeout(500);
   // il tell dell'avversaria (lettura dell'animale) deve essere visibile

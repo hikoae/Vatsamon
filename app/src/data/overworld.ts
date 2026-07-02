@@ -60,11 +60,11 @@ export const DEFAULT_BAG: BackpackItem[] = [
   { id: "item-apple", name: "Mela Alpina d'Oro", description: "Frutto profumatissimo. Addolcisce i Vatsamon selvatici del 50%.", quantity: 6, type: "food" },
   { id: "item-hay", name: "Fieno delle Vette", description: "Nutriente speciale usato per aumentare il livello e CP dei Vatsamon.", quantity: 12, type: "candy" },
   // Oggetti da BATTAGLIA (usabili dallo zaino durante la Bataille a turni)
-  { id: "item-potion-milk", name: "Secchio di Latte", description: "Cura 60 HP in battaglia. Latte tiepido d'alpeggio, rimette in piedi qualsiasi Reina.", quantity: 5, type: "potion" },
-  { id: "item-potion-fontina", name: "Fetta di Fontina DOP", description: "Cura 130 HP in battaglia. Energia casearia concentrata.", quantity: 2, type: "potion" },
-  { id: "item-buff-genepy", name: "Genepy del Pastore", description: "In battaglia: aumenta l'Attacco del 40%. Distillato d'erbe che accende la grinta.", quantity: 3, type: "buff" },
-  { id: "item-buff-bell", name: "Campanaccio Fortunato", description: "In battaglia: aumenta la Difesa del 40%. Il suo rintocco rassicura la mandria.", quantity: 3, type: "buff" },
-  { id: "item-energy-grappa", name: "Grappa alla Genziana", description: "In battaglia: carica +60 Adrenalina per le mosse speciali. Da usare con prudenza!", quantity: 2, type: "buff" },
+  { id: "item-potion-milk", name: "Secchio di Latte", description: "In Spinta: ristora +50 fiato. Latte tiepido d'alpeggio.", quantity: 5, type: "potion" },
+  { id: "item-potion-fontina", name: "Fetta di Fontina DOP", description: "In Spinta: ristora +90 fiato. Energia casearia concentrata.", quantity: 2, type: "potion" },
+  { id: "item-buff-genepy", name: "Genepy del Pastore", description: "In Spinta: +35 calma. Infuso d'erbe che rasserena la Reina.", quantity: 3, type: "buff" },
+  { id: "item-buff-bell", name: "Campanaccio Fortunato", description: "In Spinta: +8 presa per tutta la gara. Il rintocco familiare dà sicurezza.", quantity: 3, type: "buff" },
+  { id: "item-energy-grappa", name: "Grolla dell'Amicizia", description: "In Spinta: +30 fiato e +15 calma. Il giro della grolla rincuora.", quantity: 2, type: "buff" },
 ];
 
 /** Collezione iniziale "demo-ready": alcune Reines reali già catturate, con varietà

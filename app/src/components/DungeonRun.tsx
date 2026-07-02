@@ -8,19 +8,12 @@ import {
   Spintatore, SpintaState, AzioneId, AZIONI, PERSONALITA_LABEL, Personalita, personalitaFromLegacy,
   spintatoreFromFighter, initSpinta, applyAzione, pickAzioneAvversaria,
 } from "../lib/spinta";
-import { BATTLE_ITEMS } from "../data/combat";
+import { SAC_ITEMS, MAX_VIGILIA, LIMATURA_TESTO } from "../data/sac";
 import { Dungeon } from "../data/dungeons";
 import { REAL_COWS } from "../data/realCows";
 
 type Phase = "team" | "fight" | "won" | "lost";
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
-const ITEM_LABEL: Record<string, { name: string; emoji: string }> = {
-  "item-potion-milk": { name: "Secchio di Latte", emoji: "🥛" },
-  "item-potion-fontina": { name: "Fetta di Fontina", emoji: "🧀" },
-  "item-buff-genepy": { name: "Genepy del Pastore", emoji: "🍵" },
-  "item-buff-bell": { name: "Campanaccio Fortunato", emoji: "🔔" },
-  "item-energy-grappa": { name: "Grappa alla Genziana", emoji: "🥃" },
-};
 
 export default function DungeonRun({
   dungeon, playerCows, respectScore, backpack, onConsumeItem, onResult, onClose, playClick,
@@ -42,6 +35,8 @@ export default function DungeonRun({
   const [log, setLog] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [showBag, setShowBag] = useState(false);
+  const [loadout, setLoadout] = useState<string[]>([]);
+  const [limato, setLimato] = useState(false);
   const [showSwitch, setShowSwitch] = useState(false);
   const [lunge, setLunge] = useState<"p" | "o" | null>(null);
   const [shake, setShake] = useState(false);
@@ -149,12 +144,14 @@ export default function DungeonRun({
 
   const useItem = async (id: string) => {
     if (busy || phase !== "fight") return;
-    const eff = BATTLE_ITEMS[id]; const owned = backpack.find((b) => b.id === id);
+    const eff = SAC_ITEMS[id]; const owned = backpack.find((b) => b.id === id);
     if (!eff || !owned || owned.quantity <= 0) return;
     playClick(); setBusy(true); setShowBag(false);
     const s = stRef.current; const A = teamRef.current[activeIdx];
-    if (eff.kind === "buff_atk" || eff.kind === "buff_def") { s.calma = Math.min(100, s.calma + eff.amount); pushLog(`🎒 ${ITEM_LABEL[id]?.name}: +calma.`); }
-    else { s.fiatoP = Math.min(A.fiatoMax, s.fiatoP + eff.amount); fiatoRef.current[activeIdx] = s.fiatoP; pushLog(`🎒 ${ITEM_LABEL[id]?.name}: +${eff.amount} fiato a ${A.name}.`); }
+    if (eff.fiato) { s.fiatoP = Math.min(A.fiatoMax, s.fiatoP + eff.fiato); fiatoRef.current[activeIdx] = s.fiatoP; }
+    if (eff.calma) s.calma = Math.min(100, s.calma + eff.calma);
+    if (eff.presa) A.presa = Math.min(110, A.presa + eff.presa);
+    pushLog(`🎒 ${eff.nome}: ${eff.desc}`);
     onConsumeItem(id); rerender();
     await wait(450);
     await opponentTurn();
@@ -201,9 +198,35 @@ export default function DungeonRun({
             })}
           </div>
         </div>
-        <div className="p-3 bg-slate-950/80 border-t border-slate-800 flex gap-2">
-          <button onClick={() => { playClick(); onClose(); }} className="flex-1 bg-slate-900 border border-slate-800 text-slate-300 font-mono font-bold text-xs py-3 rounded-xl">Annulla</button>
-          <button onClick={start} disabled={picked.length === 0} id="dungeon-start" className="flex-1 nav-active text-white font-mono font-black text-xs py-3 rounded-xl disabled:opacity-40">Entra nella Lega! 🐂</button>
+        <div className="p-3 bg-slate-950/80 border-t border-slate-800 space-y-2">
+          {/* Lo Sac du Berger + rito della limatura */}
+          <div className="flex gap-1.5 flex-wrap justify-center">
+            {backpack.filter((b) => SAC_ITEMS[b.id] && b.quantity > 0).map((b) => {
+              const eff = SAC_ITEMS[b.id];
+              const sel = loadout.includes(b.id);
+              return (
+                <button key={b.id} data-sac={b.id} title={eff.desc}
+                  onClick={() => { playClick(); setLoadout(sel ? loadout.filter((x) => x !== b.id) : loadout.length < MAX_VIGILIA ? [...loadout, b.id] : loadout); }}
+                  className={`rounded-xl border-2 px-2 py-1.5 text-[10px] font-mono font-bold min-h-[40px] ${sel ? "border-amber-500 bg-amber-500/15 text-amber-200" : "border-slate-700 bg-slate-900/70 text-slate-300"}`}>
+                  {eff.emoji} {eff.nome.split(" ")[0]} ×{b.quantity}
+                </button>
+              );
+            })}
+          </div>
+          <button
+            id="rito-limatura"
+            onClick={() => { if (!limato) { playClick(); setLimato(true); } }}
+            className={`w-full rounded-xl border-2 p-2 text-left ${limato ? "border-emerald-500 bg-emerald-950/40" : "border-amber-600/60 bg-amber-500/10 animate-pulse"}`}
+          >
+            <div className={`text-[11px] font-mono font-black ${limato ? "text-emerald-500" : "text-amber-400"}`}>
+              {limato ? "✓ Corna limate — la mandria è pronta" : "🪒 Lima le corna (rito obbligatorio)"}
+            </div>
+            <div className="text-[9.5px] text-slate-400 leading-snug mt-0.5">{LIMATURA_TESTO}</div>
+          </button>
+          <div className="flex gap-2">
+            <button onClick={() => { playClick(); onClose(); }} className="flex-1 bg-slate-900 border border-slate-800 text-slate-300 font-mono font-bold text-xs py-3 rounded-xl">Annulla</button>
+            <button onClick={start} disabled={picked.length === 0 || !limato} id="dungeon-start" className="flex-1 nav-active text-white font-mono font-black text-xs py-3 rounded-xl disabled:opacity-40 disabled:grayscale">Entra nella Lega! 🐂</button>
+          </div>
         </div>
       </div>
     );
@@ -211,7 +234,7 @@ export default function DungeonRun({
 
   if (!active || !opp) return null;
   const barraP = Math.round(st.barra);
-  const bagItems = backpack.filter((b) => BATTLE_ITEMS[b.id] && b.quantity > 0);
+  const bagItems = backpack.filter((b) => SAC_ITEMS[b.id] && b.quantity > 0 && loadout.includes(b.id));
 
   return (
     <div className="fixed inset-0 z-[70] flex flex-col bg-slate-950 text-slate-100" id="dungeon-scene">
@@ -290,7 +313,7 @@ export default function DungeonRun({
             </div>
             <div className="flex gap-2">
               <button onClick={() => { playClick(); setShowSwitch(true); }} disabled={busy} className="flex-1 flex items-center justify-center gap-1.5 bg-slate-900 border border-emerald-700/40 text-emerald-600 font-mono font-black text-xs py-2 rounded-xl disabled:opacity-40"><Repeat className="w-4 h-4" /> Cambia</button>
-              <button onClick={() => { playClick(); setShowBag(true); }} disabled={busy} className="flex-1 flex items-center justify-center gap-1.5 bg-slate-900 border border-amber-700/40 text-amber-400 font-mono font-black text-xs py-2 rounded-xl disabled:opacity-40"><Backpack className="w-4 h-4" /> Zaino ({bagItems.reduce((n, b) => n + b.quantity, 0)})</button>
+              <button onClick={() => { playClick(); setShowBag(true); }} disabled={busy} className="flex-1 flex items-center justify-center gap-1.5 bg-slate-900 border border-amber-700/40 text-amber-400 font-mono font-black text-xs py-2 rounded-xl disabled:opacity-40"><Backpack className="w-4 h-4" /> Sac ({bagItems.reduce((n, b) => n + b.quantity, 0)})</button>
               <button onClick={() => {
                 if (busy) return;
                 playClick();
@@ -318,13 +341,12 @@ export default function DungeonRun({
 
         {phase === "fight" && showBag && (
           <div className="space-y-1.5">
-            {bagItems.length === 0 ? <p className="text-[10px] text-slate-500 text-center py-2">Zaino vuoto!</p> : bagItems.map((b) => {
-              const meta = ITEM_LABEL[b.id]; const eff = BATTLE_ITEMS[b.id];
-              const desc = eff.kind === "buff_atk" || eff.kind === "buff_def" ? `Calma +${eff.amount}` : `Fiato +${eff.amount}`;
+            {bagItems.length === 0 ? <p className="text-[10px] text-slate-500 text-center py-2">Sac vuoto: alla vigilia non hai portato scorte.</p> : bagItems.map((b) => {
+              const eff = SAC_ITEMS[b.id];
               return (
                 <button key={b.id} onClick={() => useItem(b.id)} disabled={busy} className="w-full flex items-center gap-3 bg-slate-900 border border-slate-800 rounded-xl p-2 text-left disabled:opacity-40">
-                  <span className="text-xl">{meta?.emoji}</span>
-                  <div className="flex-grow"><div className="text-[11px] font-mono font-black text-slate-100">{meta?.name}</div><div className="text-[9px] text-slate-400">{desc}</div></div>
+                  <span className="text-xl">{eff.emoji}</span>
+                  <div className="flex-grow"><div className="text-[11px] font-mono font-black text-slate-100">{eff.nome}</div><div className="text-[9px] text-slate-400">{eff.desc}</div></div>
                   <span className="text-[10px] font-mono text-amber-400">×{b.quantity}</span>
                 </button>
               );

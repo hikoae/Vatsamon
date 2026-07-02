@@ -52,6 +52,8 @@ import { faseCorrente } from './data/fase';
 import { VALUTE, FONTINA_REWARD, costoStellaPedigree, PEDIGREE_STAR_CAP } from './data/economy';
 import { ROUTE_TONE, WILD_BREEDS, WILD_NAMES, ECO_TREK_TIPS, LORE_POOL, BALL_META, BALL_ORDER, DEFAULT_BAG, SEED_COLLECTION } from './data/overworld';
 import { BASE_CATCH, estimateCatch, respectTone, catchDifficulty } from './lib/capture';
+import { SAC_ITEMS, BOTTEGA_EXTRA } from './data/sac';
+import { Trofeo, TROFEO_META } from './data/trofei';
 
 // Indice delle Reines reali del bundle (per i codici di salvataggio compatti:
 // si salva l'id + le sole differenze, non l'intera scheda statica).
@@ -312,6 +314,23 @@ export default function App() {
     }
     setActiveBattle(mb);
   };
+  // Bottega della Casera: i Denari si spendono in scorte per lo Sac.
+  const buyBottega = (id: string, prezzo: number, nome: string) => {
+    if (trainer.coins < prezzo) {
+      setTrekkingFeed(prev => [`🛒 Bottega: ti mancano ${prezzo - trainer.coins} 🪙 per ${nome}.`, ...prev.slice(0, 8)]);
+      return;
+    }
+    playClickSfx();
+    setTrainer(prev => ({ ...prev, coins: prev.coins - prezzo }));
+    setBackpack(prev => {
+      const found = prev.find(it => it.id === id);
+      if (found) return prev.map(it => it.id === id ? { ...it, quantity: it.quantity + 1 } : it);
+      const tpl = DEFAULT_BAG.find(it => it.id === id);
+      return tpl ? [...prev, { ...tpl, quantity: 1 }] : prev;
+    });
+    setTrekkingFeed(prev => [`🛒 Bottega della Casera: ${nome} (−${prezzo} 🪙)`, ...prev.slice(0, 8)]);
+  };
+
   const handleBattleResult = (won: boolean, cowId?: string) => {
     const mb = activeBattle;
     if (!mb) return;
@@ -737,6 +756,12 @@ export default function App() {
 
   // PokeStop: Casere d'Alpeggio active interactions
   const [selectedCasera, setSelectedCasera] = useState<Hotspot | null>(null);
+  // Bacheca dei trofei reali (mécro/sonnaille/collare) vinti nelle tappe ufficiali
+  const [trofei, setTrofei] = useState<Trofeo[]>(() => {
+    try { return JSON.parse(localStorage.getItem('vatsamon_trofei') || '[]'); } catch { return []; }
+  });
+  useEffect(() => { localStorage.setItem('vatsamon_trofei', JSON.stringify(trofei)); }, [trofei]);
+  void setTrofei; // assegnazione dai tornei ufficiali (S3.4, L'Éliminatoire du Dimanche)
   const [spinState, setSpinState] = useState<'idle' | 'spinning' | 'rewarded'>('idle');
   const [spinDeg, setSpinDeg] = useState(0);
   const [spinRewards, setSpinRewards] = useState<string[]>([]);
@@ -1977,6 +2002,31 @@ export default function App() {
                 )}
               </div>
 
+              {/* BOTTEGA DELLA CASERA — qui si spendono i Denari */}
+              <div className="text-left space-y-1.5" id="casera-shop">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-mono font-black uppercase tracking-widest text-amber-400">🛒 Bottega della Casera</span>
+                  <span className="text-[10px] font-mono text-amber-300">🪙 {trainer.coins}</span>
+                </div>
+                {[...Object.values(SAC_ITEMS), ...BOTTEGA_EXTRA].map((it) => (
+                  <div key={it.id} className="flex items-center gap-2 bg-slate-950 border border-slate-850 rounded-xl p-1.5">
+                    <span className="text-lg w-7 text-center" aria-hidden="true">{it.emoji}</span>
+                    <div className="flex-grow min-w-0">
+                      <div className="text-[11px] font-mono font-bold text-slate-100 truncate">{it.nome}</div>
+                      <div className="text-[9px] text-slate-500 truncate">{it.desc}</div>
+                    </div>
+                    <button
+                      data-buy={it.id}
+                      onClick={() => buyBottega(it.id, it.prezzo, it.nome)}
+                      disabled={trainer.coins < it.prezzo}
+                      className="flex-shrink-0 bg-amber-600 hover:bg-amber-500 disabled:opacity-40 text-[#0b0820] font-mono font-black text-[10px] px-2.5 py-1.5 rounded-lg min-h-[36px]"
+                    >
+                      {it.prezzo} 🪙
+                    </button>
+                  </div>
+                ))}
+              </div>
+
               <p className="text-[10px] text-slate-400 italic font-sans px-4">
                 "{selectedCasera.description}"
               </p>
@@ -2535,6 +2585,25 @@ export default function App() {
                 {pedigreeStars >= PEDIGREE_STAR_CAP ? '★ Prestigio massimo raggiunto' : `★ Stella di Pedigree — ${costoStellaPedigree(pedigreeStars)} 🧀`}
               </button>
               <p className="text-[10px] text-slate-500 text-center leading-snug">La Désarpa premia chi ha portato lontano la propria mandria: ogni Stella è un riconoscimento permanente (+Rispetto).</p>
+            </div>
+
+            {/* BACHECA DEI TROFEI — mécro, sonnaille, collari delle tappe vinte */}
+            <div className="bg-slate-950 rounded-2xl border border-slate-850 p-3 space-y-1.5" id="bacheca-trofei">
+              <div className="text-[10px] font-mono font-black text-slate-300 uppercase tracking-widest">🏆 Bacheca dei trofei ({trofei.length})</div>
+              {trofei.length === 0 ? (
+                <p className="text-[10px] text-slate-500 leading-snug">Vinci una tappa ufficiale del calendario per il tuo primo <b className="text-rose-400">mécro</b> — il bosquet di fiori rossi che si porta sulle corna.</p>
+              ) : (
+                <div className="space-y-1">
+                  {trofei.slice(0, 12).map((t) => (
+                    <div key={t.id} className="flex items-center gap-2 text-[10px] font-mono text-slate-300">
+                      <span aria-hidden="true">{TROFEO_META[t.tipo].emoji}</span>
+                      <span className="font-bold">{TROFEO_META[t.tipo].nome}</span>
+                      <span className="text-slate-500 truncate">· {t.comune} · {t.categoria} cat. · {t.reinaNome}</span>
+                    </div>
+                  ))}
+                  {trofei.length > 12 && <div className="text-[9px] text-slate-500">…e altri {trofei.length - 12}</div>}
+                </div>
+              )}
             </div>
 
             {/* risorse di test */}

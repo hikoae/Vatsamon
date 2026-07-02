@@ -37,6 +37,7 @@ export const SAVE_KEYS = [
   "vatsamon_follow_reine",         // reine seguite (SeasonView)
   "vatsamon_pronostici_rewarded",  // pronostici già premiati (SeasonView)
   "vatsamon_lang",                 // lingua IT/FR dell'hub
+  "vatsamon_trofei",               // bacheca trofei (mécro/sonnaille/collari)
 ] as const;
 
 export interface CloudSave {
