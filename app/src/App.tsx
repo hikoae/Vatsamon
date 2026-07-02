@@ -54,6 +54,9 @@ import { ROUTE_TONE, WILD_BREEDS, WILD_NAMES, ECO_TREK_TIPS, LORE_POOL, BALL_MET
 import { BASE_CATCH, estimateCatch, respectTone, catchDifficulty } from './lib/capture';
 import { SAC_ITEMS, BOTTEGA_EXTRA } from './data/sac';
 import { Trofeo, TROFEO_META } from './data/trofei';
+import EliminatoireView, { EsitoTappa } from './components/EliminatoireView';
+import { tappe, tappaStato, STATO_LABEL, LS_ELIMINATOIRE, EliminatoireSave } from './data/eliminatoire';
+import { SeasonEvent } from './data/season';
 
 // Indice delle Reines reali del bundle (per i codici di salvataggio compatti:
 // si salva l'id + le sole differenze, non l'intera scheda statica).
@@ -329,6 +332,43 @@ export default function App() {
       return tpl ? [...prev, { ...tpl, quantity: 1 }] : prev;
     });
     setTrekkingFeed(prev => [`🛒 Bottega della Casera: ${nome} (−${prezzo} 🪙)`, ...prev.slice(0, 8)]);
+  };
+
+  // Esito di una tappa dell'Éliminatoire: trofei reali, timbro della domenica, albo.
+  const handleTappaFinish = (esito: EsitoTappa) => {
+    const t = activeTappa;
+    if (!t) return;
+    const oggi = new Date().toISOString().slice(0, 10);
+    const stato = tappaStato(t, oggi);
+    const giaVinta = tappeSave[t.id]?.vinta === true;
+
+    if (esito.vinta) {
+      setVatsadex(prev => prev.map(c => c.id === esito.reinaId ? { ...c, vittorie: (c.vittorie ?? 0) + 1 } : c));
+      if (!giaVinta) {
+        // Prima vittoria della tappa: i TRE premi reali (dossier §1) + XP pieno.
+        const nuovi: Trofeo[] = (["mecro", "sonnaille", "collare"] as const).map(tipo => ({
+          id: `trofeo-${t.id}-${tipo}`, tipo, comune: t.comune, data: t.data, categoria: esito.categoria, reinaNome: esito.reinaNome,
+        }));
+        setTrofei(prev => [...nuovi, ...prev]);
+        addTrainerXp(t.finale ? 800 : 400);
+        setTrekkingFeed(prev => [`🌹 ${t.comune}: ${esito.reinaNome} vince la tappa! Mécro, sonnaille e collare in bacheca${t.finale ? ' — REINE DES REINES!' : ''}`, ...prev.slice(0, 8)]);
+      } else {
+        addTrainerXp(150);
+        setTrekkingFeed(prev => [`📯 ${t.comune} (memoriale): ${esito.reinaNome} si conferma. +150 XP`, ...prev.slice(0, 8)]);
+      }
+      setTappeSave(prev => ({
+        ...prev,
+        [t.id]: {
+          vinta: true,
+          timbro: (prev[t.id]?.timbro ?? false) || stato === 'aperta',
+          reinaNome: esito.reinaNome,
+          categoria: esito.categoria as EliminatoireSave[string]['categoria'],
+          quando: oggi,
+        },
+      }));
+    } else {
+      setTrekkingFeed(prev => [`📯 ${t.comune}: eliminata ai ${esito.turniSuperati === 0 ? 'quarti' : esito.turniSuperati === 1 ? 'la semifinale' : 'la finale di tappa'}. La tappa resta rigiocabile.`, ...prev.slice(0, 8)]);
+    }
   };
 
   const handleBattleResult = (won: boolean, cowId?: string) => {
@@ -761,7 +801,12 @@ export default function App() {
     try { return JSON.parse(localStorage.getItem('vatsamon_trofei') || '[]'); } catch { return []; }
   });
   useEffect(() => { localStorage.setItem('vatsamon_trofei', JSON.stringify(trofei)); }, [trofei]);
-  void setTrofei; // assegnazione dai tornei ufficiali (S3.4, L'Éliminatoire du Dimanche)
+  // L'Éliminatoire du Dimanche: tappa in gioco + registro tappe giocate
+  const [activeTappa, setActiveTappa] = useState<SeasonEvent | null>(null);
+  const [tappeSave, setTappeSave] = useState<EliminatoireSave>(() => {
+    try { return JSON.parse(localStorage.getItem(LS_ELIMINATOIRE) || '{}'); } catch { return {}; }
+  });
+  useEffect(() => { localStorage.setItem(LS_ELIMINATOIRE, JSON.stringify(tappeSave)); }, [tappeSave]);
   const [spinState, setSpinState] = useState<'idle' | 'spinning' | 'rewarded'>('idle');
   const [spinDeg, setSpinDeg] = useState(0);
   const [spinRewards, setSpinRewards] = useState<string[]>([]);
@@ -2363,6 +2408,41 @@ export default function App() {
             </div>
             <span className="text-slate-500 text-lg" aria-hidden="true">›</span>
           </button>
+          {/* L'ÉLIMINATOIRE DU DIMANCHE — le tappe reali si giocano */}
+          <div className="bg-slate-950 border border-rose-800/40 rounded-2xl p-3 space-y-2" id="tappe-list">
+            <div className="flex items-center justify-between">
+              <div className="text-[11px] font-mono font-black uppercase tracking-widest text-rose-400">📯 L'Éliminatoire du Dimanche</div>
+              <div className="text-[9px] font-mono text-slate-500">{Object.values(tappeSave).filter(r => r.vinta).length}/{tappe().length} vinte</div>
+            </div>
+            <p className="text-[10px] text-slate-400 leading-snug">Ogni domenica del calendario vero si gioca: eliminazione diretta nella tua categoria alla pesa. Vinci il <b className="text-rose-300">mécro</b> della tappa; chi gioca la tappa mentre è aperta guadagna il timbro della domenica.</p>
+            <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-1">
+              {(() => {
+                const oggi = new Date().toISOString().slice(0, 10);
+                return tappe().map(ev => {
+                  const stato = tappaStato(ev, oggi);
+                  const rec = tappeSave[ev.id];
+                  const chiusa = stato === 'futura';
+                  return (
+                    <button
+                      key={ev.id}
+                      data-tappa={ev.id}
+                      disabled={chiusa || vatsadex.length === 0}
+                      onClick={() => { playClickSfx(); setActiveTappa(ev); }}
+                      className={`flex-shrink-0 rounded-xl border-2 px-2.5 py-1.5 text-left min-h-[52px] ${
+                        stato === 'aperta' ? 'border-emerald-500 bg-emerald-950/40' :
+                        stato === 'memoriale' ? 'border-slate-700 bg-slate-900/70' : 'border-slate-850 bg-slate-900/40 opacity-60'}`}
+                    >
+                      <div className="text-[10px] font-mono font-black text-slate-100 whitespace-nowrap">{rec?.vinta ? '🌹 ' : ''}{ev.finale ? '👑 ' : ''}{ev.comune}</div>
+                      <div className="text-[10px] font-mono text-slate-500 whitespace-nowrap">
+                        {new Date(ev.data + 'T12:00:00').toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' })} ·{' '}
+                        <span className={STATO_LABEL[stato].tone}>{STATO_LABEL[stato].label}</span>{rec?.timbro ? ' · ✓ domenica' : ''}
+                      </div>
+                    </button>
+                  );
+                });
+              })()}
+            </div>
+          </div>
           <SeasonView
             onReward={(coins, xp) => {
               setTrainer(prev => ({ ...prev, coins: prev.coins + coins }));
@@ -2518,6 +2598,21 @@ export default function App() {
           onConsumeItem={(id) => setBackpack(prev => prev.map(it => it.id === id ? { ...it, quantity: Math.max(0, it.quantity - 1) } : it))}
           onResult={handleBattleResult}
           onClose={() => setActiveBattle(null)}
+          playClick={playClickSfx}
+        />
+      )}
+
+      {/* L'ÉLIMINATOIRE DU DIMANCHE — la tappa reale in gioco */}
+      {activeTappa && (
+        <EliminatoireView
+          evento={activeTappa}
+          stato={tappaStato(activeTappa, new Date().toISOString().slice(0, 10))}
+          playerCows={vatsadex}
+          respectScore={respectScore}
+          backpack={backpack}
+          onConsumeItem={(id) => setBackpack(prev => prev.map(it => it.id === id ? { ...it, quantity: Math.max(0, it.quantity - 1) } : it))}
+          onFinish={handleTappaFinish}
+          onClose={() => setActiveTappa(null)}
           playClick={playClickSfx}
         />
       )}

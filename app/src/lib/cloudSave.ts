@@ -38,6 +38,7 @@ export const SAVE_KEYS = [
   "vatsamon_pronostici_rewarded",  // pronostici già premiati (SeasonView)
   "vatsamon_lang",                 // lingua IT/FR dell'hub
   "vatsamon_trofei",               // bacheca trofei (mécro/sonnaille/collari)
+  "vatsamon_eliminatoire",         // tappe del calendario giocate/vinte/timbri
 ] as const;
 
 export interface CloudSave {
