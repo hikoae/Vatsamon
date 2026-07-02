@@ -4,7 +4,7 @@
 > file citati al bisogno) invece di rileggere tutto il codice. Mantienilo
 > aggiornato a fine sessione.
 >
-> Ultimo aggiornamento: 2026-07-01 · Branch di sviluppo: `claude/vatsamon-audit-redesign-ig2l5t` (v1.4 in corso)
+> Ultimo aggiornamento: 2026-07-02 · v1.4 e v1.5 COMPLETE (mergiate su main)
 
 ---
 
@@ -18,13 +18,14 @@
 - **v1.4 COMPLETATA** (`ROADMAP_V1.4.md`): nav 5 tab in basso, HUD 1 riga,
   safe-area, lessico bonificato, Fraunces+Inter, **Scatta la Reina** (COCO-SSD
   on-device in `public/models/ssdlite`, foto in IndexedDB `lib/photoStore.ts`).
-- **v1.5 "La Stagione Vera" quasi completa** (`ROADMAP_V1.5.md`): Spinta v2
+- **v1.5 "La Stagione Vera" COMPLETA** (`ROADMAP_V1.5.md`): Spinta v2
   con TELL+counter+peso reale (`lib/spinta.ts`), Stadera (`data/pesa.ts`),
   Sac du Berger+vigilia+Bottega (`data/sac.ts`), **Éliminatoire du Dimanche**
   (`data/eliminatoire.ts`+`EliminatoireView`), Arp/Désarpa (`data/arp.ts`),
   gravidanza-requisito (`lib/gravidanza.ts`, gravidanze multiple), Bataille
   des Moudzons, patois giocato (`lib/patois.ts`). Time-travel demo/test:
-  `?oggi=YYYY-MM-DD` (`lib/oggi.ts`). Resta S3.8 (Albo delle Leggende).
+  `?oggi=YYYY-MM-DD` (`lib/oggi.ts`) + Albo delle Leggende (`LeggendeView`)
+  + icone PWA monogramma (bandiera VdA + corna a V, maskable dedicata).
 
 ---
 

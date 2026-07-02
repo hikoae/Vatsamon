@@ -156,8 +156,9 @@ I profili IA sono dichiarati come interpretazione di gioco, non come fatto.
 
 S3.1 ✅ combat tell+counter+peso · S3.2 ✅ stadera · S3.3 ✅ sac/vigilia/bottega
 · S3.4 ✅ éliminatoire · S3.5 ✅ arp/désarpa · S3.6 ✅ moudzons+gravidanza ·
-S3.7 ✅ patois giocato · S3.8 ⏭ Albo delle Leggende = primo task della
-prossima sessione. Ogni sprint: suite Playwright verde + E2E dedicato.
+S3.7 ✅ patois giocato · S3.8 ✅ Albo delle Leggende (Falchetta/Sirène/
+Suisse + cartoline storiche) · icone PWA col monogramma araldico ✅.
+V1.5 COMPLETA. Ogni sprint: suite Playwright verde + E2E dedicato.
 
 ## Ordine di esecuzione e criteri
 

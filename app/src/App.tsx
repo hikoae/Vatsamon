@@ -60,6 +60,7 @@ import { tappe, tappaStato, STATO_LABEL, LS_ELIMINATOIRE, EliminatoireSave } fro
 import { ArpPanel } from './components/ArpPanel';
 import { sbloccaParola, vociSbloccate, parolePatois, PATOIS_TRIGGERS, TOTALE_PAROLE } from './lib/patois';
 import MoudzonsView from './components/MoudzonsView';
+import LeggendeView from './components/LeggendeView';
 import { ArpState, ARP_VUOTO, LS_ARP, ARP_KG_PER_CURA, ARP_GIORNI_PER_FONTINA } from './data/arp';
 import { SeasonEvent } from './data/season';
 
@@ -883,6 +884,12 @@ export default function App() {
   });
   useEffect(() => { localStorage.setItem(LS_ELIMINATOIRE, JSON.stringify(tappeSave)); }, [tappeSave]);
   const [showMoudzons, setShowMoudzons] = useState(false);
+  const [showLeggende, setShowLeggende] = useState(false);
+  // Leggende dell'albo già battute (cartoline storiche conquistate)
+  const [leggendeBattute, setLeggendeBattute] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem('vatsamon_leggende') || '[]'); } catch { return []; }
+  });
+  useEffect(() => { localStorage.setItem('vatsamon_leggende', JSON.stringify(leggendeBattute)); }, [leggendeBattute]);
   // L'Arp: capi all'alpeggio, produzione annua, cerimonia della désarpa
   const [arpState, setArpState] = useState<ArpState>(() => {
     try { return { ...ARP_VUOTO, ...JSON.parse(localStorage.getItem(LS_ARP) || '{}') }; } catch { return ARP_VUOTO; }
@@ -2557,6 +2564,20 @@ export default function App() {
               })()}
             </div>
           </div>
+          {/* L'ALBO DELLE LEGGENDE — sfida le campionesse vere della memoria */}
+          <button
+            id="leggende-entry"
+            disabled={vatsadex.length === 0}
+            onClick={() => { playClickSfx(); setShowLeggende(true); }}
+            className="w-full bg-slate-950 border border-amber-700/40 rounded-2xl p-3 flex items-center gap-3 text-left hover:border-amber-500/60 transition-colors disabled:opacity-50"
+          >
+            <span className="text-2xl" aria-hidden="true">🏛️</span>
+            <div className="min-w-0 flex-grow">
+              <div className="text-[12px] font-mono font-black text-amber-300 uppercase">L'Albo delle Leggende</div>
+              <div className="text-[10px] text-slate-400 truncate">Sfida Falchetta, Sirène e Suisse — le campionesse vere ({leggendeBattute.length}/3)</div>
+            </div>
+            <span className="text-slate-500 text-lg" aria-hidden="true">›</span>
+          </button>
           <SeasonView
             onReward={(coins, xp) => {
               setTrainer(prev => ({ ...prev, coins: prev.coins + coins }));
@@ -2712,6 +2733,24 @@ export default function App() {
           onConsumeItem={(id) => setBackpack(prev => prev.map(it => it.id === id ? { ...it, quantity: Math.max(0, it.quantity - 1) } : it))}
           onResult={handleBattleResult}
           onClose={() => setActiveBattle(null)}
+          playClick={playClickSfx}
+        />
+      )}
+
+      {/* L'ALBO DELLE LEGGENDE — sfide della memoria */}
+      {showLeggende && (
+        <LeggendeView
+          playerCows={disponibili}
+          respectScore={respectScore}
+          battute={leggendeBattute}
+          onWin={(nome) => {
+            if (!leggendeBattute.includes(nome)) {
+              setLeggendeBattute(prev => [...prev, nome]);
+              addTrainerXp(300);
+              setTrekkingFeed(prev => [`🏛️ Hai onorato la memoria: ${nome} battuta! Cartolina storica conquistata (+300 XP)`, ...prev.slice(0, 8)]);
+            }
+          }}
+          onClose={() => setShowLeggende(false)}
           playClick={playClickSfx}
         />
       )}

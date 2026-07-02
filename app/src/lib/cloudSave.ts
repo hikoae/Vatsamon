@@ -41,6 +41,7 @@ export const SAVE_KEYS = [
   "vatsamon_eliminatoire",         // tappe del calendario giocate/vinte/timbri
   "vatsamon_arp",                  // alpeggio: capi all'arp, produzione, désarpa
   "vatsamon_patois",               // parole del glossario sbloccate giocando
+  "vatsamon_leggende",             // cartoline storiche dell'Albo delle Leggende
 ] as const;
 
 export interface CloudSave {
