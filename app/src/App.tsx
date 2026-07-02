@@ -49,6 +49,7 @@ import { REAL_COWS, REAL_CASERE } from './data/realCows';
 import { distanza, fmtDist, RAGGIO_CATTURA } from './lib/geo';
 import { gradoCorrente } from './data/gradi';
 import { faseCorrente } from './data/fase';
+import { oggiISO } from './lib/oggi';
 import { VALUTE, FONTINA_REWARD, costoStellaPedigree, PEDIGREE_STAR_CAP } from './data/economy';
 import { ROUTE_TONE, WILD_BREEDS, WILD_NAMES, ECO_TREK_TIPS, LORE_POOL, BALL_META, BALL_ORDER, DEFAULT_BAG, SEED_COLLECTION } from './data/overworld';
 import { BASE_CATCH, estimateCatch, respectTone, catchDifficulty } from './lib/capture';
@@ -56,6 +57,8 @@ import { SAC_ITEMS, BOTTEGA_EXTRA } from './data/sac';
 import { Trofeo, TROFEO_META } from './data/trofei';
 import EliminatoireView, { EsitoTappa } from './components/EliminatoireView';
 import { tappe, tappaStato, STATO_LABEL, LS_ELIMINATOIRE, EliminatoireSave } from './data/eliminatoire';
+import { ArpPanel } from './components/ArpPanel';
+import { ArpState, ARP_VUOTO, LS_ARP, ARP_KG_PER_CURA, ARP_GIORNI_PER_FONTINA } from './data/arp';
 import { SeasonEvent } from './data/season';
 
 // Indice delle Reines reali del bundle (per i codici di salvataggio compatti:
@@ -152,7 +155,7 @@ export default function App() {
   // ---- FASE 2: Identità (Gradi Amis des Reines), valuta di prestigio (Fontina),
   //      motore di fase della stagione. Tutto derivato, niente stato nuovo. ----
   const gradoStato = gradoCorrente({ xp: trainer.xp, capturedCount: trainer.capturedCount, respectScore });
-  const faseStato = faseCorrente(new Date().toISOString().slice(0, 10));
+  const faseStato = faseCorrente(oggiISO());
   const fontina = trainer.fontina ?? 0;
   const pedigreeStars = trainer.pedigreeStars ?? 0;
   // Accredita Forme di Fontina (valuta di prestigio) con un avviso nel feed.
@@ -317,6 +320,58 @@ export default function App() {
     }
     setActiveBattle(mb);
   };
+  // ---- L'ARP: inarpa, cura quotidiana, discesa, désarpa ----
+  const inarpa = (cowId: string) => {
+    if (faseStato.id !== 'inalpa' || arpState.capi[cowId]) return;
+    const c = vatsadex.find(x => x.id === cowId);
+    setArpState(prev => ({ ...prev, capi: { ...prev.capi, [cowId]: { salitaIl: oggiISO(), ultimaCura: null, giorniCura: 0 } } }));
+    setTrekkingFeed(prev => [`⛰️ Inarpa! ${c?.name ?? 'La Reina'} sale all'alpe: crescerà, ma non gareggia finché è su.`, ...prev.slice(0, 8)]);
+  };
+  const curaArp = (cowId: string) => {
+    const capo = arpState.capi[cowId];
+    const oggi = oggiISO();
+    if (!capo || capo.ultimaCura === oggi) return;
+    const giorni = capo.giorniCura + 1;
+    setArpState(prev => ({ ...prev, capi: { ...prev.capi, [cowId]: { ...capo, ultimaCura: oggi, giorniCura: giorni } } }));
+    setVatsadex(prev => prev.map(c => c.id === cowId ? { ...c, peso_kg: Math.min(750, (c.peso_kg ?? 550) + ARP_KG_PER_CURA) } : c));
+    addTrainerXp(15);
+    if (giorni % ARP_GIORNI_PER_FONTINA === 0) guadagnaFontina(1, "l'alpe ha reso una forma");
+    else setTrekkingFeed(prev => [`🌿 Cura all'arp: +${ARP_KG_PER_CURA} kg. L'erba d'alta quota fa la stazza.`, ...prev.slice(0, 8)]);
+  };
+  const consolidaProduzione = (prev: ArpState, cowId: string, anno: string): ArpState => {
+    const capo = prev.capi[cowId];
+    if (!capo) return prev;
+    const capi = { ...prev.capi };
+    delete capi[cowId];
+    const annoProd = { ...(prev.produzione[anno] ?? {}) };
+    annoProd[cowId] = (annoProd[cowId] ?? 0) + capo.giorniCura;
+    return { ...prev, capi, produzione: { ...prev.produzione, [anno]: annoProd } };
+  };
+  const scendiDallArp = (cowId: string) => {
+    const anno = oggiISO().slice(0, 4);
+    setArpState(prev => consolidaProduzione(prev, cowId, anno));
+    setTrekkingFeed(prev => [`⬇️ Discesa a valle: la Reina torna disponibile per le batailles.`, ...prev.slice(0, 8)]);
+  };
+  const celebraDesarpa = () => {
+    const oggi = oggiISO();
+    const anno = oggi.slice(0, 4);
+    // consolida la produzione di TUTTI i capi ancora all'arp (la désarpa è la discesa)
+    let stato = arpState;
+    for (const id of Object.keys(stato.capi)) stato = consolidaProduzione(stato, id, anno);
+    const prodAnno = stato.produzione[anno] ?? {};
+    // Reina di corne: la più combattiva della TUA stagione (più vittorie)
+    const corne = [...vatsadex].filter(c => (c.vittorie ?? 0) > 0).sort((a, b) => (b.vittorie ?? 0) - (a.vittorie ?? 0))[0];
+    // Reine du lait: la più produttiva all'alpe quest'anno
+    const laitId = Object.entries(prodAnno).sort((a, b) => b[1] - a[1]).filter(([, g]) => g > 0)[0]?.[0];
+    const lait = vatsadex.find(c => c.id === laitId);
+    setArpState({ ...stato, desarpa: { ...stato.desarpa, [anno]: { celebrata: true, corne: corne?.name, lait: lait?.name } } });
+    setVatsadex(prev => prev.map(c =>
+      c.id === corne?.id ? { ...c, fioriRossi: anno } : c.id === lait?.id ? { ...c, fioriBianchi: anno } : c
+    ));
+    guadagnaFontina(2, 'la festa della désarpa');
+    setTrekkingFeed(prev => [`🌸 DÉSARPA ${anno}! ${corne ? `🌹 ${corne.name} è la Reina di corne` : 'Nessuna Reina di corne (serve almeno una vittoria)'}${lait ? ` · 🤍 ${lait.name} è la Reine du lait` : ''}. La mandria scende a valle in festa.`, ...prev.slice(0, 8)]);
+  };
+
   // Bottega della Casera: i Denari si spendono in scorte per lo Sac.
   const buyBottega = (id: string, prezzo: number, nome: string) => {
     if (trainer.coins < prezzo) {
@@ -338,7 +393,7 @@ export default function App() {
   const handleTappaFinish = (esito: EsitoTappa) => {
     const t = activeTappa;
     if (!t) return;
-    const oggi = new Date().toISOString().slice(0, 10);
+    const oggi = oggiISO();
     const stato = tappaStato(t, oggi);
     const giaVinta = tappeSave[t.id]?.vinta === true;
 
@@ -807,6 +862,13 @@ export default function App() {
     try { return JSON.parse(localStorage.getItem(LS_ELIMINATOIRE) || '{}'); } catch { return {}; }
   });
   useEffect(() => { localStorage.setItem(LS_ELIMINATOIRE, JSON.stringify(tappeSave)); }, [tappeSave]);
+  // L'Arp: capi all'alpeggio, produzione annua, cerimonia della désarpa
+  const [arpState, setArpState] = useState<ArpState>(() => {
+    try { return { ...ARP_VUOTO, ...JSON.parse(localStorage.getItem(LS_ARP) || '{}') }; } catch { return ARP_VUOTO; }
+  });
+  useEffect(() => { localStorage.setItem(LS_ARP, JSON.stringify(arpState)); }, [arpState]);
+  // chi è all'arp non gareggia: la selezione per battaglie/tornei usa questa lista
+  const disponibili = vatsadex.filter(c => !arpState.capi[c.id]);
   const [spinState, setSpinState] = useState<'idle' | 'spinning' | 'rewarded'>('idle');
   const [spinDeg, setSpinDeg] = useState(0);
   const [spinRewards, setSpinRewards] = useState<string[]>([]);
@@ -2348,6 +2410,18 @@ export default function App() {
 
         {/* VIEW 3: CALF GESTATION & WEANING STABLE */}
         {activeTab === 'stalla' && (
+          <div className="space-y-4">
+          <ArpPanel
+            fase={faseStato.id}
+            oggi={oggiISO()}
+            collection={vatsadex}
+            arp={arpState}
+            onInarpa={inarpa}
+            onCura={curaArp}
+            onScendi={scendiDallArp}
+            onDesarpa={celebraDesarpa}
+            playClick={playClickSfx}
+          />
           <StallaScreen
             collection={vatsadex}
             onBorn={(cow) => setVatsadex(prev => [cow, ...prev])}
@@ -2359,6 +2433,7 @@ export default function App() {
             }}
             playClick={playClickSfx}
           />
+          </div>
         )}
 
         {/* VIEW 4: DETAILS/VATSADEX SHEET LIST */}
@@ -2417,7 +2492,7 @@ export default function App() {
             <p className="text-[10px] text-slate-400 leading-snug">Ogni domenica del calendario vero si gioca: eliminazione diretta nella tua categoria alla pesa. Vinci il <b className="text-rose-300">mécro</b> della tappa; chi gioca la tappa mentre è aperta guadagna il timbro della domenica.</p>
             <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-1">
               {(() => {
-                const oggi = new Date().toISOString().slice(0, 10);
+                const oggi = oggiISO();
                 return tappe().map(ev => {
                   const stato = tappaStato(ev, oggi);
                   const rec = tappeSave[ev.id];
@@ -2590,7 +2665,7 @@ export default function App() {
       {activeBattle && (
         <BattleScene
           battle={activeBattle}
-          playerCows={vatsadex}
+          playerCows={disponibili}
           initialCowId={activeCombatantId}
           trainerLevel={trainer.level}
           respectScore={respectScore}
@@ -2606,8 +2681,8 @@ export default function App() {
       {activeTappa && (
         <EliminatoireView
           evento={activeTappa}
-          stato={tappaStato(activeTappa, new Date().toISOString().slice(0, 10))}
-          playerCows={vatsadex}
+          stato={tappaStato(activeTappa, oggiISO())}
+          playerCows={disponibili}
           respectScore={respectScore}
           backpack={backpack}
           onConsumeItem={(id) => setBackpack(prev => prev.map(it => it.id === id ? { ...it, quantity: Math.max(0, it.quantity - 1) } : it))}
@@ -2621,7 +2696,7 @@ export default function App() {
       {activeDungeon && (
         <DungeonRun
           dungeon={activeDungeon}
-          playerCows={vatsadex}
+          playerCows={disponibili}
           respectScore={respectScore}
           backpack={backpack}
           onConsumeItem={(id) => setBackpack(prev => prev.map(it => it.id === id ? { ...it, quantity: Math.max(0, it.quantity - 1) } : it))}

@@ -32,6 +32,10 @@ export interface Vatsamon {
   valutazioneGiudice?: number;
   /** Spinte ufficiali vinte da questa Reina (palmares personale). */
   vittorie?: number;
+  /** Désarpa: anno in cui è stata Reina di corne (fiori rossi) della mandria. */
+  fioriRossi?: string;
+  /** Désarpa: anno in cui è stata Reine du lait (fiori bianchi) della mandria. */
+  fioriBianchi?: string;
   peso_kg?: number;
   pesoStimato?: boolean;
   lat?: number;
