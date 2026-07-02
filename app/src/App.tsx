@@ -312,9 +312,11 @@ export default function App() {
     }
     setActiveBattle(mb);
   };
-  const handleBattleResult = (won: boolean) => {
+  const handleBattleResult = (won: boolean, cowId?: string) => {
     const mb = activeBattle;
     if (!mb) return;
+    // palmares personale della Reina che ha condotto la spinta
+    if (won && cowId) setVatsadex(prev => prev.map(c => c.id === cowId ? { ...c, vittorie: (c.vittorie ?? 0) + 1 } : c));
     if (won && mb.kind === 'pastore' && mb.pastore) {
       const xp = mb.pastore.rewardXp, coins = Math.round(xp / 5);
       addTrainerXp(xp);
@@ -350,9 +352,10 @@ export default function App() {
     }
     setActiveDungeon(d);
   };
-  const handleDungeonResult = (won: boolean) => {
+  const handleDungeonResult = (won: boolean, cowId?: string) => {
     const d = activeDungeon;
     if (!d) return;
+    if (won && cowId) setVatsadex(prev => prev.map(c => c.id === cowId ? { ...c, vittorie: (c.vittorie ?? 0) + 1 } : c));
     if (won) {
       addTrainerXp(d.rewardXp);
       setTrainer(prev => ({ ...prev, coins: prev.coins + d.rewardCoins }));
@@ -2457,6 +2460,7 @@ export default function App() {
           playerCows={vatsadex}
           initialCowId={activeCombatantId}
           trainerLevel={trainer.level}
+          respectScore={respectScore}
           backpack={backpack}
           onConsumeItem={(id) => setBackpack(prev => prev.map(it => it.id === id ? { ...it, quantity: Math.max(0, it.quantity - 1) } : it))}
           onResult={handleBattleResult}
@@ -2470,6 +2474,7 @@ export default function App() {
         <DungeonRun
           dungeon={activeDungeon}
           playerCows={vatsadex}
+          respectScore={respectScore}
           backpack={backpack}
           onConsumeItem={(id) => setBackpack(prev => prev.map(it => it.id === id ? { ...it, quantity: Math.max(0, it.quantity - 1) } : it))}
           onResult={handleDungeonResult}

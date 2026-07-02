@@ -1,16 +1,7 @@
 import { motion } from "motion/react";
 import { Vatsamon, RarityType } from "../types";
 import { CowVisual } from "./CowVisual";
-import { cowMoveset, cowType, TYPES, MoveCategory } from "../data/combat";
-
-/** Stile badge per categoria di mossa (coerente col combattimento). */
-const CAT_STYLE: Record<MoveCategory, string> = {
-  attacco: "bg-rose-950 border-rose-700 text-rose-400",
-  speciale: "bg-amber-950 border-amber-700 text-amber-400",
-  difesa: "bg-blue-950 border-blue-700 text-blue-400",
-  cura: "bg-emerald-950 border-emerald-700 text-emerald-500",
-  buff: "bg-purple-950 border-purple-700 text-purple-400",
-};
+import { massaFromPeso } from "../lib/spinta";
 
 /** Stelle di rarità (badge carta). */
 const RARITY_STARS: Record<RarityType, number> = {
@@ -75,15 +66,16 @@ const REAL_STATS = [
 ] as const;
 
 /**
- * Scheda dettaglio "carta Pokémon" di una Reina: grafica che cambia con la rarità
+ * Scheda dettaglio di una Reina: grafica che cambia con la rarità
  * (cornice/sfondo/gemme/holo), illustrazione o foto reale, 4 statistiche reali
- * animate, provenienza, e l'elenco delle MOSSE disponibili in stile carta.
+ * animate, provenienza, e le grandezze della Spinta (massa dal peso, presa,
+ * volontà) con il palmares personale.
  */
 export function CowCard({ cow }: { cow: Vatsamon }) {
   const r = RARITY[cow.rarity];
   const stars = RARITY_STARS[cow.rarity];
-  const moves = cowMoveset(cow);
-  const ctype = TYPES[cowType(cow)];
+  const peso = cow.peso_kg ?? 480 + Math.round(((cow.stats4?.stazza ?? cow.stats.defense) - 50) * 2.4);
+  const massa = massaFromPeso(peso, cow.stats.defense);
 
   return (
     <motion.div
@@ -128,19 +120,19 @@ export function CowCard({ cow }: { cow: Vatsamon }) {
         </div>
       </div>
 
-      {/* 3 statistiche di gioco */}
+      {/* Le tre leve della Spinta (massa dal peso reale, presa, volontà) */}
       <div className="relative grid grid-cols-3 gap-2 py-2 bg-slate-950/70 rounded-2xl border border-slate-850">
         <div>
-          <span className="block font-mono font-black text-sm text-amber-400">{cow.stats.strength}</span>
-          <span className="text-[9.5px] text-slate-400 uppercase font-mono">Forza 🏋️‍♂️</span>
+          <span className="block font-mono font-black text-sm text-amber-400">{massa}</span>
+          <span className="text-[9.5px] text-slate-400 uppercase font-mono">Massa · {peso} kg</span>
         </div>
         <div>
-          <span className="block font-mono font-black text-sm text-blue-400">{cow.stats.defense}</span>
-          <span className="text-[9.5px] text-slate-400 uppercase font-mono">Difesa 🛡️</span>
+          <span className="block font-mono font-black text-sm text-rose-400">{cow.stats.strength}</span>
+          <span className="text-[9.5px] text-slate-400 uppercase font-mono">Presa 🐂</span>
         </div>
         <div>
           <span className="block font-mono font-black text-sm text-emerald-400">{cow.stats.agility}</span>
-          <span className="text-[9.5px] text-slate-400 uppercase font-mono">Agilità ⚡</span>
+          <span className="text-[9.5px] text-slate-400 uppercase font-mono">Volontà 💨</span>
         </div>
       </div>
 
@@ -173,38 +165,24 @@ export function CowCard({ cow }: { cow: Vatsamon }) {
         </div>
       )}
 
-      {/* MOSSE DISPONIBILI (stile carta Pokémon) — set tipizzato del combattimento */}
-      <div className="relative bg-slate-950/70 border border-slate-850 rounded-2xl p-3 space-y-2 text-left">
+      {/* ALLA BATAILLE — come si comporta alla spinta + palmares */}
+      <div className="relative bg-slate-950/70 border border-slate-850 rounded-2xl p-3 space-y-1.5 text-left">
         <div className="text-[9px] font-mono font-black text-slate-300 uppercase tracking-widest flex items-center justify-between gap-1">
-          <span>⚔️ Mosse disponibili</span>
-          <span className="px-1.5 py-0.5 rounded font-mono" style={{ background: ctype.color + "22", color: ctype.color }}>Tipo {ctype.emoji} {ctype.name}</span>
+          <span>🐂 Alla bataille</span>
+          <span className="px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-600 font-mono">
+            {cow.vittorie ? `🏆 ${cow.vittorie} ${cow.vittorie === 1 ? "vittoria" : "vittorie"}` : "debuttante"}
+          </span>
         </div>
-        {moves.map((m) => {
-          const mt = TYPES[m.type];
-          const right = (m.category === "attacco" || m.category === "speciale")
-            ? { v: `×${m.power.toFixed(1)}`, u: "DMG" }
-            : m.category === "cura" ? { v: `+${m.amount}`, u: "HP" }
-            : m.category === "buff" ? { v: `+${m.amount}%`, u: m.buffStat === "atk" ? "ATK" : "DIF" }
-            : { v: "½", u: "DIFESA" };
-          return (
-            <div key={m.id} className="flex items-center gap-2">
-              <span className="text-base w-6 text-center flex-shrink-0">{m.emoji}</span>
-              <div className="flex-grow min-w-0">
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <span className="text-[11px] font-mono font-black text-slate-100 truncate">{m.name}</span>
-                  <span className={`text-[9.5px] font-mono font-bold px-1 py-0.5 rounded border uppercase ${CAT_STYLE[m.category]}`}>{m.category}</span>
-                  <span className="text-[9.5px] font-mono px-1 py-0.5 rounded" style={{ background: mt.color + "22", color: mt.color }}>{mt.emoji}</span>
-                  {m.category === "speciale" && <span className="text-[9.5px]">⚡</span>}
-                </div>
-                <div className="text-[10px] text-slate-500 leading-tight truncate">{m.desc}</div>
-              </div>
-              <span className="flex-shrink-0 text-right font-mono leading-none">
-                <span className="block text-xs font-black text-[#211b3a]">{right.v}</span>
-                <span className="block text-[9px] text-slate-500 uppercase">{right.u}</span>
-              </span>
-            </div>
-          );
-        })}
+        <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[10px] font-mono text-slate-400">
+          <div>Categoria: <b className="text-slate-200">{cow.categoria ?? "—"}</b></div>
+          <div>Peso vivo: <b className="text-slate-200">{peso} kg{cow.pesoStimato ? "*" : ""}</b></div>
+          {cow.bornInStalla && <div>Nata in stalla: <b className="text-emerald-500">G{cow.generation ?? 1}</b></div>}
+          {cow.valutazioneGiudice !== undefined && <div>Giudizio: <b className="text-slate-200">{cow.valutazioneGiudice}/100</b></div>}
+        </div>
+        <p className="text-[10px] text-slate-500 leading-tight">
+          La spinta è a <b className="text-slate-400">corna limate</b>: si vince facendo desistere
+          l'avversaria, mai ferendola. Conta la condotta, non la forza bruta.
+        </p>
       </div>
 
       {/* lore */}

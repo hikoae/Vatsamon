@@ -30,6 +30,8 @@ export interface Vatsamon {
   riconoscimento?: string;
   /** FASE 3 — accuratezza 0..100 della Valutazione del Giudice all'affidamento. */
   valutazioneGiudice?: number;
+  /** Spinte ufficiali vinte da questa Reina (palmares personale). */
+  vittorie?: number;
   peso_kg?: number;
   pesoStimato?: boolean;
   lat?: number;

@@ -199,6 +199,10 @@ if (await nearBtn.count()) {
   if (!sceneOpen) problems.push("la scena di battaglia non si apre dal pannello sfide");
   await page.locator("#battle-start").click().catch(() => {});
   await page.waitForTimeout(500);
+  // il tell dell'avversaria (lettura dell'animale) deve essere visibile
+  const tellVisible = await page.locator("#battle-tell").isVisible().catch(() => false);
+  note(`tell dell'avversaria visibile: ${tellVisible}`);
+  if (!tellVisible) problems.push("manca il tell dell'avversaria nella Spinta");
   let bGuard = 0;
   while (bGuard++ < 80) {
     const ended = await page.locator("#battle-scene .font-mono.font-black", { hasText: /si ritira/ }).first().isVisible().catch(() => false);

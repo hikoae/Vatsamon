@@ -3,9 +3,10 @@ import { motion } from "motion/react";
 import { Backpack, X, Repeat } from "lucide-react";
 import { Vatsamon, BackpackItem } from "../types";
 import { CowVisual } from "./CowVisual";
-import { Fighter, buildPlayerFighter, buildScaledBoss } from "../lib/battle";
+import { buildPlayerFighter, buildScaledBoss } from "../lib/battle";
 import {
-  Spintatore, SpintaState, AzioneId, AZIONI, spintatoreFromFighter, initSpinta, applyAzione, pickAzioneAvversaria,
+  Spintatore, SpintaState, AzioneId, AZIONI, PERSONALITA_LABEL, Personalita, personalitaFromLegacy,
+  spintatoreFromFighter, initSpinta, applyAzione, pickAzioneAvversaria,
 } from "../lib/spinta";
 import { BATTLE_ITEMS } from "../data/combat";
 import { Dungeon } from "../data/dungeons";
@@ -22,13 +23,15 @@ const ITEM_LABEL: Record<string, { name: string; emoji: string }> = {
 };
 
 export default function DungeonRun({
-  dungeon, playerCows, backpack, onConsumeItem, onResult, onClose, playClick,
+  dungeon, playerCows, respectScore, backpack, onConsumeItem, onResult, onClose, playClick,
 }: {
   dungeon: Dungeon;
   playerCows: Vatsamon[];
+  /** Rispetto 0..100: affina la lettura dei tell. */
+  respectScore: number;
   backpack: BackpackItem[];
   onConsumeItem: (id: string) => void;
-  onResult: (won: boolean) => void;
+  onResult: (won: boolean, cowId?: string) => void;
   onClose: () => void;
   playClick: () => void;
 }) {
@@ -46,7 +49,10 @@ export default function DungeonRun({
   const teamRef = useRef<Spintatore[]>([]);
   const oppsRef = useRef<Spintatore[]>([]);
   const fiatoRef = useRef<number[]>([]); // fiato per Reina della squadra (si trascina)
-  const stRef = useRef<SpintaState>({ barra: 50, fiatoP: 0, fiatoO: 0, calma: 80, reggiP: false, reggiO: false, esito: "corso" });
+  const stRef = useRef<SpintaState>({ barra: 50, fiatoP: 0, fiatoO: 0, calma: 80, stanceP: null, stanceO: null, esito: "corso" });
+  const persRef = useRef<Personalita[]>([]);
+  const cowIdsRef = useRef<string[]>([]);
+  const tellAccuracy = 0.68 + respectScore * 0.0022;
   const [, force] = useState(0);
   const rerender = () => force((n) => n + 1);
   const st = stRef.current;
@@ -61,21 +67,18 @@ export default function DungeonRun({
     const teamF = cows.map(buildPlayerFighter);
     const team = teamF.map(spintatoreFromFighter);
     teamRef.current = team;
+    cowIdsRef.current = cows.map((c) => c.id);
     fiatoRef.current = team.map((s) => s.fiatoMax);
-    const avg = {
-      atk: teamF.reduce((s, f) => s + f.atk, 0) / teamF.length,
-      def: teamF.reduce((s, f) => s + f.def, 0) / teamF.length,
-      agi: teamF.reduce((s, f) => s + f.agi, 0) / teamF.length,
-      maxHp: teamF.reduce((s, f) => s + f.maxHp, 0) / teamF.length,
-    };
-    const ref: Fighter = { ...teamF[0], atk: avg.atk, def: avg.def, agi: avg.agi, maxHp: avg.maxHp };
+    // Avversarie con STAT ASSOLUTE: Reines reali al loro assetto, modulate dal
+    // powerFactor del percorso — niente più boss "elastici" sul giocatore.
     oppsRef.current = dungeon.opponents.map((o) => {
       const visual = REAL_COWS.find((c) => c.name === o.name) ||
         REAL_COWS.filter((c) => c.rarity === o.rarity && c.realPhoto)[0] ||
         REAL_COWS.filter((c) => c.realPhoto)[0] || REAL_COWS[0];
-      return spintatoreFromFighter(buildScaledBoss(ref, { ...visual, name: o.name }, o.type, o.powerFactor, o.rarity));
+      return spintatoreFromFighter(buildScaledBoss({ ...visual, name: o.name }, o.powerFactor));
     });
-    const s0 = initSpinta(team[0], oppsRef.current[0]);
+    persRef.current = dungeon.opponents.map((o, i) => personalitaFromLegacy(o.type, i));
+    const s0 = initSpinta(team[0], oppsRef.current[0], { personalita: persRef.current[0], tellAccuracy });
     s0.fiatoP = fiatoRef.current[0];
     stRef.current = s0;
     setActiveIdx(0); setOppIdx(0);
@@ -100,9 +103,9 @@ export default function DungeonRun({
 
   // L'avversaria cede → prossimo sfidante (il fiato della tua Reina si trascina)
   const advanceOpponent = async () => {
-    if (oppIdx >= oppsRef.current.length - 1) { setPhase("won"); onResult(true); return; }
+    if (oppIdx >= oppsRef.current.length - 1) { setPhase("won"); onResult(true, cowIdsRef.current[activeIdx]); return; }
     const next = oppIdx + 1;
-    const s = initSpinta(teamRef.current[activeIdx], oppsRef.current[next]);
+    const s = initSpinta(teamRef.current[activeIdx], oppsRef.current[next], { personalita: persRef.current[next], tellAccuracy });
     s.fiatoP = fiatoRef.current[activeIdx]; // carry
     stRef.current = s;
     setOppIdx(next);
@@ -117,7 +120,7 @@ export default function DungeonRun({
     pushLog(`💨 ${teamRef.current[activeIdx].name} cede e si ritira.`);
     const nextAlive = fiatoRef.current.findIndex((f) => f > 0);
     if (nextAlive === -1) { setPhase("lost"); onResult(false); return false; }
-    const s = initSpinta(teamRef.current[nextAlive], oppsRef.current[oppIdx]);
+    const s = initSpinta(teamRef.current[nextAlive], oppsRef.current[oppIdx], { personalita: persRef.current[oppIdx], tellAccuracy });
     s.fiatoP = fiatoRef.current[nextAlive];
     stRef.current = s;
     setActiveIdx(nextAlive);
@@ -192,7 +195,7 @@ export default function DungeonRun({
                   className={`rounded-xl border-2 p-1.5 ${sel ? "border-emerald-500 bg-emerald-950/50" : "border-slate-700 bg-slate-900/70"}`}>
                   <CowVisual cow={c} className="w-full h-14" />
                   <div className="text-[10px] font-mono text-slate-200 truncate mt-0.5">{c.name}</div>
-                  <div className="text-[10px] font-mono text-amber-400">CP{c.cp}</div>
+                  <div className="text-[10px] font-mono text-amber-400">Pot. {c.cp}</div>
                 </button>
               );
             })}
@@ -268,18 +271,32 @@ export default function DungeonRun({
 
         {phase === "fight" && !showBag && !showSwitch && (
           <>
+            {st.tell && (
+              <div className="flex items-center gap-2 bg-amber-500/10 border border-amber-600/40 rounded-xl px-3 py-1.5">
+                <span aria-hidden="true">👁</span>
+                <div className="text-[11px] font-mono text-amber-200 leading-tight">
+                  L'avversaria <b>{st.tell}</b>…
+                  <span className="text-[9px] text-slate-400 block">Indole {PERSONALITA_LABEL[st.personalita ?? "focosa"].label.toLowerCase()}</span>
+                </div>
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-2" id="dungeon-moves">
               {AZIONI.map((a) => (
                 <button key={a.id} onClick={() => doAction(a.id)} disabled={busy} title={a.desc} className="text-left rounded-xl border p-2 disabled:opacity-40 bg-slate-900 border-slate-700 hover:border-amber-500/60">
                   <div className="text-[11px] font-mono font-black text-slate-100 leading-tight">{a.emoji} {a.label}</div>
-                  <div className="text-[10px] font-mono text-slate-400 leading-tight mt-0.5 line-clamp-2">{a.desc}</div>
+                  <div className="text-[10px] font-mono text-amber-500/90 leading-tight mt-0.5">{a.counterHint}</div>
                 </button>
               ))}
             </div>
             <div className="flex gap-2">
               <button onClick={() => { playClick(); setShowSwitch(true); }} disabled={busy} className="flex-1 flex items-center justify-center gap-1.5 bg-slate-900 border border-emerald-700/40 text-emerald-600 font-mono font-black text-xs py-2 rounded-xl disabled:opacity-40"><Repeat className="w-4 h-4" /> Cambia</button>
               <button onClick={() => { playClick(); setShowBag(true); }} disabled={busy} className="flex-1 flex items-center justify-center gap-1.5 bg-slate-900 border border-amber-700/40 text-amber-400 font-mono font-black text-xs py-2 rounded-xl disabled:opacity-40"><Backpack className="w-4 h-4" /> Zaino ({bagItems.reduce((n, b) => n + b.quantity, 0)})</button>
-              <button onClick={() => { playClick(); onClose(); }} disabled={busy} className="px-3 bg-slate-900 border border-slate-800 text-slate-300 font-mono font-bold text-xs py-2 rounded-xl disabled:opacity-40">Ritìrati</button>
+              <button onClick={() => {
+                if (busy) return;
+                playClick();
+                if (!window.confirm("Ritiri la mandria? La Lega conta come persa.")) return;
+                setPhase("lost"); onResult(false);
+              }} disabled={busy} className="px-3 bg-slate-900 border border-slate-800 text-slate-300 font-mono font-bold text-xs py-2 rounded-xl disabled:opacity-40">Ritìrati</button>
             </div>
           </>
         )}

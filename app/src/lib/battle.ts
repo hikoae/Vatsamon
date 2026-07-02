@@ -1,34 +1,32 @@
 import { Vatsamon, RarityType } from "../types";
 import { Pastore } from "../data/opponents";
-import {
-  BattleMove,
-  VatsaType,
-  cowType,
-  cowMoveset,
-  movesetForType,
-} from "../data/combat";
 
 /**
- * Modello del combattente e builder (giocatore / Pastore / boss scalato).
- * Il motore di risoluzione vivo è "La Spinta" (lib/spinta.ts), che deriva lo
- * Spintatore da questo Fighter; il vecchio motore a danno/HP è stato rimosso.
+ * Modello del combattente e builder (giocatore / Pastore / avversaria reale).
+ * Il motore di risoluzione è "La Spinta" (lib/spinta.ts): qui si preparano le
+ * grandezze reali — PESO (kg), presa, volontà — senza tipi né mosse fantasy.
+ * Gli avversari hanno STAT ASSOLUTE: allenare la propria Reina conta davvero
+ * (niente più boss "elastici" scalati sul giocatore).
  */
 
 export interface Fighter {
   name: string;
   breed: string;
   level: number;
-  atk: number;
-  def: number;
-  agi: number;
-  maxHp: number;
-  type: VatsaType;
-  moveset: BattleMove[];
-  visual: Pick<Vatsamon, "breed" | "rarity" | "realPhoto" | "name">;
+  atk: number;   // → presa (leva di corna)
+  def: number;   // → piccolo bonus di massa (allenamento)
+  agi: number;   // → volontà/fiato
+  peso: number;  // kg reali → massa nella Spinta
+  visual: Pick<Vatsamon, "breed" | "rarity" | "realPhoto" | "name"> & { sightingPhotoId?: string };
 }
 
 function clamp(n: number, lo = 10, hi = 120) {
   return Math.max(lo, Math.min(hi, Math.round(n)));
+}
+
+/** Peso plausibile quando manca il dato reale (stima dalla stazza). */
+function pesoStimato(stazza: number): number {
+  return 480 + Math.round((stazza - 50) * 2.4);
 }
 
 /** Combattente del giocatore dalla sua Reina. */
@@ -38,8 +36,6 @@ export function buildPlayerFighter(cow: Vatsamon): Fighter {
   const def = clamp(s4 ? s4.testa : cow.stats.defense);
   const agi = clamp(s4 ? s4.grinta : cow.stats.agility);
   const stazza = s4 ? s4.stazza : cow.stats.defense;
-  const peso = cow.peso_kg ?? 600;
-  const maxHp = Math.round(150 + stazza * 0.8 + peso / 12 + cow.level * 5);
   return {
     name: cow.name,
     breed: cow.breed,
@@ -47,30 +43,14 @@ export function buildPlayerFighter(cow: Vatsamon): Fighter {
     atk,
     def,
     agi,
-    maxHp,
-    type: cowType(cow),
-    moveset: cowMoveset(cow),
+    peso: cow.peso_kg ?? pesoStimato(stazza),
     visual: cow,
   };
 }
 
-/** Combattente del Pastore avversario (sintetizza una Reina avversaria). */
+/** Combattente del Pastore avversario (allenamento libero sulla mappa). */
 export function buildOpponentFighter(p: Pastore): Fighter {
-  const { strength, resistance, agility, spirit } = p.cowStats;
-  const fakeCow: Vatsamon = {
-    id: p.id,
-    breed: p.cowBreed,
-    name: p.cowName,
-    stats: { strength, defense: resistance, agility },
-    stats4: { stazza: resistance, corna: strength, testa: spirit, grinta: agility },
-    rarity: "Epica",
-    eco_tip: "",
-    lore: "",
-    capturedAt: "",
-    cp: 0,
-    level: p.cowLevel,
-  };
-  const maxHp = Math.round(130 + resistance * 1.0 + p.cowLevel * 7);
+  const { strength, resistance, agility } = p.cowStats;
   return {
     name: p.cowName,
     breed: p.cowBreed,
@@ -78,38 +58,39 @@ export function buildOpponentFighter(p: Pastore): Fighter {
     atk: clamp(strength),
     def: clamp(resistance),
     agi: clamp(agility),
-    maxHp,
-    type: cowType(fakeCow),
-    moveset: cowMoveset(fakeCow),
+    peso: pesoStimato(resistance),
     visual: { name: p.cowName, breed: p.cowBreed, rarity: "Epica", realPhoto: null },
   };
 }
 
 /**
- * Boss d'Arena SCALATO sulla Reina del giocatore (rubber-band): il boss vale
- * `powerFactor` volte la Reina con cui combatti, e ha il TIPO tematico dell'arena.
- * Così la sfida è sempre "giusta" (mai impossibile né banale) e la strategia sta
- * nel portare una Reina di tipo vincente contro il tipo dell'arena.
- * powerFactor < 1 = più facile della tua Reina; > 1 = più forte.
+ * Avversaria d'arena/Lega ad ASSETTO ASSOLUTO: le sue forze derivano dalle SUE
+ * statistiche reali (stats4/peso della Reina vera), non dalla Reina del
+ * giocatore. `powerFactor` resta come modulatore di difficoltà del percorso
+ * (0.88 arena facile → 1.31 campione di Bard), applicato alle stat proprie.
  */
 export function buildScaledBoss(
-  reference: Fighter,
   visual: Vatsamon,
-  type: VatsaType,
   powerFactor: number,
-  rarity: RarityType,
+  _rarity?: RarityType,
 ): Fighter {
+  const s4 = visual.stats4 ?? {
+    stazza: visual.stats.defense,
+    corna: visual.stats.strength,
+    testa: visual.stats.defense,
+    grinta: visual.stats.agility,
+  };
   const pf = powerFactor;
+  const pesoBase = visual.peso_kg ?? pesoStimato(s4.stazza);
   return {
     name: visual.name,
     breed: visual.breed,
     level: visual.level,
-    atk: clamp(reference.atk * pf),
-    def: clamp(reference.def * (0.9 + (pf - 1) * 0.5)),
-    agi: reference.agi,
-    maxHp: Math.round(reference.maxHp * pf),
-    type,
-    moveset: movesetForType(type, rarity),
+    atk: clamp(s4.corna * pf),
+    def: clamp(s4.testa * pf),
+    agi: clamp(s4.grinta * pf),
+    // il pf muove il peso della metà del suo effetto: una campionessa "pesa" di più
+    peso: Math.round(pesoBase * (1 + (pf - 1) * 0.5)),
     visual,
   };
 }

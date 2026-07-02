@@ -5,7 +5,8 @@ import { Vatsamon, BackpackItem } from "../types";
 import { CowVisual } from "./CowVisual";
 import { buildPlayerFighter, buildOpponentFighter, buildScaledBoss, Fighter } from "../lib/battle";
 import {
-  Spintatore, SpintaState, AzioneId, AZIONI, spintatoreFromFighter, initSpinta, applyAzione, pickAzioneAvversaria,
+  Spintatore, SpintaState, AzioneId, AZIONI, PERSONALITA_LABEL, Personalita, personalitaFromLegacy,
+  spintatoreFromFighter, initSpinta, applyAzione, pickAzioneAvversaria,
 } from "../lib/spinta";
 import { BATTLE_ITEMS } from "../data/combat";
 import { MapBattle } from "../data/mapBattles";
@@ -22,15 +23,17 @@ const ITEM_LABEL: Record<string, { name: string; emoji: string }> = {
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 export default function BattleScene({
-  battle, playerCows, initialCowId, trainerLevel, backpack, onConsumeItem, onResult, onClose, playClick,
+  battle, playerCows, initialCowId, trainerLevel, respectScore, backpack, onConsumeItem, onResult, onClose, playClick,
 }: {
   battle: MapBattle;
   playerCows: Vatsamon[];
   initialCowId?: string;
   trainerLevel: number;
+  /** Rispetto 0..100: chi rispetta gli animali li sa leggere (affidabilità dei tell). */
+  respectScore: number;
   backpack: BackpackItem[];
   onConsumeItem: (id: string) => void;
-  onResult: (won: boolean) => void;
+  onResult: (won: boolean, cowId?: string) => void;
   onClose: () => void;
   playClick: () => void;
 }) {
@@ -48,7 +51,7 @@ export default function BattleScene({
 
   const playerRef = useRef<Spintatore | null>(null);
   const oppRef = useRef<Spintatore | null>(null);
-  const stRef = useRef<SpintaState>({ barra: 50, fiatoP: 0, fiatoO: 0, calma: 80, reggiP: false, reggiO: false, esito: "corso" });
+  const stRef = useRef<SpintaState>({ barra: 50, fiatoP: 0, fiatoO: 0, calma: 80, stanceP: null, stanceO: null, esito: "corso" });
   const [, force] = useState(0);
   const rerender = () => force((n) => n + 1);
 
@@ -57,22 +60,28 @@ export default function BattleScene({
   const opp = oppRef.current;
   const pushLog = (line: string) => setLog((prev) => [line, ...prev].slice(0, 6));
 
-  const buildOppFighter = (ref: Fighter): Fighter => {
+  const buildOppFighter = (): Fighter => {
     if (battle.kind === "pastore" && battle.pastore) return buildOpponentFighter(battle.pastore);
     const arena = battle.arena!;
     const bossCow = arenaBoss(arena, trainerLevel);
-    return buildScaledBoss(ref, bossCow, arena.bossType, arena.powerFactor, bossCow.rarity);
+    return buildScaledBoss(bossCow, arena.powerFactor);
   };
+  // Indole dell'avversaria: dall'arena (etichetta legacy) o dal nome del Pastore.
+  const personalita: Personalita = battle.kind === "arena" && battle.arena
+    ? personalitaFromLegacy(battle.arena.bossType)
+    : personalitaFromLegacy(undefined, [...battle.name].reduce((n, ch) => n + ch.charCodeAt(0), 0));
+  // Lettura dell'animale: il Rispetto affina l'occhio (0.68 → 0.90).
+  const tellAccuracy = 0.68 + respectScore * 0.0022;
 
   const begin = () => {
     playClick();
     const pf = buildPlayerFighter(playerCow);
-    const of = buildOppFighter(pf);
+    const of = buildOppFighter();
     const ps = spintatoreFromFighter(pf);
     const os = spintatoreFromFighter(of);
     playerRef.current = ps;
     oppRef.current = os;
-    stRef.current = initSpinta(ps, os);
+    stRef.current = initSpinta(ps, os, { personalita, tellAccuracy });
     setLog([`${battle.emoji} ${battle.name}: ${ps.name} affronta ${os.name}. Le corna si toccano…`]);
     setWinner(null); setShowBag(false);
     setPhase("fight"); rerender();
@@ -95,7 +104,16 @@ export default function BattleScene({
     const won = stRef.current.esito === "vinto";
     setWinner(won ? "player" : "opponent");
     setPhase("end"); setBusy(false);
-    onResult(won);
+    onResult(won, playerCow?.id);
+  };
+
+  // Ritirarsi è legittimo ma onesto: conta come sconfitta dichiarata.
+  const retire = () => {
+    if (busy || phase !== "fight") return;
+    playClick();
+    if (!window.confirm("Ritiri la tua Reina? La spinta conta come sconfitta.")) return;
+    stRef.current = { ...stRef.current, esito: "perso" };
+    endBattle();
   };
 
   const doAction = async (azione: AzioneId) => {
@@ -139,7 +157,7 @@ export default function BattleScene({
       </div>
 
       {phase === "intro" && (
-        <IntroPanel battle={battle} playerCows={sorted} cowId={cowId} setCowId={setCowId} onStart={begin} onClose={onClose} playClick={playClick} trainerLevel={trainerLevel} />
+        <IntroPanel battle={battle} playerCows={sorted} cowId={cowId} setCowId={setCowId} onStart={begin} onClose={onClose} playClick={playClick} trainerLevel={trainerLevel} personalita={personalita} />
       )}
 
       {phase !== "intro" && player && opp && (
@@ -172,12 +190,21 @@ export default function BattleScene({
 
           {phase === "fight" && !showBag && (
             <>
+              {st.tell && (
+                <div id="battle-tell" className="flex items-center gap-2 bg-amber-500/10 border border-amber-600/40 rounded-xl px-3 py-1.5">
+                  <span aria-hidden="true">👁</span>
+                  <div className="text-[11px] font-mono text-amber-200 leading-tight">
+                    L'avversaria <b>{st.tell}</b>…
+                    <span className="text-[9px] text-slate-400 block">Indole {PERSONALITA_LABEL[st.personalita ?? "focosa"].label.toLowerCase()} · il Rispetto affina la lettura</span>
+                  </div>
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-2" id="battle-moves">
                 {AZIONI.map((a) => (
                   <button key={a.id} onClick={() => doAction(a.id)} disabled={busy} title={a.desc}
                     className="text-left rounded-xl border p-2 transition-all disabled:opacity-40 bg-slate-900 border-slate-700 hover:border-amber-500/60">
                     <div className="text-[11px] font-mono font-black text-slate-100 leading-tight">{a.emoji} {a.label}</div>
-                    <div className="text-[10px] font-mono text-slate-400 leading-tight mt-0.5 line-clamp-2">{a.desc}</div>
+                    <div className="text-[10px] font-mono text-amber-500/90 leading-tight mt-0.5">{a.counterHint}</div>
                   </button>
                 ))}
               </div>
@@ -185,7 +212,7 @@ export default function BattleScene({
                 <button onClick={() => { playClick(); setShowBag(true); }} disabled={busy} className="flex-1 flex items-center justify-center gap-2 bg-slate-900 border border-amber-700/40 text-amber-400 font-mono font-black text-xs py-2 rounded-xl disabled:opacity-40">
                   <Backpack className="w-4 h-4" /> Zaino ({bagItems.reduce((n, b) => n + b.quantity, 0)})
                 </button>
-                <button onClick={() => { playClick(); onClose(); }} disabled={busy} className="px-4 bg-slate-900 border border-slate-800 text-slate-300 font-mono font-bold text-xs py-2 rounded-xl disabled:opacity-40">Ritìrati</button>
+                <button onClick={retire} disabled={busy} className="px-4 bg-slate-900 border border-slate-800 text-slate-300 font-mono font-bold text-xs py-2 rounded-xl disabled:opacity-40">Ritìrati</button>
               </div>
             </>
           )}
@@ -222,9 +249,9 @@ export default function BattleScene({
   );
 }
 
-function IntroPanel({ battle, playerCows, cowId, setCowId, onStart, onClose, playClick, trainerLevel }: {
+function IntroPanel({ battle, playerCows, cowId, setCowId, onStart, onClose, playClick, trainerLevel, personalita }: {
   battle: MapBattle; playerCows: Vatsamon[]; cowId: string; setCowId: (id: string) => void;
-  onStart: () => void; onClose: () => void; playClick: () => void; trainerLevel: number;
+  onStart: () => void; onClose: () => void; playClick: () => void; trainerLevel: number; personalita: Personalita;
 }) {
   const locked = trainerLevel < battle.reqLevel;
   return (
@@ -234,7 +261,8 @@ function IntroPanel({ battle, playerCows, cowId, setCowId, onStart, onClose, pla
         <div className="text-base font-mono font-black text-slate-100">{battle.name}</div>
         <div className="text-[11px] text-slate-300">{battle.subtitle}</div>
         {battle.pastore && <p className="text-[11px] text-slate-200 italic mt-2 bg-slate-900/60 border border-slate-800 rounded-2xl p-3 max-w-xs">"{battle.pastore.dialogueIntro}"</p>}
-        <p className="text-[11px] font-mono mt-2 text-slate-300">È una <b className="text-emerald-700">spinta a corna limate</b>: vince chi fa cedere l'avversaria. Conduci con calma — forzare troppo la innervosisce.</p>
+        <p className="text-[11px] font-mono mt-2 text-slate-300">È una <b className="text-emerald-700">spinta a corna limate</b>: vince chi fa cedere l'avversaria. Osserva i suoi movimenti e rispondi — conduci, non forzare.</p>
+        <p className="text-[10px] font-mono mt-1 text-amber-600">Indole avversaria: <b>{PERSONALITA_LABEL[personalita].label}</b> — {PERSONALITA_LABEL[personalita].desc}</p>
       </div>
       {locked ? (
         <div className="text-rose-500 font-mono font-bold text-sm">🔒 Richiede livello {battle.reqLevel}</div>
@@ -248,7 +276,7 @@ function IntroPanel({ battle, playerCows, cowId, setCowId, onStart, onClose, pla
                   className={`flex-shrink-0 rounded-xl border-2 p-1.5 ${cowId === c.id ? "border-emerald-500 bg-emerald-950/40" : "border-slate-700 bg-slate-900/70"}`}>
                   <CowVisual cow={c} className="w-12 h-12" />
                   <div className="text-[10px] font-mono text-slate-200 truncate w-12">{c.name}</div>
-                  <div className="text-[10px] font-mono text-amber-400">CP{c.cp}</div>
+                  <div className="text-[10px] font-mono text-amber-400">Pot. {c.cp}</div>
                 </button>
               ))}
             </div>
