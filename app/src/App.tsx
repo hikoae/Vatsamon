@@ -1373,11 +1373,14 @@ export default function App() {
     setTrainer(prev => ({ ...prev, coins: prev.coins - 15 }));
     setBackpack(prev => prev.map(item => item.id === 'item-hay' ? { ...item, quantity: item.quantity - 1 } : item));
 
-    // Empower stats
+    // Empower stats — la razione nutre anche il PESO VIVO (+4 kg, cap 750):
+    // è così che si sale di categoria quando le soglie crescono con la fase.
+    const pesoBase = cow.peso_kg ?? 480 + Math.round(((cow.stats4?.stazza ?? cow.stats.defense) - 50) * 2.4);
     const updated: Vatsamon = {
       ...cow,
       level: cow.level + 1,
       cp: cow.cp + 75 + Math.floor(Math.random() * 30),
+      peso_kg: Math.min(750, pesoBase + 4),
       stats: {
         strength: Math.min(cow.stats.strength + 2, 100),
         defense: Math.min(cow.stats.defense + 2, 100),

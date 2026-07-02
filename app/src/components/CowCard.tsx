@@ -2,6 +2,8 @@ import { motion } from "motion/react";
 import { Vatsamon, RarityType } from "../types";
 import { CowVisual } from "./CowVisual";
 import { massaFromPeso } from "../lib/spinta";
+import { faseCorrente } from "../data/fase";
+import { faseGaraCorrente, categoriaAllaPesa, SOGLIE_PESA } from "../data/pesa";
 
 /** Stelle di rarità (badge carta). */
 const RARITY_STARS: Record<RarityType, number> = {
@@ -76,6 +78,10 @@ export function CowCard({ cow }: { cow: Vatsamon }) {
   const stars = RARITY_STARS[cow.rarity];
   const peso = cow.peso_kg ?? 480 + Math.round(((cow.stats4?.stazza ?? cow.stats.defense) - 50) * 2.4);
   const massa = massaFromPeso(peso, cow.stats.defense);
+  // La stadera: categoria calcolata con le soglie della FASE CORRENTE (mobili!)
+  const faseGara = faseGaraCorrente(faseCorrente(new Date().toISOString().slice(0, 10)).id);
+  const pesa = categoriaAllaPesa(peso, faseGara);
+  const finale = SOGLIE_PESA["finale"];
 
   return (
     <motion.div
@@ -174,10 +180,15 @@ export function CowCard({ cow }: { cow: Vatsamon }) {
           </span>
         </div>
         <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[10px] font-mono text-slate-400">
-          <div>Categoria: <b className="text-slate-200">{cow.categoria ?? "—"}</b></div>
+          <div>Alla stadera: <b className="text-slate-200">{pesa.cat} cat.</b> <span className="text-slate-500">({pesa.soglie.label})</span></div>
           <div>Peso vivo: <b className="text-slate-200">{peso} kg{cow.pesoStimato ? "*" : ""}</b></div>
           {cow.bornInStalla && <div>Nata in stalla: <b className="text-emerald-500">G{cow.generation ?? 1}</b></div>}
           {cow.valutazioneGiudice !== undefined && <div>Giudizio: <b className="text-slate-200">{cow.valutazioneGiudice}/100</b></div>}
+        </div>
+        <div className="text-[10px] font-mono text-amber-700/90 bg-amber-500/10 border border-amber-600/30 rounded-lg px-2 py-1">
+          ⚖️ Le soglie SALGONO di fase in fase{pesa.allaCategoriaSopra !== null
+            ? ` · +${pesa.allaCategoriaSopra} kg alla categoria sopra`
+            : ""} · alla finale: ≥{finale.min1} kg per la 1ª
         </div>
         <p className="text-[10px] text-slate-500 leading-tight">
           La spinta è a <b className="text-slate-400">corna limate</b>: si vince facendo desistere

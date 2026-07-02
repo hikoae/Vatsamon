@@ -241,7 +241,7 @@ export function VatsadexView({
                 }}
                 className="flex-1 bg-amber-500 hover:bg-amber-400 text-[#0b0820] font-mono font-black text-[11px] py-2.5 px-3 rounded-xl transition-all cursor-pointer shadow border-b-4 border-amber-700 flex items-center justify-center gap-1"
               >
-                🌾 RAZIONE D'ALPEGGIO (+75)
+                🌾 RAZIONE D'ALPEGGIO (+75 · +4 kg)
               </button>
 
               {/* Transfer */}
