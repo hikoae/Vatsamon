@@ -152,6 +152,13 @@ I profili IA sono dichiarati come interpretazione di gioco, non come fatto.
 
 ---
 
+## STATO (02/07/2026)
+
+S3.1 ✅ combat tell+counter+peso · S3.2 ✅ stadera · S3.3 ✅ sac/vigilia/bottega
+· S3.4 ✅ éliminatoire · S3.5 ✅ arp/désarpa · S3.6 ✅ moudzons+gravidanza ·
+S3.7 ✅ patois giocato · S3.8 ⏭ Albo delle Leggende = primo task della
+prossima sessione. Ogni sprint: suite Playwright verde + E2E dedicato.
+
 ## Ordine di esecuzione e criteri
 
 S3.1 → S3.2 → S3.3 → S3.4 → S3.5 → S3.6 → S3.7 → (S3.8).

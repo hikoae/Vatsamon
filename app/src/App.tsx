@@ -58,6 +58,7 @@ import { Trofeo, TROFEO_META } from './data/trofei';
 import EliminatoireView, { EsitoTappa } from './components/EliminatoireView';
 import { tappe, tappaStato, STATO_LABEL, LS_ELIMINATOIRE, EliminatoireSave } from './data/eliminatoire';
 import { ArpPanel } from './components/ArpPanel';
+import { sbloccaParola, vociSbloccate, parolePatois, PATOIS_TRIGGERS, TOTALE_PAROLE } from './lib/patois';
 import MoudzonsView from './components/MoudzonsView';
 import { ArpState, ARP_VUOTO, LS_ARP, ARP_KG_PER_CURA, ARP_GIORNI_PER_FONTINA } from './data/arp';
 import { SeasonEvent } from './data/season';
@@ -321,12 +322,23 @@ export default function App() {
     }
     setActiveBattle(mb);
   };
+  // Il patois giocato: una parola si sblocca compiendola (feed + Profilo).
+  const [, setPatoisTick] = useState(0); // ri-render del Profilo dopo uno sblocco
+  const impara = (chiave: string) => {
+    const voce = sbloccaParola(chiave);
+    if (voce) {
+      setPatoisTick(n => n + 1);
+      setTrekkingFeed(prev => [`🗣️ Nuova parola di patois: «${voce.patois ?? voce.fr}» — ${voce.it}. (${parolePatois().length}/${TOTALE_PAROLE})`, ...prev.slice(0, 8)]);
+    }
+  };
+
   // ---- L'ARP: inarpa, cura quotidiana, discesa, désarpa ----
   const inarpa = (cowId: string) => {
     if (faseStato.id !== 'inalpa' || arpState.capi[cowId]) return;
     const c = vatsadex.find(x => x.id === cowId);
     setArpState(prev => ({ ...prev, capi: { ...prev.capi, [cowId]: { salitaIl: oggiISO(), ultimaCura: null, giorniCura: 0 } } }));
     setTrekkingFeed(prev => [`⛰️ Inarpa! ${c?.name ?? 'La Reina'} sale all'alpe: crescerà, ma non gareggia finché è su.`, ...prev.slice(0, 8)]);
+    impara('inarpa');
   };
   const curaArp = (cowId: string) => {
     const capo = arpState.capi[cowId];
@@ -336,7 +348,7 @@ export default function App() {
     setArpState(prev => ({ ...prev, capi: { ...prev.capi, [cowId]: { ...capo, ultimaCura: oggi, giorniCura: giorni } } }));
     setVatsadex(prev => prev.map(c => c.id === cowId ? { ...c, peso_kg: Math.min(750, (c.peso_kg ?? 550) + ARP_KG_PER_CURA) } : c));
     addTrainerXp(15);
-    if (giorni % ARP_GIORNI_PER_FONTINA === 0) guadagnaFontina(1, "l'alpe ha reso una forma");
+    if (giorni % ARP_GIORNI_PER_FONTINA === 0) { guadagnaFontina(1, "l'alpe ha reso una forma"); impara('alpeggio'); }
     else setTrekkingFeed(prev => [`🌿 Cura all'arp: +${ARP_KG_PER_CURA} kg. L'erba d'alta quota fa la stazza.`, ...prev.slice(0, 8)]);
   };
   const consolidaProduzione = (prev: ArpState, cowId: string, anno: string): ArpState => {
@@ -370,6 +382,9 @@ export default function App() {
       c.id === corne?.id ? { ...c, fioriRossi: anno } : c.id === lait?.id ? { ...c, fioriBianchi: anno } : c
     ));
     guadagnaFontina(2, 'la festa della désarpa');
+    impara('desarpa');
+    if (corne) impara('reina_corne');
+    if (lait) impara('reina_latte');
     setTrekkingFeed(prev => [`🌸 DÉSARPA ${anno}! ${corne ? `🌹 ${corne.name} è la Reina di corne` : 'Nessuna Reina di corne (serve almeno una vittoria)'}${lait ? ` · 🤍 ${lait.name} è la Reine du lait` : ''}. La mandria scende a valle in festa.`, ...prev.slice(0, 8)]);
   };
 
@@ -394,6 +409,7 @@ export default function App() {
   const handleTappaFinish = (esito: EsitoTappa) => {
     const t = activeTappa;
     if (!t) return;
+    impara('eliminatoria');
     const oggi = oggiISO();
     const stato = tappaStato(t, oggi);
     const giaVinta = tappeSave[t.id]?.vinta === true;
@@ -406,6 +422,8 @@ export default function App() {
           id: `trofeo-${t.id}-${tipo}`, tipo, comune: t.comune, data: t.data, categoria: esito.categoria, reinaNome: esito.reinaNome,
         }));
         setTrofei(prev => [...nuovi, ...prev]);
+        impara('bosquet');
+        if (t.finale) impara('reine_des_reines');
         addTrainerXp(t.finale ? 800 : 400);
         setTrekkingFeed(prev => [`🌹 ${t.comune}: ${esito.reinaNome} vince la tappa! Mécro, sonnaille e collare in bacheca${t.finale ? ' — REINE DES REINES!' : ''}`, ...prev.slice(0, 8)]);
       } else {
@@ -432,6 +450,7 @@ export default function App() {
     if (!mb) return;
     // palmares personale della Reina che ha condotto la spinta
     if (won && cowId) setVatsadex(prev => prev.map(c => c.id === cowId ? { ...c, vittorie: (c.vittorie ?? 0) + 1 } : c));
+    if (won) impara('bataille');
     if (won && mb.kind === 'pastore' && mb.pastore) {
       const xp = mb.pastore.rewardXp, coins = Math.round(xp / 5);
       addTrainerXp(xp);
@@ -1468,6 +1487,7 @@ export default function App() {
         const registrata = valutazione !== null ? { ...encounterCow, valutazioneGiudice: valutazione } : encounterCow;
         setVatsadex(prev => [registrata, ...prev]);
         setActiveCombatantId(registrata.id);
+        impara('reine');
         
         // Remove from overworld spawns
         setWildCows(prev => prev.filter(c => c.id !== encounterCow.id));
@@ -2443,7 +2463,7 @@ export default function App() {
           })()}
           <StallaScreen
             collection={vatsadex}
-            onBorn={(cow) => setVatsadex(prev => [cow, ...prev])}
+            onBorn={(cow) => { setVatsadex(prev => [cow, ...prev]); impara('moudzon'); }}
             onUpdateCow={(updated) => setVatsadex(prev => prev.map(c => c.id === updated.id ? updated : c))}
             onReward={(coins, xp, fontinaN) => {
               if (coins) setTrainer(prev => ({ ...prev, coins: prev.coins + coins }));
@@ -2793,6 +2813,30 @@ export default function App() {
                 {pedigreeStars >= PEDIGREE_STAR_CAP ? '★ Prestigio massimo raggiunto' : `★ Stella di Pedigree — ${costoStellaPedigree(pedigreeStars)} 🧀`}
               </button>
               <p className="text-[10px] text-slate-500 text-center leading-snug">La Désarpa premia chi ha portato lontano la propria mandria: ogni Stella è un riconoscimento permanente (+Rispetto).</p>
+            </div>
+
+            {/* LE PAROLE DEL PATOIS — si guadagnano compiendole */}
+            <div className="bg-slate-950 rounded-2xl border border-slate-850 p-3 space-y-1.5" id="patois-raccolta">
+              <div className="text-[10px] font-mono font-black text-slate-300 uppercase tracking-widest">🗣️ Le tue parole di patois ({parolePatois().length}/{TOTALE_PAROLE})</div>
+              {vociSbloccate().length === 0 ? (
+                <p className="text-[10px] text-slate-500 leading-snug">Il patois non si studia: si vive. Ogni gesto della tradizione ti insegna la sua parola (la prima nascita in stalla, la salita all'alpe, il primo trofeo…).</p>
+              ) : (
+                <div className="space-y-1">
+                  {vociSbloccate().map(v => (
+                    <div key={v.chiave} className="text-[10px] font-mono text-slate-300 leading-snug">
+                      <b className="text-amber-300 italic font-display">{v.patois ?? v.fr}</b>
+                      <span className="text-slate-500"> · {v.it} / {v.fr}</span>
+                      <span className="block text-slate-500">{v.def}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {(() => {
+                const mancanti = Object.entries(PATOIS_TRIGGERS).filter(([k]) => !parolePatois().includes(k));
+                return mancanti.length > 0 && (
+                  <p className="text-[9px] text-slate-600 leading-snug pt-1">Prossima parola: {mancanti[0][1]}.</p>
+                );
+              })()}
             </div>
 
             {/* BACHECA DEI TROFEI — mécro, sonnaille, collari delle tappe vinte */}

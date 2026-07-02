@@ -40,6 +40,7 @@ export const SAVE_KEYS = [
   "vatsamon_trofei",               // bacheca trofei (mécro/sonnaille/collari)
   "vatsamon_eliminatoire",         // tappe del calendario giocate/vinte/timbri
   "vatsamon_arp",                  // alpeggio: capi all'arp, produzione, désarpa
+  "vatsamon_patois",               // parole del glossario sbloccate giocando
 ] as const;
 
 export interface CloudSave {

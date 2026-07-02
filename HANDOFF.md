@@ -15,11 +15,16 @@
 - **Repo**: `hikoae/vazzamon` (⚠️ da rinominare in `vatsamon` su GitHub: Settings → Repository name) · **app dir**: `app/` · **live**: `vatsamon.netlify.app`
 - **Branch di lavoro**: `claude/vatsamon-audit-redesign-ig2l5t` (v1.4). Si fa merge su `main` per il deploy Netlify.
 - **Comandi**: `cd app && npm install && npm run dev` · build: `npm run build`
-- **v1.4 in corso** (vedi `ROADMAP_V1.4.md` e `AUDIT_2026-07.md`): fatti
-  Sprint 0 (bugfix+refactor), Sprint 1 (nav in basso 5 tab, HUD 1 riga,
-  safe-area, lessico bonificato, Fraunces+Inter) e Sprint 2 (**Scatta la
-  Reina**: riconoscimento bovina on-device con COCO-SSD vendorizzato in
-  `public/models/ssdlite`, foto in IndexedDB via `lib/photoStore.ts`).
+- **v1.4 COMPLETATA** (`ROADMAP_V1.4.md`): nav 5 tab in basso, HUD 1 riga,
+  safe-area, lessico bonificato, Fraunces+Inter, **Scatta la Reina** (COCO-SSD
+  on-device in `public/models/ssdlite`, foto in IndexedDB `lib/photoStore.ts`).
+- **v1.5 "La Stagione Vera" quasi completa** (`ROADMAP_V1.5.md`): Spinta v2
+  con TELL+counter+peso reale (`lib/spinta.ts`), Stadera (`data/pesa.ts`),
+  Sac du Berger+vigilia+Bottega (`data/sac.ts`), **Éliminatoire du Dimanche**
+  (`data/eliminatoire.ts`+`EliminatoireView`), Arp/Désarpa (`data/arp.ts`),
+  gravidanza-requisito (`lib/gravidanza.ts`, gravidanze multiple), Bataille
+  des Moudzons, patois giocato (`lib/patois.ts`). Time-travel demo/test:
+  `?oggi=YYYY-MM-DD` (`lib/oggi.ts`). Resta S3.8 (Albo delle Leggende).
 
 ---
 
