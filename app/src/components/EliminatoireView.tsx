@@ -12,6 +12,7 @@ import { SAC_ITEMS, MAX_VIGILIA, LIMATURA_TESTO } from "../data/sac";
 import { SeasonEvent } from "../data/season";
 import { categoriaAllaPesa, etichettaPesa } from "../data/pesa";
 import { avversarieTappa, faseTappa, TappaStato, TURNI_TAPPA } from "../data/eliminatoire";
+import { idoneaAllaTappa } from "../lib/gravidanza";
 
 /**
  * L'ÉLIMINATOIRE DU DIMANCHE — la tappa reale si gioca: pesa (stadera della
@@ -52,6 +53,9 @@ export default function EliminatoireView({
   const pesoCow = cow ? (cow.peso_kg ?? 480 + Math.round(((cow.stats4?.stazza ?? cow.stats.defense) - 50) * 2.4)) : 0;
   const pesa = categoriaAllaPesa(pesoCow, fase);
   const avversarie = cow ? avversarieTappa(evento, pesa.cat, cow.name) : [];
+  // IL VETERINARIO: alle tappe ufficiali si iscrivono bovine gravide
+  // (≥3 mesi estive / ≥4 autunnali — regolamento reale, dossier §1)
+  const idoneita = cow ? idoneaAllaTappa(cow.id, fase) : { ok: false, mesi: 0, soglia: 3 as const };
 
   const [phase, setPhase] = useState<Phase>("iscrizione");
   const [turno, setTurno] = useState(0); // 0=quarti, 1=semi, 2=finale
@@ -78,7 +82,7 @@ export default function EliminatoireView({
   const persona = (i: number) => personalitaFromLegacy(undefined, evento.id.length * 7 + i * 13 + evento.comune.length);
 
   const iscrivi = () => {
-    if (!cow || !limato) return;
+    if (!cow || !limato || !idoneita.ok) return;
     playClick();
     const pf = buildPlayerFighter(cow);
     playerRef.current = spintatoreFromFighter(pf);
@@ -215,6 +219,15 @@ export default function EliminatoireView({
             </div>
           )}
 
+          {/* IL VETERINARIO — requisito reale di gravidanza */}
+          {cow && (
+            <div className={`rounded-2xl border p-2.5 text-[10.5px] font-mono leading-snug ${idoneita.ok ? "border-emerald-700/50 bg-emerald-950/30 text-emerald-300" : "border-rose-700/50 bg-rose-950/30 text-rose-300"}`} id="veterinario">
+              {idoneita.ok
+                ? `🩺 Il veterinario conferma: ${cow.name} è gravida da ≈${idoneita.mesi.toFixed(1)} mesi (≥${idoneita.soglia} richiesti per questa fase). Iscrizione valida.`
+                : `🩺 Il veterinario: per il regolamento le bovine si iscrivono GRAVIDE — ≥${idoneita.soglia} mesi per questa fase. ${cow.name} è a ${idoneita.mesi.toFixed(1)} mesi: passa dalla Stalla (monta e cura quotidiana).`}
+            </div>
+          )}
+
           {/* Sac + limatura */}
           <div className="flex gap-1.5 flex-wrap justify-center">
             {sacDisponibili.map((b) => {
@@ -242,7 +255,7 @@ export default function EliminatoireView({
         </div>
         <div className="p-3 bg-slate-950/80 border-t border-slate-800 flex gap-2">
           <button onClick={() => { playClick(); onClose(); }} className="flex-1 bg-slate-900 border border-slate-800 text-slate-300 font-mono font-bold text-xs py-3 rounded-xl">Indietro</button>
-          <button onClick={iscrivi} disabled={!cow || !limato} id="tappa-start" className="flex-1 nav-active text-white font-mono font-black text-xs py-3 rounded-xl disabled:opacity-40 disabled:grayscale">Iscriviti e spingi! 📯</button>
+          <button onClick={iscrivi} disabled={!cow || !limato || !idoneita.ok} id="tappa-start" className="flex-1 nav-active text-white font-mono font-black text-xs py-3 rounded-xl disabled:opacity-40 disabled:grayscale">Iscriviti e spingi! 📯</button>
         </div>
       </div>
     );

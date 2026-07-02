@@ -9,7 +9,7 @@ import {
 } from "../data/breeding";
 import { FONTINA_REWARD } from "../data/economy";
 
-const LS_PREG = "vatsamon_stalla_preg";
+import { gravidanzeCorrenti, LS_PREG, mesiGravidanza } from "../lib/gravidanza";
 
 /**
  * STALLA — allevamento e genealogia (sostituisce la "Culla dei Vitellini" a uova).
@@ -24,9 +24,8 @@ export function StallaScreen({ collection, onBorn, onUpdateCow, onReward, playCl
   onReward: (coins: number, xp: number, fontina?: number) => void;
   playClick: () => void;
 }) {
-  const [preg, setPreg] = useState<Pregnancy | null>(() => {
-    try { const r = localStorage.getItem(LS_PREG); return r ? JSON.parse(r) : null; } catch { return null; }
-  });
+  // più gravidanze in parallelo (una per madre): requisito per i tornei ufficiali
+  const [pregs, setPregs] = useState<Pregnancy[]>(() => gravidanzeCorrenti());
   const [motherId, setMotherId] = useState<string | null>(null);
   const [toroId, setToroId] = useState<string>(TORI[0].id);
   const [justBorn, setJustBorn] = useState<Vatsamon | null>(null);
@@ -35,13 +34,17 @@ export function StallaScreen({ collection, onBorn, onUpdateCow, onReward, playCl
 
   useEffect(() => { const t = setInterval(() => setNow(Date.now()), 400); return () => clearInterval(t); }, []);
   useEffect(() => {
-    if (preg) localStorage.setItem(LS_PREG, JSON.stringify(preg));
+    if (pregs.length) localStorage.setItem(LS_PREG, JSON.stringify(pregs));
     else localStorage.removeItem(LS_PREG);
-  }, [preg]);
+  }, [pregs]);
 
   const natiInStalla = collection.filter((c) => c.bornInStalla);
-  // madri ammesse: qualsiasi capo della collezione con statistiche reali
-  const madri = collection.filter((c) => c.stats4 || c.geneticStats4 || c.isReal);
+  // madri ammesse: capi con statistiche reali, ADULTI (un moudzon non può
+  // essere madre) e non già gravidi
+  const madri = collection.filter((c) =>
+    (c.stats4 || c.geneticStats4 || c.isReal) &&
+    (!c.bornInStalla || (c.stage ?? "reina") === "reina") &&
+    !pregs.some((p) => p.motherId === c.id));
   const mother = collection.find((c) => c.id === motherId) ?? null;
   const toro: Toro = TORI.find((t) => t.id === toroId) ?? TORI[0];
 
@@ -52,8 +55,8 @@ export function StallaScreen({ collection, onBorn, onUpdateCow, onReward, playCl
   function avviaMonta() {
     if (!mother) return;
     playClick();
-    setPreg({
-      id: "preg-" + Math.floor(now),
+    setPregs((prev) => [...prev, {
+      id: "preg-" + Math.floor(now) + "-" + mother.id,
       motherId: mother.id,
       motherName: mother.name,
       motherStats4: stats4Of(mother),
@@ -67,34 +70,36 @@ export function StallaScreen({ collection, onBorn, onUpdateCow, onReward, playCl
       ambiente: 50,
       lastCareAt: {},
       startedAt: now,
-    });
+    }]);
     setMotherId(null);
   }
 
-  const careCd = (action: string) => (preg ? Math.max(0, CARE_COOLDOWN_MS - (now - (preg.lastCareAt[action] ?? 0))) : 0);
+  const careCd = (p: Pregnancy, action: string) => Math.max(0, CARE_COOLDOWN_MS - (now - (p.lastCareAt[action] ?? 0)));
 
-  function care(action: string) {
-    if (!preg || careCd(action) > 0 || preg.progress >= 100) return;
+  function care(pregId: string, action: string) {
+    const p = pregs.find((x) => x.id === pregId);
+    if (!p || careCd(p, action) > 0 || p.progress >= 100) return;
     playClick();
-    setPreg({
-      ...preg,
-      progress: Math.min(100, preg.progress + CARE_PROGRESS),
-      benessere: Math.min(100, preg.benessere + CARE_BENESSERE),
-      lastCareAt: { ...preg.lastCareAt, [action]: now },
-    });
+    setPregs((prev) => prev.map((x) => x.id === pregId ? {
+      ...x,
+      progress: Math.min(100, x.progress + CARE_PROGRESS),
+      benessere: Math.min(100, x.benessere + CARE_BENESSERE),
+      lastCareAt: { ...x.lastCareAt, [action]: now },
+    } : x));
     onReward(1, 12);
   }
 
-  function nascita() {
-    if (!preg || preg.progress < 100) return;
+  function nascita(pregId: string) {
+    const p = pregs.find((x) => x.id === pregId);
+    if (!p || p.progress < 100) return;
     playClick();
-    const motherCow = collection.find((c) => c.id === preg.motherId);
+    const motherCow = collection.find((c) => c.id === p.motherId);
     const gen = (motherCow?.generation ?? 0) + 1;
-    const calf = birthCalf(preg, collection, gen);
+    const calf = birthCalf(p, collection, gen);
     onBorn(calf);
     onReward(25, 250);
     setJustBorn(calf);
-    setPreg(null);
+    setPregs((prev) => prev.filter((x) => x.id !== pregId));
   }
 
   function cresci(cow: Vatsamon) {
@@ -127,24 +132,23 @@ export function StallaScreen({ collection, onBorn, onUpdateCow, onReward, playCl
         </p>
       </div>
 
-      {/* GRAVIDANZA ATTIVA */}
-      {preg ? (
-        <div className="bg-slate-950 border border-slate-850 rounded-3xl p-4 space-y-3" id="stalla-pregnancy">
-          <div className="flex items-center gap-2">
+      {/* GRAVIDANZE IN CORSO (una per madre): requisito per i tornei ufficiali */}
+      {pregs.map((preg) => (
+        <div key={preg.id} className="bg-slate-950 border border-slate-850 rounded-3xl p-4 space-y-3" id="stalla-pregnancy" data-preg={preg.motherId}>
+          <div className="flex items-center justify-between gap-2">
             <span className="text-[9px] font-mono uppercase tracking-widest text-rose-400 flex items-center gap-1"><Heart className="w-3 h-3 fill-rose-400" /> Gravidanza in corso</span>
+            <span className="text-[9px] font-mono text-amber-300" data-mesi={preg.motherId}>≈ {mesiGravidanza(preg).toFixed(1)} mesi / 9</span>
           </div>
           <div className="text-sm font-mono font-black text-slate-100">
             {preg.motherName} <span className="text-slate-500">×</span> {preg.fatherName} <span className="text-[10px] text-slate-500">({preg.fatherRazza})</span>
           </div>
 
-          {/* progress gravidanza */}
           <div>
             <div className="flex justify-between text-[10px] font-mono text-slate-400"><span>Gestazione</span><span className="text-amber-300 font-bold">{Math.round(preg.progress)}%</span></div>
             <div className="bg-slate-900 border border-slate-800 rounded-full h-2.5 overflow-hidden mt-1">
               <motion.div className="bg-gradient-to-r from-amber-500 to-yellow-400 h-full" animate={{ width: `${preg.progress}%` }} transition={{ duration: 0.4 }} />
             </div>
           </div>
-          {/* benessere */}
           <div>
             <div className="flex justify-between text-[10px] font-mono text-slate-400"><span>Benessere della madre</span><span className="text-emerald-300 font-bold">{Math.round(preg.benessere)}%</span></div>
             <div className="bg-slate-900 border border-slate-800 rounded-full h-1.5 overflow-hidden mt-1">
@@ -152,41 +156,42 @@ export function StallaScreen({ collection, onBorn, onUpdateCow, onReward, playCl
             </div>
           </div>
 
+          <p className="text-[10px] font-mono text-slate-500">📋 Regolamento: alle tappe ufficiali si iscrivono bovine gravide — ≥3 mesi (estive), ≥4 (autunnali).</p>
+
           {preg.progress < 100 ? (
-            <>
-              <p className="text-[10px] font-mono text-slate-500">Cura quotidiana: ogni gesto fa avanzare la gestazione e il benessere.</p>
-              <div className="grid grid-cols-3 gap-2">
-                {CARE_ACTIONS.map(([id, emoji, label]) => {
-                  const cd = careCd(id);
-                  return (
-                    <button
-                      key={id}
-                      data-care={id}
-                      disabled={cd > 0}
-                      onClick={() => care(id)}
-                      className={`flex flex-col items-center gap-0.5 py-2.5 rounded-xl border font-mono font-black text-[10px] transition-all ${cd > 0 ? "border-slate-850 bg-slate-900/50 text-slate-600" : "border-amber-700/50 bg-amber-500/10 text-amber-200 hover:bg-amber-500/20"}`}
-                    >
-                      <span className="text-lg">{emoji}</span>
-                      {cd > 0 ? `${(cd / 1000).toFixed(1)}s` : label}
-                    </button>
-                  );
-                })}
-              </div>
-            </>
+            <div className="grid grid-cols-3 gap-2">
+              {CARE_ACTIONS.map(([id, emoji, label]) => {
+                const cd = careCd(preg, id);
+                return (
+                  <button
+                    key={id}
+                    data-care={id}
+                    disabled={cd > 0}
+                    onClick={() => care(preg.id, id)}
+                    className={`flex flex-col items-center gap-0.5 py-2.5 rounded-xl border font-mono font-black text-[10px] transition-all ${cd > 0 ? "border-slate-850 bg-slate-900/50 text-slate-600" : "border-amber-700/50 bg-amber-500/10 text-amber-200 hover:bg-amber-500/20"}`}
+                  >
+                    <span className="text-lg">{emoji}</span>
+                    {cd > 0 ? `${(cd / 1000).toFixed(1)}s` : label}
+                  </button>
+                );
+              })}
+            </div>
           ) : (
             <motion.button
               initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
               data-born
-              onClick={nascita}
+              onClick={() => nascita(preg.id)}
               className="w-full bg-amber-500 hover:bg-amber-400 text-[#0b0820] font-mono font-black text-sm py-3 rounded-xl flex items-center justify-center gap-1.5 border-b-4 border-amber-700"
             >
               <Sparkles className="w-4 h-4" /> È nata! Fai venire al mondo il moudzon
             </motion.button>
           )}
 
-          <button onClick={() => { playClick(); setPreg(null); }} className="w-full text-[9px] font-mono text-slate-600 hover:text-rose-300 pt-1">Annulla la monta</button>
+          <button onClick={() => { playClick(); setPregs((prev) => prev.filter((x) => x.id !== preg.id)); }} className="w-full text-[9px] font-mono text-slate-600 hover:text-rose-300 pt-1">Annulla la monta</button>
         </div>
-      ) : (
+      ))}
+
+      {(
         /* PROGRAMMA UNA MONTA */
         <div className="bg-slate-950 border border-slate-850 rounded-3xl p-4 space-y-3" id="stalla-monta">
           <div className="text-[11px] font-mono font-black uppercase tracking-widest text-slate-300">Programma una monta</div>

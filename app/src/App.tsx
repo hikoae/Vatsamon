@@ -58,6 +58,7 @@ import { Trofeo, TROFEO_META } from './data/trofei';
 import EliminatoireView, { EsitoTappa } from './components/EliminatoireView';
 import { tappe, tappaStato, STATO_LABEL, LS_ELIMINATOIRE, EliminatoireSave } from './data/eliminatoire';
 import { ArpPanel } from './components/ArpPanel';
+import MoudzonsView from './components/MoudzonsView';
 import { ArpState, ARP_VUOTO, LS_ARP, ARP_KG_PER_CURA, ARP_GIORNI_PER_FONTINA } from './data/arp';
 import { SeasonEvent } from './data/season';
 
@@ -862,6 +863,7 @@ export default function App() {
     try { return JSON.parse(localStorage.getItem(LS_ELIMINATOIRE) || '{}'); } catch { return {}; }
   });
   useEffect(() => { localStorage.setItem(LS_ELIMINATOIRE, JSON.stringify(tappeSave)); }, [tappeSave]);
+  const [showMoudzons, setShowMoudzons] = useState(false);
   // L'Arp: capi all'alpeggio, produzione annua, cerimonia della désarpa
   const [arpState, setArpState] = useState<ArpState>(() => {
     try { return { ...ARP_VUOTO, ...JSON.parse(localStorage.getItem(LS_ARP) || '{}') }; } catch { return ARP_VUOTO; }
@@ -2422,6 +2424,23 @@ export default function App() {
             onDesarpa={celebraDesarpa}
             playClick={playClickSfx}
           />
+          {(() => {
+            const giovani = disponibili.filter(c => c.bornInStalla && (c.stage === 'moudzon' || c.stage === 'manza'));
+            return giovani.length > 0 && (
+              <button
+                id="moudzons-entry"
+                onClick={() => { playClickSfx(); setShowMoudzons(true); }}
+                className="w-full bg-slate-950 border border-amber-700/40 rounded-2xl p-3 flex items-center gap-3 text-left hover:border-amber-500/60 transition-colors"
+              >
+                <span className="text-2xl" aria-hidden="true">🐮</span>
+                <div className="min-w-0 flex-grow">
+                  <div className="text-[12px] font-mono font-black text-amber-300 uppercase">Bataille des Moudzons</div>
+                  <div className="text-[10px] text-slate-400 truncate">Il torneo junior reale: fai debuttare i tuoi giovani ({giovani.length} pronti)</div>
+                </div>
+                <span className="text-slate-500 text-lg" aria-hidden="true">›</span>
+              </button>
+            );
+          })()}
           <StallaScreen
             collection={vatsadex}
             onBorn={(cow) => setVatsadex(prev => [cow, ...prev])}
@@ -2673,6 +2692,25 @@ export default function App() {
           onConsumeItem={(id) => setBackpack(prev => prev.map(it => it.id === id ? { ...it, quantity: Math.max(0, it.quantity - 1) } : it))}
           onResult={handleBattleResult}
           onClose={() => setActiveBattle(null)}
+          playClick={playClickSfx}
+        />
+      )}
+
+      {/* BATAILLE DES MOUDZONS — il debutto dei giovani nati in stalla */}
+      {showMoudzons && (
+        <MoudzonsView
+          giovani={disponibili.filter(c => c.bornInStalla && (c.stage === 'moudzon' || c.stage === 'manza'))}
+          respectScore={respectScore}
+          anno={oggiISO().slice(0, 4)}
+          onResult={(won, cowId) => {
+            if (won) {
+              const anno = oggiISO().slice(0, 4);
+              setVatsadex(prev => prev.map(c => c.id === cowId ? { ...c, titoloMoudzons: anno, vittorie: (c.vittorie ?? 0) + 1 } : c));
+              addTrainerXp(250);
+              setTrekkingFeed(prev => [`🐮 Bataille des Moudzons: la tua giovane si è fatta un nome! +250 XP`, ...prev.slice(0, 8)]);
+            }
+          }}
+          onClose={() => setShowMoudzons(false)}
           playClick={playClickSfx}
         />
       )}
