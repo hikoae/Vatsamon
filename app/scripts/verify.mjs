@@ -14,7 +14,7 @@ const PNG = Buffer.from(
   "base64",
 );
 
-const TABS = ["Alpeggio", "Scatta", "Stalla", "Libretto"];
+const TABS = ["Alpeggio", "Percorsi", "Scatta", "Stalla", "Libretto"];
 const problems = [];
 const note = (m) => console.log("  • " + m);
 
@@ -153,8 +153,9 @@ const premiOpen = await page.locator("#premi-view").isVisible().catch(() => fals
 note(`vista Premi dal chip HUD: ${premiOpen}`);
 if (!premiOpen) problems.push("il chip Premi nell'HUD non apre la vista");
 
-// Quiz "Scuola d'Alpeggio": ingresso dalla Stagione, poi flusso fino al risultato
-await clickTab(page, "Stagione");
+// Quiz "Scuola d'Alpeggio": la Stagione è raggiungibile dal tab Percorsi.
+await clickTab(page, "Percorsi");
+await page.locator("#open-season-btn").click();
 await page.locator("#quiz-entry").click();
 await page.waitForTimeout(400);
 let quizGuard = 0;
@@ -232,6 +233,7 @@ await page.waitForTimeout(500);
 const gpsOnNow = await page.locator('#gps-btn[aria-pressed="true"]').isVisible().catch(() => false);
 if (!gpsOnNow) { await page.locator("#gps-btn").click().catch(() => {}); await page.waitForTimeout(1000); }
 else await page.waitForTimeout(800);
+await clickTab(page, "Percorsi");
 const nNear = await page.locator("#battle-nearby button").count();
 note(`pannello 'Sfide nei dintorni': ${nNear} combattenti`);
 const nearBtn = page.locator("#battle-nearby button", { hasText: "COMBATTI" }).first();

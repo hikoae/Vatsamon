@@ -6,7 +6,6 @@ import {
   Compass,
   Camera,
   BookOpen,
-  Swords,
   Volume2,
   VolumeX,
   Sparkles,
@@ -17,8 +16,7 @@ import {
   RotateCw,
   Gift,
   Footprints,
-  GraduationCap,
-  Trophy
+  GraduationCap
 } from 'lucide-react';
 import { Vatsamon, Hotspot, BackpackItem, Trainer, RarityType } from './types';
 import { normalizeSaveKey } from './lib/migrateSaveKeys';
@@ -45,6 +43,7 @@ import { VatsadexView } from './components/VatsadexView';
 import { ScattaView } from './components/ScattaView';
 import { DailyPanel } from './components/DailyPanel';
 import { GpsExplorerPanel, type NearbyPlace } from './components/GpsExplorerPanel';
+import { RoutesView } from './components/RoutesView';
 import { soundEngine } from './utils/audio';
 import { generateVatsamonClient } from './lib/generate';
 import { REAL_COWS, REAL_CASERE } from './data/realCows';
@@ -53,7 +52,7 @@ import { gradoCorrente } from './data/gradi';
 import { faseCorrente } from './data/fase';
 import { oggiISO } from './lib/oggi';
 import { VALUTE, FONTINA_REWARD, costoStellaPedigree, PEDIGREE_STAR_CAP } from './data/economy';
-import { ROUTE_TONE, WILD_BREEDS, WILD_NAMES, ECO_TREK_TIPS, LORE_POOL, BALL_META, BALL_ORDER, DEFAULT_BAG, SEED_COLLECTION } from './data/overworld';
+import { WILD_BREEDS, WILD_NAMES, ECO_TREK_TIPS, LORE_POOL, BALL_META, BALL_ORDER, DEFAULT_BAG, SEED_COLLECTION } from './data/overworld';
 import { BASE_CATCH, estimateCatch, respectTone, catchDifficulty } from './lib/capture';
 import { SAC_ITEMS, BOTTEGA_EXTRA } from './data/sac';
 import { Trofeo, TROFEO_META } from './data/trofei';
@@ -239,7 +238,7 @@ export default function App() {
   useEffect(() => { localStorage.setItem('vatsamon_waypoint_progress', String(waypointProgress)); }, [waypointProgress]);
 
   // ---- 2. VIEW NAVIGATION ----
-  const [activeTab, setActiveTab] = useState<'map' | 'stagione' | 'scanner' | 'stalla' | 'vatsadex' | 'quiz' | 'premi'>('map');
+  const [activeTab, setActiveTab] = useState<'map' | 'routes' | 'stagione' | 'scanner' | 'stalla' | 'vatsadex' | 'quiz' | 'premi'>('map');
   // Battaglia attiva (scena stile Pokémon lanciata dalla mappa).
   const [activeBattle, setActiveBattle] = useState<MapBattle | null>(null);
   const [activeDungeon, setActiveDungeon] = useState<Dungeon | null>(null); // Lega/dungeon in corso
@@ -1835,99 +1834,6 @@ export default function App() {
         {activeTab === 'map' && (
           <div className="flex flex-col gap-6" id="overworld-view">
 
-            {/* La MAPPA è il primo elemento (order-first sul contenitore mappa più sotto).
-                Le ricompense/obiettivi sono nel tab dedicato "Premi". */}
-
-            {/* SELETTORE PERCORSO (3 grandi itinerari valdostani) */}
-            <div className="bg-slate-950 border border-slate-850 rounded-3xl p-4 space-y-3" id="route-selector">
-              <h3 className="text-xs font-mono font-extrabold uppercase text-slate-300 tracking-wider flex items-center gap-1.5">
-                <Compass className="w-4 h-4 text-emerald-400" />
-                Scegli il tuo cammino
-              </h3>
-              <div className="grid grid-cols-1 gap-2">
-                {TREK_ROUTES.map((route) => {
-                  const active = route.id === activeRouteId;
-                  const t = ROUTE_TONE[route.accent] ?? ROUTE_TONE.emerald;
-                  const locked = trainer.level < route.reqLevel;
-                  const completed = completedRoutes.includes(route.id);
-                  return (
-                    <button
-                      key={route.id}
-                      onClick={() => selectRoute(route.id)}
-                      className={`relative text-left rounded-2xl border-2 p-3.5 pr-24 transition-all overflow-hidden min-h-[118px] ${locked ? 'border-slate-800 bg-slate-900/60 opacity-70' : active ? `${t.border} ${t.bg}` : 'border-slate-800 bg-slate-900 hover:bg-slate-850'}`}
-                    >
-                      <div className="flex items-start gap-3">
-                        <span className="text-2xl leading-none pt-0.5">{locked ? '🔒' : route.icon}</span>
-                        <div className="min-w-0">
-                          <div className={`text-sm font-mono font-black leading-snug ${active ? t.text : 'text-slate-200'}`}>{route.name}</div>
-                          <div className="text-xs font-mono text-slate-400 mt-0.5">{route.difficulty} · {route.lengthKm} km · {route.coords.length} tappe</div>
-                        </div>
-                      </div>
-                      <p className="text-xs text-slate-500 leading-relaxed mt-2 line-clamp-2">{route.description}</p>
-                      {locked && <span className="absolute top-3 right-3 text-xs font-mono font-black text-slate-400">🔒 Lv {route.reqLevel}</span>}
-                      {!locked && completed && <span className="absolute top-3 right-3 text-xs font-mono font-black text-emerald-500">✓ FATTO</span>}
-                      {!locked && !completed && active && <span className={`absolute top-3 right-3 text-xs font-mono font-black ${t.text}`}>● ATTIVO</span>}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* SFIDE NEI DINTORNI — battaglie piazzate sulla mappa (Pastori + Boss-Arena) */}
-            <div className="bg-slate-950 border border-slate-850 rounded-3xl p-4 space-y-2" id="battle-nearby">
-              <h3 className="text-xs font-mono font-extrabold uppercase text-slate-300 tracking-wider flex items-center gap-1.5">
-                <Swords className="w-4 h-4 text-rose-500" /> Sfide nei dintorni
-              </h3>
-              {[...MAP_BATTLES].map(mb => ({ mb, d: distanza({ lat: effLat, lng: effLng }, { lat: mb.lat, lng: mb.lng }) }))
-                .sort((a, b) => a.d - b.d).slice(0, 5).map(({ mb, d }) => {
-                  const locked = trainer.level < mb.reqLevel;
-                  const inRange = d <= BATTLE_RANGE;
-                  return (
-                    <button key={mb.id} onClick={() => tryStartBattle(mb)} disabled={locked}
-                      className={`w-full flex items-center gap-3 rounded-2xl border p-2.5 text-left transition-all ${locked ? 'opacity-50 border-slate-800 bg-slate-900/60' : inRange ? 'border-rose-700/50 bg-rose-950/30 hover:bg-rose-900/30' : 'border-slate-800 bg-slate-900 hover:bg-slate-850'}`}>
-                      <span className="text-2xl">{locked ? '🔒' : mb.emoji}</span>
-                      <div className="flex-grow min-w-0">
-                        <div className="text-sm font-mono font-black text-slate-100 truncate">{mb.name}</div>
-                        <div className="text-xs text-slate-400 truncate">{mb.subtitle}</div>
-                      </div>
-                      <div className="text-right flex-shrink-0">
-                        <div className="text-xs font-mono text-slate-400">{fmtDist(d)}</div>
-                        <div className={`text-xs font-mono font-black ${locked ? 'text-slate-500' : inRange ? 'text-rose-400' : 'text-amber-400'}`}>{locked ? `Lv ${mb.reqLevel}` : inRange ? '⚔️ COMBATTI' : 'avvicìnati'}</div>
-                      </div>
-                    </button>
-                  );
-                })}
-              <p className="text-xs text-slate-500 text-center">Avvicìnati (≤ 800 m) a un combattente per sfidarlo. Cammina o usa il GPS.</p>
-            </div>
-
-            {/* LEGA DELLE REINES — dungeon endgame nei castelli (squadra di 4) */}
-            <div className="bg-slate-950 border border-purple-700/30 rounded-3xl p-4 space-y-2" id="dungeon-nearby">
-              <h3 className="text-xs font-mono font-extrabold uppercase text-slate-300 tracking-wider flex items-center gap-1.5">
-                <span className="text-base">🏰</span> Lega delle Reines · Dungeon
-              </h3>
-              {[...DUNGEONS].map(dg => ({ dg, d: distanza({ lat: effLat, lng: effLng }, { lat: dg.lat, lng: dg.lng }) }))
-                .sort((a, b) => a.dg.reqLevel - b.dg.reqLevel).map(({ dg, d }) => {
-                  const locked = trainer.level < dg.reqLevel;
-                  const inRange = d <= BATTLE_RANGE;
-                  const cleared = dungeonsCleared.includes(dg.id);
-                  return (
-                    <button key={dg.id} onClick={() => tryStartDungeon(dg)} disabled={locked}
-                      className={`w-full flex items-center gap-3 rounded-2xl border p-2.5 text-left transition-all ${locked ? 'opacity-50 border-slate-800 bg-slate-900/60' : inRange ? 'border-purple-700/50 bg-purple-950/30 hover:bg-purple-900/30' : 'border-slate-800 bg-slate-900 hover:bg-slate-850'}`}>
-                      <span className="text-2xl">{locked ? '🔒' : dg.emoji}</span>
-                      <div className="flex-grow min-w-0">
-                        <div className="text-sm font-mono font-black text-slate-100 truncate">{dg.league} {cleared ? '✅' : ''}</div>
-                        <div className="text-xs text-slate-400 truncate">5 sfide · squadra di 4 · {dg.rewardCoins} 🪙</div>
-                      </div>
-                      <div className="text-right flex-shrink-0">
-                        <div className="text-xs font-mono text-slate-400">{fmtDist(d)}</div>
-                        <div className={`text-xs font-mono font-black ${locked ? 'text-slate-500' : inRange ? 'text-purple-400' : 'text-amber-400'}`}>{locked ? `Lv ${dg.reqLevel}` : inRange ? '🏰 ENTRA' : 'avvicìnati'}</div>
-                      </div>
-                    </button>
-                  );
-                })}
-              <p className="text-xs text-slate-500 text-center">Endgame: 5 spinte di fila, il fiato si trascina. Ricompense rare.</p>
-            </div>
-
             <div className="bg-slate-950 rounded-3xl p-3 border border-slate-850 relative overflow-hidden shadow-2xl">
 
               {/* Overworld Title HUD */}
@@ -2596,6 +2502,23 @@ export default function App() {
           />
         )}
 
+        {/* VIEW 2: PERCORSI — pianificazione separata dall'esplorazione */}
+        {activeTab === 'routes' && (
+          <RoutesView
+            routes={TREK_ROUTES}
+            activeRouteId={activeRouteId}
+            completedRoutes={completedRoutes}
+            trainerLevel={trainer.level}
+            position={{ lat: effLat, lng: effLng }}
+            battles={MAP_BATTLES}
+            dungeons={DUNGEONS}
+            onSelectRoute={(id) => { selectRoute(id); setActiveTab('map'); }}
+            onStartBattle={tryStartBattle}
+            onStartDungeon={tryStartDungeon}
+            onOpenSeason={() => { playClickSfx(); setActiveTab('stagione'); }}
+          />
+        )}
+
         {/* VIEW 2: SCATTA LA REINA — riconoscimento fotografico on-device */}
         {activeTab === 'scanner' && (
           <ScattaView onSighting={handleSighting} playClick={playClickSfx} />
@@ -2818,12 +2741,12 @@ export default function App() {
           </button>
 
           <button
-            onClick={() => { playClickSfx(); setActiveTab('stagione'); }}
-            aria-label="Stagione: calendario, notizie e tabellone"
-            className={`flex flex-col items-center justify-center gap-0.5 min-h-[48px] py-1.5 rounded-xl transition-all ${activeTab === 'stagione' ? 'nav-active text-white' : 'text-slate-400 hover:bg-slate-900'}`}
+            onClick={() => { playClickSfx(); setActiveTab('routes'); }}
+            aria-label="Percorsi: cammini, sfide e stagione"
+            className={`flex flex-col items-center justify-center gap-0.5 min-h-[48px] py-1.5 rounded-xl transition-all ${activeTab === 'routes' ? 'nav-active text-white' : 'text-slate-400 hover:bg-slate-900'}`}
           >
-            <Trophy className="w-5 h-5" />
-            <span>Stagione</span>
+            <Compass className="w-5 h-5" />
+            <span>Percorsi</span>
           </button>
 
           {/* bottone centrale rialzato: Scatta la Reina */}
