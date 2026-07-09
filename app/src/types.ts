@@ -36,8 +36,6 @@ export interface Vatsamon {
   fioriRossi?: string;
   /** Désarpa: anno in cui è stata Reine du lait (fiori bianchi) della mandria. */
   fioriBianchi?: string;
-  /** Bataille des Moudzons: anno del titolo junior ("si è fatta un nome"). */
-  titoloMoudzons?: string;
   peso_kg?: number;
   pesoStimato?: boolean;
   lat?: number;
@@ -110,4 +108,3 @@ export interface Trainer {
   /** FASE 4 — Punteggio Rispetto (0..100), rispecchiato qui per la classifica cloud. */
   respectScore?: number;
 }
-

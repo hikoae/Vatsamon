@@ -136,7 +136,7 @@ export function SeasonView({ onReward }: { onReward?: (coins: number, xp: number
       </div>
 
       {/* SUB-TABS */}
-      <div className="flex gap-1 bg-slate-950 border border-slate-850 rounded-2xl p-1 overflow-x-auto no-scrollbar">
+      <div className="grid grid-cols-3 gap-1 bg-slate-950 border border-slate-850 rounded-2xl p-1">
         {([
           ["notizie", tr(lang, "nav_notizie"), Newspaper],
           ["calendario", tr(lang, "nav_calendario"), CalendarDays],
@@ -148,7 +148,7 @@ export function SeasonView({ onReward }: { onReward?: (coins: number, xp: number
           <button
             key={id}
             onClick={() => setSub(id)}
-            className={`flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-xl text-[11px] font-mono font-black whitespace-nowrap transition-all flex-shrink-0 ${
+            className={`flex items-center justify-center gap-1 py-2.5 px-1 rounded-xl text-[10px] font-mono font-black whitespace-nowrap transition-all min-h-[40px] ${
               sub === id ? "bg-amber-500 text-[#0b0820]" : "text-slate-400 hover:bg-slate-900"
             }`}
           >
@@ -619,7 +619,7 @@ function NewsSection({ lang, todayISO, onGoCalendario, onGoTabellone }: {
       {/* sponsor (inventario vendibile) */}
       <div className="space-y-1.5">
         <div className="text-[9px] font-mono uppercase tracking-widest text-slate-500 px-1 flex items-center gap-1"><Megaphone className="w-3 h-3" /> {tr(lang, "news_spazioSponsor")}</div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+        <div className="grid grid-cols-1 gap-2">
           {SPONSOR_SLOTS.map((s) => (
             <div key={s.id} className="bg-slate-900/60 border border-dashed border-slate-700 rounded-xl p-3 text-center">
               <div className="text-[10px] font-mono uppercase tracking-widest text-amber-400">{lang === "fr" ? s.livelloFr : s.livello}</div>
@@ -652,7 +652,7 @@ function AlboSection({ lang }: { lang: Lang }) {
       </div>
 
       {/* leggende */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+      <div className="grid grid-cols-1 gap-2">
         {LEGGENDE.map((l) => {
           const cow = reinaByName(l.nome);
           return (
@@ -675,7 +675,7 @@ function AlboSection({ lang }: { lang: Lang }) {
             <span className="text-sm font-mono font-black text-slate-100">{anno}</span>
             <span className="text-[9px] font-mono text-slate-500">{tr(lang, "albo_finaleCN")}</span>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+          <div className="grid grid-cols-1 gap-2">
             {(["1", "2", "3"] as CategoriaId[]).map((catId) => {
               const h = ALBO_DORO.find((e) => e.anno === anno && e.cat === catId);
               const cat = CATEGORIES.find((c) => c.id === catId)!;

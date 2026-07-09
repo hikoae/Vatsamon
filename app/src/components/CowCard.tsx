@@ -185,7 +185,6 @@ export function CowCard({ cow }: { cow: Vatsamon }) {
           {cow.bornInStalla && <div>Nata in stalla: <b className="text-emerald-500">G{cow.generation ?? 1}</b></div>}
           {cow.fioriRossi && <div>🌹 <b className="text-rose-400">Reina di corne {cow.fioriRossi}</b></div>}
           {cow.fioriBianchi && <div>🤍 <b className="text-slate-100">Reine du lait {cow.fioriBianchi}</b></div>}
-          {cow.titoloMoudzons && <div>🐮 <b className="text-amber-500">Campionessa junior {cow.titoloMoudzons}</b></div>}
           {cow.valutazioneGiudice !== undefined && <div>Giudizio: <b className="text-slate-200">{cow.valutazioneGiudice}/100</b></div>}
         </div>
         <div className="text-[10px] font-mono text-amber-700/90 bg-amber-500/10 border border-amber-600/30 rounded-lg px-2 py-1">

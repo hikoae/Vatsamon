@@ -40,7 +40,7 @@ export function VatsadexView({
       <div className="space-y-6" id="vatsadex-tab-view">
 
         {/* Quick interactive Bell soundboard bar */}
-        <div className="bg-slate-950 border border-slate-850 rounded-3xl p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div className="bg-slate-950 border border-slate-850 rounded-3xl p-5 flex flex-col items-start justify-between gap-4">
           <div>
             <h2 className="text-xl font-mono font-black text-emerald-400 flex items-center gap-1.5 uppercase">
               <BookOpen className="w-5 h-5 text-emerald-500" />
@@ -49,16 +49,18 @@ export function VatsadexView({
             <p className="text-xs text-slate-400">Il tuo Vatsadex: le Reines che ti sono state affidate lungo il cammino.</p>
           </div>
 
-          <div
+          <button
+            type="button"
+            aria-label="Riproduci il Rintocco d'Onore"
             onClick={() => { playMoo(); playFanfare(); }}
-            className="bg-amber-500/10 hover:bg-amber-500/20 cursor-pointer border border-amber-500/20 rounded-2xl py-2 px-4 text-amber-300 flex items-center gap-2 transform active:scale-95 transition-all text-xs"
+            className="bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 rounded-2xl py-2 px-4 text-amber-300 flex items-center gap-2 transform active:scale-95 transition-all text-xs"
           >
             <span className="text-xl">🔔</span>
             <div className="text-left font-mono">
               <div className="font-black text-[9px] uppercase">Rintocco d'Onore</div>
               <div className="text-[10px] text-slate-400">Richiamo ornamentale vacca</div>
             </div>
-          </div>
+          </button>
         </div>
 
         {/* Avanzamento catalogo REALI (Batailles de Reines) */}
@@ -117,8 +119,8 @@ export function VatsadexView({
         <div className="bg-slate-950 border border-slate-850 rounded-3xl p-4 space-y-4">
 
           {/* Dynamic search / rarity ribbon controllers */}
-          <div className="flex flex-col sm:flex-row items-center gap-2.5">
-            <div className="relative w-full sm:flex-1">
+          <div className="flex flex-col items-center gap-2.5">
+            <div className="relative w-full">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
               <input
                 type="text"
@@ -129,12 +131,12 @@ export function VatsadexView({
               />
             </div>
 
-            <div className="flex gap-1 w-full sm:w-auto font-mono text-[10.5px]">
+            <div className="flex gap-1 w-full font-mono text-[10.5px]">
               {['All', 'Comune', 'Rara', 'Epica', 'Leggendaria'].map((rarity) => (
                 <button
                   key={rarity}
                   onClick={() => setRarityFilter(rarity)}
-                  className={`flex-1 sm:flex-none py-1.5 px-2.5 rounded-lg border font-bold transition-all whitespace-nowrap cursor-pointer ${rarityFilter === rarity ? 'bg-amber-500 border-amber-500 text-[#0b0820]' : 'bg-slate-900 border-slate-800 text-slate-400'}`}
+                  className={`flex-1 py-1.5 px-1 rounded-lg border font-bold transition-all whitespace-nowrap cursor-pointer min-h-[36px] ${rarityFilter === rarity ? 'bg-amber-500 border-amber-500 text-[#0b0820]' : 'bg-slate-900 border-slate-800 text-slate-400'}`}
                 >
                   {rarity}
                 </button>
@@ -148,7 +150,7 @@ export function VatsadexView({
               <p className="text-slate-500 text-xs font-mono">Nessuna Reina corrisponde ai criteri di ricerca.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 bg-slate-950" id="collection-grid">
+            <div className="grid grid-cols-2 gap-3 bg-slate-950" id="collection-grid">
               {collection
                 .filter(cow => {
                   const textMatch = cow.name.toLowerCase().includes(search.toLowerCase()) || cow.breed.toLowerCase().includes(search.toLowerCase());
@@ -163,10 +165,12 @@ export function VatsadexView({
                     cow.rarity === 'Rara' ? 'border-blue-500/40 hover:border-blue-400' : 'border-slate-850 hover:border-slate-700';
 
                   return (
-                    <div
+                    <button
+                      type="button"
+                      aria-label={`Apri la scheda di ${cow.name}`}
                       key={cow.id}
                       onClick={() => { playClick(); setSelected(cow); }}
-                      className={`relative bg-slate-900 border-2 rounded-2xl p-3 text-center cursor-pointer transition-all hover:-translate-y-1 overflow-hidden group shadow ${edgeColor}`}
+                      className={`relative w-full bg-slate-900 border-2 rounded-2xl p-3 text-center transition-all hover:-translate-y-1 overflow-hidden group shadow ${edgeColor}`}
                     >
                       {isActiveBuddy && (
                         <div className="absolute top-1.5 right-1.5 bg-rose-600 text-[10px] font-mono font-black text-white px-2 py-0.5 rounded-full uppercase shadow">
@@ -190,7 +194,7 @@ export function VatsadexView({
                         </span>
                       </div>
 
-                    </div>
+                    </button>
                   );
                 })}
             </div>

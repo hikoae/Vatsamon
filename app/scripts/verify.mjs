@@ -81,12 +81,55 @@ if (await trailChip.count()) {
   await page.waitForTimeout(400);
 } else problems.push("selettore sentieri assente");
 
-// GPS reale (geolocation mockata vicino a una bovina reale)
+// GPS: qualità del segnale, guida del percorso, checkpoint e stop senza persistenza.
 await page.locator("#gps-btn").click();
 await page.waitForTimeout(1200);
-const gpsActive = await page.locator("#gps-btn", { hasText: "GPS attivo" }).isVisible().catch(() => false);
-note(`GPS attivo: ${gpsActive}`);
+const gpsActive = await page.locator('#gps-btn[aria-pressed="true"]').isVisible().catch(() => false);
+const gpsPanel = await page.locator("#gps-explorer-panel").isVisible().catch(() => false);
+const gpsQuality = await page.locator("#gps-explorer-panel", { hasText: /(Posizione precisa|Segnale buono|Segnale approssimato)/ }).isVisible().catch(() => false);
+note(`GPS attivo: ${gpsActive} · guida: ${gpsPanel} · qualità: ${gpsQuality}`);
 if (!gpsActive) problems.push("GPS non si attiva");
+if (!gpsPanel || !gpsQuality) problems.push("pannello GPS con qualità del segnale assente");
+
+// L'arrivo è disponibile vicino alla tappa, resta segnato localmente e non
+// conserva coordinate. Un secondo contesto GPS, lontano dal tracciato, verifica
+// che lo stesso controllo impedisca i timbri fuori raggio.
+const checkpoint = page.locator("#gps-checkpoint-btn");
+const checkpointReady = await checkpoint.isEnabled().catch(() => false);
+note(`checkpoint vicino disponibile: ${checkpointReady}`);
+if (!checkpointReady) problems.push("checkpoint GPS non disponibile in prossimità");
+if (checkpointReady) {
+  await checkpoint.click();
+  await page.waitForTimeout(350);
+  const stamped = await page.locator("#gps-checkpoint-btn", { hasText: "Timbro già registrato" }).isVisible().catch(() => false);
+  note(`checkpoint timbrato: ${stamped}`);
+  if (!stamped) problems.push("timbro checkpoint GPS non confermato");
+}
+
+await page.locator("#gps-btn").click();
+await page.waitForTimeout(300);
+const gpsStopped = await page.locator('#gps-btn[aria-pressed="false"]').isVisible().catch(() => false);
+note(`GPS arrestato e posizione solo in memoria: ${gpsStopped}`);
+if (!gpsStopped) problems.push("GPS non si arresta in modo esplicito");
+
+const farCtx = await browser.newContext({
+  viewport: { width: vp.width, height: vp.height },
+  permissions: ["geolocation"],
+  geolocation: { latitude: 45.5800, longitude: 7.3600 },
+});
+const farPage = await farCtx.newPage();
+await farPage.addInitScript(() => {
+  localStorage.setItem("vatsamon_onboarded", JSON.stringify({ verify: true }));
+});
+await farPage.goto(APP_URL, { waitUntil: "domcontentloaded" });
+await farPage.waitForTimeout(700);
+await farPage.locator("#gps-btn").click();
+await farPage.waitForTimeout(800);
+const checkpointBlocked = await farPage.locator("#gps-checkpoint-btn").isDisabled().catch(() => true);
+const offRoute = await farPage.locator("#gps-explorer-panel", { hasText: "Fuori dal tracciato" }).isVisible().catch(() => false);
+note(`checkpoint lontano bloccato: ${checkpointBlocked} · avviso fuori percorso: ${offRoute}`);
+if (!checkpointBlocked || !offRoute) problems.push("GPS non blocca il checkpoint fuori percorso");
+await farCtx.close();
 await page.screenshot({ path: `${OUT}/v2int-2-gps.png` });
 
 // giro tab
@@ -185,43 +228,46 @@ if (await encounter.isVisible().catch(() => false)) {
 // ===== BATTAGLIE SULLA MAPPA (scena stile Pokémon) =====
 await clickTab(page, "Alpeggio");
 await page.waitForTimeout(500);
-// assicura GPS attivo (posizione vicino al Pastore)
-const gpsOnNow = await page.locator("#gps-btn", { hasText: "GPS attivo" }).isVisible().catch(() => false);
+// assicura GPS attivo (posizione mockata vicino al Pastore)
+const gpsOnNow = await page.locator('#gps-btn[aria-pressed="true"]').isVisible().catch(() => false);
 if (!gpsOnNow) { await page.locator("#gps-btn").click().catch(() => {}); await page.waitForTimeout(1000); }
+else await page.waitForTimeout(800);
 const nNear = await page.locator("#battle-nearby button").count();
 note(`pannello 'Sfide nei dintorni': ${nNear} combattenti`);
-const nearBtn = page.locator("#battle-nearby button:not([disabled])").first();
+const nearBtn = page.locator("#battle-nearby button", { hasText: "COMBATTI" }).first();
 if (await nearBtn.count()) {
   await nearBtn.click();
   await page.waitForTimeout(500);
   const sceneOpen = await page.locator("#battle-scene").isVisible().catch(() => false);
   note(`scena di battaglia aperta: ${sceneOpen}`);
   if (!sceneOpen) problems.push("la scena di battaglia non si apre dal pannello sfide");
-  // VIGILIA: porta una scorta nello Sac e compi il rito della limatura
-  await page.locator("[data-sac]").first().click().catch(() => {});
-  const startDisabledPrima = await page.locator("#battle-start").isDisabled().catch(() => false);
-  note(`vigilia: ingaggio bloccato prima della limatura: ${startDisabledPrima}`);
-  if (!startDisabledPrima) problems.push("la limatura delle corna non è obbligatoria");
-  await page.locator("#rito-limatura").click();
-  await page.waitForTimeout(250);
-  await page.locator("#battle-start").click().catch(() => {});
-  await page.waitForTimeout(500);
-  // il tell dell'avversaria (lettura dell'animale) deve essere visibile
-  const tellVisible = await page.locator("#battle-tell").isVisible().catch(() => false);
-  note(`tell dell'avversaria visibile: ${tellVisible}`);
-  if (!tellVisible) problems.push("manca il tell dell'avversaria nella Spinta");
-  let bGuard = 0;
-  while (bGuard++ < 80) {
-    const ended = await page.locator("#battle-scene .font-mono.font-black", { hasText: /si ritira/ }).first().isVisible().catch(() => false);
-    if (ended) break;
-    const mv = page.locator("#battle-moves button:not([disabled])").first();
-    if (await mv.count()) await mv.click().catch(() => {});
-    await page.waitForTimeout(350);
+  if (sceneOpen) {
+    // VIGILIA: porta una scorta nello Sac e compi il rito della limatura
+    await page.locator("[data-sac]").first().click().catch(() => {});
+    const startDisabledPrima = await page.locator("#battle-start").isDisabled().catch(() => false);
+    note(`vigilia: ingaggio bloccato prima della limatura: ${startDisabledPrima}`);
+    if (!startDisabledPrima) problems.push("la limatura delle corna non è obbligatoria");
+    await page.locator("#rito-limatura").click();
+    await page.waitForTimeout(250);
+    await page.locator("#battle-start").click().catch(() => {});
+    await page.waitForTimeout(500);
+    // il tell dell'avversaria (lettura dell'animale) deve essere visibile
+    const tellVisible = await page.locator("#battle-tell").isVisible().catch(() => false);
+    note(`tell dell'avversaria visibile: ${tellVisible}`);
+    if (!tellVisible) problems.push("manca il tell dell'avversaria nella Spinta");
+    let bGuard = 0;
+    while (bGuard++ < 80) {
+      const ended = await page.locator("#battle-scene .font-mono.font-black", { hasText: /si ritira/ }).first().isVisible().catch(() => false);
+      if (ended) break;
+      const mv = page.locator("#battle-moves button:not([disabled])").first();
+      if (await mv.count()) await mv.click().catch(() => {});
+      await page.waitForTimeout(350);
+    }
+    const bDone = await page.locator("#battle-scene").getByText(/si ritira/).first().isVisible().catch(() => false);
+    note(`battaglia sulla mappa conclusa: ${bDone}`);
+    if (!bDone) problems.push("la battaglia sulla mappa non si conclude");
+    await page.screenshot({ path: `${OUT}/v2int-7-battlescene.png` });
   }
-  const bDone = await page.locator("#battle-scene").getByText(/si ritira/).first().isVisible().catch(() => false);
-  note(`battaglia sulla mappa conclusa: ${bDone}`);
-  if (!bDone) problems.push("la battaglia sulla mappa non si conclude");
-  await page.screenshot({ path: `${OUT}/v2int-7-battlescene.png` });
 } else problems.push("nessuna sfida disponibile nel pannello 'Sfide nei dintorni'");
 
 if (errors.length) {

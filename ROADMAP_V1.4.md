@@ -196,14 +196,10 @@ verificato, niente invenzioni).
    bianchi, la più produttiva) della TUA mandria, si consolidano le Stelle di
    Pedigree. Riusa il motore di fase esistente. *(Fix incluso: "Reine des
    cornes" oggi è usata male come premio di finale.)*
-2. **Bataille des moudzons** — il torneo junior reale diventa il bracket per
-   i capi nati in Stalla: finalmente la genealogia ha un fine agonistico
-   (oggi il moudzon cresce e basta). Contenuto evergreen per la pausa
-   d'alpeggio (il neofita di giugno-luglio oggi trova la fase più morta).
-3. **Combats du samedi** — sfida settimanale amichevole a seed deterministico
+2. **Combats du samedi** — sfida settimanale amichevole a seed deterministico
    (statico), col nome vero del sabato pre-finale. Ricompensa: Denari + un
    fiore per il bosquet.
-4. **Il Bosquet** — colleziona i fiori alpini sui sentieri (già mappati) per
+3. **Il Bosquet** — colleziona i fiori alpini sui sentieri (già mappati) per
    comporre l'addobbo della tua Reina campionessa: craft leggero, zero
    valute nuove, lega trekking → tradizione.
 5. **Pronostici risolti coi risultati veri** — il commit JSON dei risultati
@@ -283,7 +279,6 @@ Ordine pensato per rischio/valore; ogni sprint termina con typecheck + build
 
 ### Sprint 3 — Stagione viva
 - Désarpa (evento annuale) + Reine des cornes/du lait di mandria.
-- Bataille des moudzons (bracket junior per i nati in stalla).
 - Combats du samedi (settimanale deterministico) + fiori/bosquet.
 - Classifiche read-only + carte-Leggenda nell'albo (dataset campionesse).
 

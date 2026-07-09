@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import L from 'leaflet';
 import {
   Mountain,
@@ -12,6 +12,7 @@ import {
   Sparkles,
   ShieldAlert,
   MapPin,
+  LocateFixed,
   X,
   RotateCw,
   Gift,
@@ -43,10 +44,11 @@ import { StallaScreen } from './components/StallaScreen';
 import { VatsadexView } from './components/VatsadexView';
 import { ScattaView } from './components/ScattaView';
 import { DailyPanel } from './components/DailyPanel';
+import { GpsExplorerPanel, type NearbyPlace } from './components/GpsExplorerPanel';
 import { soundEngine } from './utils/audio';
 import { generateVatsamonClient } from './lib/generate';
 import { REAL_COWS, REAL_CASERE } from './data/realCows';
-import { distanza, fmtDist, RAGGIO_CATTURA } from './lib/geo';
+import { abbinaPosizioneAPercorso, direzioneVerso, distanza, fmtDist, RAGGIO_CATTURA } from './lib/geo';
 import { gradoCorrente } from './data/gradi';
 import { faseCorrente } from './data/fase';
 import { oggiISO } from './lib/oggi';
@@ -59,7 +61,6 @@ import EliminatoireView, { EsitoTappa } from './components/EliminatoireView';
 import { tappe, tappaStato, STATO_LABEL, LS_ELIMINATOIRE, EliminatoireSave } from './data/eliminatoire';
 import { ArpPanel } from './components/ArpPanel';
 import { sbloccaParola, vociSbloccate, parolePatois, PATOIS_TRIGGERS, TOTALE_PAROLE } from './lib/patois';
-import MoudzonsView from './components/MoudzonsView';
 import LeggendeView from './components/LeggendeView';
 import { ArpState, ARP_VUOTO, LS_ARP, ARP_KG_PER_CURA, ARP_GIORNI_PER_FONTINA } from './data/arp';
 import { SeasonEvent } from './data/season';
@@ -68,6 +69,15 @@ import { SeasonEvent } from './data/season';
 // si salva l'id + le sole differenze, non l'intera scheda statica).
 const REAL_BY_ID = new Map(REAL_COWS.map(c => [c.id, c]));
 const BAG_BY_ID = new Map(DEFAULT_BAG.map(i => [i.id, i]));
+
+const GPS_ROUTE_TOLERANCE = 120;
+const GPS_CHECKPOINT_RANGE = 90;
+const BATTLE_RANGE = 800;
+const GPS_CHECKPOINT_MISSIONS = [
+  { title: 'Sosta sicura', detail: 'Raggiungi il punto, fermati in un luogo sicuro e scopri il timbro del sentiero.' },
+  { title: 'Sguardo sul paesaggio', detail: 'Osserva il paesaggio dal punto indicato: nessuna foto o azione è richiesta mentre cammini.' },
+  { title: 'Passo rispettoso', detail: 'Resta sul tracciato, lascia spazio alle mandrie e registra il tuo arrivo.' },
+] as const;
 
 // Fallback coordinate conversion for consistent SVG layout positioning
 export const getSvgCoords = (lat: number, lng: number) => {
@@ -192,6 +202,13 @@ export default function App() {
   });
   useEffect(() => { localStorage.setItem('vatsamon_completed_routes', JSON.stringify(completedRoutes)); }, [completedRoutes]);
 
+  // Checkpoint GPS: timbri locali per ogni percorso. La posizione non viene
+  // persistita: salviamo solo l'avanzamento scelto dall'utente.
+  const [gpsCheckpoints, setGpsCheckpoints] = useState<Record<string, number[]>>(() => {
+    try { return JSON.parse(localStorage.getItem('vatsamon_gps_checkpoints') || '{}'); } catch { return {}; }
+  });
+  useEffect(() => { localStorage.setItem('vatsamon_gps_checkpoints', JSON.stringify(gpsCheckpoints)); }, [gpsCheckpoints]);
+
   const [discoveredCows, setDiscoveredCows] = useState<string[]>(() => {
     try { return JSON.parse(localStorage.getItem('vatsamon_discovered_cows') || '[]'); } catch { return []; }
   });
@@ -298,14 +315,61 @@ export default function App() {
   // Posizione GPS reale o "demo" (tap sulla mappa); se null si segue il sentiero.
   const [gpsPos, setGpsPos] = useState<{ lat: number; lng: number } | null>(null);
   const [gpsOn, setGpsOn] = useState(false);
+  const [gpsState, setGpsState] = useState<'off' | 'requesting' | 'active' | 'error'>('off');
+  const [gpsAccuracy, setGpsAccuracy] = useState<number | null>(null);
+  const [gpsUpdatedAt, setGpsUpdatedAt] = useState<number | null>(null);
+  const [gpsIssue, setGpsIssue] = useState<string | null>(null);
   const gpsWatchRef = useRef<number | null>(null);
+  const gpsSessionRef = useRef(0);
 
   // Posizione effettiva del giocatore (GPS/demo se presente, altrimenti sentiero)
   const effLat = gpsPos ? gpsPos.lat : playerLat;
   const effLng = gpsPos ? gpsPos.lng : playerLng;
 
+  const gpsRouteMatch = useMemo(
+    () => gpsPos ? abbinaPosizioneAPercorso(gpsPos, activeTrail) : null,
+    [gpsPos, activeTrail],
+  );
+  const gpsTargetIndex = Math.min(safeWaypointIndex + 1, activeTrail.length - 1);
+  const gpsTarget = activeTrail[gpsTargetIndex] ?? currentWaypoint;
+  const gpsTargetDistance = distanza({ lat: effLat, lng: effLng }, gpsTarget);
+  const gpsDirection = direzioneVerso({ lat: effLat, lng: effLng }, gpsTarget);
+  // Il checkpoint è il punto del tracciato raggiunto davvero: usare solo la
+  // prossima tappa renderebbe impossibile timbrare un punto appena superato.
+  const gpsCheckpointIndex = gpsRouteMatch
+    ? Math.max(1, Math.min(
+      gpsRouteMatch.segmentIndex + (gpsRouteMatch.progress >= 0.9 ? 1 : 0),
+      activeTrail.length - 1,
+    ))
+    : gpsTargetIndex;
+  const gpsCheckpoint = activeTrail[gpsCheckpointIndex] ?? gpsTarget;
+  const gpsCheckpointDistance = distanza({ lat: effLat, lng: effLng }, gpsCheckpoint);
+  const claimedGpsCheckpoints = gpsCheckpoints[activeRouteId] ?? [];
+  const checkpointClaimed = claimedGpsCheckpoints.includes(gpsCheckpointIndex);
+  const checkpointReady = Boolean(gpsOn && gpsPos && gpsRouteMatch && gpsRouteMatch.distanceM <= GPS_ROUTE_TOLERANCE && gpsCheckpointDistance <= GPS_CHECKPOINT_RANGE);
+  const checkpointMission = GPS_CHECKPOINT_MISSIONS[gpsCheckpointIndex % GPS_CHECKPOINT_MISSIONS.length];
+
+  const nearbyGpsPlaces = useMemo<NearbyPlace[]>(() => {
+    const here = { lat: effLat, lng: effLng };
+    const captured = new Set(vatsadex.map(c => c.id));
+    const closestCow = REAL_COWS
+      .filter(c => !captured.has(c.id) && c.lat != null && c.lng != null)
+      .map(c => ({ cow: c, distanceM: distanza(here, { lat: c.lat!, lng: c.lng! }) }))
+      .sort((a, b) => a.distanceM - b.distanceM)[0];
+    const closestCasera = REAL_CASERE
+      .map(c => ({ casera: c, distanceM: distanza(here, c) }))
+      .sort((a, b) => a.distanceM - b.distanceM)[0];
+    const closestBattle = MAP_BATTLES
+      .map(b => ({ battle: b, distanceM: distanza(here, b) }))
+      .sort((a, b) => a.distanceM - b.distanceM)[0];
+    const places: NearbyPlace[] = [];
+    if (closestCow) places.push({ id: closestCow.cow.id, kind: 'Reina', label: closestCow.cow.name, detail: closestCow.cow.comune ?? 'Reina reale', distanceM: closestCow.distanceM, ready: closestCow.distanceM <= RAGGIO_CATTURA });
+    if (closestCasera) places.push({ id: closestCasera.casera.id, kind: 'Casera', label: closestCasera.casera.name, detail: closestCasera.casera.valley, distanceM: closestCasera.distanceM, ready: closestCasera.distanceM <= RAGGIO_CATTURA });
+    if (closestBattle) places.push({ id: closestBattle.battle.id, kind: 'Sfida', label: closestBattle.battle.name, detail: closestBattle.battle.subtitle, distanceM: closestBattle.distanceM, ready: trainer.level >= closestBattle.battle.reqLevel && closestBattle.distanceM <= BATTLE_RANGE });
+    return places;
+  }, [effLat, effLng, trainer.level, vatsadex]);
+
   // ---- Battaglie sulla mappa: ingaggio + ricompense ----
-  const BATTLE_RANGE = 800; // metri per poter sfidare un combattente
   const tryStartBattle = (mb: MapBattle) => {
     playClickSfx();
     if (vatsadex.length === 0) {
@@ -841,25 +905,102 @@ export default function App() {
   // GPS reale: attiva/disattiva il tracciamento della posizione vera
   const toggleGps = () => {
     playClickSfx();
-    if (gpsOn) {
+    if (gpsOn || gpsState === 'requesting') {
+      gpsSessionRef.current += 1;
       if (gpsWatchRef.current != null) navigator.geolocation.clearWatch(gpsWatchRef.current);
       gpsWatchRef.current = null;
       setGpsOn(false);
       setGpsPos(null);
+      setGpsState('off');
+      setGpsAccuracy(null);
+      setGpsUpdatedAt(null);
+      setGpsIssue(null);
+      setTrekkingFeed(prev => ['📍 GPS fermato: la posizione non viene più usata.', ...prev.slice(0, 8)]);
       return;
     }
     if (!navigator.geolocation) {
-      setTrekkingFeed(prev => ["⚠️ GPS non disponibile su questo dispositivo.", ...prev.slice(0, 8)]);
+      setGpsState('error');
+      setGpsIssue('Il dispositivo non espone la geolocalizzazione. Puoi continuare con la mappa e il cammino simulato.');
+      setTrekkingFeed(prev => ['⚠️ GPS non disponibile su questo dispositivo.', ...prev.slice(0, 8)]);
       return;
     }
-    setTrekkingFeed(prev => ["📡 Attivo il GPS reale…", ...prev.slice(0, 8)]);
+    setGpsState('requesting');
+    setGpsIssue(null);
+    setTrekkingFeed(prev => ['📡 Attivo il GPS reale: la posizione resta solo su questo dispositivo.', ...prev.slice(0, 8)]);
+    const session = gpsSessionRef.current + 1;
+    gpsSessionRef.current = session;
     gpsWatchRef.current = navigator.geolocation.watchPosition(
-      (pos) => { setGpsOn(true); setGpsPos({ lat: pos.coords.latitude, lng: pos.coords.longitude }); },
-      () => setTrekkingFeed(prev => ["⚠️ Permesso GPS negato: tocca la mappa per spostarti a mano.", ...prev.slice(0, 8)]),
+      (pos) => {
+        if (session !== gpsSessionRef.current) return;
+        const position = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        const match = abbinaPosizioneAPercorso(position, activeTrail);
+        setGpsOn(true);
+        setGpsState('active');
+        setGpsPos(position);
+        setGpsAccuracy(Number.isFinite(pos.coords.accuracy) ? pos.coords.accuracy : null);
+        setGpsUpdatedAt(Date.now());
+        if (match && match.distanceM <= GPS_ROUTE_TOLERANCE) {
+          setCurrentWaypointIndex(match.segmentIndex);
+          setWaypointProgress(match.progress);
+          setGpsIssue(null);
+        } else {
+          setGpsIssue('Sei fuori dal tracciato attivo: usa la bussola per rientrare senza scorciatoie.');
+        }
+      },
+      () => {
+        if (session !== gpsSessionRef.current) return;
+        if (gpsWatchRef.current != null) navigator.geolocation.clearWatch(gpsWatchRef.current);
+        gpsWatchRef.current = null;
+        setGpsOn(false);
+        setGpsState('error');
+        setGpsIssue('Permesso negato o segnale assente. Nessuna posizione è stata salvata.');
+        setTrekkingFeed(prev => ['⚠️ GPS non disponibile: puoi continuare con la mappa e il cammino simulato.', ...prev.slice(0, 8)]);
+      },
       { enableHighAccuracy: true, maximumAge: 5000 },
     );
   };
-  useEffect(() => () => { if (gpsWatchRef.current != null) navigator.geolocation.clearWatch(gpsWatchRef.current); }, []);
+
+  const centerGpsPosition = () => {
+    playClickSfx();
+    setMapMode('real');
+    setTimeout(() => {
+      leafletMapRef.current?.setView([effLat, effLng], Math.max(leafletMapRef.current.getZoom(), 15), { animate: true });
+    }, 120);
+  };
+
+  const registraCheckpointGps = () => {
+    playClickSfx();
+    if (!gpsOn || !gpsPos) {
+      setTrekkingFeed(prev => ['📍 Attiva il GPS e raggiungi la tappa per registrare il timbro.', ...prev.slice(0, 8)]);
+      return;
+    }
+    if (!gpsRouteMatch || gpsRouteMatch.distanceM > GPS_ROUTE_TOLERANCE || gpsCheckpointDistance > GPS_CHECKPOINT_RANGE) {
+      setTrekkingFeed(prev => ['🧭 Sei a ' + fmtDist(gpsCheckpointDistance) + ' dal checkpoint: resta sul sentiero e avvicìnati con calma.', ...prev.slice(0, 8)]);
+      return;
+    }
+    if (checkpointClaimed) return;
+
+    setGpsCheckpoints(prev => ({
+      ...prev,
+      [activeRouteId]: [...new Set([...(prev[activeRouteId] ?? []), gpsCheckpointIndex])],
+    }));
+    setTrainer(prev => ({ ...prev, coins: prev.coins + 15 }));
+    addTrainerXp(50);
+    setCurrentWaypointIndex(gpsCheckpointIndex);
+    setWaypointProgress(0);
+    setTrekkingFeed(prev => ['📍 Timbro registrato a ' + gpsCheckpoint.name + ': +15 🪙 · +50 XP · ' + checkpointMission.title + '.', ...prev.slice(0, 8)]);
+
+    if (gpsCheckpointIndex === activeTrail.length - 1 && !completedRoutes.includes(activeRouteId)) {
+      setCompletedRoutes(prev => prev.includes(activeRouteId) ? prev : [...prev, activeRouteId]);
+      setTrainer(prev => ({ ...prev, coins: prev.coins + 200, fontina: (prev.fontina ?? 0) + FONTINA_REWARD.percorsoCompletato }));
+      addTrainerXp(300);
+      setTrekkingFeed(prev => ['🏁 Percorso completato con i checkpoint GPS: +300 XP · +200 🪙 · +' + FONTINA_REWARD.percorsoCompletato + ' 🧀.', ...prev.slice(0, 8)]);
+    }
+  };
+  useEffect(() => () => {
+    gpsSessionRef.current += 1;
+    if (gpsWatchRef.current != null) navigator.geolocation.clearWatch(gpsWatchRef.current);
+  }, []);
 
   // La mappa vive dentro la cornice "telefono" a larghezza fissa: se la finestra
   // viene ridimensionata (es. desktop ↔ mobile, rotazione), forza Leaflet a
@@ -883,7 +1024,6 @@ export default function App() {
     try { return JSON.parse(localStorage.getItem(LS_ELIMINATOIRE) || '{}'); } catch { return {}; }
   });
   useEffect(() => { localStorage.setItem(LS_ELIMINATOIRE, JSON.stringify(tappeSave)); }, [tappeSave]);
-  const [showMoudzons, setShowMoudzons] = useState(false);
   const [showLeggende, setShowLeggende] = useState(false);
   // Leggende dell'albo già battute (cartoline storiche conquistate)
   const [leggendeBattute, setLeggendeBattute] = useState<string[]>(() => {
@@ -1688,7 +1828,7 @@ export default function App() {
       </div>
 
       {/* 🗺️ ACTIVE VIEW DISPLAY 🗺️ */}
-      <main className="flex-grow p-4 md:p-6 max-w-4xl w-full mx-auto" id="app-viewport">
+      <main className="flex-grow p-4 max-w-4xl w-full mx-auto" id="app-viewport">
         <div key={activeTab} className="view-in">
         
         {/* VIEW 1: INTERACTIVE MAP OVERWORLD */}
@@ -1704,7 +1844,7 @@ export default function App() {
                 <Compass className="w-4 h-4 text-emerald-400" />
                 Scegli il tuo cammino
               </h3>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <div className="grid grid-cols-1 gap-2">
                 {TREK_ROUTES.map((route) => {
                   const active = route.id === activeRouteId;
                   const t = ROUTE_TONE[route.accent] ?? ROUTE_TONE.emerald;
@@ -1714,19 +1854,19 @@ export default function App() {
                     <button
                       key={route.id}
                       onClick={() => selectRoute(route.id)}
-                      className={`relative text-left rounded-2xl border-2 p-3 transition-all overflow-hidden ${locked ? 'border-slate-800 bg-slate-900/60 opacity-70' : active ? `${t.border} ${t.bg}` : 'border-slate-800 bg-slate-900 hover:bg-slate-850'}`}
+                      className={`relative text-left rounded-2xl border-2 p-3.5 pr-24 transition-all overflow-hidden min-h-[118px] ${locked ? 'border-slate-800 bg-slate-900/60 opacity-70' : active ? `${t.border} ${t.bg}` : 'border-slate-800 bg-slate-900 hover:bg-slate-850'}`}
                     >
-                      <div className="flex items-center gap-2">
-                        <span className="text-2xl">{locked ? '🔒' : route.icon}</span>
+                      <div className="flex items-start gap-3">
+                        <span className="text-2xl leading-none pt-0.5">{locked ? '🔒' : route.icon}</span>
                         <div className="min-w-0">
-                          <div className={`text-[11px] font-mono font-black truncate ${active ? t.text : 'text-slate-200'}`}>{route.name}</div>
-                          <div className="text-[9px] font-mono text-slate-400">{route.difficulty} · {route.lengthKm} km · {route.coords.length} tappe</div>
+                          <div className={`text-sm font-mono font-black leading-snug ${active ? t.text : 'text-slate-200'}`}>{route.name}</div>
+                          <div className="text-xs font-mono text-slate-400 mt-0.5">{route.difficulty} · {route.lengthKm} km · {route.coords.length} tappe</div>
                         </div>
                       </div>
-                      <p className="text-[9px] text-slate-500 leading-snug mt-1.5 line-clamp-2">{route.description}</p>
-                      {locked && <span className="absolute top-2 right-2 text-[10px] font-mono font-black text-slate-400">🔒 Lv {route.reqLevel}</span>}
-                      {!locked && completed && <span className="absolute top-2 right-2 text-[10px] font-mono font-black text-emerald-500">✓ FATTO</span>}
-                      {!locked && !completed && active && <span className={`absolute top-2 right-2 text-[10px] font-mono font-black ${t.text}`}>● ATTIVO</span>}
+                      <p className="text-xs text-slate-500 leading-relaxed mt-2 line-clamp-2">{route.description}</p>
+                      {locked && <span className="absolute top-3 right-3 text-xs font-mono font-black text-slate-400">🔒 Lv {route.reqLevel}</span>}
+                      {!locked && completed && <span className="absolute top-3 right-3 text-xs font-mono font-black text-emerald-500">✓ FATTO</span>}
+                      {!locked && !completed && active && <span className={`absolute top-3 right-3 text-xs font-mono font-black ${t.text}`}>● ATTIVO</span>}
                     </button>
                   );
                 })}
@@ -1747,17 +1887,17 @@ export default function App() {
                       className={`w-full flex items-center gap-3 rounded-2xl border p-2.5 text-left transition-all ${locked ? 'opacity-50 border-slate-800 bg-slate-900/60' : inRange ? 'border-rose-700/50 bg-rose-950/30 hover:bg-rose-900/30' : 'border-slate-800 bg-slate-900 hover:bg-slate-850'}`}>
                       <span className="text-2xl">{locked ? '🔒' : mb.emoji}</span>
                       <div className="flex-grow min-w-0">
-                        <div className="text-[11px] font-mono font-black text-slate-100 truncate">{mb.name}</div>
-                        <div className="text-[9px] text-slate-400 truncate">{mb.subtitle}</div>
+                        <div className="text-sm font-mono font-black text-slate-100 truncate">{mb.name}</div>
+                        <div className="text-xs text-slate-400 truncate">{mb.subtitle}</div>
                       </div>
                       <div className="text-right flex-shrink-0">
-                        <div className="text-[9px] font-mono text-slate-400">{fmtDist(d)}</div>
-                        <div className={`text-[9px] font-mono font-black ${locked ? 'text-slate-500' : inRange ? 'text-rose-400' : 'text-amber-400'}`}>{locked ? `Lv ${mb.reqLevel}` : inRange ? '⚔️ COMBATTI' : 'avvicìnati'}</div>
+                        <div className="text-xs font-mono text-slate-400">{fmtDist(d)}</div>
+                        <div className={`text-xs font-mono font-black ${locked ? 'text-slate-500' : inRange ? 'text-rose-400' : 'text-amber-400'}`}>{locked ? `Lv ${mb.reqLevel}` : inRange ? '⚔️ COMBATTI' : 'avvicìnati'}</div>
                       </div>
                     </button>
                   );
                 })}
-              <p className="text-[9px] text-slate-500 text-center">Avvicìnati (≤ 800 m) a un combattente per sfidarlo. Cammina o usa il GPS.</p>
+              <p className="text-xs text-slate-500 text-center">Avvicìnati (≤ 800 m) a un combattente per sfidarlo. Cammina o usa il GPS.</p>
             </div>
 
             {/* LEGA DELLE REINES — dungeon endgame nei castelli (squadra di 4) */}
@@ -1775,25 +1915,25 @@ export default function App() {
                       className={`w-full flex items-center gap-3 rounded-2xl border p-2.5 text-left transition-all ${locked ? 'opacity-50 border-slate-800 bg-slate-900/60' : inRange ? 'border-purple-700/50 bg-purple-950/30 hover:bg-purple-900/30' : 'border-slate-800 bg-slate-900 hover:bg-slate-850'}`}>
                       <span className="text-2xl">{locked ? '🔒' : dg.emoji}</span>
                       <div className="flex-grow min-w-0">
-                        <div className="text-[11px] font-mono font-black text-slate-100 truncate">{dg.league} {cleared ? '✅' : ''}</div>
-                        <div className="text-[9px] text-slate-400 truncate">5 sfide · squadra di 4 · {dg.rewardCoins} 🪙</div>
+                        <div className="text-sm font-mono font-black text-slate-100 truncate">{dg.league} {cleared ? '✅' : ''}</div>
+                        <div className="text-xs text-slate-400 truncate">5 sfide · squadra di 4 · {dg.rewardCoins} 🪙</div>
                       </div>
                       <div className="text-right flex-shrink-0">
-                        <div className="text-[9px] font-mono text-slate-400">{fmtDist(d)}</div>
-                        <div className={`text-[9px] font-mono font-black ${locked ? 'text-slate-500' : inRange ? 'text-purple-400' : 'text-amber-400'}`}>{locked ? `Lv ${dg.reqLevel}` : inRange ? '🏰 ENTRA' : 'avvicìnati'}</div>
+                        <div className="text-xs font-mono text-slate-400">{fmtDist(d)}</div>
+                        <div className={`text-xs font-mono font-black ${locked ? 'text-slate-500' : inRange ? 'text-purple-400' : 'text-amber-400'}`}>{locked ? `Lv ${dg.reqLevel}` : inRange ? '🏰 ENTRA' : 'avvicìnati'}</div>
                       </div>
                     </button>
                   );
                 })}
-              <p className="text-[9px] text-slate-500 text-center">Endgame: 5 spinte di fila, il fiato si trascina. Ricompense rare.</p>
+              <p className="text-xs text-slate-500 text-center">Endgame: 5 spinte di fila, il fiato si trascina. Ricompense rare.</p>
             </div>
 
-            <div className="order-first bg-slate-950 rounded-3xl p-3 sm:p-5 border border-slate-850 relative overflow-hidden shadow-2xl">
+            <div className="bg-slate-950 rounded-3xl p-3 border border-slate-850 relative overflow-hidden shadow-2xl">
 
               {/* Overworld Title HUD */}
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4 z-10 relative border-b border-slate-900 pb-4">
+              <div className="flex flex-col items-start justify-between gap-3 mb-4 z-10 relative border-b border-slate-900 pb-4">
                 <div>
-                  <h2 className="text-xl font-mono font-black text-emerald-400 flex items-center gap-1.5 uppercase">
+                  <h2 className="text-lg font-mono font-black text-emerald-400 flex items-center gap-1.5 uppercase">
                     <Compass className="w-5 h-5 text-emerald-500" />
                     Sentiero d'Alta Quota
                   </h2>
@@ -1801,7 +1941,7 @@ export default function App() {
                 </div>
 
                 {/* Map Mode Toggle & Simulated Walk in flex */}
-                <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto">
+                <div className="flex flex-wrap items-center gap-2 w-full">
                   {/* Selector Segment */}
                   <div className="flex items-center gap-1 bg-slate-900 border border-slate-800 p-1 rounded-xl">
                     <button
@@ -1821,21 +1961,25 @@ export default function App() {
                   {/* Hike Button */}
                   <button
                     onClick={handleSimulatedWalk}
-                    className="bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-400 hover:to-green-400 text-[#0b0820] font-black text-xs py-2.5 px-4 rounded-xl shadow active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer border-b-2 border-emerald-700 ml-auto sm:ml-0"
+                    disabled={gpsOn || gpsState === 'requesting'}
+                    aria-label={gpsOn || gpsState === 'requesting' ? 'Il GPS sta aggiornando il percorso' : 'Cammina 500 metri in modalità simulata'}
+                    className="bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-400 hover:to-green-400 text-[#0b0820] font-black text-xs py-2.5 px-4 rounded-xl shadow active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer border-b-2 border-emerald-700 ml-auto"
                     id="simulate-walk-btn"
                   >
                     <Footprints className="w-4 h-4 fill-current animate-bounce" />
-                    CAMMINA 500m
+                    {gpsOn || gpsState === 'requesting' ? 'GPS guida il percorso' : 'CAMMINA 500m'}
                   </button>
 
                   {/* GPS reale */}
                   <button
                     onClick={toggleGps}
+                    aria-pressed={gpsOn || gpsState === 'requesting'}
+                    aria-label={gpsOn || gpsState === 'requesting' ? 'Ferma GPS' : 'Attiva GPS reale'}
                     className={`font-black text-xs py-2.5 px-4 rounded-xl shadow active:scale-95 transition-all flex items-center gap-1.5 border-b-2 ${gpsOn ? 'bg-blue-500 text-white border-blue-700' : 'bg-slate-900 text-slate-200 border-slate-800 hover:bg-slate-850'}`}
                     id="gps-btn"
                   >
-                    <MapPin className="w-4 h-4" />
-                    {gpsOn ? 'GPS attivo' : 'GPS reale'}
+                    <LocateFixed className="w-4 h-4" />
+                    {gpsOn || gpsState === 'requesting' ? 'Ferma GPS' : 'Attiva GPS'}
                   </button>
                 </div>
               </div>
@@ -1843,17 +1987,17 @@ export default function App() {
               {/* Conditional Map View Frame */}
               {mapMode === 'real' ? (
                 /* GEOGRAPHIC INTERACTIVE REAL MAP VIEW */
-                <div className="relative w-full h-[460px] sm:h-[540px] bg-slate-900 border-2 border-emerald-500/20 rounded-2xl overflow-hidden shadow-inner group z-0">
+                <div className="relative w-full h-[460px] bg-slate-900 border-2 border-emerald-500/20 rounded-2xl overflow-hidden shadow-inner group z-0">
                   <div ref={mapContainerRef} className="w-full h-full" id="real-gps-map" />
                   
                   {/* Overlay HUD status regarding current trekking location */}
                   <div className="absolute top-3 left-3 bg-slate-950/95 border border-slate-855 font-mono text-[9px] text-slate-200 px-3.5 py-2.5 rounded-2xl backdrop-blur-md shadow-2xl pointer-events-none z-35 max-w-[260px] space-y-1.5">
                     <span className="text-emerald-400 font-extrabold uppercase block tracking-wider flex items-center gap-1">
                       <MapPin className="w-3 h-3 text-emerald-500 animate-bounce" />
-                      Tappa Attuale
+                      {gpsOn ? 'Posizione GPS' : 'Tappa attuale'}
                     </span>
                     <div className="font-mono text-[11px] font-black text-slate-100 truncate">{currentWaypoint.name}</div>
-                    <div className="text-slate-400 text-[10px]">Coordinate: <span className="text-emerald-300 font-bold">{playerLat.toFixed(4)}°N, {playerLng.toFixed(4)}°E</span></div>
+                    <div className="text-slate-400 text-[10px]">Coordinate: <span className="text-emerald-300 font-bold">{effLat.toFixed(4)}°N, {effLng.toFixed(4)}°E</span></div>
                     
                     <div className="pt-1">
                       <div className="w-full bg-slate-900 rounded-full h-1 relative overflow-hidden">
@@ -1947,6 +2091,26 @@ export default function App() {
               )}
 
             </div>
+
+            <GpsExplorerPanel
+              gpsState={gpsState}
+              gpsAccuracy={gpsAccuracy}
+              gpsUpdatedAt={gpsUpdatedAt}
+              gpsIssue={gpsIssue}
+              nextName={gpsTarget.name}
+              nextDistanceM={gpsTargetDistance}
+              direction={gpsDirection}
+              routeDistanceM={gpsRouteMatch?.distanceM ?? null}
+              claimedCheckpoints={claimedGpsCheckpoints.length}
+              totalCheckpoints={activeTrail.length - 1}
+              checkpointReady={checkpointReady}
+              checkpointClaimed={checkpointClaimed}
+              checkpointMission={checkpointMission}
+              nearby={nearbyGpsPlaces}
+              onToggleGps={toggleGps}
+              onCenter={centerGpsPosition}
+              onCheckIn={registraCheckpointGps}
+            />
 
             {/* Overlay sentieri reali (disegna su Leaflet, non rende nulla nel DOM) */}
             <TrailOverlay map={mapInstance} trail={selectedTrail} />
@@ -2085,7 +2249,7 @@ export default function App() {
 
               {/* Spinning photo-disc graphics */}
               <div className="flex justify-center py-4">
-                <div className="relative w-40 h-40 rounded-full border-4 border-blue-400 flex items-center justify-center bg-slate-800 overflow-hidden shadow-inner cursor-pointer" onClick={handleSpinCasera}>
+                <button type="button" aria-label="Ruota il disco della casera" className="relative w-40 h-40 rounded-full border-4 border-blue-400 flex items-center justify-center bg-slate-800 overflow-hidden shadow-inner" onClick={handleSpinCasera}>
                   
                   {/* Photo representation in rotate transition frame */}
                   <div 
@@ -2099,7 +2263,7 @@ export default function App() {
                   </div>
 
                   <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent pointer-events-none"></div>
-                </div>
+                </button>
               </div>
 
               <div className="space-y-2">
@@ -2451,23 +2615,6 @@ export default function App() {
             onDesarpa={celebraDesarpa}
             playClick={playClickSfx}
           />
-          {(() => {
-            const giovani = disponibili.filter(c => c.bornInStalla && (c.stage === 'moudzon' || c.stage === 'manza'));
-            return giovani.length > 0 && (
-              <button
-                id="moudzons-entry"
-                onClick={() => { playClickSfx(); setShowMoudzons(true); }}
-                className="w-full bg-slate-950 border border-amber-700/40 rounded-2xl p-3 flex items-center gap-3 text-left hover:border-amber-500/60 transition-colors"
-              >
-                <span className="text-2xl" aria-hidden="true">🐮</span>
-                <div className="min-w-0 flex-grow">
-                  <div className="text-[12px] font-mono font-black text-amber-300 uppercase">Bataille des Moudzons</div>
-                  <div className="text-[10px] text-slate-400 truncate">Il torneo junior reale: fai debuttare i tuoi giovani ({giovani.length} pronti)</div>
-                </div>
-                <span className="text-slate-500 text-lg" aria-hidden="true">›</span>
-              </button>
-            );
-          })()}
           <StallaScreen
             collection={vatsadex}
             onBorn={(cow) => { setVatsadex(prev => [cow, ...prev]); impara('moudzon'); }}
@@ -2503,10 +2650,10 @@ export default function App() {
             <div id="fase-banner" className="rounded-2xl border border-[#c8102e]/40 p-3 flex items-center gap-3" style={{ background: "linear-gradient(90deg,#1a1626,#241a2e)" }}>
               <span className="text-3xl flex-shrink-0">{faseStato.emoji}</span>
               <div className="min-w-0 flex-grow">
-                <div className="text-[9px] font-mono uppercase tracking-widest text-amber-400">Fase · {faseStato.label}</div>
-                <div className="text-[10px] text-slate-300 leading-snug">{faseStato.nota}</div>
+                <div className="text-[10px] font-mono uppercase tracking-widest text-[#f6c873]">Fase · {faseStato.label}</div>
+                <div className="text-xs text-slate-900 leading-snug">{faseStato.nota}</div>
                 {faseStato.prossimo && (
-                  <div className="text-[9px] text-slate-400 mt-0.5">📍 Prossima: <b className="text-slate-200">{faseStato.prossimo.comune}</b> · {faseStato.prossimo.data}</div>
+                  <div className="text-[10px] text-slate-800 mt-0.5">📍 Prossima: <b className="text-slate-900">{faseStato.prossimo.comune}</b> · {faseStato.prossimo.data}</div>
                 )}
               </div>
               {faseStato.giorniAllaFinale >= 0 && (
@@ -2751,25 +2898,6 @@ export default function App() {
             }
           }}
           onClose={() => setShowLeggende(false)}
-          playClick={playClickSfx}
-        />
-      )}
-
-      {/* BATAILLE DES MOUDZONS — il debutto dei giovani nati in stalla */}
-      {showMoudzons && (
-        <MoudzonsView
-          giovani={disponibili.filter(c => c.bornInStalla && (c.stage === 'moudzon' || c.stage === 'manza'))}
-          respectScore={respectScore}
-          anno={oggiISO().slice(0, 4)}
-          onResult={(won, cowId) => {
-            if (won) {
-              const anno = oggiISO().slice(0, 4);
-              setVatsadex(prev => prev.map(c => c.id === cowId ? { ...c, titoloMoudzons: anno, vittorie: (c.vittorie ?? 0) + 1 } : c));
-              addTrainerXp(250);
-              setTrekkingFeed(prev => [`🐮 Bataille des Moudzons: la tua giovane si è fatta un nome! +250 XP`, ...prev.slice(0, 8)]);
-            }
-          }}
-          onClose={() => setShowMoudzons(false)}
           playClick={playClickSfx}
         />
       )}

@@ -78,6 +78,9 @@ catalogo "0/73" · scanner→cattura→presa (master ball) · **cattura reale en
 - ✅ Typecheck pulito (`tsc --noEmit`); cattura reale verificata end-to-end (ALLEGRA → 1/73).
 
 ## Limiti / decisioni note (rilevanti per il merge)
+- **Perimetro editoriale (09/07/2026):** il torneo giovanile esterno è escluso da
+  interfaccia, dati di gioco, roadmap e comunicazione. L'app resta focalizzata
+  esclusivamente sul circuito delle Batailles de Reines.
 - **`App.tsx` è un monolite da ~2580 righe**: difficile da unire file-per-file; il refactor in moduli è il prossimo lavoro pianificato.
 - **Scanner = simulato** (niente Gemini reale, niente server). Statico per scelta.
 - Le bovine reali sono sparse nei comuni: alcune lontane dal sentiero a 21 tappe di v2 (raggiungibili con GPS reale o tap-to-move).

@@ -173,7 +173,7 @@ export const GLOSSARIO: GlossarioVoce[] = [
   { chiave: "reine", it: "Regina", fr: "Reine", patois: "reina", def: "La mucca dominante che guida la mandria. Plurale: Reines." },
   { chiave: "reine_des_reines", it: "Regina delle Regine", fr: "Reine des Reines", patois: "reina di reine", def: "Titolo supremo: una per ciascuna delle 3 categorie, incoronata in finale." },
   { chiave: "bataille", it: "Combattimento", fr: "Bataille", patois: "bataille", def: "Lo scontro incruento tra due bovine, a colpi di corna." },
-  { chiave: "moudzon", it: "Manza / giovenca", fr: "Moudzon", patois: "modzon", def: "Giovane bovina femmina; la Bataille de moudzons è la categoria junior." },
+  { chiave: "moudzon", it: "Manza / giovenca", fr: "Moudzon", patois: "modzon", def: "Giovane bovina femmina." },
   { chiave: "inarpa", it: "Salita all'alpeggio", fr: "Inalpe", patois: "inarpa", def: "La monticazione: trasferimento delle mandrie ai pascoli estivi, a metà giugno." },
   { chiave: "desarpa", it: "Discesa dagli alpeggi", fr: "Désalpe", patois: "désarpa", def: "La smonticazione: ritorno dei bovini a valle, fine settembre (29/9, San Michele)." },
   { chiave: "alpeggio", it: "Alpeggio / pascolo estivo", fr: "Alpage", patois: "arp", def: "Pascolo d'alta quota (1500–2000+ m) occupato da giugno a fine settembre, legato alla Fontina DOP." },

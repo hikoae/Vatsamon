@@ -131,16 +131,16 @@ export function ScattaView({ onSighting, playClick }: {
                 <p className="text-[10px] text-slate-500 mt-0.5">JPEG, PNG. Verifica on-device: la foto resta sul telefono.</p>
               </div>
 
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-2 pt-2">
+              <div className="flex flex-col items-center justify-center gap-2 pt-2">
                 <button
                   onClick={startCamera}
-                  className="w-full sm:w-auto bg-[#10b981] hover:bg-emerald-400 text-[#0b0820] font-bold text-xs py-2.5 px-4 rounded-xl transition-colors cursor-pointer min-h-[44px]"
+                  className="w-full bg-[#10b981] hover:bg-emerald-400 text-[#0b0820] font-bold text-xs py-2.5 px-4 rounded-xl transition-colors cursor-pointer min-h-[44px]"
                 >
                   Usa la fotocamera
                 </button>
                 <button
                   onClick={() => { playClick(); fileInputRef.current?.click(); }}
-                  className="w-full sm:w-auto bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs py-2.5 px-4 rounded-xl transition-colors cursor-pointer min-h-[44px]"
+                  className="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs py-2.5 px-4 rounded-xl transition-colors cursor-pointer min-h-[44px]"
                 >
                   Carica una foto
                 </button>

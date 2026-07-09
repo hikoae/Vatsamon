@@ -117,17 +117,14 @@ bianchi, la più produttiva) = titoli di désarpa della mandria.
   e doppia premiazione DELLA TUA stagione: Reina di corne (più vittorie) e
   Reine du lait (più produzione all'arp) + consolidamento Stelle di Pedigree.
 
-## S3.6 — Moudzons + gravidanza-requisito
+## S3.6 — Crescita in stalla + gravidanza-requisito
 
-**Fatto**: Dossier §3 "Bataille des moudzons (manze/junior)" reale; §1
-requisito gravidanza ≥3 mesi (estive) / ≥4 mesi (autunnali). NB: il dossier
+**Fatto**: requisito gravidanza ≥3 mesi (estive) / ≥4 mesi (autunnali). NB: il dossier
 NON spiega il perché della regola → in gioco si enuncia la regola senza
 inventare motivazioni.
 
-- **Torneo junior** per i nati in stalla (stadi moudzon/manza): bracket
-  dedicato, Spinta ricalibrata (meno massa, più volontà), il vincitore "si fa
-  un nome" (bonus prestigio al debutto da adulta). Fix: i moudzon non possono
-  più fare da madri in stalla (bug attuale).
+- **Crescita per stadi** dei capi nati in stalla: i giovani maturano fino a
+  Reina adulta e non possono fare da madri prima dell'età prevista.
 - **Gravidanza per-capo** (via singleton): più gravidanze parallele; una Reina
   con gravidanza ≥ soglia della fase è iscrivibile ai tornei ufficiali. I
   Pastori sulla mappa restano allenamento libero. Messaggio del veterinario
@@ -155,7 +152,7 @@ I profili IA sono dichiarati come interpretazione di gioco, non come fatto.
 ## STATO (02/07/2026)
 
 S3.1 ✅ combat tell+counter+peso · S3.2 ✅ stadera · S3.3 ✅ sac/vigilia/bottega
-· S3.4 ✅ éliminatoire · S3.5 ✅ arp/désarpa · S3.6 ✅ moudzons+gravidanza ·
+· S3.4 ✅ éliminatoire · S3.5 ✅ arp/désarpa · S3.6 ✅ crescita+gravidanza ·
 S3.7 ✅ patois giocato · S3.8 ✅ Albo delle Leggende (Falchetta/Sirène/
 Suisse + cartoline storiche) · icone PWA col monogramma araldico ✅.
 V1.5 COMPLETA. Ogni sprint: suite Playwright verde + E2E dedicato.

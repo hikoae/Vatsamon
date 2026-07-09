@@ -202,7 +202,7 @@ export function StallaScreen({ collection, onBorn, onUpdateCow, onReward, playCl
             {madri.length === 0 ? (
               <p className="text-[10px] font-mono text-slate-500">Nessuna Reina disponibile: cattura o fatti affidare una Reina per iniziare l'allevamento.</p>
             ) : (
-              <div className="grid grid-cols-3 sm:grid-cols-4 gap-1.5 max-h-44 overflow-y-auto no-scrollbar">
+              <div className="grid grid-cols-3 gap-1.5 max-h-44 overflow-y-auto no-scrollbar">
                 {madri.map((c) => (
                   <button
                     key={c.id}

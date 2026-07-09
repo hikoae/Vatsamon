@@ -382,3 +382,38 @@ h1, h2, .font-display {
   .aurora-bg { animation: none; filter: blur(26px) saturate(1); }
   .holo-sheen, .pulse-glow, .sparkle { animation: none; }
 }
+
+/* ============================================================
+   LEGGIBILITÀ E CONTRASTO — polish mobile (2026-07)
+   La cornice dell'app rimane intenzionalmente stretta anche su tablet e
+   desktop; i dettagli non devono quindi diventare microscopici quando il
+   viewport supera i breakpoint Tailwind. I valori qui sotto riguardano
+   solo micro-label e testi di supporto, non titoli o indicatori di mappa.
+   ============================================================ */
+#vatsamon-go-app [class~="text-[9px]"],
+#vatsamon-go-app [class~="text-[9.5px]"] {
+  font-size: 0.6875rem;
+  line-height: 1.35;
+}
+
+#vatsamon-go-app [class~="text-[10px]"],
+#vatsamon-go-app [class~="text-[10.5px]"] {
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+
+/* Le tonalità decorative originarie non superavano WCAG AA su carta/lavanda.
+   Si scuriscono solo quando sono usate come testo: i colori di sfondo dei CTA
+   restano invariati. */
+#vatsamon-go-app .text-emerald-400 { color: #087a55; }
+#vatsamon-go-app .text-emerald-500 { color: #066b49; }
+#vatsamon-go-app .text-amber-300,
+#vatsamon-go-app .text-amber-400,
+#vatsamon-go-app .text-amber-500 { color: #7a4700; }
+#vatsamon-go-app .text-sky-300,
+#vatsamon-go-app .text-sky-400 { color: #176b9c; }
+#vatsamon-go-app .text-blue-300,
+#vatsamon-go-app .text-blue-400 { color: #245aa5; }
+#vatsamon-go-app .text-purple-300,
+#vatsamon-go-app .text-purple-400 { color: #6a2aa6; }
+#vatsamon-go-app .text-yellow-400 { color: #705300; }

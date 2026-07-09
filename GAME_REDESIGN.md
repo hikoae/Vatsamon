@@ -183,7 +183,7 @@ contesa governata da 3 leve reali: **massa/peso**, **corna (a corna limate)**, *
   fiori rossi), non premio di finale; aggiungere il gemello **"Reine du lait"**.
 - **Fix critica (media):** il combattimento (core fantasy) **non** è gateato dietro il quiz
   etico; la Fiducia gatea solo **prestigio**.
-- I "castelli/dungeon" → **Combats du samedi / Bataille des moudzons** (sfide amichevoli),
+- I "castelli/dungeon" → **Combats du samedi** (sfide amichevoli),
   non boss fantasy inventati.
 
 **Fattibilità:** tutto statico (riscrive `lib/battle.ts`/`combat.ts`, adatta `BattleScene`;
@@ -213,7 +213,7 @@ roulette da 30s), **geofence-gara** come eventi a tempo legati al calendario, an
   (incruento).
 - **Season Pass = tracciato della stagione** agganciato al CALENDAR. **Fix critica (media):
   capitoli recuperabili** (chi entra a metà stagione non trova un guscio vuoto) e contenuto
-  **agonistico evergreen durante la pausa** (Bataille des moudzons/allenamento), perché oggi
+  **agonistico evergreen durante la pausa** (allenamento), perché oggi
   (28/6) un neofita capita nella fase più morta.
 - **Endgame = Désarpa + Albo d'Onore**: a fine stagione consolidi i risultati, ottieni
   **Stelle di Pedigree** (+2% permanente cad., cap +30%), riparti col ciclo annuale.
