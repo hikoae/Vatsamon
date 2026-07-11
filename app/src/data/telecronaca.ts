@@ -55,12 +55,13 @@ const SPECIALI: Record<string, string[]> = {
     "Un boato dalla piazza: qualcuno giura di aver sentito la suocera approvare.",
     "«Quella spinta lì ha una storia dietro. Meglio non chiedere quale.»",
   ],
-  "testata-termonucleare": [
-    "«L'hanno sentita fino a Pont-Saint-Martin. Il sismografo di Aosta chiede scusa.»",
-    "«La chiamano Termonucleare, ma è solo una spinta. Una spinta MOLTO convinta.»",
+  "spinta-slavina": [
+    "«L'hanno sentita fino a Pont-Saint-Martin. Una slavina regolamentare, signori: nessuna si è fatta male, ma che slavina.»",
+    "«Quando parte la Slavina non si discute: si prende nota e ci si sposta.»",
   ],
-  "sciopero-zoccolo": [
-    "«Sciopero generale degli zoccoli: la vertenza è in corso, il terreno pure.»",
+  "fortezza-di-bard": [
+    "«Il Forte di Bard, versione bovina. Napoleone, se ci ascolti: prendi nota.»",
+    "«Due settimane aspettò l'imperatore. L'avversaria, a occhio, non ne ha.»",
   ],
   "piroetta-genepy": [
     "«Che giro, signori. Il pastore ha già stappato il genepy per la commozione.»",
@@ -71,8 +72,8 @@ const SPECIALI: Record<string, string[]> = {
   "concerto-campanacci": [
     "«Tutta la valle suona. Persino le campane della parrocchia tengono il tempo.»",
   ],
-  "muggito-apocalisse": [
-    "«Quel muggito, signori. Nel '94 fece scendere la nebbia. Dicono. Nessuno smentisce.»",
+  "muggito-gransanbernardo": [
+    "«Quel muggito ha passato il colle, signori. I cani del Gran San Bernardo hanno risposto: presente.»",
   ],
   "finta-del-casaro": [
     "«Ha finto di andare alla fontina. Ci sarei cascato anch'io, per la fontina.»",

@@ -40,8 +40,8 @@ già in battaglia (`lib/tutorial.ts` MEME_TIPS): estendere il pattern fuori.
 Estensione di `data/trofei.ts`:
 - «La Nuora Perfetta» — vinci con l'Incornata della Suocera in una tappa ufficiale
 - «Diplomata in Diplomazia» — 5 vittorie con la Testata Diplomatica
-- «Zen d'Alpeggio» — 10 Ruminazioni Zen
-- «Sindacalista» — 3 rimonte con lo Sciopero dello Zoccolo
+- «Flemma d'Alpeggio» — 10 Flemme del Ghiacciaio
+- «Napoleone Respinto» — 3 rimonte con la Fortezza di Bard
 I requisiti insegnano le meccaniche vere (categorie, condotta, calma).
 
 ## 6. Indole visibile e raccontata

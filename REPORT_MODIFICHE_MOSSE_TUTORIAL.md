@@ -42,11 +42,11 @@ Diagnosi sul codice/storia del repo:
 | D6 | **Tutorial attivato SOLO da Onboarding.finish()** (`vatsamon_tutorial.pending`) | Auto-avvio per chiunque non abbia il flag | Salvataggi esistenti e Playwright verify (che pre-scrive `vatsamon_onboarded`) restano intatti |
 | D7 | **Incruento non negoziabile**: ogni «testata» è una spinta a corna limate; commento in testa a `mosse.ts`; il rito della limatura resta obbligatorio ovunque | — | Paletto di GAME_REDESIGN.md:20 |
 | D8 | Il tell forzato del tutorial usa `forzaIntento()` esportato dal motore | Duplicare la logica dei TELLS nel componente | I TELLS restano privati e coerenti |
+| D9 | **Rinomina in chiave VdA** (2ª iterazione, su richiesta): i nomi troppo assurdi diventano comici-ma-valdostani — Testata Termonucleare → ❄️ Spinta della Slavina, Muggito dell'Apocalisse → 🐕 Muggito del Gran San Bernardo, Ruminazione Zen → 🧊 Flemma del Ghiacciaio, Sciopero dello Zoccolo → 🏰 Fortezza di Bard (Napoleone 1800, fatto vero), Valzer del Mercato → 🎠 Valzer di Sant'Orso | Tenere i nomi demenziali originali | L'umorismo resta, ma radicato nel territorio/storia (Bard, Sant'Orso, Gran San Bernardo = agganci educativi); Suocera e Föhn Furioso restano (registro da piazza / vento alpino vero). Solo nomi/desc/id: meccanica e bilanciamento invariati |
 
-Nota su D1/D7: «Testata Termonucleare» e «Muggito dell'Apocalisse» hanno desc
-riscritte per essere iperboli evidenti e non-violente («Nessuna si fa male: è
-la piazza che trema», «Il muggito che nel '94 fece scendere la nebbia.
-Dicono.»).
+Nota su D1/D7/D9: le desc delle leggendarie restano iperboli evidenti e
+non-violente («Nessuna si fa male: è la piazza che trema», «Lo sentirono su
+al colle. I cani risposero.»).
 
 ## 3. Cosa è cambiato — Fase A (mosse + spiegazioni)
 
@@ -108,12 +108,13 @@ gioco reale.
 2. **Imprese** (i 4 UI raccolgono `SpintaStats` e le passano a
    `onResult`/`onFinish`/`onWin` come parametro opzionale in coda → nessun
    call-site esterno rotto): mai sotto barra 50 → Muro di Stalla; rimonta da
-   ≤20 → Sciopero dello Zoccolo; vittoria per fiato → Pisolino; ≥3 incoraggia
+   ≤20 → Fortezza di Bard; vittoria per fiato → Pisolino; ≥3 incoraggia
    → Muggito della Mandria; ≥3 gira → Finta del Casaro; giudizio di condotta
    → Quintale Fermo; tappa → Testata Diplomatica; finale Croix-Noire → +Föhn
-   Furioso; Lega → Concerto di Campanacci; Leggende → Apocalisse poi
-   Termonucleare; 3 cure all'arp → Ruminazione Zen; Reina di corne →
-   Sguardo Regale. Ogni mossa guadagnata finisce anche nel catalogo globale.
+   Furioso; Lega → Concerto di Campanacci; Leggende → Muggito del Gran San
+   Bernardo poi Spinta della Slavina; 3 cure all'arp → Flemma del Ghiacciaio;
+   Reina di corne → Sguardo Regale. Ogni mossa guadagnata finisce anche nel
+   catalogo globale.
 3. **Eredità** (`breeding.ts` → `birthCalf`): il moudzon nasce con 1 mossa
    non-base della madre (`mosseApprese`), citata nel lore.
 4. **Mémé insegna**: dal catalogo globale (`vatsamon_scuola`, aggiunto a

@@ -420,7 +420,7 @@ export default function App() {
     const giorni = capo.giorniCura + 1;
     setArpState(prev => ({ ...prev, capi: { ...prev.capi, [cowId]: { ...capo, ultimaCura: oggi, giorniCura: giorni } } }));
     setVatsadex(prev => prev.map(c => c.id === cowId ? { ...c, peso_kg: Math.min(750, (c.peso_kg ?? 550) + ARP_KG_PER_CURA) } : c));
-    if (giorni === 3) insegnaAllaReina(cowId, ['ruminazione-zen']);
+    if (giorni === 3) insegnaAllaReina(cowId, ['flemma-ghiacciaio']);
     addTrainerXp(15);
     if (giorni % ARP_GIORNI_PER_FONTINA === 0) { guadagnaFontina(1, "l'alpe ha reso una forma"); impara('alpeggio'); }
     else setTrekkingFeed(prev => [`🌿 Cura all'arp: +${ARP_KG_PER_CURA} kg. L'erba d'alta quota fa la stazza.`, ...prev.slice(0, 8)]);

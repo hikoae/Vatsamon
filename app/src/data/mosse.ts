@@ -65,9 +65,9 @@ export const MOSSE: Record<string, Mossa> = {
     mods: { spintaMult: 1.5, fiatoDelta: -10 },
     usiMax: 2, requisiti: { calmaMin: 40 },
   }),
-  "testata-termonucleare": M({
-    id: "testata-termonucleare", famiglia: "incalza", nome: "Testata Termonucleare", emoji: "💥", rarita: "leggendaria",
-    desc: "La spinta che si racconta ancora a veglia. Nessuna si fa male: è la piazza che trema.",
+  "spinta-slavina": M({
+    id: "spinta-slavina", famiglia: "incalza", nome: "Spinta della Slavina", emoji: "❄️", rarita: "leggendaria",
+    desc: "Quando parte, non si discute: ci si sposta. Nessuna si fa male: è la piazza che trema.",
     comeFunziona: "Spinta doppia, ma −18 fiato e −10 calma extra. 1 uso per spinta, serve fiato ≥ 50.",
     mods: { spintaMult: 2.0, fiatoDelta: -18, calmaDelta: -10 },
     usiMax: 1, requisiti: { fiatoMin: 50 },
@@ -100,9 +100,9 @@ export const MOSSE: Record<string, Mossa> = {
     comeFunziona: "Reggi riposante: +4 fiato e +4 calma extra, ma rimbalzo ridotto (2.0).",
     mods: { fiatoDelta: 4, calmaDelta: 4, reggiRimbalzo: 2.0 },
   }),
-  "sciopero-zoccolo": M({
-    id: "sciopero-zoccolo", famiglia: "reggi", nome: "Sciopero dello Zoccolo", emoji: "🪧", rarita: "speciale",
-    desc: "La Reina proclama lo sciopero generale: da qui non si muove nessuno.",
+  "fortezza-di-bard": M({
+    id: "fortezza-di-bard", famiglia: "reggi", nome: "Fortezza di Bard", emoji: "🏰", rarita: "speciale",
+    desc: "Napoleone aspettò due settimane davanti al Forte. Puoi aspettare anche tu.",
     comeFunziona: "Muro quasi totale (assorbe l'85%, rimbalzo +5). Solo quando sei in svantaggio (barra ≤ 45). Max 2 usi per spinta.",
     mods: { reggiAssorbi: 0.15, reggiRimbalzo: 5 },
     usiMax: 2, requisiti: { barraMax: 45 },
@@ -115,9 +115,9 @@ export const MOSSE: Record<string, Mossa> = {
     comeFunziona: "Gira standard: aggira chi regge, punita dall'incalzata frontale. Fiato −13.",
     mods: {},
   }),
-  "valzer-del-mercato": M({
-    id: "valzer-del-mercato", famiglia: "gira", nome: "Valzer del Mercato", emoji: "💃", rarita: "comune",
-    desc: "Due passi di lato, un inchino, e l'avversaria saluta il vuoto.",
+  "valzer-di-santorso": M({
+    id: "valzer-di-santorso", famiglia: "gira", nome: "Valzer di Sant'Orso", emoji: "🎠", rarita: "comune",
+    desc: "Due passi di lato, un inchino, e l'avversaria compra il vuoto. Mille anni di fiera insegnano.",
     comeFunziona: "Leva +20%, ma costa 3 calma in più.",
     mods: { spintaMult: 1.2, calmaDelta: -3 },
   }),
@@ -151,9 +151,9 @@ export const MOSSE: Record<string, Mossa> = {
     mods: {},
     glossarioKey: "razza_valdostana",
   }),
-  "ruminazione-zen": M({
-    id: "ruminazione-zen", famiglia: "incoraggia", nome: "Ruminazione Zen", emoji: "🧘", rarita: "comune",
-    desc: "Lei rumina. Il mondo può attendere.",
+  "flemma-ghiacciaio": M({
+    id: "flemma-ghiacciaio", famiglia: "incoraggia", nome: "Flemma del Ghiacciaio", emoji: "🧊", rarita: "comune",
+    desc: "Lei rumina. Il Miage si muove più in fretta. Forse.",
     comeFunziona: "Recupero mentale: +6 calma extra, −4 fiato recuperato.",
     mods: { calmaDelta: 6, fiatoDelta: -4 },
   }),
@@ -177,9 +177,9 @@ export const MOSSE: Record<string, Mossa> = {
     mods: { recuperoMult: 2, barraCost: 0 },
     usiMax: 1,
   }),
-  "muggito-apocalisse": M({
-    id: "muggito-apocalisse", famiglia: "incoraggia", nome: "Muggito dell'Apocalisse", emoji: "🔱", rarita: "leggendaria",
-    desc: "Il muggito che nel '94 fece scendere la nebbia. Dicono.",
+  "muggito-gransanbernardo": M({
+    id: "muggito-gransanbernardo", famiglia: "incoraggia", nome: "Muggito del Gran San Bernardo", emoji: "🐕", rarita: "leggendaria",
+    desc: "Lo sentirono su al colle. I cani risposero.",
     comeFunziona: "L'avversaria perde 18 calma (agitata spinge il 25% in meno); tu recuperi senza cedere barra. 1 uso, dal turno 6.",
     mods: { calmaAvv: 18, barraCost: 0 },
     usiMax: 1, requisiti: { turnoMin: 6 },

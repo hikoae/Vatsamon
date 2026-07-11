@@ -87,7 +87,7 @@ export function valutaImprese(stats: SpintaStats | undefined, contesto: Contesto
   const ids: string[] = [];
   if (stats) {
     if (stats.minBarra >= 50) ids.push("muro-di-stalla");
-    if (stats.minBarra <= 20) ids.push("sciopero-zoccolo");
+    if (stats.minBarra <= 20) ids.push("fortezza-di-bard");
     if (stats.vittoriaPerFiato) ids.push("pisolino-pascolo");
     if (stats.perFamiglia.incoraggia >= 3) ids.push("muggito-mandria");
     if (stats.perFamiglia.gira >= 3) ids.push("finta-del-casaro");
@@ -98,8 +98,8 @@ export function valutaImprese(stats: SpintaStats | undefined, contesto: Contesto
     case "finale": ids.push("testata-diplomatica", "fohn-furioso"); break;
     case "dungeon": ids.push("concerto-campanacci"); break;
     case "leggenda":
-      ids.push(scuolaState().sbloccateGlobali.includes("muggito-apocalisse")
-        ? "testata-termonucleare" : "muggito-apocalisse");
+      ids.push(scuolaState().sbloccateGlobali.includes("muggito-gransanbernardo")
+        ? "spinta-slavina" : "muggito-gransanbernardo");
       break;
     case "battle": break;
   }
@@ -122,9 +122,9 @@ export const COSTO_MEME: Record<Mossa["rarita"], number> = {
 /** Come si impara ogni mossa (mostrato in silhouette nel MosseEditor). */
 export const MOSSE_TRIGGERS: Record<string, string> = {
   "spinta-polenta": "con la Razione d'Alpeggio (liv. 3/5, se l'incalzo è nelle sue corde)",
-  "valzer-del-mercato": "con la Razione d'Alpeggio (liv. 3/5, se il gira è nelle sue corde)",
+  "valzer-di-santorso": "con la Razione d'Alpeggio (liv. 3/5, se il gira è nelle sue corde)",
   "muro-di-stalla": "vincendo senza mai scendere sotto barra 50 (o Razione, liv. 3/5)",
-  "ruminazione-zen": "con 3 giorni di cura all'arp (o Razione, liv. 3/5)",
+  "flemma-ghiacciaio": "con 3 giorni di cura all'arp (o Razione, liv. 3/5)",
   "testata-diplomatica": "vincendo una tappa dell'Éliminatoire",
   "sguardo-regale": "con una Reina di corne alla Désarpa",
   "quintale-fermo": "vincendo al giudizio di condotta (16 azioni)",
@@ -133,9 +133,9 @@ export const MOSSE_TRIGGERS: Record<string, string> = {
   "muggito-mandria": "vincendo con almeno 3 incoraggiamenti",
   "incornata-suocera": "con la Razione d'Alpeggio (liv. 8)",
   "piroetta-genepy": "con la Razione d'Alpeggio (liv. 12)",
-  "sciopero-zoccolo": "vincendo in rimonta da barra ≤ 20",
+  "fortezza-di-bard": "vincendo in rimonta da barra ≤ 20",
   "concerto-campanacci": "conquistando una Lega delle Reines",
-  "muggito-apocalisse": "battendo una Leggenda dell'albo d'oro",
-  "testata-termonucleare": "battendo una seconda Leggenda dell'albo d'oro",
+  "muggito-gransanbernardo": "battendo una Leggenda dell'albo d'oro",
+  "spinta-slavina": "battendo una seconda Leggenda dell'albo d'oro",
   "fohn-furioso": "vincendo la finale della Croix-Noire",
 };
