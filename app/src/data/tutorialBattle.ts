@@ -57,8 +57,11 @@ export interface TutorialStep {
  * ATTENZIONE alla coerenza tell/stance: la contromossa del giocatore al passo
  * N si risolve contro la STANCE avversaria (= la sua azione del passo N−1),
  * mentre il tell del passo N annuncia l'azione che lei eseguirà DOPO.
- * Sequenza: Incalza → Reggi (lei si spegne sul muro) → Incoraggia (lei si
- * pianta) → Gira (aggiri la postura piantata) → gioco libero.
+ * Sequenza: Incalza → Reggi (lei si spegne sul muro) → Reggi-bis (piantarsi
+ * ristora, e intanto LEI si pianta) → Incoraggia (recupero PIENO: la sua
+ * stance è reggi, non sta attaccando) → Gira (aggiri la postura piantata) →
+ * gioco libero. Il passo cuscinetto garantisce che «recupero pieno se
+ * l'avversaria non attacca» sia VERO nel motore (stance ≠ incalza/gira).
  */
 export const TUTORIAL_SCRIPT: TutorialStep[] = [
   {
@@ -72,12 +75,17 @@ export const TUTORIAL_SCRIPT: TutorialStep[] = [
     intentoAvversaria: "incalza",
   },
   {
-    memeText: "Vista? La sua spinta s'è spenta sul tuo muro. Ora si pianta anche lei — e tu RESPIRA: incoraggia la tua Reina. Il fiato è tutto: recupero pieno se l'avversaria non attacca.",
+    memeText: "Vista? S'è spenta sul tuo muro, e ora si pianta per riprendersi. Fallo anche tu: REGGI ancora — piantarsi RISTORA, fiato e calma.",
+    famiglieAbilitate: ["reggi"],
+    intentoAvversaria: "reggi",
+  },
+  {
+    memeText: "Adesso è piantata e non attacca: il momento giusto per RESPIRARE. Incoraggia la tua Reina: recupero pieno se l'avversaria non attacca — e ora non attacca.",
     famiglieAbilitate: ["incoraggia"],
     intentoAvversaria: "reggi",
   },
   {
-    memeText: "S'è piantata come un larice, e adesso rifiata. Contro un muro non si spinge: ci si GIRA attorno, di leno. Cerca il fianco.",
+    memeText: "Sempre piantata, come un larice. E contro un muro non si spinge: ci si GIRA attorno, di leno. Cerca il fianco.",
     famiglieAbilitate: ["gira"],
     intentoAvversaria: "incoraggia",
   },

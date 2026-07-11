@@ -11,7 +11,7 @@ import {
 import { SAC_ITEMS, MAX_VIGILIA, LIMATURA_TESTO } from "../data/sac";
 import { Mossa, mosseEquipaggiate, mosseAvversaria, eseguiMossa } from "../data/mosse";
 import { spiegaEsito, cronacaTurno, cronacaEsito } from "../data/telecronaca";
-import { SpintaStats, nuoveSpintaStats, registraTurno } from "../lib/scuola";
+import { SpintaStats, nuoveSpintaStats, registraTurno, campionaBarra } from "../lib/scuola";
 import { MossePanel } from "./battle/MossePanel";
 import { MossaInfoSheet } from "./battle/MossaInfoSheet";
 import { SeasonEvent } from "../data/season";
@@ -105,6 +105,7 @@ export default function EliminatoireView({
     statsRef.current = nuoveSpintaStats();
     const s0 = initSpinta(playerRef.current, oppsRef.current[0], { personalita: persona(0), tellAccuracy });
     stRef.current = s0;
+    campionaBarra(statsRef.current, s0.barra); // l'ingaggio può già partire in svantaggio
     setTurno(0);
     setLog([`📯 ${evento.comune} · ${TURNI_TAPPA[0]}: ${playerRef.current.name} contro ${oppsRef.current[0].name}!`]);
     setPhase("fight");
@@ -119,6 +120,7 @@ export default function EliminatoireView({
     stRef.current = r.state;
     fiatoRef.current = r.state.fiatoP;
     if (side === "p" && r.dettaglio) registraTurno(statsRef.current, r.dettaglio.famiglia, r.state.barra, r.state.turno ?? 0);
+    campionaBarra(statsRef.current, r.state.barra); // anche i cali causati dall'avversaria
     pushLog(spiegaEsito(r) ?? r.log);
     const cronaca = cronacaTurno(r, { p: player!.name, o: oppsRef.current[turno].name });
     if (cronaca) pushLog(cronaca);
@@ -149,6 +151,7 @@ export default function EliminatoireView({
     const s = initSpinta(player!, oppsRef.current[next], { personalita: persona(next), tellAccuracy });
     s.fiatoP = fiatoRef.current; // la giornata è una sola: il fiato resta quello
     stRef.current = s;
+    campionaBarra(statsRef.current, s.barra);
     setTurno(next);
     pushLog(`📯 ${TURNI_TAPPA[next]}: entra ${oppsRef.current[next].name}!`);
     setPhase("fight");

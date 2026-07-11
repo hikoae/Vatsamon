@@ -13,7 +13,7 @@ import { MapBattle } from "../data/mapBattles";
 import { arenaBoss } from "../data/arenas";
 import { Mossa, mosseEquipaggiate, mosseAvversaria, eseguiMossa } from "../data/mosse";
 import { spiegaEsito, cronacaTurno, cronacaEsito } from "../data/telecronaca";
-import { SpintaStats, nuoveSpintaStats, registraTurno } from "../lib/scuola";
+import { SpintaStats, nuoveSpintaStats, registraTurno, campionaBarra } from "../lib/scuola";
 import { TUTORIAL_SCRIPT, TUTORIAL_VIGILIA } from "../data/tutorialBattle";
 import { tipDaDare, MEME_TIPS } from "../lib/tutorial";
 import { MossePanel } from "./battle/MossePanel";
@@ -99,6 +99,7 @@ export default function BattleScene({
       personalita: isTutorial ? "paziente" : personalita,
       tellAccuracy: isTutorial ? 1 : tellAccuracy,
     });
+    campionaBarra(statsRef.current, stRef.current.barra); // l'ingaggio può già partire in svantaggio
     if (isTutorial) {
       tutStepRef.current = 0;
       const primo = TUTORIAL_SCRIPT[0].intentoAvversaria;
@@ -116,6 +117,7 @@ export default function BattleScene({
     const r = eseguiMossa(side, mossaId, stRef.current, A, B);
     stRef.current = r.state;
     if (side === "p" && r.dettaglio) registraTurno(statsRef.current, r.dettaglio.famiglia, r.state.barra, r.state.turno ?? 0);
+    campionaBarra(statsRef.current, r.state.barra); // anche i cali causati dall'avversaria
     pushLog(spiegaEsito(r) ?? r.log);
     const cronaca = cronacaTurno(r, { p: player!.name, o: opp!.name });
     if (cronaca) pushLog(cronaca);
@@ -167,7 +169,7 @@ export default function BattleScene({
     if (isTutorial) {
       tutStepRef.current += 1;
       // la lezione del fiato (passo Incoraggia) chiede il fiato corto: la sceneggiatura lo prepara
-      if (tutStepRef.current === 2) stRef.current.fiatoP = Math.min(stRef.current.fiatoP, 40);
+      if (tutStepRef.current === 3) stRef.current.fiatoP = Math.min(stRef.current.fiatoP, 40);
     }
     if (stRef.current.esito !== "corso") { endBattle(); return; }
     await wait(200);

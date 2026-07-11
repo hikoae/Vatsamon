@@ -51,10 +51,17 @@ export const nuoveSpintaStats = (): SpintaStats => ({
   giudizio: false,
 });
 
+/** Campiona la barra per il minimo REALE: va chiamato dopo OGNI azione
+ *  (di entrambi i lati) e subito dopo ogni initSpinta — la barra iniziale
+ *  può già essere in svantaggio, e i cali arrivano anche dall'avversaria. */
+export function campionaBarra(stats: SpintaStats, barra: number): void {
+  stats.minBarra = Math.min(stats.minBarra, barra);
+}
+
 /** Aggiorna le stats dopo un turno del giocatore. */
 export function registraTurno(stats: SpintaStats, famiglia: AzioneId, barraDopo: number, turno: number): void {
   stats.perFamiglia[famiglia] += 1;
-  stats.minBarra = Math.min(stats.minBarra, barraDopo);
+  campionaBarra(stats, barraDopo);
   if (turno >= MAX_TURNI) stats.giudizio = true;
 }
 
@@ -82,8 +89,14 @@ export function mosseDaLivello(cow: Vatsamon): { cow: Vatsamon; nuove: Mossa[] }
 
 export type ContestoVittoria = "battle" | "dungeon" | "tappa" | "finale" | "leggenda";
 
-/** Canale 2 — le imprese di una VITTORIA che insegnano una mossa. */
-export function valutaImprese(stats: SpintaStats | undefined, contesto: ContestoVittoria): string[] {
+/** Canale 2 — le imprese di una VITTORIA che insegnano una mossa.
+ *  `extra.leggendeGiaBattute` = Leggende DISTINTE già vinte prima di questa
+ *  (dato esplicito e persistito, non un proxy sul catalogo globale). */
+export function valutaImprese(
+  stats: SpintaStats | undefined,
+  contesto: ContestoVittoria,
+  extra?: { leggendeGiaBattute?: number },
+): string[] {
   const ids: string[] = [];
   if (stats) {
     if (stats.minBarra >= 50) ids.push("muro-di-stalla");
@@ -98,8 +111,7 @@ export function valutaImprese(stats: SpintaStats | undefined, contesto: Contesto
     case "finale": ids.push("testata-diplomatica", "fohn-furioso"); break;
     case "dungeon": ids.push("concerto-campanacci"); break;
     case "leggenda":
-      ids.push(scuolaState().sbloccateGlobali.includes("muggito-gransanbernardo")
-        ? "spinta-slavina" : "muggito-gransanbernardo");
+      ids.push((extra?.leggendeGiaBattute ?? 0) >= 1 ? "spinta-slavina" : "muggito-gransanbernardo");
       break;
     case "battle": break;
   }

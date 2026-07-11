@@ -55,7 +55,30 @@ mantenendo il consiglio tattico onesto.
 Le stringhe di Mémé e delle mosse passano da `tr()` di `i18n/hub.ts` dove il
 costo è marginale (il resto dell'app è IT hardcoded — non è un requisito).
 
-## 8. Bilanciamento continuo
+## 8. Hardening pre-release (dal brief della re-review)
+
+Richieste della review adversarial, dichiarate come rischi residui nel REPORT e
+programmate qui (fuori proporzione per la PR delle mosse/tutorial):
+
+- **RNG seedato + transcript versionato** del combat: riproducibilità dei duelli
+  (prerequisito per bug-report e per qualsiasi PvP).
+- **Matrice E2E completa**: onboarding→Reina→combattimento→premio→reload (già
+  coperta dallo smoke-test), più doppio click sui bottoni, back/reload a metà
+  battaglia, save vecchio/corrotto, due tab simultanee, offline, viewport 375px.
+- **Prerequisiti PvP** (prima di qualunque modalità live): snapshot immutabile di
+  squadra/mosse, backend autorevole, idempotenza delle mosse, timeout,
+  riconnessione, resa esplicita, anti-farming. Nessun risultato competitivo
+  autorevole finché vive solo in localStorage.
+- **Economia**: modellare i loop da 2/10/30 minuti, sorgenti/pozzi di Denari e
+  Fontina, progressione early/mid/late; cercare strategie dominanti con la sim.
+- **npm audit** (1 high + 1 moderate su Vite/protobufjs) nel giro di hardening.
+- **Etica dell'esplorazione**: mai posizioni precise di stalle/pascoli privati né
+  inviti ad avvicinare animali o allevatori; eventuali partner locali dichiarati
+  come sponsorizzati, separati dalla progressione, mai pay-to-win.
+- **Portabilità verify**: eliminare il path Chromium hardcoded (fallback oltre a
+  `PW_EXEC`), in coordinamento col polish locale del maintainer.
+
+## 9. Bilanciamento continuo
 
 `app/scripts/sim-spinta.ts` è l'harness: ogni nuova mossa o ritocco numerico
 si valida con 4000 duelli AI-vs-AI (comuni/rare entro ±8 punti dal baseline,

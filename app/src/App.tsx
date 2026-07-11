@@ -603,11 +603,15 @@ export default function App() {
     }
     setActiveDungeon(d);
   };
-  const handleDungeonResult = (won: boolean, cowId?: string, stats?: SpintaStats) => {
+  const handleDungeonResult = (won: boolean, cowId?: string, stats?: SpintaStats, squadra?: { cowId: string; stats: SpintaStats }[]) => {
     const d = activeDungeon;
     if (!d) return;
     if (won && cowId) setVatsadex(prev => prev.map(c => c.id === cowId ? { ...c, vittorie: (c.vittorie ?? 0) + 1 } : c));
+    // Regola della Lega: le imprese di STILE le impara ogni partecipante
+    // (sulle proprie stats); il premio contestuale (Concerto) va a chi chiude.
     if (won) insegnaAllaReina(cowId, valutaImprese(stats, 'dungeon'));
+    if (won) squadra?.filter(m => m.cowId !== cowId).forEach(m =>
+      insegnaAllaReina(m.cowId, valutaImprese(m.stats, 'battle')));
     if (won) {
       addTrainerXp(d.rewardXp);
       setTrainer(prev => ({ ...prev, coins: prev.coins + d.rewardCoins }));
@@ -2900,10 +2904,12 @@ export default function App() {
           battute={leggendeBattute}
           onWin={(nome, cowId, stats) => {
             // la mossa-leggenda si guadagna solo alla PRIMA vittoria su QUELLA
-            // leggenda (vittorie uniche, come il premio XP/cartolina); le
-            // imprese di stile restano valutate anche nelle riprese
+            // leggenda; la progressione (Muggito → Slavina) segue le Leggende
+            // DISTINTE già battute, non il catalogo globale. Le imprese di
+            // stile restano valutate anche nelle riprese.
             const primaVolta = !leggendeBattute.includes(nome);
-            insegnaAllaReina(cowId, valutaImprese(stats, primaVolta ? 'leggenda' : 'battle'));
+            insegnaAllaReina(cowId, valutaImprese(stats, primaVolta ? 'leggenda' : 'battle',
+              { leggendeGiaBattute: leggendeBattute.length }));
             if (primaVolta) {
               setLeggendeBattute(prev => [...prev, nome]);
               addTrainerXp(300);

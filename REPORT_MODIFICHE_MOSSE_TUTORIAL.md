@@ -43,6 +43,10 @@ Diagnosi sul codice/storia del repo:
 | D7 | **Incruento non negoziabile**: ogni «testata» è una spinta a corna limate; commento in testa a `mosse.ts`; il rito della limatura resta obbligatorio ovunque | — | Paletto di GAME_REDESIGN.md:20 |
 | D8 | Il tell forzato del tutorial usa `forzaIntento()` esportato dal motore | Duplicare la logica dei TELLS nel componente | I TELLS restano privati e coerenti |
 | D9 | **Rinomina in chiave VdA** (2ª iterazione, su richiesta): i nomi troppo assurdi diventano comici-ma-valdostani — Testata Termonucleare → ❄️ Spinta della Slavina, Muggito dell'Apocalisse → 🐕 Muggito del Gran San Bernardo, Ruminazione Zen → 🧊 Flemma del Ghiacciaio, Sciopero dello Zoccolo → 🏰 Fortezza di Bard (Napoleone 1800, fatto vero), Valzer del Mercato → 🎠 Valzer di Sant'Orso | Tenere i nomi demenziali originali | L'umorismo resta, ma radicato nel territorio/storia (Bard, Sant'Orso, Gran San Bernardo = agganci educativi); Suocera e Föhn Furioso restano (registro da piazza / vento alpino vero). Solo nomi/desc/id: meccanica e bilanciamento invariati |
+| D10 | **Tutorial a 6 passi, verità del motore**: passo cuscinetto «Reggi-bis» («piantarsi ristora», e intanto Fripouille si pianta) prima della lezione Incoraggia, così il «recupero pieno se l'avversaria non attacca» è VERO (stance avversaria = reggi, non incalza) | Correggere solo il testo («recuperi meno sotto pressione») | Il tutorial deve insegnare la matrice VERA, non ammorbidire la promessa; il passo extra insegna anche che reggi recupera (verità del motore) |
+| D11 | **minBarra = minimo REALE**: `campionaBarra()` chiamato a ogni `initSpinta` (la barra iniziale può già essere in svantaggio) e dopo OGNI azione di entrambi i lati, nei 4 UI | Campionare solo dopo le azioni del giocatore (stato precedente) | Le imprese «mai sotto 50» / «rimonta da ≤20» devono misurare la spinta intera, inclusi i cali causati dall'avversaria |
+| D12 | **Progressione Leggende su vittorie DISTINTE**: `valutaImprese(..., 'leggenda', { leggendeGiaBattute })` riceve il conteggio esplicito e persistito (`leggendeBattute.length`); 0 → Muggito del Gran San Bernardo, ≥1 → Spinta della Slavina | Dedurla dal catalogo globale `sbloccateGlobali` (stato precedente) | Il proxy si rompe se una leggendaria arriva da un altro canale; il dato giusto esiste già ed è quello che il testo promette («una seconda Leggenda») |
+| D13 | **Regola della Lega**: imprese di STILE a OGNI Reina partecipante (valutate sulle SUE stats, contesto `battle`); premio contestuale (Concerto di Campanacci, contesto `dungeon`) alla Reina che chiude. `onResult` passa `squadra[]` | Solo la Reina che chiude (f56edb0, attribuzione conservativa) | È la regola suggerita in review e la più fedele a «la Reina impara facendo»: chi fa 3 giri li ha fatti davvero, anche se poi dà il cambio |
 
 Nota su D1/D7/D9: le desc delle leggendarie restano iperboli evidenti e
 non-violente («Nessuna si fa male: è la piazza che trema», «Lo sentirono su
@@ -166,7 +170,35 @@ Persistenza: le mosse vivono DENTRO `vatsamon_collection_go` (campi opzionali
    «riprova» è stato osservato (bot naive che spamma Incalza perde:
    comportamento voluto, la lezione è proprio non spammare).
 
-## 7. Limiti noti / punti da discutere in review
+## 6-bis. Matrice requisito → regola → test → risultato (richiesta in re-review)
+
+| Requisito | Regola (decisione) | Test | Risultato |
+|---|---|---|---|
+| Il tutorial insegna il motore vero | D10: passo cuscinetto, recupero pieno solo con stance non aggressiva | Smoke-test: al passo Incoraggia il log NON contiene «sotto pressione» | ✅ |
+| Il premio della lezione non è farmabile | Flag one-shot persistito (`premio-prima-lezione` in `vatsamon_tutorial.tips`) | Smoke-test: replay dal Profilo, vittoria → Genepy e XP invariati | ✅ (genepy 4→4, xp invariato) |
+| I progressi sopravvivono al riavvio | Tutto in localStorage + SAVE_KEYS (cloud mirror) | Smoke-test: reload → `tutorial.done` e collezione persistono | ✅ |
+| Le imprese misurano la spinta intera | D11: `campionaBarra` su init + ogni azione di entrambi i lati | Code-path nei 4 UI (init/turni); regressione `npm run verify` | ✅ |
+| Le mosse vanno alla Reina giusta | D13: stats per Reina; stile a ogni partecipante, contesto a chi chiude | Firma `onResult(…, squadra)` + handler App; regressione verify | ✅ |
+| Progressione Leggende come promessa | D12: conteggio esplicito delle Leggende distinte | Ramo `leggendeGiaBattute` 0/≥1 in `valutaImprese` | ✅ |
+| Salvataggi esistenti senza migrazione | Campi opzionali + resolver deterministico + `mosseInnate` permanenti | Verify parte da save pre-esistente senza campo `mosse` | ✅ |
+| Nessuna mossa dominante | Sim AI-vs-AI, Δ dal baseline (±8 / ±15) | `scripts/sim-spinta.ts` (4000 duelli/variante) | ✅ 17/17 |
+
+## 7. Rischi residui dichiarati (fuori scope di questa PR → ROADMAP «Hardening»)
+
+- **RNG non seedato**: il combat non è riproducibile deterministicamente (niente
+  transcript versionato). Prerequisito per bug-report affidabili e PvP.
+- **Autorevolezza solo client**: risultati e progressi vivono in localStorage
+  (mirror Firestore best-effort). Nessun risultato competitivo può considerarsi
+  autorevole prima di un backend con snapshot immutabile di squadra/mosse,
+  idempotenza, timeout, riconnessione e anti-farming.
+- **Copertura E2E parziale**: manca la matrice doppio-click / back-reload
+  mid-battle / save corrotto / due tab / offline / viewport 375px. Oggi coperti:
+  flusso principale (verify), tutorial+premio+reload+replay (smoke-test dedicato).
+- **Economia non modellata** sui loop 2/10/30 minuti (sorgenti/pozzi, early/mid/late).
+- **Portabilità verify**: Chromium hardcoded Linux, su macOS serve `PW_EXEC`
+  (il polish locale del maintainer la affronta: non regredirla nel merge).
+
+## 8. Limiti noti / punti da discutere in review
 
 - **Baseline sim ≈58%**: il vantaggio del giocatore è strutturale (vede il
   tell prima di scegliere). I criteri usano il Δ dal baseline, non il 50%.
@@ -186,7 +218,7 @@ Persistenza: le mosse vivono DENTRO `vatsamon_collection_go` (campi opzionali
   le istruzioni vince; uno che spamma può perdere — voluto, con «riprova»
   morbido e «salta» sempre presente.
 
-## 8. Come ri-verificare in locale
+## 9. Come ri-verificare in locale
 
 ```bash
 cd app

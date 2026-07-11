@@ -13,7 +13,7 @@ import { Dungeon } from "../data/dungeons";
 import { REAL_COWS } from "../data/realCows";
 import { Mossa, mosseEquipaggiate, mosseAvversaria, eseguiMossa } from "../data/mosse";
 import { spiegaEsito, cronacaTurno, cronacaEsito } from "../data/telecronaca";
-import { SpintaStats, nuoveSpintaStats, registraTurno } from "../lib/scuola";
+import { SpintaStats, nuoveSpintaStats, registraTurno, campionaBarra } from "../lib/scuola";
 import { MossePanel } from "./battle/MossePanel";
 import { MossaInfoSheet } from "./battle/MossaInfoSheet";
 
@@ -29,7 +29,9 @@ export default function DungeonRun({
   respectScore: number;
   backpack: BackpackItem[];
   onConsumeItem: (id: string) => void;
-  onResult: (won: boolean, cowId?: string, stats?: SpintaStats) => void;
+  /** `squadra` = TUTTE le partecipanti con le proprie stats: le imprese di
+   *  stile le impara chi le compie, anche se non chiude la Lega. */
+  onResult: (won: boolean, cowId?: string, stats?: SpintaStats, squadra?: { cowId: string; stats: SpintaStats }[]) => void;
   onClose: () => void;
   playClick: () => void;
 }) {
@@ -91,6 +93,7 @@ export default function DungeonRun({
     const s0 = initSpinta(team[0], oppsRef.current[0], { personalita: persRef.current[0], tellAccuracy });
     s0.fiatoP = fiatoRef.current[0];
     stRef.current = s0;
+    campionaBarra(statsTeamRef.current[0], s0.barra); // l'ingaggio può già partire in svantaggio
     setActiveIdx(0); setOppIdx(0);
     setLog([`${dungeon.emoji} ${dungeon.league}: 5 spinte consecutive! Sfidante 1 — ${dungeon.opponents[0].name}`]);
     setShowBag(false); setShowSwitch(false);
@@ -105,6 +108,7 @@ export default function DungeonRun({
     stRef.current = r.state;
     fiatoRef.current[activeIdx] = r.state.fiatoP; // il fiato della Reina attiva si trascina
     if (side === "p" && r.dettaglio) registraTurno(statsTeamRef.current[activeIdx], r.dettaglio.famiglia, r.state.barra, r.state.turno ?? 0);
+    campionaBarra(statsTeamRef.current[activeIdx], r.state.barra); // anche i cali causati dall'avversaria
     pushLog(spiegaEsito(r) ?? r.log);
     const cronaca = cronacaTurno(r, { p: teamRef.current[activeIdx].name, o: oppsRef.current[oppIdx].name });
     if (cronaca) pushLog(cronaca);
@@ -118,17 +122,22 @@ export default function DungeonRun({
   // L'avversaria cede → prossimo sfidante (il fiato della tua Reina si trascina)
   const advanceOpponent = async () => {
     if (oppIdx >= oppsRef.current.length - 1) {
-      const stats = statsTeamRef.current[activeIdx]; // le imprese della Reina che chiude
+      const stats = statsTeamRef.current[activeIdx]; // la Reina che chiude
       stats.vittoriaPerFiato = stRef.current.fiatoO <= 0;
       // il giudizio può arrivare sull'azione avversaria: registraTurno non lo vede
       if ((stRef.current.turno ?? 0) >= MAX_TURNI) stats.giudizio = true;
+      // tutte le partecipanti (chi ha giocato almeno un'azione), con le PROPRIE stats
+      const squadra = cowIdsRef.current
+        .map((cowId, i) => ({ cowId, stats: statsTeamRef.current[i] }))
+        .filter((m) => Object.values(m.stats.perFamiglia).some((n) => n > 0));
       pushLog(cronacaEsito(true, false, { p: teamRef.current[activeIdx].name, o: oppsRef.current[oppIdx].name }));
-      setPhase("won"); onResult(true, cowIdsRef.current[activeIdx], stats); return;
+      setPhase("won"); onResult(true, cowIdsRef.current[activeIdx], stats, squadra); return;
     }
     const next = oppIdx + 1;
     const s = initSpinta(teamRef.current[activeIdx], oppsRef.current[next], { personalita: persRef.current[next], tellAccuracy });
     s.fiatoP = fiatoRef.current[activeIdx]; // carry
     stRef.current = s;
+    campionaBarra(statsTeamRef.current[activeIdx], s.barra);
     setOppIdx(next);
     pushLog(`⬇️ ${dungeon.opponents[oppIdx].name} cede e si ritira! Sfidante ${next + 1}: ${dungeon.opponents[next].name}`);
     rerender();
@@ -147,6 +156,7 @@ export default function DungeonRun({
     const s = initSpinta(teamRef.current[nextAlive], oppsRef.current[oppIdx], { personalita: persRef.current[oppIdx], tellAccuracy });
     s.fiatoP = fiatoRef.current[nextAlive];
     stRef.current = s;
+    campionaBarra(statsTeamRef.current[nextAlive], s.barra);
     setActiveIdx(nextAlive);
     pushLog(`➡️ Scende in campo ${teamRef.current[nextAlive].name}!`);
     rerender();

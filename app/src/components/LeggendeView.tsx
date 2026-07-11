@@ -12,7 +12,7 @@ import { LIMATURA_TESTO } from "../data/sac";
 import { LEGGENDE, Leggenda, reinaByName } from "../data/season";
 import { Mossa, mosseEquipaggiate, mosseAvversaria, eseguiMossa } from "../data/mosse";
 import { spiegaEsito, cronacaTurno, cronacaEsito } from "../data/telecronaca";
-import { SpintaStats, nuoveSpintaStats, registraTurno } from "../lib/scuola";
+import { SpintaStats, nuoveSpintaStats, registraTurno, campionaBarra } from "../lib/scuola";
 import { MossePanel } from "./battle/MossePanel";
 import { MossaInfoSheet } from "./battle/MossaInfoSheet";
 
@@ -85,6 +85,7 @@ export default function LeggendeView({ playerCows, respectScore, battute, onWin,
     mossePRef.current = mosseEquipaggiate(cow);
     mosseORef.current = mosseAvversaria(l.nome, prof.personalita, true); // le leggende portano una rara
     statsRef.current = nuoveSpintaStats();
+    campionaBarra(statsRef.current, stRef.current.barra); // l'ingaggio può già partire in svantaggio
     setLog([`🏛️ La memoria si fa spinta: ${cow.name} affronta ${l.nome} — ${l.titolo}.`]);
     setPhase("fight");
     rerender();
@@ -97,6 +98,7 @@ export default function LeggendeView({ playerCows, respectScore, battute, onWin,
     const r = eseguiMossa(side, mossaId, stRef.current, A, B);
     stRef.current = r.state;
     if (side === "p" && r.dettaglio) registraTurno(statsRef.current, r.dettaglio.famiglia, r.state.barra, r.state.turno ?? 0);
+    campionaBarra(statsRef.current, r.state.barra); // anche i cali causati dall'avversaria
     pushLog(spiegaEsito(r) ?? r.log);
     const cronaca = cronacaTurno(r, { p: player!.name, o: opp!.name });
     if (cronaca) pushLog(cronaca);
