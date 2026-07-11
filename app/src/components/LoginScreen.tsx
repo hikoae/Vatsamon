@@ -3,6 +3,7 @@
  * Mostrata da <AuthGate> quando Firebase è configurato e nessun utente è loggato.
  */
 import { useState } from "react";
+import { BRAND } from "../config/brand";
 import { LogIn, Mail, Lock, Loader2 } from "lucide-react";
 import { useAuth, authErrorMessage } from "../lib/auth";
 
@@ -55,7 +56,7 @@ export default function LoginScreen() {
       <div className="w-full max-w-sm bg-slate-900/90 backdrop-blur rounded-3xl border border-slate-700 shadow-xl p-6">
         <div className="text-center mb-6">
           <div className="text-5xl mb-2 animate-float">🐄</div>
-          <h1 className="text-3xl font-black title-gradient">VATSAMON GO</h1>
+          <h1 className="text-3xl font-black title-gradient">{BRAND.gameName.toUpperCase()}</h1>
           <p className="text-sm text-slate-400 mt-1">
             Cattura le Reines reali della Valle d'Aosta
           </p>

@@ -21,12 +21,21 @@ export interface Vatsamon {
   // ===== Campi delle bovine REALI (Batailles de Reines) =====
   isReal?: boolean;
   realPhoto?: string | null; // URL foto reale (o null se senza foto)
+  /** "Scatta la Reina": id della foto del giocatore in IndexedDB (SOLO su
+   *  questo dispositivo; nel cloud viaggia solo l'id, mai l'immagine). */
+  sightingPhotoId?: string;
   comune?: string;
   allevatore?: string;
   matricola?: string;
   riconoscimento?: string;
   /** FASE 3 — accuratezza 0..100 della Valutazione del Giudice all'affidamento. */
   valutazioneGiudice?: number;
+  /** Spinte ufficiali vinte da questa Reina (palmares personale). */
+  vittorie?: number;
+  /** Désarpa: anno in cui è stata Reina di corne (fiori rossi) della mandria. */
+  fioriRossi?: string;
+  /** Désarpa: anno in cui è stata Reine du lait (fiori bianchi) della mandria. */
+  fioriBianchi?: string;
   peso_kg?: number;
   pesoStimato?: boolean;
   lat?: number;
@@ -98,21 +107,4 @@ export interface Trainer {
   pedigreeStars?: number;
   /** FASE 4 — Punteggio Rispetto (0..100), rispecchiato qui per la classifica cloud. */
   respectScore?: number;
-}
-
-export interface BattleState {
-  playerVatsamon: Vatsamon | null;
-  opponentVatsamon: Vatsamon | null;
-  playerHp: number;
-  opponentHp: number;
-  playerMaxHp: number;
-  opponentMaxHp: number;
-  energy: number; // 0 to 100 for charging special attack
-  opponentEnergy: number;
-  status: 'idle' | 'intro' | 'active' | 'dodge' | 'special_anim' | 'ended';
-  history: string[];
-  winner: 'player' | 'opponent' | null;
-  opponentStatsModifier: number;
-  playerAttackAnim: boolean;
-  opponentAttackAnim: boolean;
 }

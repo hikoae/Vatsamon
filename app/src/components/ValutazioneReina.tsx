@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import { motion } from "motion/react";
 import { Vatsamon } from "../types";
 import { CowVisual } from "./CowVisual";
 
@@ -205,5 +204,5 @@ function Pip({ on, label }: { on: boolean; label: string }) {
   return <span className={`px-1.5 py-0.5 rounded-full border ${on ? "border-emerald-500 text-emerald-400 bg-emerald-950/40" : "border-slate-700 text-slate-600"}`}>{label}</span>;
 }
 function Mini({ label, v }: { label: string; v: number }) {
-  return <div className="bg-slate-900 border border-slate-800 rounded-lg py-1.5"><div className="text-slate-500 uppercase text-[8px]">{label}</div><div className="font-black text-amber-300">{v}</div></div>;
+  return <div className="bg-slate-900 border border-slate-800 rounded-lg py-1.5"><div className="text-slate-500 uppercase text-[10px]">{label}</div><div className="font-black text-amber-300">{v}</div></div>;
 }

@@ -12,24 +12,36 @@
  */
 import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 import { db, firebaseEnabled } from "./firebase";
+import { normalizeSaveKey } from "./migrateSaveKeys";
 
 /** Tutte le chiavi localStorage che compongono un salvataggio giocatore. */
 export const SAVE_KEYS = [
-  "vazzamon_collection_go",
-  "vazzamon_bag_go",
-  "vazzamon_eggs_go",
-  "vazzamon_trainer_go",
-  "vazzamon_waypoint_idx",
-  "vazzamon_waypoint_progress",
-  "vazzamon_active_route_id",
-  "vazzamon_quiz_go",
-  "vazzamon_badges",
-  "vazzamon_challenges_go",
-  "vazzamon_completed_routes",
-  "vazzamon_discovered_cows",
-  "vazzamon_onboarded",
-  "vazzamon_respect",
-  "vazzamon_dungeons",
+  "vatsamon_collection_go",
+  "vatsamon_bag_go",
+  "vatsamon_trainer_go",
+  "vatsamon_waypoint_idx",
+  "vatsamon_waypoint_progress",
+  "vatsamon_active_route_id",
+  "vatsamon_quiz_go",
+  "vatsamon_badges",
+  "vatsamon_challenges_go",
+  "vatsamon_completed_routes",
+  "vatsamon_discovered_cows",
+  "vatsamon_onboarded",
+  "vatsamon_respect",
+  "vatsamon_dungeons",
+  // Sistemi v1.3 che vivevano fuori dal sync (persi al cambio dispositivo):
+  "vatsamon_stalla_preg",          // gravidanza in corso (StallaScreen)
+  "vatsamon_daily",                // streak + missioni del giorno (DailyPanel)
+  "vatsamon_pronostici",           // pronostici sul tabellone (SeasonView)
+  "vatsamon_follow_reine",         // reine seguite (SeasonView)
+  "vatsamon_pronostici_rewarded",  // pronostici già premiati (SeasonView)
+  "vatsamon_lang",                 // lingua IT/FR dell'hub
+  "vatsamon_trofei",               // bacheca trofei (mécro/sonnaille/collari)
+  "vatsamon_eliminatoire",         // tappe del calendario giocate/vinte/timbri
+  "vatsamon_arp",                  // alpeggio: capi all'arp, produzione, désarpa
+  "vatsamon_patois",               // parole del glossario sbloccate giocando
+  "vatsamon_leggende",             // cartoline storiche dell'Albo delle Leggende
 ] as const;
 
 export interface CloudSave {
@@ -50,21 +62,24 @@ export function readLocalSave(): Record<string, string> {
 
 /** Scrive nello localStorage le chiavi del salvataggio (idratazione da cloud). */
 export function writeLocalSave(keys: Record<string, string>) {
+  // normalizza i salvataggi cloud scritti prima della rinomina (vazzamon_*)
+  const normalized: Record<string, string> = {};
+  for (const [k, v] of Object.entries(keys)) normalized[normalizeSaveKey(k)] = v;
   for (const k of SAVE_KEYS) {
-    if (k in keys) localStorage.setItem(k, keys[k]);
+    if (k in normalized) localStorage.setItem(k, normalized[k]);
   }
 }
 
 /** Chiave del backup locale (sempre l'ultimo salvataggio prima di un'operazione distruttiva). */
-export const BACKUP_KEY = "vazzamon_backup_latest";
+export const BACKUP_KEY = "vatsamon_backup_latest";
 
 /** Indica se nello storage esistono progressi di gioco (collezione o allenatore). */
 export function hasExistingProgress(): boolean {
   try {
-    const coll = JSON.parse(localStorage.getItem("vazzamon_collection_go") || "[]");
+    const coll = JSON.parse(localStorage.getItem("vatsamon_collection_go") || "[]");
     if (Array.isArray(coll) && coll.length > 0) return true;
   } catch { /* ignora json corrotto */ }
-  return Boolean(localStorage.getItem("vazzamon_trainer_go"));
+  return Boolean(localStorage.getItem("vatsamon_trainer_go"));
 }
 
 /**
@@ -124,9 +139,11 @@ export async function saveCloudSave(uid: string): Promise<void> {
 async function updateLeaderboard(uid: string) {
   if (!firebaseEnabled || !db) return;
   try {
-    const trainer = JSON.parse(localStorage.getItem("vazzamon_trainer_go") || "{}");
-    const collection = JSON.parse(localStorage.getItem("vazzamon_collection_go") || "[]");
-    const badges = JSON.parse(localStorage.getItem("vazzamon_badges") || "[]");
+    const trainer = JSON.parse(localStorage.getItem("vatsamon_trainer_go") || "{}");
+    const collection = JSON.parse(localStorage.getItem("vatsamon_collection_go") || "[]");
+    const badges = JSON.parse(localStorage.getItem("vatsamon_badges") || "[]");
+    // Il Rispetto vive nella sua chiave dedicata, non dentro al trainer.
+    const respect = Number(localStorage.getItem("vatsamon_respect")) || trainer.respectScore || 0;
     const dexCount = Array.isArray(collection)
       ? collection.filter((c: { isReal?: boolean }) => c?.isReal).length
       : 0;
@@ -135,7 +152,7 @@ async function updateLeaderboard(uid: string) {
       {
         name: trainer.name || "Allenatore",
         level: trainer.level || 1,
-        respect: trainer.respectScore || 0,
+        respect,
         dexCount,
         badges: Array.isArray(badges) ? badges.length : 0,
         updatedAt: serverTimestamp(),

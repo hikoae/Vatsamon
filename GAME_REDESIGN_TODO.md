@@ -52,6 +52,13 @@ fallback di prima classe e il badge [REALE] vale sul pedigree, non sulla foto.
       + cattura in `data/overworld.ts` e `lib/capture.ts` (−110 righe, comportamento
       identico). Resta come lavoro futuro lo split a livello di componenti/view.
 
+- [x] **v1.4 Sprint 0-2** (branch `claude/vatsamon-audit-redesign-ig2l5t`):
+      bugfix sync/classifica/reset, strict TS, −450 righe dead code, VatsadexView
+      estratta, **nav in basso 5 tab + HUD 1 riga + safe-area**, bonifica lessico
+      Pokémon (Campanacci/Potenza/Reina di punta), Fraunces+Inter + a11y base,
+      **"Scatta la Reina"** (COCO-SSD on-device, foto→carta, IndexedDB). Suite
+      verify estesa (rifiuto non-bovina + verifica foto reale) tutta verde.
+
 ## 🟡 Prossimi (blocchi grandi, da fare dedicati e testati a fondo)
 - [ ] **Cattura → Anagrafe**: affidamento "fisico" dell'allevatore sulla mappa
       (oltre alla valutazione, già fatta).

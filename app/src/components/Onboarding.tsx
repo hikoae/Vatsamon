@@ -51,10 +51,10 @@ export default function Onboarding({ onComplete }: { onComplete: () => void }) {
       };
 
       // Scrive le chiavi iniziali: App.tsx le legge al mount successivo.
-      localStorage.setItem("vazzamon_collection_go", JSON.stringify([starterInstance]));
-      localStorage.setItem("vazzamon_trainer_go", JSON.stringify(trainer));
+      localStorage.setItem("vatsamon_collection_go", JSON.stringify([starterInstance]));
+      localStorage.setItem("vatsamon_trainer_go", JSON.stringify(trainer));
       localStorage.setItem(
-        "vazzamon_onboarded",
+        "vatsamon_onboarded",
         JSON.stringify({ avatarId, valleyId, starterId: starter.id, at: Date.now() }),
       );
 

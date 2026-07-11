@@ -1,3 +1,10 @@
+// La migrazione delle chiavi di salvataggio DEVE girare prima di ogni lettura
+// di localStorage (rinomina vazzamon_ → vatsamon_).
+import './lib/migrateSaveKeys';
+// Tipografia "Registro Alpino": Inter (UI/dati) + Fraunces (display), self-hosted
+// per la PWA offline (niente CDN esterni).
+import '@fontsource-variable/inter';
+import '@fontsource-variable/fraunces';
 import {StrictMode} from 'react';
 import {createRoot} from 'react-dom/client';
 import {registerSW} from 'virtual:pwa-register';

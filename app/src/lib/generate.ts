@@ -1,5 +1,7 @@
 import { Vatsamon } from "../types";
 import { resolveIllustration } from "../data/illustrations";
+import { faseCorrente } from "../data/fase";
+import { faseGaraCorrente, categoriaAllaPesa } from "../data/pesa";
 
 /**
  * RICONOSCIMENTO D'ALPEGGIO (client, niente rete) — sostituisce il vecchio
@@ -43,9 +45,11 @@ function simulate(): Omit<Vatsamon, "cp" | "level"> {
   const corna = 45 + Math.floor(Math.random() * 45);
   const testa = 45 + Math.floor(Math.random() * 40);
   const grinta = 45 + Math.floor(Math.random() * 45);
-  // peso e categoria di peso coerenti
+  // peso e categoria di peso coerenti — con le soglie DELLA FASE CORRENTE
+  // (dossier §0.3: le soglie non sono fisse, salgono di fase in fase)
   const peso_kg = 480 + Math.floor(Math.random() * 180); // ~480–660 kg
-  const categoria = peso_kg >= 591 ? "1ª" : peso_kg >= 541 ? "2ª" : "3ª";
+  const oggi = new Date().toISOString().slice(0, 10);
+  const categoria = categoriaAllaPesa(peso_kg, faseGaraCorrente(faseCorrente(oggi).id)).cat;
 
   return {
     id: "avvist-" + Date.now() + "-" + Math.floor(Math.random() * 1000),

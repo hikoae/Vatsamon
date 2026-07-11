@@ -6,8 +6,10 @@ import { VitePWA } from "vite-plugin-pwa";
 
 export default defineConfig(({ mode }) => ({
   // Base = nome del repo GitHub (il sito Pages vive su hikoae.github.io/<repo>/).
-  // Il repo si chiama "vazzamon": gli asset devono puntare a /vazzamon/.
-  base: mode === "development" ? "/" : "/vazzamon/",
+  // Il progetto si chiama "vatsamon": rinominare anche il repo GitHub in
+  // Settings → General → Repository name (GitHub reindirizza il vecchio nome).
+  // Netlify (sito live) ignora questo valore: builda con --base=/ da netlify.toml.
+  base: mode === "development" ? "/" : "/vatsamon/",
   plugins: [
     react(),
     tailwindcss(),
@@ -21,16 +23,16 @@ export default defineConfig(({ mode }) => ({
       manifest: {
         name: "Vatsamon — la Vatsadex delle Reines",
         short_name: "Vatsamon",
-        description: "Cattura le mucche reali delle Bataille de Reines valdostane.",
+        description: "Il gioco delle Batailles de Reines: le mucche reali della Valle d'Aosta.",
         lang: "it",
-        theme_color: "#0f172a",
-        background_color: "#0f172a",
+        theme_color: "#f5f3fb",
+        background_color: "#f5f3fb",
         display: "standalone",
         orientation: "portrait",
         icons: [
           { src: "icon-192.png", sizes: "192x192", type: "image/png" },
           { src: "icon-512.png", sizes: "512x512", type: "image/png" },
-          { src: "icon-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
+          { src: "icon-maskable-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
         ],
       },
       workbox: {
@@ -48,6 +50,16 @@ export default defineConfig(({ mode }) => ({
             options: {
               cacheName: "osm-tiles",
               expiration: { maxEntries: 500, maxAgeSeconds: 60 * 60 * 24 * 30 },
+            },
+          },
+          {
+            // Riconoscitore "Scatta la Reina" (~18MB): NON in precache, ma
+            // cache-first al primo uso → poi funziona anche offline in alpeggio.
+            urlPattern: ({ url }) => url.pathname.includes("/models/ssdlite/"),
+            handler: "CacheFirst",
+            options: {
+              cacheName: "detector-model",
+              expiration: { maxEntries: 8 },
             },
           },
         ],

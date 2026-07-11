@@ -4,7 +4,7 @@
 > file citati al bisogno) invece di rileggere tutto il codice. Mantienilo
 > aggiornato a fine sessione.
 >
-> Ultimo aggiornamento: 2026-06-01 · Branch di sviluppo: `claude/pokemon-go-mobile-game-8IkzM`
+> Ultimo aggiornamento: 2026-07-02 · v1.4 e v1.5 COMPLETE (mergiate su main)
 
 ---
 
@@ -12,12 +12,20 @@
 
 - **Cos'è**: PWA mobile stile **Pokémon GO** con le **vere Reines** (mucche valdostane)
   della Bataille de Reines 2026. React 19 + Vite 6 + TS, Tailwind v4, Firebase, Leaflet.
-- **Repo**: `hikoae/vazzamon` · **app dir**: `/home/user/vazzamon/app` · **live**: `vatsamon.netlify.app`
-- **Branch di lavoro**: `claude/pokemon-go-mobile-game-8IkzM`. Si fa merge su `main` per il deploy Netlify.
+- **Repo**: `hikoae/vazzamon` (⚠️ da rinominare in `vatsamon` su GitHub: Settings → Repository name) · **app dir**: `app/` · **live**: `vatsamon.netlify.app`
+- **Branch di lavoro**: `claude/vatsamon-audit-redesign-ig2l5t` (v1.4). Si fa merge su `main` per il deploy Netlify.
 - **Comandi**: `cd app && npm install && npm run dev` · build: `npm run build`
-- **⚠️ TASK APERTO PRIORITARIO**: il tab "Vitelli/uova" usa la metafora dell'**uovo**
-  (egg/schiusa). **LE MUCCHE NON FANNO UOVA.** Va riprogettato in sistema di
-  **gravidanza/parto/gestazione**. Vedi §7.
+- **v1.4 COMPLETATA** (`ROADMAP_V1.4.md`): nav 5 tab in basso, HUD 1 riga,
+  safe-area, lessico bonificato, Fraunces+Inter, **Scatta la Reina** (COCO-SSD
+  on-device in `public/models/ssdlite`, foto in IndexedDB `lib/photoStore.ts`).
+- **v1.5 "La Stagione Vera" COMPLETA** (`ROADMAP_V1.5.md`): Spinta v2
+  con TELL+counter+peso reale (`lib/spinta.ts`), Stadera (`data/pesa.ts`),
+  Sac du Berger+vigilia+Bottega (`data/sac.ts`), **Éliminatoire du Dimanche**
+  (`data/eliminatoire.ts`+`EliminatoireView`), Arp/Désarpa (`data/arp.ts`),
+  gravidanza-requisito (`lib/gravidanza.ts`, gravidanze multiple), Bataille
+  des Moudzons, patois giocato (`lib/patois.ts`). Time-travel demo/test:
+  `?oggi=YYYY-MM-DD` (`lib/oggi.ts`) + Albo delle Leggende (`LeggendeView`)
+  + icone PWA monogramma (bandiera VdA + corna a V, maskable dedicata).
 
 ---
 
@@ -95,7 +103,6 @@
 ### Altro
 - `components/QuizScreen.tsx` + `data/quiz.ts` — "Scuola d'Alpeggio".
 - `components/Challenges.tsx` — sfide (spostate nel tab "Premi").
-- `components/HatchScene.tsx` — ⚠️ animazione nascita ma **usa metafora UOVO** → da riprogettare (vedi §7). NON ancora importato/usato in App.tsx.
 - `data/realCows.ts` — dataset bovine reali (`REAL_COWS`, `REAL_TOTAL`, `REAL_CASERE`, `SHOWCASE_BY_RARITY`).
 - `data/trails.ts`, `data/routes.ts` — percorsi/sentieri. `lib/geo.ts` — distanze GPS, `RAGGIO_CATTURA`.
 - `utils/audio.ts` — `soundEngine` (click/moo/victory/ecc.).
@@ -104,7 +111,8 @@
 
 ## 3. Navigazione / tab
 
-`activeTab: 'map' | 'scanner' | 'eggs' | 'vatsadex' | 'quiz' | 'premi'`
+`activeTab: 'map' | 'stagione' | 'scanner' | 'stalla' | 'vatsadex' | 'quiz' | 'premi'`
+**NAV IN BASSO (5 tab)**: Alpeggio(map) · Stagione · **Scatta**(scanner, bottone centrale) · Stalla · Libretto(vatsadex). Quiz = card `#quiz-entry` dentro Stagione; Premi = chip `#premi-chip` nell'HUD.
 - **Mappa** (`map`): mappa GRANDE in cima (h-460/540), poi selettore percorsi, "Sfide nei dintorni", "Lega delle Reines · Dungeon".
 - **Scanner** (`scanner`): genera Vatsamon da foto (Gemini client).
 - **Vitelli** (`eggs`): ⚠️ tab da riprogettare (gravidanza, non uova). `id="hatchery-tab-view"` in App.tsx ~riga 2725.
@@ -119,13 +127,16 @@
 
 Tutto in `App.tsx` come `useState`, persistito in localStorage con chiavi in `cloudSave.ts → SAVE_KEYS`:
 ```
-vazzamon_collection_go, vazzamon_bag_go, vazzamon_eggs_go, vazzamon_trainer_go,
-vazzamon_waypoint_idx, vazzamon_waypoint_progress, vazzamon_active_route_id,
-vazzamon_quiz_go, vazzamon_badges, vazzamon_challenges_go, vazzamon_completed_routes,
-vazzamon_discovered_cows, vazzamon_onboarded, vazzamon_respect, vazzamon_dungeons
+vatsamon_collection_go, vatsamon_bag_go, vatsamon_eggs_go, vatsamon_trainer_go,
+vatsamon_waypoint_idx, vatsamon_waypoint_progress, vatsamon_active_route_id,
+vatsamon_quiz_go, vatsamon_badges, vatsamon_challenges_go, vatsamon_completed_routes,
+vatsamon_discovered_cows, vatsamon_onboarded, vatsamon_respect, vatsamon_dungeons
 ```
 - localStorage = cache di sessione; **Firestore = verità**. Migrazione al primo login se ci sono progressi locali.
-- ⚠️ Se rinomini `Egg`→`Pregnancy`, valuta se cambiare anche la chiave `vazzamon_eggs_go`
+- Le chiavi legacy `vazzamon_*` vengono migrate una tantum all'avvio da
+  `lib/migrateSaveKeys.ts` (copiate, mai sovrascritte); cloud e codici export
+  legacy sono normalizzati in lettura.
+- ⚠️ Se rinomini `Egg`→`Pregnancy`, valuta se cambiare anche la chiave `vatsamon_eggs_go`
   (consiglio: tieni la chiave o aggiungi migrazione, per non perdere salvataggi esistenti).
 
 ---
@@ -201,7 +212,7 @@ con cooldown che dà un piccolo boost. Animazione parto: mucca trema → flash �
 
 ## 10. Riferimenti
 
-- Transcript pre-compattazione (se servono dettagli esatti): `/root/.claude/projects/-home-user-vazzamon/`
+- Transcript pre-compattazione (se servono dettagli esatti): `/root/.claude/projects/-home-user-vatsamon/`
 - Altri doc storici nel repo: `STATO_ATTUALE.md`, `MERGE_PLAN.md`, `FIREBASE_SETUP.md`, `AUDIT_PROGETTO.md`.
 </content>
 </invoke>

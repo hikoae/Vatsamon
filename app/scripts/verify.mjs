@@ -14,7 +14,7 @@ const PNG = Buffer.from(
   "base64",
 );
 
-const TABS = ["Mappa", "AR Scan", "Stalla", "Vatsadex"];
+const TABS = ["Alpeggio", "Percorsi", "Scatta", "Stalla", "Libretto"];
 const problems = [];
 const note = (m) => console.log("  • " + m);
 
@@ -44,7 +44,7 @@ page.on("pageerror", (e) => !isEnvNoise(e.message) && errors.push("PAGEERROR: " 
 // In modalità locale i nuovi utenti vedono l'onboarding: per testare il gioco
 // pre-segniamo lo storage come "onboardato" così App si carica direttamente.
 await page.addInitScript(() => {
-  localStorage.setItem("vazzamon_onboarded", JSON.stringify({ verify: true }));
+  localStorage.setItem("vatsamon_onboarded", JSON.stringify({ verify: true }));
 });
 
 await page.goto(APP_URL, { waitUntil: "networkidle" });
@@ -81,12 +81,55 @@ if (await trailChip.count()) {
   await page.waitForTimeout(400);
 } else problems.push("selettore sentieri assente");
 
-// GPS reale (geolocation mockata vicino a una bovina reale)
+// GPS: qualità del segnale, guida del percorso, checkpoint e stop senza persistenza.
 await page.locator("#gps-btn").click();
 await page.waitForTimeout(1200);
-const gpsActive = await page.locator("#gps-btn", { hasText: "GPS attivo" }).isVisible().catch(() => false);
-note(`GPS attivo: ${gpsActive}`);
+const gpsActive = await page.locator('#gps-btn[aria-pressed="true"]').isVisible().catch(() => false);
+const gpsPanel = await page.locator("#gps-explorer-panel").isVisible().catch(() => false);
+const gpsQuality = await page.locator("#gps-explorer-panel", { hasText: /(Posizione precisa|Segnale buono|Segnale approssimato)/ }).isVisible().catch(() => false);
+note(`GPS attivo: ${gpsActive} · guida: ${gpsPanel} · qualità: ${gpsQuality}`);
 if (!gpsActive) problems.push("GPS non si attiva");
+if (!gpsPanel || !gpsQuality) problems.push("pannello GPS con qualità del segnale assente");
+
+// L'arrivo è disponibile vicino alla tappa, resta segnato localmente e non
+// conserva coordinate. Un secondo contesto GPS, lontano dal tracciato, verifica
+// che lo stesso controllo impedisca i timbri fuori raggio.
+const checkpoint = page.locator("#gps-checkpoint-btn");
+const checkpointReady = await checkpoint.isEnabled().catch(() => false);
+note(`checkpoint vicino disponibile: ${checkpointReady}`);
+if (!checkpointReady) problems.push("checkpoint GPS non disponibile in prossimità");
+if (checkpointReady) {
+  await checkpoint.click();
+  await page.waitForTimeout(350);
+  const stamped = await page.locator("#gps-checkpoint-btn", { hasText: "Timbro già registrato" }).isVisible().catch(() => false);
+  note(`checkpoint timbrato: ${stamped}`);
+  if (!stamped) problems.push("timbro checkpoint GPS non confermato");
+}
+
+await page.locator("#gps-btn").click();
+await page.waitForTimeout(300);
+const gpsStopped = await page.locator('#gps-btn[aria-pressed="false"]').isVisible().catch(() => false);
+note(`GPS arrestato e posizione solo in memoria: ${gpsStopped}`);
+if (!gpsStopped) problems.push("GPS non si arresta in modo esplicito");
+
+const farCtx = await browser.newContext({
+  viewport: { width: vp.width, height: vp.height },
+  permissions: ["geolocation"],
+  geolocation: { latitude: 45.5800, longitude: 7.3600 },
+});
+const farPage = await farCtx.newPage();
+await farPage.addInitScript(() => {
+  localStorage.setItem("vatsamon_onboarded", JSON.stringify({ verify: true }));
+});
+await farPage.goto(APP_URL, { waitUntil: "domcontentloaded" });
+await farPage.waitForTimeout(700);
+await farPage.locator("#gps-btn").click();
+await farPage.waitForTimeout(800);
+const checkpointBlocked = await farPage.locator("#gps-checkpoint-btn").isDisabled().catch(() => true);
+const offRoute = await farPage.locator("#gps-explorer-panel", { hasText: "Fuori dal tracciato" }).isVisible().catch(() => false);
+note(`checkpoint lontano bloccato: ${checkpointBlocked} · avviso fuori percorso: ${offRoute}`);
+if (!checkpointBlocked || !offRoute) problems.push("GPS non blocca il checkpoint fuori percorso");
+await farCtx.close();
 await page.screenshot({ path: `${OUT}/v2int-2-gps.png` });
 
 // giro tab
@@ -97,14 +140,23 @@ for (const t of TABS) {
 }
 
 // Vatsadex: card catalogo reali X/73
-await clickTab(page, "Vatsadex");
+await clickTab(page, "Libretto");
 const cat = await page.locator("text=/Reines reali:\\s*\\d+\\/73/").isVisible().catch(() => false);
 note(`catalogo reali X/73: ${cat}`);
 if (!cat) problems.push("manca la card catalogo reali X/73");
 await page.screenshot({ path: `${OUT}/v2int-3-dex.png` });
 
-// Quiz "Scuola d'Alpeggio": completa il flusso fino al risultato
-await page.locator("nav button", { hasText: "Scuola" }).first().click();
+// Premi/Giro di Stalla: raggiungibile dal chip nell'HUD
+await page.locator("#premi-chip").click();
+await page.waitForTimeout(400);
+const premiOpen = await page.locator("#premi-view").isVisible().catch(() => false);
+note(`vista Premi dal chip HUD: ${premiOpen}`);
+if (!premiOpen) problems.push("il chip Premi nell'HUD non apre la vista");
+
+// Quiz "Scuola d'Alpeggio": la Stagione è raggiungibile dal tab Percorsi.
+await clickTab(page, "Percorsi");
+await page.locator("#open-season-btn").click();
+await page.locator("#quiz-entry").click();
 await page.waitForTimeout(400);
 let quizGuard = 0;
 while (quizGuard++ < 15) {
@@ -124,13 +176,29 @@ note(`quiz completato: ${quizDone}`);
 if (!quizDone) problems.push("quiz non arriva al risultato");
 await page.screenshot({ path: `${OUT}/v2int-6-quiz.png` });
 
-// AR Scan → upload → cattura interattiva (master ball garantita)
-await clickTab(page, "AR Scan");
+// Scatta la Reina → verifica on-device (COCO-SSD) → cattura interattiva
+await clickTab(page, "Scatta");
 await page.waitForTimeout(300);
 const fileInput = page.locator('input[type="file"]').first();
 if (await fileInput.count()) {
-  await fileInput.setInputFiles({ name: "mucca.png", mimeType: "image/png", buffer: PNG });
-  await page.waitForTimeout(3500); // analisi → entra in cattura
+  // 1) NON-bovina: un PNG 1×1 deve essere rifiutato con cortesia
+  //    (il primo riconoscimento include il caricamento del modello ~18MB)
+  await fileInput.setInputFiles({ name: "pixel.png", mimeType: "image/png", buffer: PNG });
+  const rejected = await page.locator("#sighting-rejected").waitFor({ state: "visible", timeout: 120000 }).then(() => true).catch(() => false);
+  note(`scanner rifiuta ciò che non è bovina: ${rejected}`);
+  if (!rejected) problems.push("il riconoscitore non rifiuta le foto senza bovine");
+  await page.locator("#sighting-rejected button").click().catch(() => {});
+  await page.waitForTimeout(300);
+
+  // 2) foto VERA di una Reina → verificata → si apre la cattura
+  await fileInput.setInputFiles(new URL("../public/photos/BESKIADA.jpg", import.meta.url).pathname);
+  const confirmBtn = page.locator("#sighting-confirm");
+  const verified = await confirmBtn.waitFor({ state: "visible", timeout: 60000 }).then(() => true).catch(() => false);
+  note(`bovina reale verificata dal riconoscitore: ${verified}`);
+  if (!verified) problems.push("il riconoscitore non verifica la foto reale della Reina");
+  await page.screenshot({ path: `${OUT}/v2int-4a-verificata.png` });
+  if (verified) await confirmBtn.click();
+  await page.waitForTimeout(1200);
   const capturing = await page.locator("#throw-btn").isVisible().catch(() => false);
   note(`scanner → cattura aperta: ${capturing}`);
   if (!capturing) problems.push("scanner non porta alla cattura");
@@ -159,34 +227,49 @@ if (await encounter.isVisible().catch(() => false)) {
 }
 
 // ===== BATTAGLIE SULLA MAPPA (scena stile Pokémon) =====
-await clickTab(page, "Mappa");
+await clickTab(page, "Alpeggio");
 await page.waitForTimeout(500);
-// assicura GPS attivo (posizione vicino al Pastore)
-const gpsOnNow = await page.locator("#gps-btn", { hasText: "GPS attivo" }).isVisible().catch(() => false);
+// assicura GPS attivo (posizione mockata vicino al Pastore)
+const gpsOnNow = await page.locator('#gps-btn[aria-pressed="true"]').isVisible().catch(() => false);
 if (!gpsOnNow) { await page.locator("#gps-btn").click().catch(() => {}); await page.waitForTimeout(1000); }
+else await page.waitForTimeout(800);
+await clickTab(page, "Percorsi");
 const nNear = await page.locator("#battle-nearby button").count();
 note(`pannello 'Sfide nei dintorni': ${nNear} combattenti`);
-const nearBtn = page.locator("#battle-nearby button:not([disabled])").first();
+const nearBtn = page.locator("#battle-nearby button", { hasText: "COMBATTI" }).first();
 if (await nearBtn.count()) {
   await nearBtn.click();
   await page.waitForTimeout(500);
   const sceneOpen = await page.locator("#battle-scene").isVisible().catch(() => false);
   note(`scena di battaglia aperta: ${sceneOpen}`);
   if (!sceneOpen) problems.push("la scena di battaglia non si apre dal pannello sfide");
-  await page.locator("#battle-start").click().catch(() => {});
-  await page.waitForTimeout(500);
-  let bGuard = 0;
-  while (bGuard++ < 80) {
-    const ended = await page.locator("#battle-scene .font-mono.font-black", { hasText: /si ritira/ }).first().isVisible().catch(() => false);
-    if (ended) break;
-    const mv = page.locator("#battle-moves button:not([disabled])").first();
-    if (await mv.count()) await mv.click().catch(() => {});
-    await page.waitForTimeout(350);
+  if (sceneOpen) {
+    // VIGILIA: porta una scorta nello Sac e compi il rito della limatura
+    await page.locator("[data-sac]").first().click().catch(() => {});
+    const startDisabledPrima = await page.locator("#battle-start").isDisabled().catch(() => false);
+    note(`vigilia: ingaggio bloccato prima della limatura: ${startDisabledPrima}`);
+    if (!startDisabledPrima) problems.push("la limatura delle corna non è obbligatoria");
+    await page.locator("#rito-limatura").click();
+    await page.waitForTimeout(250);
+    await page.locator("#battle-start").click().catch(() => {});
+    await page.waitForTimeout(500);
+    // il tell dell'avversaria (lettura dell'animale) deve essere visibile
+    const tellVisible = await page.locator("#battle-tell").isVisible().catch(() => false);
+    note(`tell dell'avversaria visibile: ${tellVisible}`);
+    if (!tellVisible) problems.push("manca il tell dell'avversaria nella Spinta");
+    let bGuard = 0;
+    while (bGuard++ < 80) {
+      const ended = await page.locator("#battle-scene .font-mono.font-black", { hasText: /si ritira/ }).first().isVisible().catch(() => false);
+      if (ended) break;
+      const mv = page.locator("#battle-moves button:not([disabled])").first();
+      if (await mv.count()) await mv.click().catch(() => {});
+      await page.waitForTimeout(350);
+    }
+    const bDone = await page.locator("#battle-scene").getByText(/si ritira/).first().isVisible().catch(() => false);
+    note(`battaglia sulla mappa conclusa: ${bDone}`);
+    if (!bDone) problems.push("la battaglia sulla mappa non si conclude");
+    await page.screenshot({ path: `${OUT}/v2int-7-battlescene.png` });
   }
-  const bDone = await page.locator("#battle-scene").getByText(/si ritira/).first().isVisible().catch(() => false);
-  note(`battaglia sulla mappa conclusa: ${bDone}`);
-  if (!bDone) problems.push("la battaglia sulla mappa non si conclude");
-  await page.screenshot({ path: `${OUT}/v2int-7-battlescene.png` });
 } else problems.push("nessuna sfida disponibile nel pannello 'Sfide nei dintorni'");
 
 if (errors.length) {

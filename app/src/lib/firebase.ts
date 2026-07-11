@@ -1,5 +1,5 @@
 /**
- * Inizializzazione Firebase (Auth + Firestore) per Vatsamon GO.
+ * Inizializzazione Firebase (Auth + Firestore) per Vatsamon.
  *
  * La config arriva dalle variabili VITE_FIREBASE_* (vedi app/.env.local e
  * FIREBASE_SETUP.md). Se mancano, l'app gira in "modalità locale" (solo questo

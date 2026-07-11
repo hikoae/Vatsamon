@@ -1,5 +1,5 @@
 /**
- * Contesto di autenticazione per Vatsamon GO.
+ * Contesto di autenticazione per Vatsamon.
  *
  * - Con Firebase configurato: login Google (popup) + email/password, stato
  *   reattivo via onAuthStateChanged.

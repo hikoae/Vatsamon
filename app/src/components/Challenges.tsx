@@ -67,13 +67,13 @@ export function Challenges({
               <div className="flex-grow min-w-0">
                 <div className="flex items-center gap-1.5">
                   <span className="text-[12px] font-mono font-black text-slate-100 truncate">{c.title}</span>
-                  {done && <span className="text-[8px]">✅</span>}
+                  {done && <span className="text-[10px]">✅</span>}
                 </div>
                 <div className="text-[9.5px] text-slate-400 leading-tight">{c.desc}</div>
                 <div className="mt-1 h-1.5 rounded-full bg-slate-800 overflow-hidden">
                   <div className={`h-full transition-all ${done ? "bg-emerald-500" : "bg-rose-500"}`} style={{ width: `${pct}%` }} />
                 </div>
-                <div className="text-[8px] font-mono text-slate-500 mt-0.5">{Math.min(c.value(stats), c.goal)}/{c.goal} · ricompensa +{c.coins}🪙 +{c.xp}XP</div>
+                <div className="text-[10px] font-mono text-slate-500 mt-0.5">{Math.min(c.value(stats), c.goal)}/{c.goal} · ricompensa +{c.coins}🪙 +{c.xp}XP</div>
               </div>
               <button
                 disabled={!done || isClaimed}

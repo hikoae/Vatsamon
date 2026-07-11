@@ -1,23 +1,15 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
-  <rect width="512" height="512" rx="112" fill="#2E5D34"/>
-  <!-- testa mucca stilizzata -->
-  <g transform="translate(256 268)">
-    <!-- orecchie -->
-    <ellipse cx="-118" cy="-30" rx="46" ry="30" fill="#f7f5ef" transform="rotate(-25 -118 -30)"/>
-    <ellipse cx="118" cy="-30" rx="46" ry="30" fill="#f7f5ef" transform="rotate(25 118 -30)"/>
-    <!-- corna -->
-    <path d="M-92 -96 q-30 -58 -78 -54 q40 18 56 70 z" fill="#e9e2cf"/>
-    <path d="M92 -96 q30 -58 78 -54 q-40 18 -56 70 z" fill="#e9e2cf"/>
-    <!-- muso -->
-    <ellipse cx="0" cy="6" rx="118" ry="104" fill="#f7f5ef"/>
-    <!-- macchia -->
-    <path d="M-70 -70 q60 -30 96 22 q-40 30 -96 6 z" fill="#cdbf9f"/>
-    <!-- occhi -->
-    <circle cx="-44" cy="-8" r="13" fill="#1b2a1d"/>
-    <circle cx="44" cy="-8" r="13" fill="#1b2a1d"/>
-    <!-- museruola -->
-    <ellipse cx="0" cy="64" rx="74" ry="50" fill="#e9b8b0"/>
-    <circle cx="-28" cy="62" r="11" fill="#7d4a44"/>
-    <circle cx="28" cy="62" r="11" fill="#7d4a44"/>
+<svg width="64" height="64" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <defs><clipPath id="r"><rect width="512" height="512" rx="96"/></clipPath></defs>
+  <g clip-path="url(#r)">
+    <rect width="256" height="512" fill="#16121f"/>
+    <rect x="256" width="256" height="512" fill="#c8102e"/>
+    <g fill="none" stroke="#F4F0E8" stroke-width="44" stroke-linecap="round">
+      <path d="M256,396 C226,330 178,258 174,178 C172,146 186,120 214,110"/>
+      <path d="M256,396 C286,330 334,258 338,178 C340,146 326,120 298,110"/>
+      <path d="M174,178 C160,148 164,120 186,102"/>
+      <path d="M338,178 C352,148 348,120 326,102"/>
+    </g>
+    <circle cx="256" cy="404" r="26" fill="#F4F0E8"/>
+    <rect y="466" width="512" height="18" fill="#C9A227"/>
   </g>
 </svg>

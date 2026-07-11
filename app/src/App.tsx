@@ -1,37 +1,29 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import L from 'leaflet';
-import { 
-  Compass, 
-  Camera, 
-  BookOpen, 
-  Swords, 
-  Volume2, 
-  VolumeX, 
-  Sparkles, 
-  ShieldAlert, 
-  Award, 
-  MapPin, 
-  Zap, 
-  Shield, 
-  Upload, 
-  RefreshCw, 
+import {
+  Mountain,
+  Warehouse,
+  Compass,
+  Camera,
+  BookOpen,
+  Volume2,
+  VolumeX,
+  Sparkles,
+  ShieldAlert,
+  MapPin,
+  LocateFixed,
   X,
-  Play,
-  Search,
   RotateCw,
-  TrendingUp,
-  User,
-  ShoppingBag,
   Gift,
   Footprints,
-  Plus,
-  GraduationCap,
-  Trophy
+  GraduationCap
 } from 'lucide-react';
-import { Vatsamon, Hotspot, BackpackItem, Trainer, BattleState, RarityType } from './types';
+import { Vatsamon, Hotspot, BackpackItem, Trainer, RarityType } from './types';
+import { normalizeSaveKey } from './lib/migrateSaveKeys';
+import { savePhoto } from './lib/photoStore';
+import { APP_VERSION, BRAND } from './config/brand';
 import { VatsamonAvatar } from './components/VatsamonAvatar';
 import { CowVisual } from './components/CowVisual';
-import { CowCard } from './components/CowCard';
 import { TrailOverlay } from './components/TrailOverlay';
 import { VALDOSTAN_TRAILS } from './data/trails';
 import { QuizScreen } from './components/QuizScreen';
@@ -42,26 +34,49 @@ import DungeonRun from './components/DungeonRun';
 import ValutazioneReina from './components/ValutazioneReina';
 import { MAP_BATTLES, MapBattle } from './data/mapBattles';
 import { DUNGEONS, Dungeon } from './data/dungeons';
-import { ARENAS, ArenaId } from './data/arenas';
+import { ArenaId } from './data/arenas';
 import { TREK_ROUTES } from './data/routes';
 import { Challenges } from './components/Challenges';
 import { SeasonView } from './components/SeasonView';
 import { StallaScreen } from './components/StallaScreen';
+import { VatsadexView } from './components/VatsadexView';
+import { ScattaView } from './components/ScattaView';
 import { DailyPanel } from './components/DailyPanel';
+import { GpsExplorerPanel, type NearbyPlace } from './components/GpsExplorerPanel';
+import { RoutesView } from './components/RoutesView';
 import { soundEngine } from './utils/audio';
 import { generateVatsamonClient } from './lib/generate';
-import { REAL_COWS, REAL_TOTAL, REAL_CASERE, SHOWCASE_BY_RARITY } from './data/realCows';
-import { distanza, fmtDist, RAGGIO_CATTURA } from './lib/geo';
+import { REAL_COWS, REAL_CASERE } from './data/realCows';
+import { abbinaPosizioneAPercorso, direzioneVerso, distanza, fmtDist, RAGGIO_CATTURA } from './lib/geo';
 import { gradoCorrente } from './data/gradi';
 import { faseCorrente } from './data/fase';
+import { oggiISO } from './lib/oggi';
 import { VALUTE, FONTINA_REWARD, costoStellaPedigree, PEDIGREE_STAR_CAP } from './data/economy';
-import { ROUTE_TONE, WILD_BREEDS, WILD_NAMES, ECO_TREK_TIPS, LORE_POOL, BALL_META, BALL_ORDER, DEFAULT_BAG, SEED_COLLECTION } from './data/overworld';
+import { WILD_BREEDS, WILD_NAMES, ECO_TREK_TIPS, LORE_POOL, BALL_META, BALL_ORDER, DEFAULT_BAG, SEED_COLLECTION } from './data/overworld';
 import { BASE_CATCH, estimateCatch, respectTone, catchDifficulty } from './lib/capture';
+import { SAC_ITEMS, BOTTEGA_EXTRA } from './data/sac';
+import { Trofeo, TROFEO_META } from './data/trofei';
+import EliminatoireView, { EsitoTappa } from './components/EliminatoireView';
+import { tappe, tappaStato, STATO_LABEL, LS_ELIMINATOIRE, EliminatoireSave } from './data/eliminatoire';
+import { ArpPanel } from './components/ArpPanel';
+import { sbloccaParola, vociSbloccate, parolePatois, PATOIS_TRIGGERS, TOTALE_PAROLE } from './lib/patois';
+import LeggendeView from './components/LeggendeView';
+import { ArpState, ARP_VUOTO, LS_ARP, ARP_KG_PER_CURA, ARP_GIORNI_PER_FONTINA } from './data/arp';
+import { SeasonEvent } from './data/season';
 
 // Indice delle Reines reali del bundle (per i codici di salvataggio compatti:
 // si salva l'id + le sole differenze, non l'intera scheda statica).
 const REAL_BY_ID = new Map(REAL_COWS.map(c => [c.id, c]));
 const BAG_BY_ID = new Map(DEFAULT_BAG.map(i => [i.id, i]));
+
+const GPS_ROUTE_TOLERANCE = 120;
+const GPS_CHECKPOINT_RANGE = 90;
+const BATTLE_RANGE = 800;
+const GPS_CHECKPOINT_MISSIONS = [
+  { title: 'Sosta sicura', detail: 'Raggiungi il punto, fermati in un luogo sicuro e scopri il timbro del sentiero.' },
+  { title: 'Sguardo sul paesaggio', detail: 'Osserva il paesaggio dal punto indicato: nessuna foto o azione è richiesta mentre cammini.' },
+  { title: 'Passo rispettoso', detail: 'Resta sul tracciato, lascia spazio alle mandrie e registra il tuo arrivo.' },
+] as const;
 
 // Fallback coordinate conversion for consistent SVG layout positioning
 export const getSvgCoords = (lat: number, lng: number) => {
@@ -82,7 +97,7 @@ export const getSvgCoords = (lat: number, lng: number) => {
 export default function App() {
   // ---- 1. PERSISTENT STATS ----
   const [vatsadex, setVatsadex] = useState<Vatsamon[]>(() => {
-    const cached = localStorage.getItem('vazzamon_collection_go');
+    const cached = localStorage.getItem('vatsamon_collection_go');
     if (cached) {
       try { return JSON.parse(cached); } catch (e) { console.error(e); }
     }
@@ -90,12 +105,12 @@ export default function App() {
   });
 
   const [backpack, setBackpack] = useState<BackpackItem[]>(() => {
-    const cached = localStorage.getItem('vazzamon_bag_go');
+    const cached = localStorage.getItem('vatsamon_bag_go');
     if (cached) {
       try {
         const parsed: BackpackItem[] = JSON.parse(cached);
-        // Migrazione: assicura che esista l'intera linea di Vatsa-ball anche per
-        // i salvataggi vecchi (es. nuova Iper Vatsa-ball), senza azzerare le scorte.
+        // Migrazione: assicura che esista l'intera linea di campanacci anche per
+        // i salvataggi vecchi (es. nuovo Campanaccio Runico), senza azzerare le scorte.
         DEFAULT_BAG.forEach(def => {
           if (!parsed.find(p => p.id === def.id)) parsed.push({ ...def });
         });
@@ -107,7 +122,7 @@ export default function App() {
 
 
   const [trainer, setTrainer] = useState<Trainer>(() => {
-    const cached = localStorage.getItem('vazzamon_trainer_go');
+    const cached = localStorage.getItem('vatsamon_trainer_go');
     if (cached) {
       try { return JSON.parse(cached); } catch (e) { console.error(e); }
     }
@@ -127,7 +142,7 @@ export default function App() {
   // SAVE_KEYS in cloudSave.ts per la sincronizzazione cloud). Un Rispetto alto
   // dà un piccolo vantaggio di gameplay (vedi spawnWildCowAtRandom: bonus rarità).
   const [respectScore, setRespectScore] = useState<number>(() => {
-    const cached = localStorage.getItem('vazzamon_respect');
+    const cached = localStorage.getItem('vatsamon_respect');
     if (cached !== null) {
       const n = Number(cached);
       if (!Number.isNaN(n)) return Math.max(0, Math.min(100, n));
@@ -139,10 +154,10 @@ export default function App() {
     setRespectScore(prev => Math.max(0, Math.min(100, prev + delta)));
 
   // Keep all persistent items secure in localStorage
-  useEffect(() => { localStorage.setItem('vazzamon_collection_go', JSON.stringify(vatsadex)); }, [vatsadex]);
-  useEffect(() => { localStorage.setItem('vazzamon_bag_go', JSON.stringify(backpack)); }, [backpack]);
-  useEffect(() => { localStorage.setItem('vazzamon_trainer_go', JSON.stringify(trainer)); }, [trainer]);
-  useEffect(() => { localStorage.setItem('vazzamon_respect', String(respectScore)); }, [respectScore]);
+  useEffect(() => { localStorage.setItem('vatsamon_collection_go', JSON.stringify(vatsadex)); }, [vatsadex]);
+  useEffect(() => { localStorage.setItem('vatsamon_bag_go', JSON.stringify(backpack)); }, [backpack]);
+  useEffect(() => { localStorage.setItem('vatsamon_trainer_go', JSON.stringify(trainer)); }, [trainer]);
+  useEffect(() => { localStorage.setItem('vatsamon_respect', String(respectScore)); }, [respectScore]);
   // Rispecchia il Rispetto nell'oggetto trainer così la classifica cloud
   // (leaderboard in cloudSave.ts, che legge trainer.respectScore) resta accurata.
   useEffect(() => {
@@ -152,7 +167,7 @@ export default function App() {
   // ---- FASE 2: Identità (Gradi Amis des Reines), valuta di prestigio (Fontina),
   //      motore di fase della stagione. Tutto derivato, niente stato nuovo. ----
   const gradoStato = gradoCorrente({ xp: trainer.xp, capturedCount: trainer.capturedCount, respectScore });
-  const faseStato = faseCorrente(new Date().toISOString().slice(0, 10));
+  const faseStato = faseCorrente(oggiISO());
   const fontina = trainer.fontina ?? 0;
   const pedigreeStars = trainer.pedigreeStars ?? 0;
   // Accredita Forme di Fontina (valuta di prestigio) con un avviso nel feed.
@@ -164,32 +179,39 @@ export default function App() {
 
   // Trekking Waypoints coordinates tracking
   const [currentWaypointIndex, setCurrentWaypointIndex] = useState<number>(() => {
-    const cached = localStorage.getItem('vazzamon_waypoint_idx');
+    const cached = localStorage.getItem('vatsamon_waypoint_idx');
     return cached ? Number(cached) : 0; // si parte dalla prima tappa del percorso
   });
   const [waypointProgress, setWaypointProgress] = useState<number>(() => {
-    const cached = localStorage.getItem('vazzamon_waypoint_progress');
+    const cached = localStorage.getItem('vatsamon_waypoint_progress');
     return cached ? Number(cached) : 0;
   });
 
   // Percorso di trekking attivo (3 itinerari selezionabili).
   const [activeRouteId, setActiveRouteId] = useState<string>(() => {
-    return localStorage.getItem('vazzamon_active_route_id') || TREK_ROUTES[0].id;
+    return localStorage.getItem('vatsamon_active_route_id') || TREK_ROUTES[0].id;
   });
-  useEffect(() => { localStorage.setItem('vazzamon_active_route_id', activeRouteId); }, [activeRouteId]);
+  useEffect(() => { localStorage.setItem('vatsamon_active_route_id', activeRouteId); }, [activeRouteId]);
   const activeRoute = TREK_ROUTES.find(r => r.id === activeRouteId) ?? TREK_ROUTES[0];
   const activeTrail = activeRoute.coords;
 
   // ---- Progressione Fase 2: percorsi completati + bovine scoperte (fog-of-war) ----
   const [completedRoutes, setCompletedRoutes] = useState<string[]>(() => {
-    try { return JSON.parse(localStorage.getItem('vazzamon_completed_routes') || '[]'); } catch { return []; }
+    try { return JSON.parse(localStorage.getItem('vatsamon_completed_routes') || '[]'); } catch { return []; }
   });
-  useEffect(() => { localStorage.setItem('vazzamon_completed_routes', JSON.stringify(completedRoutes)); }, [completedRoutes]);
+  useEffect(() => { localStorage.setItem('vatsamon_completed_routes', JSON.stringify(completedRoutes)); }, [completedRoutes]);
+
+  // Checkpoint GPS: timbri locali per ogni percorso. La posizione non viene
+  // persistita: salviamo solo l'avanzamento scelto dall'utente.
+  const [gpsCheckpoints, setGpsCheckpoints] = useState<Record<string, number[]>>(() => {
+    try { return JSON.parse(localStorage.getItem('vatsamon_gps_checkpoints') || '{}'); } catch { return {}; }
+  });
+  useEffect(() => { localStorage.setItem('vatsamon_gps_checkpoints', JSON.stringify(gpsCheckpoints)); }, [gpsCheckpoints]);
 
   const [discoveredCows, setDiscoveredCows] = useState<string[]>(() => {
-    try { return JSON.parse(localStorage.getItem('vazzamon_discovered_cows') || '[]'); } catch { return []; }
+    try { return JSON.parse(localStorage.getItem('vatsamon_discovered_cows') || '[]'); } catch { return []; }
   });
-  useEffect(() => { localStorage.setItem('vazzamon_discovered_cows', JSON.stringify(discoveredCows)); }, [discoveredCows]);
+  useEffect(() => { localStorage.setItem('vatsamon_discovered_cows', JSON.stringify(discoveredCows)); }, [discoveredCows]);
   const DISCOVERY_RADIUS = 1500; // metri: entro questo raggio una Reina viene "avvistata"
   // Cambia percorso: riparte dalla prima tappa.
   const selectRoute = (id: string) => {
@@ -209,44 +231,44 @@ export default function App() {
   // Track hiking feeds to avoid intrusive standard popups
   const [trekkingFeed, setTrekkingFeed] = useState<string[]>([
     "Benvenuto in Valle d'Aosta! Preparati all'escursionismo alpino.",
-    "Bussola sintonizzata: sei attualmente ad Aosta Centro 🏰."
+    "Bussola pronta: sei attualmente ad Aosta Centro 🏰."
   ]);
 
-  useEffect(() => { localStorage.setItem('vazzamon_waypoint_idx', String(currentWaypointIndex)); }, [currentWaypointIndex]);
-  useEffect(() => { localStorage.setItem('vazzamon_waypoint_progress', String(waypointProgress)); }, [waypointProgress]);
+  useEffect(() => { localStorage.setItem('vatsamon_waypoint_idx', String(currentWaypointIndex)); }, [currentWaypointIndex]);
+  useEffect(() => { localStorage.setItem('vatsamon_waypoint_progress', String(waypointProgress)); }, [waypointProgress]);
 
   // ---- 2. VIEW NAVIGATION ----
-  const [activeTab, setActiveTab] = useState<'map' | 'stagione' | 'scanner' | 'stalla' | 'vatsadex' | 'quiz' | 'premi'>('map');
+  const [activeTab, setActiveTab] = useState<'map' | 'routes' | 'stagione' | 'scanner' | 'stalla' | 'vatsadex' | 'quiz' | 'premi'>('map');
   // Battaglia attiva (scena stile Pokémon lanciata dalla mappa).
   const [activeBattle, setActiveBattle] = useState<MapBattle | null>(null);
   const [activeDungeon, setActiveDungeon] = useState<Dungeon | null>(null); // Lega/dungeon in corso
   const [dungeonsCleared, setDungeonsCleared] = useState<string[]>(() => {
-    try { return JSON.parse(localStorage.getItem('vazzamon_dungeons') || '[]'); } catch { return []; }
+    try { return JSON.parse(localStorage.getItem('vatsamon_dungeons') || '[]'); } catch { return []; }
   });
-  useEffect(() => { localStorage.setItem('vazzamon_dungeons', JSON.stringify(dungeonsCleared)); }, [dungeonsCleared]);
+  useEffect(() => { localStorage.setItem('vatsamon_dungeons', JSON.stringify(dungeonsCleared)); }, [dungeonsCleared]);
   const [encounterFlash, setEncounterFlash] = useState(false); // flash d'incontro casuale
   // FASE 4: incontro educativo casuale (guardaparco/pastore) attivo, o null.
   const [respectEncounter, setRespectEncounter] = useState<ResponsibleQuestion | null>(null);
   // Quiz "Scuola d'Alpeggio": miglior punteggio persistito.
   const [quizBest, setQuizBest] = useState<number>(() => {
-    const saved = localStorage.getItem('vazzamon_quiz_go');
+    const saved = localStorage.getItem('vatsamon_quiz_go');
     return saved ? parseInt(saved, 10) : 0;
   });
   // Medaglie delle Arene conquistate (bonus permanenti).
   const [trainerBadges, setTrainerBadges] = useState<ArenaId[]>(() => {
-    const saved = localStorage.getItem('vazzamon_badges');
+    const saved = localStorage.getItem('vatsamon_badges');
     return saved ? JSON.parse(saved) : ['cogne', 'gran_paradiso'];
   });
   useEffect(() => {
-    localStorage.setItem('vazzamon_badges', JSON.stringify(trainerBadges));
+    localStorage.setItem('vatsamon_badges', JSON.stringify(trainerBadges));
   }, [trainerBadges]);
   // Sfide riscosse (per non riscuotere due volte la ricompensa).
   const [claimedChallenges, setClaimedChallenges] = useState<string[]>(() => {
-    const saved = localStorage.getItem('vazzamon_challenges_go');
+    const saved = localStorage.getItem('vatsamon_challenges_go');
     return saved ? JSON.parse(saved) : [];
   });
   useEffect(() => {
-    localStorage.setItem('vazzamon_challenges_go', JSON.stringify(claimedChallenges));
+    localStorage.setItem('vatsamon_challenges_go', JSON.stringify(claimedChallenges));
   }, [claimedChallenges]);
   const [soundEnabled, setSoundEnabled] = useState(true);
 
@@ -292,14 +314,61 @@ export default function App() {
   // Posizione GPS reale o "demo" (tap sulla mappa); se null si segue il sentiero.
   const [gpsPos, setGpsPos] = useState<{ lat: number; lng: number } | null>(null);
   const [gpsOn, setGpsOn] = useState(false);
+  const [gpsState, setGpsState] = useState<'off' | 'requesting' | 'active' | 'error'>('off');
+  const [gpsAccuracy, setGpsAccuracy] = useState<number | null>(null);
+  const [gpsUpdatedAt, setGpsUpdatedAt] = useState<number | null>(null);
+  const [gpsIssue, setGpsIssue] = useState<string | null>(null);
   const gpsWatchRef = useRef<number | null>(null);
+  const gpsSessionRef = useRef(0);
 
   // Posizione effettiva del giocatore (GPS/demo se presente, altrimenti sentiero)
   const effLat = gpsPos ? gpsPos.lat : playerLat;
   const effLng = gpsPos ? gpsPos.lng : playerLng;
 
+  const gpsRouteMatch = useMemo(
+    () => gpsPos ? abbinaPosizioneAPercorso(gpsPos, activeTrail) : null,
+    [gpsPos, activeTrail],
+  );
+  const gpsTargetIndex = Math.min(safeWaypointIndex + 1, activeTrail.length - 1);
+  const gpsTarget = activeTrail[gpsTargetIndex] ?? currentWaypoint;
+  const gpsTargetDistance = distanza({ lat: effLat, lng: effLng }, gpsTarget);
+  const gpsDirection = direzioneVerso({ lat: effLat, lng: effLng }, gpsTarget);
+  // Il checkpoint è il punto del tracciato raggiunto davvero: usare solo la
+  // prossima tappa renderebbe impossibile timbrare un punto appena superato.
+  const gpsCheckpointIndex = gpsRouteMatch
+    ? Math.max(1, Math.min(
+      gpsRouteMatch.segmentIndex + (gpsRouteMatch.progress >= 0.9 ? 1 : 0),
+      activeTrail.length - 1,
+    ))
+    : gpsTargetIndex;
+  const gpsCheckpoint = activeTrail[gpsCheckpointIndex] ?? gpsTarget;
+  const gpsCheckpointDistance = distanza({ lat: effLat, lng: effLng }, gpsCheckpoint);
+  const claimedGpsCheckpoints = gpsCheckpoints[activeRouteId] ?? [];
+  const checkpointClaimed = claimedGpsCheckpoints.includes(gpsCheckpointIndex);
+  const checkpointReady = Boolean(gpsOn && gpsPos && gpsRouteMatch && gpsRouteMatch.distanceM <= GPS_ROUTE_TOLERANCE && gpsCheckpointDistance <= GPS_CHECKPOINT_RANGE);
+  const checkpointMission = GPS_CHECKPOINT_MISSIONS[gpsCheckpointIndex % GPS_CHECKPOINT_MISSIONS.length];
+
+  const nearbyGpsPlaces = useMemo<NearbyPlace[]>(() => {
+    const here = { lat: effLat, lng: effLng };
+    const captured = new Set(vatsadex.map(c => c.id));
+    const closestCow = REAL_COWS
+      .filter(c => !captured.has(c.id) && c.lat != null && c.lng != null)
+      .map(c => ({ cow: c, distanceM: distanza(here, { lat: c.lat!, lng: c.lng! }) }))
+      .sort((a, b) => a.distanceM - b.distanceM)[0];
+    const closestCasera = REAL_CASERE
+      .map(c => ({ casera: c, distanceM: distanza(here, c) }))
+      .sort((a, b) => a.distanceM - b.distanceM)[0];
+    const closestBattle = MAP_BATTLES
+      .map(b => ({ battle: b, distanceM: distanza(here, b) }))
+      .sort((a, b) => a.distanceM - b.distanceM)[0];
+    const places: NearbyPlace[] = [];
+    if (closestCow) places.push({ id: closestCow.cow.id, kind: 'Reina', label: closestCow.cow.name, detail: closestCow.cow.comune ?? 'Reina reale', distanceM: closestCow.distanceM, ready: closestCow.distanceM <= RAGGIO_CATTURA });
+    if (closestCasera) places.push({ id: closestCasera.casera.id, kind: 'Casera', label: closestCasera.casera.name, detail: closestCasera.casera.valley, distanceM: closestCasera.distanceM, ready: closestCasera.distanceM <= RAGGIO_CATTURA });
+    if (closestBattle) places.push({ id: closestBattle.battle.id, kind: 'Sfida', label: closestBattle.battle.name, detail: closestBattle.battle.subtitle, distanceM: closestBattle.distanceM, ready: trainer.level >= closestBattle.battle.reqLevel && closestBattle.distanceM <= BATTLE_RANGE });
+    return places;
+  }, [effLat, effLng, trainer.level, vatsadex]);
+
   // ---- Battaglie sulla mappa: ingaggio + ricompense ----
-  const BATTLE_RANGE = 800; // metri per poter sfidare un combattente
   const tryStartBattle = (mb: MapBattle) => {
     playClickSfx();
     if (vatsadex.length === 0) {
@@ -317,9 +386,135 @@ export default function App() {
     }
     setActiveBattle(mb);
   };
-  const handleBattleResult = (won: boolean) => {
+  // Il patois giocato: una parola si sblocca compiendola (feed + Profilo).
+  const [, setPatoisTick] = useState(0); // ri-render del Profilo dopo uno sblocco
+  const impara = (chiave: string) => {
+    const voce = sbloccaParola(chiave);
+    if (voce) {
+      setPatoisTick(n => n + 1);
+      setTrekkingFeed(prev => [`🗣️ Nuova parola di patois: «${voce.patois ?? voce.fr}» — ${voce.it}. (${parolePatois().length}/${TOTALE_PAROLE})`, ...prev.slice(0, 8)]);
+    }
+  };
+
+  // ---- L'ARP: inarpa, cura quotidiana, discesa, désarpa ----
+  const inarpa = (cowId: string) => {
+    if (faseStato.id !== 'inalpa' || arpState.capi[cowId]) return;
+    const c = vatsadex.find(x => x.id === cowId);
+    setArpState(prev => ({ ...prev, capi: { ...prev.capi, [cowId]: { salitaIl: oggiISO(), ultimaCura: null, giorniCura: 0 } } }));
+    setTrekkingFeed(prev => [`⛰️ Inarpa! ${c?.name ?? 'La Reina'} sale all'alpe: crescerà, ma non gareggia finché è su.`, ...prev.slice(0, 8)]);
+    impara('inarpa');
+  };
+  const curaArp = (cowId: string) => {
+    const capo = arpState.capi[cowId];
+    const oggi = oggiISO();
+    if (!capo || capo.ultimaCura === oggi) return;
+    const giorni = capo.giorniCura + 1;
+    setArpState(prev => ({ ...prev, capi: { ...prev.capi, [cowId]: { ...capo, ultimaCura: oggi, giorniCura: giorni } } }));
+    setVatsadex(prev => prev.map(c => c.id === cowId ? { ...c, peso_kg: Math.min(750, (c.peso_kg ?? 550) + ARP_KG_PER_CURA) } : c));
+    addTrainerXp(15);
+    if (giorni % ARP_GIORNI_PER_FONTINA === 0) { guadagnaFontina(1, "l'alpe ha reso una forma"); impara('alpeggio'); }
+    else setTrekkingFeed(prev => [`🌿 Cura all'arp: +${ARP_KG_PER_CURA} kg. L'erba d'alta quota fa la stazza.`, ...prev.slice(0, 8)]);
+  };
+  const consolidaProduzione = (prev: ArpState, cowId: string, anno: string): ArpState => {
+    const capo = prev.capi[cowId];
+    if (!capo) return prev;
+    const capi = { ...prev.capi };
+    delete capi[cowId];
+    const annoProd = { ...(prev.produzione[anno] ?? {}) };
+    annoProd[cowId] = (annoProd[cowId] ?? 0) + capo.giorniCura;
+    return { ...prev, capi, produzione: { ...prev.produzione, [anno]: annoProd } };
+  };
+  const scendiDallArp = (cowId: string) => {
+    const anno = oggiISO().slice(0, 4);
+    setArpState(prev => consolidaProduzione(prev, cowId, anno));
+    setTrekkingFeed(prev => [`⬇️ Discesa a valle: la Reina torna disponibile per le batailles.`, ...prev.slice(0, 8)]);
+  };
+  const celebraDesarpa = () => {
+    const oggi = oggiISO();
+    const anno = oggi.slice(0, 4);
+    // consolida la produzione di TUTTI i capi ancora all'arp (la désarpa è la discesa)
+    let stato = arpState;
+    for (const id of Object.keys(stato.capi)) stato = consolidaProduzione(stato, id, anno);
+    const prodAnno = stato.produzione[anno] ?? {};
+    // Reina di corne: la più combattiva della TUA stagione (più vittorie)
+    const corne = [...vatsadex].filter(c => (c.vittorie ?? 0) > 0).sort((a, b) => (b.vittorie ?? 0) - (a.vittorie ?? 0))[0];
+    // Reine du lait: la più produttiva all'alpe quest'anno
+    const laitId = Object.entries(prodAnno).sort((a, b) => b[1] - a[1]).filter(([, g]) => g > 0)[0]?.[0];
+    const lait = vatsadex.find(c => c.id === laitId);
+    setArpState({ ...stato, desarpa: { ...stato.desarpa, [anno]: { celebrata: true, corne: corne?.name, lait: lait?.name } } });
+    setVatsadex(prev => prev.map(c =>
+      c.id === corne?.id ? { ...c, fioriRossi: anno } : c.id === lait?.id ? { ...c, fioriBianchi: anno } : c
+    ));
+    guadagnaFontina(2, 'la festa della désarpa');
+    impara('desarpa');
+    if (corne) impara('reina_corne');
+    if (lait) impara('reina_latte');
+    setTrekkingFeed(prev => [`🌸 DÉSARPA ${anno}! ${corne ? `🌹 ${corne.name} è la Reina di corne` : 'Nessuna Reina di corne (serve almeno una vittoria)'}${lait ? ` · 🤍 ${lait.name} è la Reine du lait` : ''}. La mandria scende a valle in festa.`, ...prev.slice(0, 8)]);
+  };
+
+  // Bottega della Casera: i Denari si spendono in scorte per lo Sac.
+  const buyBottega = (id: string, prezzo: number, nome: string) => {
+    if (trainer.coins < prezzo) {
+      setTrekkingFeed(prev => [`🛒 Bottega: ti mancano ${prezzo - trainer.coins} 🪙 per ${nome}.`, ...prev.slice(0, 8)]);
+      return;
+    }
+    playClickSfx();
+    setTrainer(prev => ({ ...prev, coins: prev.coins - prezzo }));
+    setBackpack(prev => {
+      const found = prev.find(it => it.id === id);
+      if (found) return prev.map(it => it.id === id ? { ...it, quantity: it.quantity + 1 } : it);
+      const tpl = DEFAULT_BAG.find(it => it.id === id);
+      return tpl ? [...prev, { ...tpl, quantity: 1 }] : prev;
+    });
+    setTrekkingFeed(prev => [`🛒 Bottega della Casera: ${nome} (−${prezzo} 🪙)`, ...prev.slice(0, 8)]);
+  };
+
+  // Esito di una tappa dell'Éliminatoire: trofei reali, timbro della domenica, albo.
+  const handleTappaFinish = (esito: EsitoTappa) => {
+    const t = activeTappa;
+    if (!t) return;
+    impara('eliminatoria');
+    const oggi = oggiISO();
+    const stato = tappaStato(t, oggi);
+    const giaVinta = tappeSave[t.id]?.vinta === true;
+
+    if (esito.vinta) {
+      setVatsadex(prev => prev.map(c => c.id === esito.reinaId ? { ...c, vittorie: (c.vittorie ?? 0) + 1 } : c));
+      if (!giaVinta) {
+        // Prima vittoria della tappa: i TRE premi reali (dossier §1) + XP pieno.
+        const nuovi: Trofeo[] = (["mecro", "sonnaille", "collare"] as const).map(tipo => ({
+          id: `trofeo-${t.id}-${tipo}`, tipo, comune: t.comune, data: t.data, categoria: esito.categoria, reinaNome: esito.reinaNome,
+        }));
+        setTrofei(prev => [...nuovi, ...prev]);
+        impara('bosquet');
+        if (t.finale) impara('reine_des_reines');
+        addTrainerXp(t.finale ? 800 : 400);
+        setTrekkingFeed(prev => [`🌹 ${t.comune}: ${esito.reinaNome} vince la tappa! Mécro, sonnaille e collare in bacheca${t.finale ? ' — REINE DES REINES!' : ''}`, ...prev.slice(0, 8)]);
+      } else {
+        addTrainerXp(150);
+        setTrekkingFeed(prev => [`📯 ${t.comune} (memoriale): ${esito.reinaNome} si conferma. +150 XP`, ...prev.slice(0, 8)]);
+      }
+      setTappeSave(prev => ({
+        ...prev,
+        [t.id]: {
+          vinta: true,
+          timbro: (prev[t.id]?.timbro ?? false) || stato === 'aperta',
+          reinaNome: esito.reinaNome,
+          categoria: esito.categoria as EliminatoireSave[string]['categoria'],
+          quando: oggi,
+        },
+      }));
+    } else {
+      setTrekkingFeed(prev => [`📯 ${t.comune}: eliminata ai ${esito.turniSuperati === 0 ? 'quarti' : esito.turniSuperati === 1 ? 'la semifinale' : 'la finale di tappa'}. La tappa resta rigiocabile.`, ...prev.slice(0, 8)]);
+    }
+  };
+
+  const handleBattleResult = (won: boolean, cowId?: string) => {
     const mb = activeBattle;
     if (!mb) return;
+    // palmares personale della Reina che ha condotto la spinta
+    if (won && cowId) setVatsadex(prev => prev.map(c => c.id === cowId ? { ...c, vittorie: (c.vittorie ?? 0) + 1 } : c));
+    if (won) impara('bataille');
     if (won && mb.kind === 'pastore' && mb.pastore) {
       const xp = mb.pastore.rewardXp, coins = Math.round(xp / 5);
       addTrainerXp(xp);
@@ -355,9 +550,10 @@ export default function App() {
     }
     setActiveDungeon(d);
   };
-  const handleDungeonResult = (won: boolean) => {
+  const handleDungeonResult = (won: boolean, cowId?: string) => {
     const d = activeDungeon;
     if (!d) return;
+    if (won && cowId) setVatsadex(prev => prev.map(c => c.id === cowId ? { ...c, vittorie: (c.vittorie ?? 0) + 1 } : c));
     if (won) {
       addTrainerXp(d.rewardXp);
       setTrainer(prev => ({ ...prev, coins: prev.coins + d.rewardCoins }));
@@ -486,7 +682,7 @@ export default function App() {
                      <span class="text-base">🍼</span>
                      ${cooldownActive ? '' : '<span class="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-yellow-400 rounded-full border border-white animate-ping"></span>'}
                    </div>
-                   <div class="px-1.5 py-0.5 rounded bg-[#211b3a]/95 border border-[#3a3460] text-[8px] text-white font-mono font-bold whitespace-nowrap shadow-sm" style="transform: translateY(-12px);">
+                   <div class="px-1.5 py-0.5 rounded bg-[#211b3a]/95 border border-[#3a3460] text-[10px] text-white font-mono font-bold whitespace-nowrap shadow-sm" style="transform: translateY(-12px);">
                      ${hp.name.substring(0, 10)}...
                    </div>
                  </div>`,
@@ -525,11 +721,11 @@ export default function App() {
           html: `<div class="flex flex-col items-center">
                    <div class="w-11 h-11 rounded-full bg-[#211b3a] border-2 ${ringCol} flex items-center justify-center shadow-lg relative cursor-pointer hover:scale-110 transition-transform overflow-hidden" style="transform: translateY(-8px);${photoStyle}">
                      ${inner}
-                     <span class="absolute -top-1 -right-1 bg-amber-500 text-[#0b0820] font-mono text-[7px] font-black px-1 rounded-full leading-tight">
+                     <span class="absolute -top-1 -right-1 bg-amber-500 text-[#0b0820] font-mono text-[9px] font-black px-1 rounded-full leading-tight">
                        CP${wc.vatsa.cp}
                      </span>
                    </div>
-                   <div class="px-1 py-0.2 rounded border text-[7px] font-mono font-bold whitespace-nowrap shadow-sm ${labelCls}" style="transform: translateY(-10px);">
+                   <div class="px-1 py-0.2 rounded border text-[9px] font-mono font-bold whitespace-nowrap shadow-sm ${labelCls}" style="transform: translateY(-10px);">
                      ${label}
                    </div>
                  </div>`,
@@ -572,9 +768,9 @@ export default function App() {
             html: `<div class="flex flex-col items-center ${inRange ? '' : 'opacity-70'}">
                      <div class="w-11 h-11 rounded-full border-2 ${ring} bg-[#211b3a] flex items-center justify-center shadow-lg overflow-hidden relative" style="${photo}">
                        ${inner}
-                       <span class="absolute -top-1 -right-1 bg-emerald-500 text-[#0b0820] font-mono text-[7px] font-black px-1 rounded-full">CP${rc.cp}</span>
+                       <span class="absolute -top-1 -right-1 bg-emerald-500 text-[#0b0820] font-mono text-[9px] font-black px-1 rounded-full">CP${rc.cp}</span>
                      </div>
-                     <div class="px-1 rounded bg-emerald-900/90 border border-emerald-700 text-[7px] text-emerald-200 font-mono font-bold whitespace-nowrap mt-0.5">REALE · ${rc.rarity}</div>
+                     <div class="px-1 rounded bg-emerald-900/90 border border-emerald-700 text-[9px] text-emerald-200 font-mono font-bold whitespace-nowrap mt-0.5">REALE · ${rc.rarity}</div>
                    </div>`,
             iconSize: [44, 56], iconAnchor: [22, 28],
           });
@@ -586,7 +782,7 @@ export default function App() {
                      <div class="w-10 h-10 rounded-full border-2 border-dashed border-slate-500 bg-[#211b3a]/80 flex items-center justify-center shadow-lg">
                        <span class="text-lg">❓</span>
                      </div>
-                     <div class="px-1 rounded bg-slate-900/90 border border-slate-700 text-[7px] text-slate-300 font-mono font-bold whitespace-nowrap mt-0.5">REINA ?</div>
+                     <div class="px-1 rounded bg-slate-900/90 border border-slate-700 text-[9px] text-slate-300 font-mono font-bold whitespace-nowrap mt-0.5">REINA ?</div>
                    </div>`,
             iconSize: [40, 52], iconAnchor: [20, 26],
           });
@@ -629,9 +825,9 @@ export default function App() {
           html: `<div class="flex flex-col items-center ${inRange && !locked ? '' : 'opacity-75'}">
                    <div class="w-12 h-12 rounded-2xl border-2 flex items-center justify-center shadow-lg relative ${inRange && !locked ? 'animate-bounce' : ''}" style="border-color:${ring};background:#211b3a;transform:translateY(-8px);">
                      <span class="text-2xl">${locked ? '🔒' : mb.emoji}</span>
-                     <span class="absolute -top-1 -right-1 text-[7px] font-mono font-black px-1 rounded-full" style="background:${ring};color:#0b0820;">${mb.kind === 'arena' ? 'BOSS' : 'VS'}</span>
+                     <span class="absolute -top-1 -right-1 text-[9px] font-mono font-black px-1 rounded-full" style="background:${ring};color:#0b0820;">${mb.kind === 'arena' ? 'BOSS' : 'VS'}</span>
                    </div>
-                   <div class="px-1 rounded border text-[7px] font-mono font-bold whitespace-nowrap shadow-sm" style="background:#211b3a;border-color:${ring}55;color:${ring};transform:translateY(-10px);">${locked ? `🔒 Lv ${mb.reqLevel}` : (inRange ? '⚔️ SFIDA' : `${fmtDist(d)}`)}</div>
+                   <div class="px-1 rounded border text-[9px] font-mono font-bold whitespace-nowrap shadow-sm" style="background:#211b3a;border-color:${ring}55;color:${ring};transform:translateY(-10px);">${locked ? `🔒 Lv ${mb.reqLevel}` : (inRange ? '⚔️ SFIDA' : `${fmtDist(d)}`)}</div>
                  </div>`,
           iconSize: [48, 60], iconAnchor: [24, 30],
         });
@@ -653,10 +849,10 @@ export default function App() {
           html: `<div class="flex flex-col items-center ${inRange && !locked ? '' : 'opacity-75'}">
                    <div class="w-14 h-14 rounded-2xl border-2 flex items-center justify-center shadow-xl relative ${inRange && !locked ? 'animate-pulse' : ''}" style="border-color:${ring};background:#1a1430;transform:translateY(-8px);">
                      <span class="text-3xl">${locked ? '🔒' : dg.emoji}</span>
-                     <span class="absolute -top-1 -right-1 text-[7px] font-mono font-black px-1 rounded-full" style="background:${ring};color:#fff;">LEGA</span>
+                     <span class="absolute -top-1 -right-1 text-[9px] font-mono font-black px-1 rounded-full" style="background:${ring};color:#fff;">LEGA</span>
                      ${cleared ? '<span class="absolute -bottom-1 -right-1 text-[10px]">✅</span>' : ''}
                    </div>
-                   <div class="px-1 rounded border text-[7px] font-mono font-bold whitespace-nowrap shadow-sm" style="background:#1a1430;border-color:${ring}66;color:${ring};transform:translateY(-10px);">${locked ? `🔒 Lv ${dg.reqLevel}` : (inRange ? '🏰 ENTRA' : `${fmtDist(d)}`)}</div>
+                   <div class="px-1 rounded border text-[9px] font-mono font-bold whitespace-nowrap shadow-sm" style="background:#1a1430;border-color:${ring}66;color:${ring};transform:translateY(-10px);">${locked ? `🔒 Lv ${dg.reqLevel}` : (inRange ? '🏰 ENTRA' : `${fmtDist(d)}`)}</div>
                  </div>`,
           iconSize: [56, 70], iconAnchor: [28, 35],
         });
@@ -708,25 +904,102 @@ export default function App() {
   // GPS reale: attiva/disattiva il tracciamento della posizione vera
   const toggleGps = () => {
     playClickSfx();
-    if (gpsOn) {
+    if (gpsOn || gpsState === 'requesting') {
+      gpsSessionRef.current += 1;
       if (gpsWatchRef.current != null) navigator.geolocation.clearWatch(gpsWatchRef.current);
       gpsWatchRef.current = null;
       setGpsOn(false);
       setGpsPos(null);
+      setGpsState('off');
+      setGpsAccuracy(null);
+      setGpsUpdatedAt(null);
+      setGpsIssue(null);
+      setTrekkingFeed(prev => ['📍 GPS fermato: la posizione non viene più usata.', ...prev.slice(0, 8)]);
       return;
     }
     if (!navigator.geolocation) {
-      setTrekkingFeed(prev => ["⚠️ GPS non disponibile su questo dispositivo.", ...prev.slice(0, 8)]);
+      setGpsState('error');
+      setGpsIssue('Il dispositivo non espone la geolocalizzazione. Puoi continuare con la mappa e il cammino simulato.');
+      setTrekkingFeed(prev => ['⚠️ GPS non disponibile su questo dispositivo.', ...prev.slice(0, 8)]);
       return;
     }
-    setTrekkingFeed(prev => ["📡 Attivo il GPS reale…", ...prev.slice(0, 8)]);
+    setGpsState('requesting');
+    setGpsIssue(null);
+    setTrekkingFeed(prev => ['📡 Attivo il GPS reale: la posizione resta solo su questo dispositivo.', ...prev.slice(0, 8)]);
+    const session = gpsSessionRef.current + 1;
+    gpsSessionRef.current = session;
     gpsWatchRef.current = navigator.geolocation.watchPosition(
-      (pos) => { setGpsOn(true); setGpsPos({ lat: pos.coords.latitude, lng: pos.coords.longitude }); },
-      () => setTrekkingFeed(prev => ["⚠️ Permesso GPS negato: tocca la mappa per spostarti a mano.", ...prev.slice(0, 8)]),
+      (pos) => {
+        if (session !== gpsSessionRef.current) return;
+        const position = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        const match = abbinaPosizioneAPercorso(position, activeTrail);
+        setGpsOn(true);
+        setGpsState('active');
+        setGpsPos(position);
+        setGpsAccuracy(Number.isFinite(pos.coords.accuracy) ? pos.coords.accuracy : null);
+        setGpsUpdatedAt(Date.now());
+        if (match && match.distanceM <= GPS_ROUTE_TOLERANCE) {
+          setCurrentWaypointIndex(match.segmentIndex);
+          setWaypointProgress(match.progress);
+          setGpsIssue(null);
+        } else {
+          setGpsIssue('Sei fuori dal tracciato attivo: usa la bussola per rientrare senza scorciatoie.');
+        }
+      },
+      () => {
+        if (session !== gpsSessionRef.current) return;
+        if (gpsWatchRef.current != null) navigator.geolocation.clearWatch(gpsWatchRef.current);
+        gpsWatchRef.current = null;
+        setGpsOn(false);
+        setGpsState('error');
+        setGpsIssue('Permesso negato o segnale assente. Nessuna posizione è stata salvata.');
+        setTrekkingFeed(prev => ['⚠️ GPS non disponibile: puoi continuare con la mappa e il cammino simulato.', ...prev.slice(0, 8)]);
+      },
       { enableHighAccuracy: true, maximumAge: 5000 },
     );
   };
-  useEffect(() => () => { if (gpsWatchRef.current != null) navigator.geolocation.clearWatch(gpsWatchRef.current); }, []);
+
+  const centerGpsPosition = () => {
+    playClickSfx();
+    setMapMode('real');
+    setTimeout(() => {
+      leafletMapRef.current?.setView([effLat, effLng], Math.max(leafletMapRef.current.getZoom(), 15), { animate: true });
+    }, 120);
+  };
+
+  const registraCheckpointGps = () => {
+    playClickSfx();
+    if (!gpsOn || !gpsPos) {
+      setTrekkingFeed(prev => ['📍 Attiva il GPS e raggiungi la tappa per registrare il timbro.', ...prev.slice(0, 8)]);
+      return;
+    }
+    if (!gpsRouteMatch || gpsRouteMatch.distanceM > GPS_ROUTE_TOLERANCE || gpsCheckpointDistance > GPS_CHECKPOINT_RANGE) {
+      setTrekkingFeed(prev => ['🧭 Sei a ' + fmtDist(gpsCheckpointDistance) + ' dal checkpoint: resta sul sentiero e avvicìnati con calma.', ...prev.slice(0, 8)]);
+      return;
+    }
+    if (checkpointClaimed) return;
+
+    setGpsCheckpoints(prev => ({
+      ...prev,
+      [activeRouteId]: [...new Set([...(prev[activeRouteId] ?? []), gpsCheckpointIndex])],
+    }));
+    setTrainer(prev => ({ ...prev, coins: prev.coins + 15 }));
+    addTrainerXp(50);
+    setCurrentWaypointIndex(gpsCheckpointIndex);
+    setWaypointProgress(0);
+    setTrekkingFeed(prev => ['📍 Timbro registrato a ' + gpsCheckpoint.name + ': +15 🪙 · +50 XP · ' + checkpointMission.title + '.', ...prev.slice(0, 8)]);
+
+    if (gpsCheckpointIndex === activeTrail.length - 1 && !completedRoutes.includes(activeRouteId)) {
+      setCompletedRoutes(prev => prev.includes(activeRouteId) ? prev : [...prev, activeRouteId]);
+      setTrainer(prev => ({ ...prev, coins: prev.coins + 200, fontina: (prev.fontina ?? 0) + FONTINA_REWARD.percorsoCompletato }));
+      addTrainerXp(300);
+      setTrekkingFeed(prev => ['🏁 Percorso completato con i checkpoint GPS: +300 XP · +200 🪙 · +' + FONTINA_REWARD.percorsoCompletato + ' 🧀.', ...prev.slice(0, 8)]);
+    }
+  };
+  useEffect(() => () => {
+    gpsSessionRef.current += 1;
+    if (gpsWatchRef.current != null) navigator.geolocation.clearWatch(gpsWatchRef.current);
+  }, []);
 
   // La mappa vive dentro la cornice "telefono" a larghezza fissa: se la finestra
   // viene ridimensionata (es. desktop ↔ mobile, rotazione), forza Leaflet a
@@ -739,6 +1012,30 @@ export default function App() {
 
   // PokeStop: Casere d'Alpeggio active interactions
   const [selectedCasera, setSelectedCasera] = useState<Hotspot | null>(null);
+  // Bacheca dei trofei reali (mécro/sonnaille/collare) vinti nelle tappe ufficiali
+  const [trofei, setTrofei] = useState<Trofeo[]>(() => {
+    try { return JSON.parse(localStorage.getItem('vatsamon_trofei') || '[]'); } catch { return []; }
+  });
+  useEffect(() => { localStorage.setItem('vatsamon_trofei', JSON.stringify(trofei)); }, [trofei]);
+  // L'Éliminatoire du Dimanche: tappa in gioco + registro tappe giocate
+  const [activeTappa, setActiveTappa] = useState<SeasonEvent | null>(null);
+  const [tappeSave, setTappeSave] = useState<EliminatoireSave>(() => {
+    try { return JSON.parse(localStorage.getItem(LS_ELIMINATOIRE) || '{}'); } catch { return {}; }
+  });
+  useEffect(() => { localStorage.setItem(LS_ELIMINATOIRE, JSON.stringify(tappeSave)); }, [tappeSave]);
+  const [showLeggende, setShowLeggende] = useState(false);
+  // Leggende dell'albo già battute (cartoline storiche conquistate)
+  const [leggendeBattute, setLeggendeBattute] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem('vatsamon_leggende') || '[]'); } catch { return []; }
+  });
+  useEffect(() => { localStorage.setItem('vatsamon_leggende', JSON.stringify(leggendeBattute)); }, [leggendeBattute]);
+  // L'Arp: capi all'alpeggio, produzione annua, cerimonia della désarpa
+  const [arpState, setArpState] = useState<ArpState>(() => {
+    try { return { ...ARP_VUOTO, ...JSON.parse(localStorage.getItem(LS_ARP) || '{}') }; } catch { return ARP_VUOTO; }
+  });
+  useEffect(() => { localStorage.setItem(LS_ARP, JSON.stringify(arpState)); }, [arpState]);
+  // chi è all'arp non gareggia: la selezione per battaglie/tornei usa questa lista
+  const disponibili = vatsadex.filter(c => !arpState.capi[c.id]);
   const [spinState, setSpinState] = useState<'idle' | 'spinning' | 'rewarded'>('idle');
   const [spinDeg, setSpinDeg] = useState(0);
   const [spinRewards, setSpinRewards] = useState<string[]>([]);
@@ -758,45 +1055,12 @@ export default function App() {
   const [captureStep, setCaptureStep] = useState<'aiming' | 'flying' | 'wobbling' | 'secured' | 'escaped'>('aiming');
   const [captureLogMsg, setCaptureLogMsg] = useState('');
 
-  // Scanner upload parameters
-  const [scanImage, setScanImage] = useState<string | null>(null);
-  const [isScanning, setIsScanning] = useState(false);
-  const [scanProgress, setScanProgress] = useState(0);
-  const [scanMessage, setScanMessage] = useState('');
-  const [cameraStreamActive, setCameraStreamActive] = useState(false);
-  const videoRef = useRef<HTMLVideoElement | null>(null);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   // Backpack general item utility drawer
-  const [selectedVatsamon, setSelectedVatsamon] = useState<Vatsamon | null>(null);
-  const [dexSearch, setDexSearch] = useState('');
-  const [dexRarityFilter, setDexRarityFilter] = useState<string>('All');
   const [activeCombatantId, setActiveCombatantId] = useState<string>(() => vatsadex[0]?.id || "");
 
   // Level Up overlay reward popup
   const [levelUpAward, setLevelUpAward] = useState<number | null>(null);
-
-  // Hatching egg modal
-
-  // Interactive Bataille de Reines gym-fighter active state
-  const [gymState, setGymState] = useState<BattleState>({
-    playerVatsamon: null,
-    opponentVatsamon: null,
-    playerHp: 100,
-    opponentHp: 100,
-    playerMaxHp: 100,
-    opponentMaxHp: 100,
-    energy: 20,
-    opponentEnergy: 0,
-    status: 'idle',
-    history: [],
-    winner: null,
-    opponentStatsModifier: 0,
-    playerAttackAnim: false,
-    opponentAttackAnim: false
-  });
-  const [activeDodgeEffect, setActiveDodgeEffect] = useState(false);
-  const battleLoopRef = useRef<NodeJS.Timeout | null>(null);
 
   // ---- 3. AUDIO MANAGEMENT & EVENT SFX ----
   const playClickSfx = () => { if (soundEnabled) soundEngine.playClick(); };
@@ -907,7 +1171,7 @@ export default function App() {
     setProfileMsg(`★ Stella di Pedigree n°${owned + 1} ottenuta! −${costo} 🧀 · prestigio permanente (+Rispetto).`);
   };
 
-  // Raccoglie tutte le chiavi di salvataggio (prefisso vazzamon_).
+  // Raccoglie tutte le chiavi di salvataggio (prefisso vatsamon_).
   // La collezione viene COMPATTATA: le Reines reali del bundle si salvano come
   // id + sole differenze rispetto alla scheda originale (foto/lore/stat statiche
   // non si ripetono); le Reines generate o nate in stalla si salvano per intero.
@@ -916,11 +1180,11 @@ export default function App() {
     for (let i = 0; i < localStorage.length; i++) {
       const k = localStorage.key(i);
       // salta il backup interno (macchinario cloud, non è progresso da esportare)
-      if (k && k.startsWith('vazzamon_') && k !== 'vazzamon_backup_latest') data[k] = localStorage.getItem(k) ?? "";
+      if (k && k.startsWith('vatsamon_') && k !== 'vatsamon_backup_latest') data[k] = localStorage.getItem(k) ?? "";
     }
     try {
-      const coll = JSON.parse(data['vazzamon_collection_go'] || '[]') as Vatsamon[];
-      data['vazzamon_collection_go'] = JSON.stringify(coll.map(c => {
+      const coll = JSON.parse(data['vatsamon_collection_go'] || '[]') as Vatsamon[];
+      data['vatsamon_collection_go'] = JSON.stringify(coll.map(c => {
         const base = REAL_BY_ID.get(c.id);
         if (!base) return { f: c }; // generata / nata in stalla → intera
         const d: Record<string, unknown> = {};
@@ -932,8 +1196,8 @@ export default function App() {
     } catch { /* lascia la collezione com'è se il parsing fallisce */ }
     try {
       // lo zaino è dato statico: salva solo id + quantità (le descrizioni si reidratano)
-      const bag = JSON.parse(data['vazzamon_bag_go'] || '[]') as BackpackItem[];
-      data['vazzamon_bag_go'] = JSON.stringify(bag.map(b => BAG_BY_ID.has(b.id) ? [b.id, b.quantity] : { f: b }));
+      const bag = JSON.parse(data['vatsamon_bag_go'] || '[]') as BackpackItem[];
+      data['vatsamon_bag_go'] = JSON.stringify(bag.map(b => BAG_BY_ID.has(b.id) ? [b.id, b.quantity] : { f: b }));
     } catch { /* idem */ }
     return JSON.stringify({ app: "vatsamon", v: 2, data });
   };
@@ -1022,11 +1286,13 @@ export default function App() {
       const json = await decodeSave(raw);
       const obj = JSON.parse(json);
       const data = obj.data ?? obj;
-      Object.entries(data).forEach(([k, v]) => {
-        if (!k.startsWith('vazzamon_')) return;
+      Object.entries(data).forEach(([rawKey, v]) => {
+        // accetta anche i codici esportati prima della rinomina (vazzamon_*)
+        const k = normalizeSaveKey(rawKey);
+        if (!k.startsWith('vatsamon_')) return;
         let val = String(v);
-        if (k === 'vazzamon_collection_go') val = rehydrateCollection(val);
-        else if (k === 'vazzamon_bag_go') val = rehydrateBag(val);
+        if (k === 'vatsamon_collection_go') val = rehydrateCollection(val);
+        else if (k === 'vatsamon_bag_go') val = rehydrateBag(val);
         localStorage.setItem(k, val);
       });
       setProfileMsg("Salvataggio importato! Ricarico il gioco…");
@@ -1041,7 +1307,8 @@ export default function App() {
     if (!window.confirm("Azzerare TUTTI i progressi? L'operazione non è reversibile.")) return;
     for (let i = localStorage.length - 1; i >= 0; i--) {
       const k = localStorage.key(i);
-      if (k && k.startsWith('vazzamon_')) localStorage.removeItem(k);
+      // azzera anche le copie legacy pre-rinomina, o la migrazione le farebbe risorgere
+      if (k && (k.startsWith('vatsamon_') || k.startsWith('vazzamon_'))) localStorage.removeItem(k);
     }
     window.location.reload();
   };
@@ -1208,7 +1475,7 @@ export default function App() {
       const odds = Math.random();
 
       // Normal base items
-      looted.push("+4 Vatsa-ball");
+      looted.push("+4 Campanacci d'Ottone");
       setBackpack(prev => prev.map(item => item.id === 'item-bell-std' ? { ...item, quantity: item.quantity + 4 } : item));
       
       if (odds > 0.4) {
@@ -1216,11 +1483,11 @@ export default function App() {
         setBackpack(prev => prev.map(item => item.id === 'item-apple' ? { ...item, quantity: item.quantity + 2 } : item));
       }
       if (odds > 0.7) {
-        looted.push("+1 Super Vatsa-ball");
+        looted.push("+1 Campanaccio d'Acciaio");
         setBackpack(prev => prev.map(item => item.id === 'item-bell-giga' ? { ...item, quantity: item.quantity + 1 } : item));
       }
       if (odds > 0.88) {
-        looted.push("+1 Iper Vatsa-ball");
+        looted.push("+1 Campanaccio Runico");
         setBackpack(prev => prev.map(item => item.id === 'item-bell-iper' ? { ...item, quantity: item.quantity + 1 } : item));
       }
       if (odds > 0.9) {
@@ -1340,11 +1607,11 @@ export default function App() {
     }, 2200);
 
     setTimeout(() => {
-      // Tasso finale: rarità base × potenza della Vatsa-ball × mela × precisione lancio.
+      // Tasso finale: rarità base × potenza del campanaccio × mela × precisione lancio.
       const ballMeta = BALL_META[selectedBallId];
       let captureChance: number;
       if (ballMeta && ballMeta.mult === null) {
-        captureChance = 1.0; // Master Vatsa-ball: cattura garantita
+        captureChance = 1.0; // Campanaccio di Platino: cattura garantita
       } else {
         captureChance = BASE_CATCH[encounterCow?.rarity ?? 'Comune'];
         captureChance *= ballMeta?.mult ?? 1;       // potenza della ball
@@ -1359,13 +1626,14 @@ export default function App() {
 
       if (isCaught && encounterCow) {
         setCaptureStep('secured');
-        setCaptureLogMsg(`Gotcha! ${encounterCow.name} è stata felicemente sintonizzata!`);
+        setCaptureLogMsg(`${encounterCow.name} si fida di te! Registrata nel Libretto di Mandria.`);
         playVictorySfx();
 
         // Add to permanent collection (con la valutazione del giudice, se fatta)
         const registrata = valutazione !== null ? { ...encounterCow, valutazioneGiudice: valutazione } : encounterCow;
         setVatsadex(prev => [registrata, ...prev]);
         setActiveCombatantId(registrata.id);
+        impara('reine');
         
         // Remove from overworld spawns
         setWildCows(prev => prev.filter(c => c.id !== encounterCow.id));
@@ -1390,12 +1658,13 @@ export default function App() {
   };
 
   // ---- 9. DETAILED CARD POWER UP & TRANSFERS ----
-  const handlePowerUpCow = (cow: Vatsamon) => {
+  /** Potenzia la Reina; ritorna la scheda aggiornata (o null se mancano risorse). */
+  const handlePowerUpCow = (cow: Vatsamon): Vatsamon | null => {
     // Costs 10 coins and 1 Fieno delle Vette
     const hasHayObj = backpack.find(item => item.id === 'item-hay' && item.quantity > 0);
     if (trainer.coins < 15 || !hasHayObj) {
       alert("Non hai abbastanza risorse! Mancano monete (costo: 15🪙) o Fieno delle Vette (costo: 1 fieno🌾) per nutrire e potenziare questa bovina.");
-      return;
+      return null;
     }
 
     playVictorySfx();
@@ -1404,34 +1673,33 @@ export default function App() {
     setTrainer(prev => ({ ...prev, coins: prev.coins - 15 }));
     setBackpack(prev => prev.map(item => item.id === 'item-hay' ? { ...item, quantity: item.quantity - 1 } : item));
 
-    // Empower stats
-    setVatsadex(prev => {
-      return prev.map(c => {
-        if (c.id === cow.id) {
-          const nextLevel = c.level + 1;
-          const nextCp = c.cp + 75 + Math.floor(Math.random() * 30);
-          const nextStats = {
-            strength: Math.min(c.stats.strength + 2, 100),
-            defense: Math.min(c.stats.defense + 2, 100),
-            agility: Math.min(c.stats.agility + 1, 100)
-          };
-          const updated = { ...c, level: nextLevel, cp: nextCp, stats: nextStats };
-          setSelectedVatsamon(updated); // Update detail view
-          return updated;
-        }
-        return c;
-      });
-    });
+    // Empower stats — la razione nutre anche il PESO VIVO (+4 kg, cap 750):
+    // è così che si sale di categoria quando le soglie crescono con la fase.
+    const pesoBase = cow.peso_kg ?? 480 + Math.round(((cow.stats4?.stazza ?? cow.stats.defense) - 50) * 2.4);
+    const updated: Vatsamon = {
+      ...cow,
+      level: cow.level + 1,
+      cp: cow.cp + 75 + Math.floor(Math.random() * 30),
+      peso_kg: Math.min(750, pesoBase + 4),
+      stats: {
+        strength: Math.min(cow.stats.strength + 2, 100),
+        defense: Math.min(cow.stats.defense + 2, 100),
+        agility: Math.min(cow.stats.agility + 1, 100)
+      },
+    };
+    setVatsadex(prev => prev.map(c => (c.id === cow.id ? updated : c)));
+    return updated;
   };
 
-  const handleTransferCow = (cow: Vatsamon) => {
+  /** Libera la Reina al pascolo; true se l'operazione è andata a buon fine. */
+  const handleTransferCow = (cow: Vatsamon): boolean => {
     if (vatsadex.length <= 1) {
       alert("Non puoi liberare la tua unica Regina al pascolo! Devi tenere almeno un Vatsamon.");
-      return;
+      return false;
     }
     playClickSfx();
     const confirmed = window.confirm(`Vuoi davvero liberare ${cow.name} rimandandola al pascolo libero? Riceverai +5 kg di Fieno delle Vette in premio!`);
-    if (!confirmed) return;
+    if (!confirmed) return false;
 
     // Filter out
     setVatsadex(prev => {
@@ -1444,315 +1712,39 @@ export default function App() {
 
     // Reward fodder
     setBackpack(prev => prev.map(item => item.id === 'item-hay' ? { ...item, quantity: item.quantity + 5 } : item));
-    setSelectedVatsamon(null);
     alert(`${cow.name} è tornata felice nell'alpeggio d'alta quota! Ricevuti +5 fieni.`);
+    return true;
   };
 
   // ---- 10. REAL-TIME TAP-AND-DODGE GYM BATTLES ----
-  const handleInitiateGymMatch = () => {
-    playClickSfx();
-    const activeBuddy = vatsadex.find(c => c.id === activeCombatantId) || vatsadex[0];
-    if (!activeBuddy) {
-      alert("Sblocca un Vatsamon prima di sfidare l'arena!");
-      return;
-    }
+  // ---- 11. SCATTA LA REINA: dall'avvistamento verificato alla cattura ----
+  // La verifica on-device avviene in ScattaView; qui la foto (già ritagliata)
+  // viene archiviata in IndexedDB e l'avvistamento entra nel flusso di
+  // avvicinamento col campanaccio come qualsiasi altra Reina.
+  const handleSighting = async (photoDataUrl: string | null) => {
+    const parsed = await generateVatsamonClient(null);
+    const str = parsed.stats.strength;
+    const def = parsed.stats.defense;
+    const agl = parsed.stats.agility;
+    const calculatedCp = Math.floor((str * 2 + def + agl) * (1.1 + (parsed.rarity === 'Leggendaria' ? 1.0 : parsed.rarity === 'Epica' ? 0.5 : parsed.rarity === 'Rara' ? 0.2 : 0)));
 
-    // Avversari = vere Reines (preferendo le più forti) per una sfida autentica
-    const bosses = REAL_COWS.filter(c => c.rarity === 'Leggendaria' || c.rarity === 'Epica');
-    const opponentCowPool = bosses.length ? bosses : REAL_COWS;
-    const opponentModel = opponentCowPool[Math.floor(Math.random() * opponentCowPool.length)];
-    
-    // Scale opponent matching user level
-    const oppPowerMult = 1.0 + (trainer.level * 0.1);
-    const scaledOpponent: Vatsamon = {
-      ...opponentModel,
-      id: "opponent-boss",
-      name: `${opponentModel.name} Boss`,
-      cp: Math.floor(opponentModel.cp * oppPowerMult)
-    };
-
-    setGymState({
-      playerVatsamon: activeBuddy,
-      opponentVatsamon: scaledOpponent,
-      playerHp: 300 + activeBuddy.level * 15,
-      opponentHp: 280 + scaledOpponent.level * 25,
-      playerMaxHp: 300 + activeBuddy.level * 15,
-      opponentMaxHp: 280 + scaledOpponent.level * 25,
-      energy: 0,
-      opponentEnergy: 0,
-      status: 'intro',
-      history: [
-        `🥊 Benvenuti all'Arena "Bataille de Reines" d'Aosta!`,
-        `👉 Tappa col tempismo giusto per colpire ed accumulare energia!`,
-        `🛡️ Clicca "SCHIVA" quando l'avversario carica per dimezzare il danno!`,
-        `⚔️ Combattenti: ${activeBuddy.name} (CP ${activeBuddy.cp}) vs ${scaledOpponent.name} (CP ${scaledOpponent.cp})`
-      ],
-      winner: null,
-      opponentStatsModifier: 0,
-      playerAttackAnim: false,
-      opponentAttackAnim: false
-    });
-  };
-
-  // Start continuous background AI attack generator loop when combat begins
-  useEffect(() => {
-    if (gymState.status === 'active') {
-      battleLoopRef.current = setInterval(() => {
-        // AI Bot logic attacking player periodically
-        setGymState(prev => {
-          if (prev.status !== 'active') return prev;
-
-          // Decide if AI casts standard attack or super move
-          const isSuperReady = prev.opponentEnergy >= 100;
-          let dmg = Math.floor(12 + (prev.opponentVatsamon?.stats.strength || 50) * 0.15 + (Math.random() * 8));
-          let actionName = "Spallata";
-
-          if (isSuperReady) {
-            dmg = Math.floor(dmg * 2.3);
-            actionName = "🔥 INCORNATA DEVASTANTE";
-          }
-
-          // Dodge mechanics
-          let isDodged = false;
-          let finalDmg = dmg;
-          if (activeDodgeEffect) {
-            isDodged = true;
-            finalDmg = Math.floor(dmg * 0.15); // reduce damage by 85%
-          }
-
-          const logs = [...prev.history];
-          logs.push(
-            isDodged 
-              ? `⚡ ${prev.opponentVatsamon?.name} lancia ${actionName}, MA HAI SCHIVATO CON SUCCESSO! Subito solo ${finalDmg} danni!`
-              : `💥 ${prev.opponentVatsamon?.name} sferra ${actionName} infliggendo ${finalDmg} danni!`
-          );
-
-          const nextPlayerHp = Math.max(0, prev.playerHp - finalDmg);
-          const nextOpponentEnergy = isSuperReady ? 0 : Math.min(100, prev.opponentEnergy + 20);
-
-          let status: BattleState['status'] = prev.status;
-          let winner: BattleState['winner'] = prev.winner;
-          if (nextPlayerHp <= 0) {
-            status = 'ended';
-            winner = 'opponent';
-            logs.push(`💀 Il tuo Vatsamon ha ceduto! Sconfitta dignitosa. Sali di livello nel Vatsadex per riprovare.`);
-            if (battleLoopRef.current) clearInterval(battleLoopRef.current);
-          }
-
-          // Trigger hit sfx
-          playHitSfx();
-
-          return {
-            ...prev,
-            playerHp: nextPlayerHp,
-            opponentEnergy: nextOpponentEnergy,
-            opponentAttackAnim: true,
-            status,
-            winner,
-            history: logs.slice(-8) // keep history short and neat
-          };
-        });
-
-        // clear animation triggers after animation completed
-        setTimeout(() => {
-          setGymState(prev => ({ ...prev, opponentAttackAnim: false }));
-        }, 300);
-
-      }, 1800);
-    }
-
-    return () => {
-      if (battleLoopRef.current) clearInterval(battleLoopRef.current);
-    };
-  }, [gymState.status, activeDodgeEffect]);
-
-  const handlePlayerTapAttack = () => {
-    if (gymState.status === 'intro') {
-      playClickSfx();
-      setGymState(prev => ({ ...prev, status: 'active' }));
-      return;
-    }
-    if (gymState.status !== 'active') return;
-
-    playHitSfx();
-    
-    setGymState(prev => {
-      if (prev.status !== 'active' || !prev.playerVatsamon) return prev;
-
-      const dmg = Math.floor(8 + prev.playerVatsamon.stats.strength * 0.12 + Math.random() * 6);
-      const nextOppHp = Math.max(0, prev.opponentHp - dmg);
-      const nextEnergy = Math.min(100, prev.energy + 10);
-      const logs = [...prev.history];
-      logs.push(`⚔️ ${prev.playerVatsamon.name} attacca infliggendo ${dmg} danni!`);
-
-      let status: BattleState['status'] = prev.status;
-      let winner: BattleState['winner'] = prev.winner;
-      if (nextOppHp <= 0) {
-        status = 'ended';
-        winner = 'player';
-        logs.push(`🏆 EPIC WIN! ${prev.playerVatsamon.name} si laurea Reina indiscussa dell'Arena! Sbloccati premi favolosi.`);
-        if (battleLoopRef.current) clearInterval(battleLoopRef.current);
-
-        // Award resources to Trainer
-        addTrainerXp(500);
-        setTrainer(t => ({ ...t, coins: t.coins + 60 }));
+    let sightingPhotoId: string | undefined;
+    if (photoDataUrl) {
+      try {
+        sightingPhotoId = `sight-${Date.now()}`;
+        const blob = await (await fetch(photoDataUrl)).blob();
+        await savePhoto(sightingPhotoId, blob);
+      } catch {
+        sightingPhotoId = undefined; // quota piena: la carta userà l'illustrazione
       }
-
-      return {
-        ...prev,
-        opponentHp: nextOppHp,
-        energy: nextEnergy,
-        playerAttackAnim: true,
-        status,
-        winner,
-        history: logs.slice(-8)
-      };
-    });
-
-    setTimeout(() => {
-      setGymState(prev => ({ ...prev, playerAttackAnim: false }));
-    }, 200);
-  };
-
-  const handlePlayerDodge = () => {
-    if (gymState.status !== 'active' || activeDodgeEffect) return;
-    playClickSfx();
-    setActiveDodgeEffect(true);
-    
-    // Dodge visual cooldown lasts 450ms
-    setTimeout(() => {
-      setActiveDodgeEffect(false);
-    }, 450);
-  };
-
-  const handlePlayerSuperAttack = () => {
-    if (gymState.status !== 'active' || gymState.energy < 100 || !gymState.playerVatsamon) return;
-    playVictorySfx();
-
-    setGymState(prev => {
-      const critDmg = Math.floor((15 + (prev.playerVatsamon?.stats.strength || 50) * 0.2) * 2.5);
-      const nextOppHp = Math.max(0, prev.opponentHp - critDmg);
-      const logs = [...prev.history];
-      logs.push(`🌟✨ SPECTACULAR STRIKE! ${prev.playerVatsamon?.name} sferra "RUGITO DELLA COGNE" infliggendo ${critDmg} danni devastanti!`);
-
-      let status: BattleState['status'] = prev.status;
-      let winner: BattleState['winner'] = prev.winner;
-      if (nextOppHp <= 0) {
-        status = 'ended';
-        winner = 'player';
-        logs.push(`🏆 EPIC WIN! ${prev.playerVatsamon?.name} ha sconfitto il Boss!`);
-        if (battleLoopRef.current) clearInterval(battleLoopRef.current);
-        addTrainerXp(500);
-        setTrainer(t => ({ ...t, coins: t.coins + 60 }));
-      }
-
-      return {
-        ...prev,
-        opponentHp: nextOppHp,
-        energy: 0, // reset special energy gauge
-        status,
-        winner,
-        history: logs.slice(-8)
-      };
-    });
-  };
-
-  // ---- 11. GEMINI DNA SCANNER BACKEND HANDLERS ----
-  const processImageScanGo = async (imgBase64: string | null) => {
-    playClickSfx();
-    setIsScanning(true);
-    setScanProgress(5);
-    setScanMessage("Osservo la mandria con calma...");
-
-    const intervals = [
-      "Riconosco il mantello e la razza...",
-      "Valuto la stazza e la cornatura...",
-      "Leggo la grinta nello sguardo...",
-      "Stimo il peso e la categoria...",
-      "Compilo la scheda d'avvistamento..."
-    ];
-
-    let currentStep = 0;
-    const timer = setInterval(() => {
-      if (currentStep < intervals.length) {
-        setScanProgress(p => Math.min(p + 18, 90));
-        setScanMessage(intervals[currentStep]);
-        currentStep++;
-      }
-    }, 550);
-
-    try {
-      // Build statica: generazione client (niente server), stesso schema.
-      const parsed: Vatsamon = await generateVatsamonClient(imgBase64, false);
-
-      clearInterval(timer);
-      setScanProgress(100);
-      setScanMessage("Avvistamento riconosciuto!");
-
-      // Supply CP & level calculations
-      const str = parsed.stats.strength;
-      const def = parsed.stats.defense;
-      const agl = parsed.stats.agility;
-      const calculatedCp = Math.floor((str * 2 + def + agl) * (1.1 + (parsed.rarity === 'Leggendaria' ? 1.0 : parsed.rarity === 'Epica' ? 0.5 : parsed.rarity === 'Rara' ? 0.2 : 0)));
-
-      const fullySynthesized: Vatsamon = {
-        ...parsed,
-        cp: calculatedCp,
-        level: 15
-      };
-
-      setTimeout(() => {
-        playMooSfx();
-        setEncounterCow(fullySynthesized);
-        setValutazione(null);
-        setShowValutazione(false);
-        setIsCapturingMode(true); // Direct to AR catching view!
-        setIsScanning(false);
-        setScanImage(null);
-        stopCamera();
-      }, 700);
-
-    } catch (e) {
-      console.error(e);
-      clearInterval(timer);
-      setIsScanning(false);
     }
-  };
 
-  const handleFileUploadGo = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      const res = reader.result as string;
-      setScanImage(res);
-      processImageScanGo(res);
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const startCameraGo = async () => {
-    playClickSfx();
-    try {
-      setCameraStreamActive(true);
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        videoRef.current.play().catch(e => console.log(e));
-      }
-    } catch (err) {
-      console.warn("Camera hardware not available, falling back beautifully.", err);
-    }
-  };
-
-  const stopCamera = () => {
-    if (videoRef.current && videoRef.current.srcObject) {
-      const stream = videoRef.current.srcObject as MediaStream;
-      stream.getTracks().forEach(track => track.stop());
-      videoRef.current.srcObject = null;
-    }
-    setCameraStreamActive(false);
+    const fullySynthesized: Vatsamon = { ...parsed, cp: calculatedCp, level: 15, sightingPhotoId };
+    playMooSfx();
+    setEncounterCow(fullySynthesized);
+    setValutazione(null);
+    setShowValutazione(false);
+    setIsCapturingMode(true); // → approccio col campanaccio
   };
 
   return (
@@ -1764,262 +1756,90 @@ export default function App() {
       {/* CORNICE "TELEFONO": su desktop l'esperienza resta in una colonna centrata
           di larghezza massima mobile, con bordo/ombra ai lati; su mobile occupa
           tutto lo schermo senza cornice. */}
-      <div className="phone-frame w-full max-w-md min-h-screen flex flex-col relative bg-slate-950/0 lg:shadow-2xl lg:border-x lg:border-slate-800/60">
+      <div className="phone-frame w-full max-w-md min-h-screen flex flex-col relative bg-slate-950/0 lg:shadow-2xl lg:border-x lg:border-slate-800/60 pb-24">
 
-      {/* 🎒 HUD ALLEVATORE + NAV come UNICO blocco sticky (niente offset magici) 🎒 */}
-      <div className="sticky top-0 z-50">
+      {/* 🎒 HUD ALLEVATORE — 1 riga compatta + barra XP sottile (sticky, safe-area) 🎒 */}
+      <div className="sticky top-0 z-40" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
       <header className="bg-slate-950 shadow-md" id="trainer-hud">
         {/* accento bandiera valdostana: nero | rosso */}
         <div className="h-1.5 w-full" style={{ background: "linear-gradient(90deg,#1a1626 0 50%, #c8102e 50% 100%)" }} aria-hidden="true" />
-        <div className="border-b-2 border-[#c8102e] px-3 pt-2 pb-2.5">
-          <div className="max-w-4xl mx-auto">
-            {/* riga 1: avatar + identità + audio */}
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2.5 min-w-0">
-                <div className="relative cursor-pointer flex-shrink-0" title="Profilo & Salvataggio" onClick={() => { playClickSfx(); setProfileMsg(""); setShowProfile(true); }}>
-                  <div className="w-11 h-11 rounded-full border-2 border-[#c8102e] bg-slate-850 flex items-center justify-center overflow-hidden shadow-inner">
-                    <span className="text-2xl">👨‍🌾</span>
-                  </div>
-                  <div className="absolute -bottom-1 -right-1 bg-[#c8102e] text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow border border-white/30">
-                    {trainer.level}
-                  </div>
-                </div>
-                <div className="min-w-0">
-                  <div className="flex items-center gap-1.5">
-                    <span className="font-mono font-black text-sm tracking-wide title-gradient">VATSAMON GO</span>
-                    <span className="text-[8px] bg-[#1a1626] text-white border border-[#c8102e]/60 px-1.5 py-0.5 rounded-full font-bold uppercase">Valle d'Aosta</span>
-                  </div>
-                  <div className="text-[9.5px] font-mono text-slate-400 truncate" title={gradoStato.grado.perk}>
-                    <span className="text-amber-400 font-bold">{gradoStato.grado.emoji} {gradoStato.grado.nome}</span>
-                    {pedigreeStars > 0 && <span className="text-amber-300"> {'★'.repeat(Math.min(pedigreeStars, 5))}</span>}
-                    <span className="text-slate-600"> · </span>{trainer.name}
-                  </div>
-                </div>
+        <div className="px-2.5 py-1.5 flex items-center justify-between gap-1.5">
+          {/* identità: avatar + nome gioco + grado → apre il Profilo */}
+          <button
+            aria-label="Profilo e salvataggio"
+            onClick={() => { playClickSfx(); setProfileMsg(""); setShowProfile(true); }}
+            className="flex items-center gap-2 min-w-0 text-left rounded-xl px-1 py-1 hover:bg-slate-900 transition-colors"
+          >
+            <div className="relative flex-shrink-0">
+              <div className="w-10 h-10 rounded-full border-2 border-[#c8102e] bg-slate-850 flex items-center justify-center overflow-hidden shadow-inner">
+                <span className="text-xl">👨‍🌾</span>
               </div>
-              <button
-                onClick={() => { playClickSfx(); setSoundEnabled(!soundEnabled); }}
-                className="p-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 flex-shrink-0"
-              >
-                {soundEnabled ? <Volume2 className="w-3.5 h-3.5 text-emerald-400" /> : <VolumeX className="w-3.5 h-3.5 text-slate-500" />}
-              </button>
+              <div className="absolute -bottom-1 -right-1 bg-[#c8102e] text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow border border-white/30">
+                {trainer.level}
+              </div>
             </div>
+            <div className="min-w-0">
+              <div className="font-mono font-black text-[13px] tracking-wide title-gradient leading-tight">{BRAND.gameName.toUpperCase()}</div>
+              <div className="text-[9.5px] font-mono text-slate-400 truncate max-w-[110px]" title={gradoStato.grado.perk}>
+                <span className="text-amber-400 font-bold">{gradoStato.grado.emoji} {gradoStato.grado.nome}</span>
+                {pedigreeStars > 0 && <span className="text-amber-300"> {'★'.repeat(Math.min(pedigreeStars, 5))}</span>}
+              </div>
+            </div>
+          </button>
 
-            {/* riga 2: barra XP */}
-            <div className="flex items-center gap-2 mt-2">
-              <span className="text-[8px] font-mono font-black text-slate-500 uppercase flex-shrink-0">Lv {trainer.level}</span>
-              <div className="flex-grow bg-slate-800 rounded-full h-2 overflow-hidden border border-slate-700">
-                <div className="bg-gradient-to-r from-[#c8102e] to-amber-400 h-2 rounded-full transition-all" style={{ width: `${Math.min(100, (trainer.xp / trainer.xpToNextLevel) * 100)}%` }} />
-              </div>
-              <span className="text-[8px] font-mono text-slate-400 font-bold flex-shrink-0">{trainer.xp}/{trainer.xpToNextLevel} XP</span>
+          {/* chip risorse + premi + audio */}
+          <div className="flex items-center gap-1 flex-shrink-0">
+            <div className="bg-slate-900 border border-amber-700/40 rounded-xl px-1.5 py-1 min-h-[40px] flex flex-col items-center justify-center min-w-[42px]" title="Denari d'Alpeggio">
+              <span className="text-[11px] leading-none">🪙</span>
+              <span className="text-[10.5px] font-mono font-extrabold text-amber-300 leading-tight tabular-nums">{trainer.coins}</span>
             </div>
-
-            {/* riga 3: STATISTICHE — tutte ben visibili */}
-            <div className="grid grid-cols-5 gap-1.5 mt-2">
-              <div className="bg-slate-900 border border-amber-700/40 rounded-xl py-1 text-center" title="Denari d'Alpeggio">
-                <div className="text-[13px] leading-none">🪙</div>
-                <div className="text-[11px] font-mono font-extrabold text-amber-300 leading-tight">{trainer.coins}</div>
-                <div className="text-[7px] font-mono uppercase text-slate-500">Denari</div>
-              </div>
-              <div className="bg-slate-900 border rounded-xl py-1 text-center" style={{ borderColor: VALUTE.fontina.colore + "66" }} id="fontina-hud" title="Forme di Fontina — valuta di prestigio">
-                <div className="text-[13px] leading-none">🧀</div>
-                <div className="text-[11px] font-mono font-extrabold leading-tight" style={{ color: VALUTE.fontina.colore }}>{fontina}</div>
-                <div className="text-[7px] font-mono uppercase text-slate-500">Fontina</div>
-              </div>
-              <div className="bg-slate-900 border rounded-xl py-1 text-center" style={{ borderColor: respectTone(respectScore).color + "66" }} id="respect-hud" title={`Rispetto: ${respectTone(respectScore).label} (${respectScore}/100)`}>
-                <div className="text-[13px] leading-none">🌿</div>
-                <div className="text-[11px] font-mono font-extrabold leading-tight" style={{ color: respectTone(respectScore).color }}>{respectScore}</div>
-                <div className="text-[7px] font-mono uppercase text-slate-500">Rispetto</div>
-              </div>
-              <div className="bg-slate-900 border border-emerald-700/40 rounded-xl py-1 text-center" title="Chilometri camminati">
-                <div className="text-[13px] leading-none">🥾</div>
-                <div className="text-[11px] font-mono font-extrabold text-emerald-400 leading-tight">{Math.round(trainer.kmTraveled)}</div>
-                <div className="text-[7px] font-mono uppercase text-slate-500">Km</div>
-              </div>
-              <div className="bg-slate-900 border border-rose-700/40 rounded-xl py-1 text-center" title="Reines nel Libretto di Mandria">
-                <div className="text-[13px] leading-none">🐮</div>
-                <div className="text-[11px] font-mono font-extrabold text-rose-300 leading-tight">{vatsadex.length}</div>
-                <div className="text-[7px] font-mono uppercase text-slate-500">Reines</div>
-              </div>
+            <div className="bg-slate-900 border rounded-xl px-1.5 py-1 min-h-[40px] flex flex-col items-center justify-center min-w-[38px]" style={{ borderColor: VALUTE.fontina.colore + "66" }} id="fontina-hud" title="Forme di Fontina — valuta di prestigio">
+              <span className="text-[11px] leading-none">🧀</span>
+              <span className="text-[10.5px] font-mono font-extrabold leading-tight tabular-nums" style={{ color: VALUTE.fontina.colore }}>{fontina}</span>
             </div>
+            <div className="bg-slate-900 border rounded-xl px-1.5 py-1 min-h-[40px] flex flex-col items-center justify-center min-w-[38px]" style={{ borderColor: respectTone(respectScore).color + "66" }} id="respect-hud" title={`Rispetto: ${respectTone(respectScore).label} (${respectScore}/100)`}>
+              <span className="text-[11px] leading-none">🌿</span>
+              <span className="text-[10.5px] font-mono font-extrabold leading-tight tabular-nums" style={{ color: respectTone(respectScore).color }}>{respectScore}</span>
+            </div>
+            <button
+              id="premi-chip"
+              aria-label="Giro di Stalla: premi e missioni del giorno"
+              onClick={() => { playClickSfx(); setActiveTab('premi'); }}
+              className={`rounded-xl px-2 min-h-[40px] min-w-[40px] flex items-center justify-center border transition-colors ${activeTab === 'premi' ? 'nav-active text-white border-transparent' : 'bg-slate-900 border-slate-800 text-amber-300 hover:bg-slate-800'}`}
+            >
+              <Gift className="w-[18px] h-[18px]" />
+            </button>
+            <button
+              aria-label={soundEnabled ? 'Disattiva audio' : 'Attiva audio'}
+              onClick={() => { playClickSfx(); setSoundEnabled(!soundEnabled); }}
+              className="rounded-xl px-2 min-h-[40px] min-w-[40px] flex items-center justify-center bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300"
+            >
+              {soundEnabled ? <Volume2 className="w-[18px] h-[18px] text-emerald-400" /> : <VolumeX className="w-[18px] h-[18px] text-slate-500" />}
+            </button>
           </div>
         </div>
-      </header>
 
-      {/* 🧭 PRIMARY MAIN TABS NAVIGATION 🧭 */}
-      <nav className="bg-slate-950/90 border-b border-slate-850 shadow-inner">
-        <div className="max-w-md mx-auto grid grid-cols-7 gap-0.5 p-1 text-[11px] font-extrabold">
-          <button
-            onClick={() => { playClickSfx(); setActiveTab('map'); }}
-            className={`flex flex-col items-center py-2 rounded-xl transition-all ${activeTab === 'map' ? 'nav-active text-white' : 'text-slate-400 hover:bg-slate-900 hover:-translate-y-0.5'}`}
-          >
-            <Compass className="w-4 h-4 mb-0.5" />
-            <span>Mappa</span>
-          </button>
-
-          <button
-            onClick={() => { playClickSfx(); setActiveTab('stagione'); }}
-            className={`flex flex-col items-center py-2 rounded-xl transition-all relative ${activeTab === 'stagione' ? 'nav-active text-white' : 'text-slate-400 hover:bg-slate-900 hover:-translate-y-0.5'}`}
-          >
-            <Trophy className="w-4 h-4 mb-0.5" />
-            <span>Stagione</span>
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span>
-          </button>
-
-          <button
-            onClick={() => { playClickSfx(); setActiveTab('scanner'); }}
-            className={`flex flex-col items-center py-2 rounded-xl transition-all ${activeTab === 'scanner' ? 'nav-active text-white' : 'text-slate-400 hover:bg-slate-900 hover:-translate-y-0.5'}`}
-          >
-            <Camera className="w-4 h-4 mb-0.5" />
-            <span>AR Scan</span>
-          </button>
-
-          <button
-            onClick={() => { playClickSfx(); setActiveTab('stalla'); }}
-            className={`flex flex-col items-center py-2 rounded-xl transition-all relative ${activeTab === 'stalla' ? 'nav-active text-white' : 'text-slate-400 hover:bg-slate-900 hover:-translate-y-0.5'}`}
-          >
-            <Gift className="w-4 h-4 mb-0.5" />
-            <span>Stalla</span>
-          </button>
-
-          <button
-            onClick={() => { playClickSfx(); setActiveTab('vatsadex'); }}
-            className={`flex flex-col items-center py-2 rounded-xl transition-all relative ${activeTab === 'vatsadex' ? 'nav-active text-white' : 'text-slate-400 hover:bg-slate-900 hover:-translate-y-0.5'}`}
-          >
-            <BookOpen className="w-4 h-4 mb-0.5" />
-            <span>Vatsadex</span>
-            {vatsadex.length > 0 && (
-              <span className="absolute top-1 right-2 bg-amber-500 text-[#0b0820] text-[9px] px-1.5 rounded-full font-black">
-                {vatsadex.length}
-              </span>
-            )}
-          </button>
-
-          <button
-            onClick={() => { playClickSfx(); setActiveTab('quiz'); }}
-            className={`flex flex-col items-center py-2 rounded-xl transition-all ${activeTab === 'quiz' ? 'nav-active text-white' : 'text-slate-400 hover:bg-slate-900 hover:-translate-y-0.5'}`}
-          >
-            <GraduationCap className="w-4 h-4 mb-0.5" />
-            <span>Scuola</span>
-          </button>
-
-          <button
-            onClick={() => { playClickSfx(); setActiveTab('premi'); }}
-            className={`flex flex-col items-center py-2 rounded-xl transition-all ${activeTab === 'premi' ? 'nav-active text-white' : 'text-slate-400 hover:bg-slate-900 hover:-translate-y-0.5'}`}
-          >
-            <Gift className="w-4 h-4 mb-0.5" />
-            <span>Premi</span>
-          </button>
+        {/* barra XP sottile a tutta larghezza */}
+        <div className="h-1.5 bg-slate-800 w-full" title={`Lv ${trainer.level} · ${trainer.xp}/${trainer.xpToNextLevel} XP`}>
+          <div className="bg-gradient-to-r from-[#c8102e] to-amber-400 h-full transition-all" style={{ width: `${Math.min(100, (trainer.xp / trainer.xpToNextLevel) * 100)}%` }} />
         </div>
-      </nav>
+      </header>
       </div>
 
       {/* 🗺️ ACTIVE VIEW DISPLAY 🗺️ */}
-      <main className="flex-grow p-4 md:p-6 max-w-4xl w-full mx-auto" id="app-viewport">
+      <main className="flex-grow p-4 max-w-4xl w-full mx-auto" id="app-viewport">
         <div key={activeTab} className="view-in">
         
         {/* VIEW 1: INTERACTIVE MAP OVERWORLD */}
         {activeTab === 'map' && (
           <div className="flex flex-col gap-6" id="overworld-view">
 
-            {/* La MAPPA è il primo elemento (order-first sul contenitore mappa più sotto).
-                Le ricompense/obiettivi sono nel tab dedicato "Premi". */}
-
-            {/* SELETTORE PERCORSO (3 grandi itinerari valdostani) */}
-            <div className="bg-slate-950 border border-slate-850 rounded-3xl p-4 space-y-3" id="route-selector">
-              <h3 className="text-xs font-mono font-extrabold uppercase text-slate-300 tracking-wider flex items-center gap-1.5">
-                <Compass className="w-4 h-4 text-emerald-400" />
-                Scegli il tuo cammino
-              </h3>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                {TREK_ROUTES.map((route) => {
-                  const active = route.id === activeRouteId;
-                  const t = ROUTE_TONE[route.accent] ?? ROUTE_TONE.emerald;
-                  const locked = trainer.level < route.reqLevel;
-                  const completed = completedRoutes.includes(route.id);
-                  return (
-                    <button
-                      key={route.id}
-                      onClick={() => selectRoute(route.id)}
-                      className={`relative text-left rounded-2xl border-2 p-3 transition-all overflow-hidden ${locked ? 'border-slate-800 bg-slate-900/60 opacity-70' : active ? `${t.border} ${t.bg}` : 'border-slate-800 bg-slate-900 hover:bg-slate-850'}`}
-                    >
-                      <div className="flex items-center gap-2">
-                        <span className="text-2xl">{locked ? '🔒' : route.icon}</span>
-                        <div className="min-w-0">
-                          <div className={`text-[11px] font-mono font-black truncate ${active ? t.text : 'text-slate-200'}`}>{route.name}</div>
-                          <div className="text-[9px] font-mono text-slate-400">{route.difficulty} · {route.lengthKm} km · {route.coords.length} tappe</div>
-                        </div>
-                      </div>
-                      <p className="text-[9px] text-slate-500 leading-snug mt-1.5 line-clamp-2">{route.description}</p>
-                      {locked && <span className="absolute top-2 right-2 text-[8px] font-mono font-black text-slate-400">🔒 Lv {route.reqLevel}</span>}
-                      {!locked && completed && <span className="absolute top-2 right-2 text-[8px] font-mono font-black text-emerald-500">✓ FATTO</span>}
-                      {!locked && !completed && active && <span className={`absolute top-2 right-2 text-[8px] font-mono font-black ${t.text}`}>● ATTIVO</span>}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* SFIDE NEI DINTORNI — battaglie piazzate sulla mappa (Pastori + Boss-Arena) */}
-            <div className="bg-slate-950 border border-slate-850 rounded-3xl p-4 space-y-2" id="battle-nearby">
-              <h3 className="text-xs font-mono font-extrabold uppercase text-slate-300 tracking-wider flex items-center gap-1.5">
-                <Swords className="w-4 h-4 text-rose-500" /> Sfide nei dintorni
-              </h3>
-              {[...MAP_BATTLES].map(mb => ({ mb, d: distanza({ lat: effLat, lng: effLng }, { lat: mb.lat, lng: mb.lng }) }))
-                .sort((a, b) => a.d - b.d).slice(0, 5).map(({ mb, d }) => {
-                  const locked = trainer.level < mb.reqLevel;
-                  const inRange = d <= BATTLE_RANGE;
-                  return (
-                    <button key={mb.id} onClick={() => tryStartBattle(mb)} disabled={locked}
-                      className={`w-full flex items-center gap-3 rounded-2xl border p-2.5 text-left transition-all ${locked ? 'opacity-50 border-slate-800 bg-slate-900/60' : inRange ? 'border-rose-700/50 bg-rose-950/30 hover:bg-rose-900/30' : 'border-slate-800 bg-slate-900 hover:bg-slate-850'}`}>
-                      <span className="text-2xl">{locked ? '🔒' : mb.emoji}</span>
-                      <div className="flex-grow min-w-0">
-                        <div className="text-[11px] font-mono font-black text-slate-100 truncate">{mb.name}</div>
-                        <div className="text-[9px] text-slate-400 truncate">{mb.subtitle}</div>
-                      </div>
-                      <div className="text-right flex-shrink-0">
-                        <div className="text-[9px] font-mono text-slate-400">{fmtDist(d)}</div>
-                        <div className={`text-[9px] font-mono font-black ${locked ? 'text-slate-500' : inRange ? 'text-rose-400' : 'text-amber-400'}`}>{locked ? `Lv ${mb.reqLevel}` : inRange ? '⚔️ COMBATTI' : 'avvicìnati'}</div>
-                      </div>
-                    </button>
-                  );
-                })}
-              <p className="text-[9px] text-slate-500 text-center">Avvicìnati (≤ 800 m) a un combattente per sfidarlo. Cammina o usa il GPS.</p>
-            </div>
-
-            {/* LEGA DELLE REINES — dungeon endgame nei castelli (squadra di 4) */}
-            <div className="bg-slate-950 border border-purple-700/30 rounded-3xl p-4 space-y-2" id="dungeon-nearby">
-              <h3 className="text-xs font-mono font-extrabold uppercase text-slate-300 tracking-wider flex items-center gap-1.5">
-                <span className="text-base">🏰</span> Lega delle Reines · Dungeon
-              </h3>
-              {[...DUNGEONS].map(dg => ({ dg, d: distanza({ lat: effLat, lng: effLng }, { lat: dg.lat, lng: dg.lng }) }))
-                .sort((a, b) => a.dg.reqLevel - b.dg.reqLevel).map(({ dg, d }) => {
-                  const locked = trainer.level < dg.reqLevel;
-                  const inRange = d <= BATTLE_RANGE;
-                  const cleared = dungeonsCleared.includes(dg.id);
-                  return (
-                    <button key={dg.id} onClick={() => tryStartDungeon(dg)} disabled={locked}
-                      className={`w-full flex items-center gap-3 rounded-2xl border p-2.5 text-left transition-all ${locked ? 'opacity-50 border-slate-800 bg-slate-900/60' : inRange ? 'border-purple-700/50 bg-purple-950/30 hover:bg-purple-900/30' : 'border-slate-800 bg-slate-900 hover:bg-slate-850'}`}>
-                      <span className="text-2xl">{locked ? '🔒' : dg.emoji}</span>
-                      <div className="flex-grow min-w-0">
-                        <div className="text-[11px] font-mono font-black text-slate-100 truncate">{dg.league} {cleared ? '✅' : ''}</div>
-                        <div className="text-[9px] text-slate-400 truncate">5 sfide · squadra di 4 · {dg.rewardCoins} 🪙</div>
-                      </div>
-                      <div className="text-right flex-shrink-0">
-                        <div className="text-[9px] font-mono text-slate-400">{fmtDist(d)}</div>
-                        <div className={`text-[9px] font-mono font-black ${locked ? 'text-slate-500' : inRange ? 'text-purple-400' : 'text-amber-400'}`}>{locked ? `Lv ${dg.reqLevel}` : inRange ? '🏰 ENTRA' : 'avvicìnati'}</div>
-                      </div>
-                    </button>
-                  );
-                })}
-              <p className="text-[9px] text-slate-500 text-center">Endgame: 5 spinte di fila, il fiato si trascina. Ricompense rare.</p>
-            </div>
-
-            <div className="order-first bg-slate-950 rounded-3xl p-3 sm:p-5 border border-slate-850 relative overflow-hidden shadow-2xl">
+            <div className="bg-slate-950 rounded-3xl p-3 border border-slate-850 relative overflow-hidden shadow-2xl">
 
               {/* Overworld Title HUD */}
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4 z-10 relative border-b border-slate-900 pb-4">
+              <div className="flex flex-col items-start justify-between gap-3 mb-4 z-10 relative border-b border-slate-900 pb-4">
                 <div>
-                  <h2 className="text-xl font-mono font-black text-emerald-400 flex items-center gap-1.5 uppercase">
+                  <h2 className="text-lg font-mono font-black text-emerald-400 flex items-center gap-1.5 uppercase">
                     <Compass className="w-5 h-5 text-emerald-500" />
                     Sentiero d'Alta Quota
                   </h2>
@@ -2027,7 +1847,7 @@ export default function App() {
                 </div>
 
                 {/* Map Mode Toggle & Simulated Walk in flex */}
-                <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto">
+                <div className="flex flex-wrap items-center gap-2 w-full">
                   {/* Selector Segment */}
                   <div className="flex items-center gap-1 bg-slate-900 border border-slate-800 p-1 rounded-xl">
                     <button
@@ -2040,28 +1860,32 @@ export default function App() {
                       onClick={() => { playClickSfx(); setMapMode('radar'); }}
                       className={`font-mono text-[10px] font-bold px-2.5 py-1.5 rounded-lg transition-all ${mapMode === 'radar' ? 'bg-emerald-500 text-[#0b0820] font-black' : 'text-slate-400 hover:bg-slate-850'}`}
                     >
-                      Radar Sonar
+                      Sguardo del Pastore
                     </button>
                   </div>
 
                   {/* Hike Button */}
                   <button
                     onClick={handleSimulatedWalk}
-                    className="bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-400 hover:to-green-400 text-[#0b0820] font-black text-xs py-2.5 px-4 rounded-xl shadow active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer border-b-2 border-emerald-700 ml-auto sm:ml-0"
+                    disabled={gpsOn || gpsState === 'requesting'}
+                    aria-label={gpsOn || gpsState === 'requesting' ? 'Il GPS sta aggiornando il percorso' : 'Cammina 500 metri in modalità simulata'}
+                    className="bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-400 hover:to-green-400 text-[#0b0820] font-black text-xs py-2.5 px-4 rounded-xl shadow active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer border-b-2 border-emerald-700 ml-auto"
                     id="simulate-walk-btn"
                   >
                     <Footprints className="w-4 h-4 fill-current animate-bounce" />
-                    CAMMINA 500m
+                    {gpsOn || gpsState === 'requesting' ? 'GPS guida il percorso' : 'CAMMINA 500m'}
                   </button>
 
                   {/* GPS reale */}
                   <button
                     onClick={toggleGps}
+                    aria-pressed={gpsOn || gpsState === 'requesting'}
+                    aria-label={gpsOn || gpsState === 'requesting' ? 'Ferma GPS' : 'Attiva GPS reale'}
                     className={`font-black text-xs py-2.5 px-4 rounded-xl shadow active:scale-95 transition-all flex items-center gap-1.5 border-b-2 ${gpsOn ? 'bg-blue-500 text-white border-blue-700' : 'bg-slate-900 text-slate-200 border-slate-800 hover:bg-slate-850'}`}
                     id="gps-btn"
                   >
-                    <MapPin className="w-4 h-4" />
-                    {gpsOn ? 'GPS attivo' : 'GPS reale'}
+                    <LocateFixed className="w-4 h-4" />
+                    {gpsOn || gpsState === 'requesting' ? 'Ferma GPS' : 'Attiva GPS'}
                   </button>
                 </div>
               </div>
@@ -2069,23 +1893,23 @@ export default function App() {
               {/* Conditional Map View Frame */}
               {mapMode === 'real' ? (
                 /* GEOGRAPHIC INTERACTIVE REAL MAP VIEW */
-                <div className="relative w-full h-[460px] sm:h-[540px] bg-slate-900 border-2 border-emerald-500/20 rounded-2xl overflow-hidden shadow-inner group z-0">
+                <div className="relative w-full h-[460px] bg-slate-900 border-2 border-emerald-500/20 rounded-2xl overflow-hidden shadow-inner group z-0">
                   <div ref={mapContainerRef} className="w-full h-full" id="real-gps-map" />
                   
                   {/* Overlay HUD status regarding current trekking location */}
                   <div className="absolute top-3 left-3 bg-slate-950/95 border border-slate-855 font-mono text-[9px] text-slate-200 px-3.5 py-2.5 rounded-2xl backdrop-blur-md shadow-2xl pointer-events-none z-35 max-w-[260px] space-y-1.5">
                     <span className="text-emerald-400 font-extrabold uppercase block tracking-wider flex items-center gap-1">
                       <MapPin className="w-3 h-3 text-emerald-500 animate-bounce" />
-                      Tappa Attuale
+                      {gpsOn ? 'Posizione GPS' : 'Tappa attuale'}
                     </span>
                     <div className="font-mono text-[11px] font-black text-slate-100 truncate">{currentWaypoint.name}</div>
-                    <div className="text-slate-400 text-[8.5px]">Coordinate: <span className="text-emerald-300 font-bold">{playerLat.toFixed(4)}°N, {playerLng.toFixed(4)}°E</span></div>
+                    <div className="text-slate-400 text-[10px]">Coordinate: <span className="text-emerald-300 font-bold">{effLat.toFixed(4)}°N, {effLng.toFixed(4)}°E</span></div>
                     
                     <div className="pt-1">
                       <div className="w-full bg-slate-900 rounded-full h-1 relative overflow-hidden">
                         <div className="bg-emerald-400 h-full transition-all duration-500" style={{ width: `${waypointProgress}%` }} />
                       </div>
-                      <div className="text-[7.5px] text-slate-500 flex justify-between mt-1">
+                      <div className="text-[9.5px] text-slate-500 flex justify-between mt-1">
                         <span>Punto Successivo</span>
                         <span>{waypointProgress}%</span>
                       </div>
@@ -2093,7 +1917,7 @@ export default function App() {
                   </div>
 
                   {/* Leaflet Tip Ribbon overlay */}
-                  <div className="absolute bottom-2.5 right-2.5 bg-slate-950/80 border border-slate-850 rounded-full py-0.5 px-3 text-[8.5px] text-slate-400 font-mono tracking-tight text-center whitespace-nowrap backdrop-blur-xs z-35">
+                  <div className="absolute bottom-2.5 right-2.5 bg-slate-950/80 border border-slate-850 rounded-full py-0.5 px-3 text-[10px] text-slate-400 font-mono tracking-tight text-center whitespace-nowrap backdrop-blur-xs z-35">
                     🧀 Tocca i campanacci sulla mappa reale per interagire
                   </div>
                 </div>
@@ -2136,7 +1960,7 @@ export default function App() {
                           <div className={`w-8 h-8 rounded-full ${onCooldown ? 'bg-slate-700 border-slate-500' : 'bg-blue-500 border-white'} text-white flex items-center justify-center border-2 shadow-lg transition-transform hover:scale-110`}>
                             <RotateCw className={`w-4 h-4 ${onCooldown ? 'text-slate-400' : 'text-blue-200 animate-spin-slow'}`} />
                           </div>
-                          <span className="text-[8px] bg-slate-950/80 font-mono text-slate-300 py-0.5 px-1.5 rounded-md mt-1 group-hover/marker:bg-slate-950 border border-slate-800">
+                          <span className="text-[10px] bg-slate-950/80 font-mono text-slate-300 py-0.5 px-1.5 rounded-md mt-1 group-hover/marker:bg-slate-950 border border-slate-800">
                             {hp.name.split(" ")[0]} 🥛
                           </span>
                         </div>
@@ -2158,8 +1982,8 @@ export default function App() {
                           <div className="absolute -inset-1.5 bg-yellow-500/20 rounded-full animate-ping opacity-60"></div>
                           <VatsamonAvatar breed={wc.vatsa.breed} rarity={wc.vatsa.rarity} className="w-14 h-14 bg-slate-950/40 rounded-full border border-amber-500/30 p-1 backdrop-blur-xs transition-transform group-hover/cow:scale-125" />
                         </div>
-                        <span className="text-[8px] font-mono font-black bg-slate-950/95 text-yellow-400 border border-amber-500/20 px-1.5 py-0.5 rounded shadow">
-                          CP {wc.vatsa.cp}
+                        <span className="text-[10px] font-mono font-black bg-slate-950/95 text-yellow-400 border border-amber-500/20 px-1.5 py-0.5 rounded shadow">
+                          Potenza {wc.vatsa.cp}
                         </span>
                       </div>
                     </button>
@@ -2173,6 +1997,26 @@ export default function App() {
               )}
 
             </div>
+
+            <GpsExplorerPanel
+              gpsState={gpsState}
+              gpsAccuracy={gpsAccuracy}
+              gpsUpdatedAt={gpsUpdatedAt}
+              gpsIssue={gpsIssue}
+              nextName={gpsTarget.name}
+              nextDistanceM={gpsTargetDistance}
+              direction={gpsDirection}
+              routeDistanceM={gpsRouteMatch?.distanceM ?? null}
+              claimedCheckpoints={claimedGpsCheckpoints.length}
+              totalCheckpoints={activeTrail.length - 1}
+              checkpointReady={checkpointReady}
+              checkpointClaimed={checkpointClaimed}
+              checkpointMission={checkpointMission}
+              nearby={nearbyGpsPlaces}
+              onToggleGps={toggleGps}
+              onCenter={centerGpsPosition}
+              onCheckIn={registraCheckpointGps}
+            />
 
             {/* Overlay sentieri reali (disegna su Leaflet, non rende nulla nel DOM) */}
             <TrailOverlay map={mapInstance} trail={selectedTrail} />
@@ -2256,7 +2100,7 @@ export default function App() {
               </h4>
               <div className="bg-slate-900/60 border border-slate-850/80 rounded-2xl p-3 max-h-[140px] overflow-y-auto space-y-2 no-scrollbar">
                 {trekkingFeed.length === 0 ? (
-                  <p className="text-[10px] text-slate-500 font-mono">Inizia a camminare per sintonizzare nuovi eventi sul sentiero...</p>
+                  <p className="text-[10px] text-slate-500 font-mono">Inizia a camminare per incontrare nuovi eventi sul sentiero...</p>
                 ) : (
                   trekkingFeed.map((feedItem, index) => (
                     <div key={index} className="flex items-start gap-1.5 text-[10px] font-mono leading-relaxed border-b border-slate-850/30 pb-1.5 last:border-0 last:pb-0">
@@ -2311,7 +2155,7 @@ export default function App() {
 
               {/* Spinning photo-disc graphics */}
               <div className="flex justify-center py-4">
-                <div className="relative w-40 h-40 rounded-full border-4 border-blue-400 flex items-center justify-center bg-slate-800 overflow-hidden shadow-inner cursor-pointer" onClick={handleSpinCasera}>
+                <button type="button" aria-label="Ruota il disco della casera" className="relative w-40 h-40 rounded-full border-4 border-blue-400 flex items-center justify-center bg-slate-800 overflow-hidden shadow-inner" onClick={handleSpinCasera}>
                   
                   {/* Photo representation in rotate transition frame */}
                   <div 
@@ -2325,7 +2169,7 @@ export default function App() {
                   </div>
 
                   <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent pointer-events-none"></div>
-                </div>
+                </button>
               </div>
 
               <div className="space-y-2">
@@ -2362,6 +2206,31 @@ export default function App() {
                     </button>
                   </div>
                 )}
+              </div>
+
+              {/* BOTTEGA DELLA CASERA — qui si spendono i Denari */}
+              <div className="text-left space-y-1.5" id="casera-shop">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-mono font-black uppercase tracking-widest text-amber-400">🛒 Bottega della Casera</span>
+                  <span className="text-[10px] font-mono text-amber-300">🪙 {trainer.coins}</span>
+                </div>
+                {[...Object.values(SAC_ITEMS), ...BOTTEGA_EXTRA].map((it) => (
+                  <div key={it.id} className="flex items-center gap-2 bg-slate-950 border border-slate-850 rounded-xl p-1.5">
+                    <span className="text-lg w-7 text-center" aria-hidden="true">{it.emoji}</span>
+                    <div className="flex-grow min-w-0">
+                      <div className="text-[11px] font-mono font-bold text-slate-100 truncate">{it.nome}</div>
+                      <div className="text-[9px] text-slate-500 truncate">{it.desc}</div>
+                    </div>
+                    <button
+                      data-buy={it.id}
+                      onClick={() => buyBottega(it.id, it.prezzo, it.nome)}
+                      disabled={trainer.coins < it.prezzo}
+                      className="flex-shrink-0 bg-amber-600 hover:bg-amber-500 disabled:opacity-40 text-[#0b0820] font-mono font-black text-[10px] px-2.5 py-1.5 rounded-lg min-h-[36px]"
+                    >
+                      {it.prezzo} 🪙
+                    </button>
+                  </div>
+                ))}
               </div>
 
               <p className="text-[10px] text-slate-400 italic font-sans px-4">
@@ -2401,8 +2270,8 @@ export default function App() {
                 </div>
 
                 <div className="text-right">
-                  <div className="text-[10px] text-slate-500 font-mono">PUNTI COMBAT</div>
-                  <div className="font-mono font-black text-xl text-yellow-400 leading-none">CP {encounterCow.cp}</div>
+                  <div className="text-[10px] text-slate-500 font-mono">POTENZA</div>
+                  <div className="font-mono font-black text-xl text-yellow-400 leading-none">{encounterCow.cp}</div>
                 </div>
               </div>
 
@@ -2456,7 +2325,7 @@ export default function App() {
                         <span className="text-3xl">🔔</span>
                         <span className="absolute -top-1 -right-1 bg-red-500 w-3 h-3 rounded-full animate-ping"></span>
                       </div>
-                      <span className="text-[10px] font-mono font-bold text-amber-300 mt-2 animate-pulse">SI SVEGLIERÀ?</span>
+                      <span className="text-[10px] font-mono font-bold text-amber-300 mt-2 animate-pulse">SI FIDERÀ?</span>
                     </div>
                   )}
 
@@ -2534,7 +2403,7 @@ export default function App() {
                       </div>
                     </div>
 
-                    {/* Selettore Vatsa-ball in stile Poké Ball: una tessera per potenza */}
+                    {/* Selettore del campanaccio: una tessera per potenza di richiamo */}
                     <div id="ball-selector" className="space-y-1">
                       <div className="flex items-center justify-between text-[9px] font-mono uppercase tracking-wider text-slate-400">
                         <span>Scegli il campanaccio</span>
@@ -2559,16 +2428,16 @@ export default function App() {
                             >
                               {/* badge quantità */}
                               <span
-                                className="absolute -top-1.5 -right-1.5 min-w-4 h-4 px-1 rounded-full text-[8px] font-mono font-black flex items-center justify-center text-[#0b0820]"
+                                className="absolute -top-1.5 -right-1.5 min-w-4 h-4 px-1 rounded-full text-[10px] font-mono font-black flex items-center justify-center text-[#0b0820]"
                                 style={{ backgroundColor: meta.color }}
                               >
                                 {qty}
                               </span>
                               <span className="text-lg leading-none">{meta.emoji}</span>
-                              <span className="text-[8px] font-mono font-bold mt-1 leading-tight" style={{ color: selected ? meta.color : '#cbd5e1' }}>
-                                {meta.short.replace('Vatsa-ball', '').trim() || 'Base'}
+                              <span className="text-[10px] font-mono font-bold mt-1 leading-tight" style={{ color: selected ? meta.color : '#cbd5e1' }}>
+                                {meta.short}
                               </span>
-                              <span className="text-[8px] font-mono font-black mt-0.5" style={{ color: meta.color }}>
+                              <span className="text-[10px] font-mono font-black mt-0.5" style={{ color: meta.color }}>
                                 {meta.mult === null ? '100%' : `×${meta.mult}`}
                               </span>
                             </button>
@@ -2598,7 +2467,7 @@ export default function App() {
                         id="throw-btn"
                       >
                         <span className="text-lg">{selMeta?.emoji ?? '📢'}</span>
-                        <span>LANCIA {selMeta?.short.replace('Vatsa-ball', '').trim() || ''}</span>
+                        <span>SUONA · {selMeta?.short || ''}</span>
                       </button>
                     </div>
 
@@ -2633,339 +2502,68 @@ export default function App() {
           />
         )}
 
-        {/* VIEW 2: AR LAB DNA SYNTHESIZER SCANNER */}
+        {/* VIEW 2: PERCORSI — pianificazione separata dall'esplorazione */}
+        {activeTab === 'routes' && (
+          <RoutesView
+            routes={TREK_ROUTES}
+            activeRouteId={activeRouteId}
+            completedRoutes={completedRoutes}
+            trainerLevel={trainer.level}
+            position={{ lat: effLat, lng: effLng }}
+            battles={MAP_BATTLES}
+            dungeons={DUNGEONS}
+            onSelectRoute={(id) => { selectRoute(id); setActiveTab('map'); }}
+            onStartBattle={tryStartBattle}
+            onStartDungeon={tryStartDungeon}
+            onOpenSeason={() => { playClickSfx(); setActiveTab('stagione'); }}
+          />
+        )}
+
+        {/* VIEW 2: SCATTA LA REINA — riconoscimento fotografico on-device */}
         {activeTab === 'scanner' && (
-          <div className="space-y-6" id="scanner-view">
-            <div className="bg-slate-950 rounded-3xl p-5 border border-slate-850 shadow-md">
-              <h2 className="text-xl font-mono font-black text-emerald-400 flex items-center gap-1.5 uppercase">
-                <Camera className="w-5 h-5" />
-                Riconoscimento d'Alpeggio
-              </h2>
-              <p className="text-xs text-slate-400 mt-1">Inquadra o carica la foto di una Reina sui pascoli: ne riconosci la razza, ne valuti stazza, corna e grinta, e registri un avvistamento. Le Reines ufficiali si verificano alle gare.</p>
-
-              {!isScanning && (
-                <div className="mt-5 border-2 border-dashed border-slate-800 bg-slate-900/40 rounded-3xl p-8 flex flex-col items-center justify-center text-center space-y-4">
-                  {cameraStreamActive ? (
-                    <div className="w-full max-w-sm space-y-4">
-                      <div className="relative aspect-square rounded-2xl overflow-hidden shadow-md border border-emerald-500/20 bg-black">
-                        <video ref={videoRef} className="w-full h-full object-cover" playsInline muted />
-                        <div className="absolute inset-5 border border-dashed border-yellow-400/40 rounded-xl flex items-center justify-center pointer-events-none">
-                          <span className="text-[10px] font-mono text-yellow-400 animate-pulse">INQUADRA LA REINA</span>
-                        </div>
-                      </div>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => processImageScanGo(null)}
-                          className="flex-grow bg-emerald-500 hover:bg-emerald-400 text-[#0b0820] font-mono font-bold text-xs py-2.5 rounded-xl transition-all cursor-pointer shadow border-b-2 border-emerald-700"
-                        >
-                          Riconosci la Reina
-                        </button>
-                        <button
-                          onClick={stopCamera}
-                          className="bg-slate-800 hover:bg-slate-705 text-slate-400 py-2.5 px-4 rounded-xl text-xs"
-                        >
-                          Annulla
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="space-y-4 max-w-sm">
-                      <div className="w-16 h-16 rounded-full bg-emerald-950/60 border border-emerald-500/20 flex items-center justify-center text-emerald-400 text-2xl mx-auto shadow-inner">
-                        📤
-                      </div>
-                      <div>
-                        <p className="font-extrabold text-slate-200 text-sm">Carica o scatta una foto della Reina</p>
-                        <p className="text-[10px] text-slate-500 mt-0.5">JPEG, PNG. La foto resta sul tuo dispositivo.</p>
-                      </div>
-
-                      <div className="flex flex-col sm:flex-row items-center justify-center gap-2 pt-2">
-                        <button
-                          onClick={() => fileInputRef.current?.click()}
-                          className="w-full sm:w-auto bg-[#10b981] hover:bg-emerald-400 text-[#0b0820] font-mono font-bold text-xs py-2.5 px-4 rounded-xl transition-colors cursor-pointer"
-                        >
-                          Carica una foto
-                        </button>
-                        <button
-                          onClick={startCameraGo}
-                          className="w-full sm:w-auto bg-slate-800 hover:bg-slate-700 text-slate-200 font-mono text-xs py-2.5 px-4 rounded-xl transition-colors cursor-pointer"
-                        >
-                          Usa la fotocamera
-                        </button>
-                      </div>
-
-                      <input type="file" ref={fileInputRef} onChange={handleFileUploadGo} className="hidden" accept="image/*" />
-
-                      <div className="py-2 flex items-center text-slate-700 text-[10px] uppercase font-mono tracking-widest justify-center">
-                        <div className="flex-grow border-t border-slate-800"></div>
-                        <span className="mx-3">oppure</span>
-                        <div className="flex-grow border-t border-slate-800"></div>
-                      </div>
-
-                      <button
-                        onClick={() => processImageScanGo(null)}
-                        className="w-full bg-slate-900 hover:bg-slate-850 border border-slate-850 py-2 rounded-xl text-yellow-400 font-mono text-xs font-bold transition-all cursor-pointer shadow active:scale-95"
-                      >
-                        🐮 Avvista una Reina d'alpeggio
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Loader progressing overlay */}
-              {isScanning && (
-                <div className="py-8 space-y-4 max-w-sm mx-auto text-center animate-pulse" id="scan-bar-loader">
-                  <div className="w-14 h-14 mx-auto rounded-full border-4 border-slate-800 border-t-emerald-500 animate-spin flex items-center justify-center">
-                    <RefreshCw className="w-5 h-5 text-emerald-400" />
-                  </div>
-                  <div>
-                    <h4 className="font-mono font-black text-emerald-400 text-sm">Riconoscimento in corso...</h4>
-                    <p className="text-[10px] text-slate-400 font-mono mt-1 italic">"{scanMessage}"</p>
-                  </div>
-                  <div className="bg-slate-850 rounded-full h-2 overflow-hidden border border-slate-800">
-                    <div className="bg-emerald-500 h-2 rounded-full transition-all duration-300" style={{ width: `${scanProgress}%` }} />
-                  </div>
-                </div>
-              )}
-
-            </div>
-          </div>
+          <ScattaView onSighting={handleSighting} playClick={playClickSfx} />
         )}
 
         {/* VIEW 3: CALF GESTATION & WEANING STABLE */}
         {activeTab === 'stalla' && (
+          <div className="space-y-4">
+          <ArpPanel
+            fase={faseStato.id}
+            oggi={oggiISO()}
+            collection={vatsadex}
+            arp={arpState}
+            onInarpa={inarpa}
+            onCura={curaArp}
+            onScendi={scendiDallArp}
+            onDesarpa={celebraDesarpa}
+            playClick={playClickSfx}
+          />
           <StallaScreen
             collection={vatsadex}
-            onBorn={(cow) => setVatsadex(prev => [cow, ...prev])}
+            onBorn={(cow) => { setVatsadex(prev => [cow, ...prev]); impara('moudzon'); }}
             onUpdateCow={(updated) => setVatsadex(prev => prev.map(c => c.id === updated.id ? updated : c))}
-            onReward={(coins, xp) => {
+            onReward={(coins, xp, fontinaN) => {
               if (coins) setTrainer(prev => ({ ...prev, coins: prev.coins + coins }));
               if (xp) addTrainerXp(xp);
+              if (fontinaN) guadagnaFontina(fontinaN, 'un moudzon di stalla è diventato Reina');
             }}
             playClick={playClickSfx}
           />
+          </div>
         )}
 
         {/* VIEW 4: DETAILS/VATSADEX SHEET LIST */}
         {activeTab === 'vatsadex' && (
-          <div className="space-y-6" id="vatsadex-tab-view">
-            
-            {/* Quick interactive Bell soundboard bar */}
-            <div className="bg-slate-950 border border-slate-850 rounded-3xl p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-              <div>
-                <h2 className="text-xl font-mono font-black text-emerald-400 flex items-center gap-1.5 uppercase">
-                  <BookOpen className="w-5 h-5 text-emerald-500" />
-                  Vatsadex Collezione
-                </h2>
-                <p className="text-xs text-slate-400">Archivio biometrico del genoma delle bovine sintonizzate durante le tue scalate.</p>
-              </div>
-
-              <div
-                onClick={() => { playMooSfx(); if (soundEnabled) soundEngine.playVictoryFanfare(); }}
-                className="bg-amber-500/10 hover:bg-amber-500/20 cursor-pointer border border-amber-500/20 rounded-2xl py-2 px-4 text-amber-300 flex items-center gap-2 transform active:scale-95 transition-all text-xs"
-              >
-                <span className="text-xl">🔔</span>
-                <div className="text-left font-mono">
-                  <div className="font-black text-[9px] uppercase">Rintocco d'Onore</div>
-                  <div className="text-[8px] text-slate-400">Richiamo ornamentale vacca</div>
-                </div>
-              </div>
-            </div>
-
-            {/* Avanzamento catalogo REALI (Batailles de Reines) */}
-            {(() => {
-              const realiPrese = vatsadex.filter(c => c.isReal).length;
-              const bonus = vatsadex.filter(c => !c.isReal).length;
-              return (
-                <div className="bg-gradient-to-br from-emerald-950 to-slate-950 border border-emerald-800/50 rounded-3xl p-5">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="font-mono font-black text-emerald-300 text-lg uppercase">Reines reali: {realiPrese}/{REAL_TOTAL}</div>
-                    <div className="text-[10px] font-mono text-slate-400">{bonus > 0 ? `+${bonus} bonus IA` : 'dati Batailles 2026'}</div>
-                  </div>
-                  <div className="h-2.5 rounded-full bg-slate-800 overflow-hidden">
-                    <div className="h-full bg-emerald-500 transition-[width]" style={{ width: `${(realiPrese / REAL_TOTAL) * 100}%` }} />
-                  </div>
-                  <p className="text-[10px] text-slate-400 font-mono mt-2">Le bovine reali vivono nei loro comuni veri sulla mappa: cammina e catturale.</p>
-                </div>
-              );
-            })()}
-
-            {/* Galleria "una Reina per tipologia": carte con foto reale per rarità */}
-            <div className="bg-slate-950 border border-slate-850 rounded-3xl p-5 space-y-3" id="showcase-rarity">
-              <h3 className="text-xs font-mono font-extrabold uppercase text-slate-300 tracking-wider flex items-center gap-1.5">
-                <Award className="w-4 h-4 text-amber-400" />
-                Una Reina per rarità (carte ufficiali)
-              </h3>
-              <div className="grid grid-cols-3 gap-3">
-                {SHOWCASE_BY_RARITY.map((cow) => {
-                  const tone =
-                    cow.rarity === 'Leggendaria' ? 'border-amber-400/60 from-amber-500/15' :
-                    cow.rarity === 'Epica' ? 'border-purple-400/60 from-purple-500/15' :
-                    cow.rarity === 'Rara' ? 'border-blue-400/60 from-blue-500/15' : 'border-slate-700 from-slate-700/10';
-                  const txt =
-                    cow.rarity === 'Leggendaria' ? 'text-amber-300' :
-                    cow.rarity === 'Epica' ? 'text-purple-300' :
-                    cow.rarity === 'Rara' ? 'text-blue-300' : 'text-slate-300';
-                  return (
-                    <button
-                      key={cow.id}
-                      onClick={() => { playClickSfx(); setSelectedVatsamon(cow); }}
-                      className={`relative bg-gradient-to-b to-slate-950 border-2 ${tone} rounded-2xl p-2 flex flex-col items-center gap-1.5 transition-transform hover:-translate-y-1 overflow-hidden`}
-                    >
-                      <div className="holo-sheen absolute inset-0 pointer-events-none opacity-50 rounded-2xl" />
-                      <span className={`relative text-[8px] font-mono font-black uppercase tracking-widest ${txt}`}>{cow.rarity}</span>
-                      <CowVisual cow={cow} className="relative w-16 h-16" />
-                      <span className="relative text-[10px] font-mono font-black text-slate-100 truncate max-w-full">{cow.name}</span>
-                      <span className="relative text-[8px] font-mono text-amber-300">CP {cow.cp}</span>
-                    </button>
-                  );
-                })}
-              </div>
-              <p className="text-[10px] text-slate-500 font-mono">Tocca una carta per aprire la scheda completa con statistiche reali e mosse.</p>
-            </div>
-
-            {/* Grid display with Search filters */}
-            <div className="bg-slate-950 border border-slate-850 rounded-3xl p-4 space-y-4">
-
-              {/* Dynamic search / rarity ribbon controllers */}
-              <div className="flex flex-col sm:flex-row items-center gap-2.5">
-                <div className="relative w-full sm:flex-1">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-                  <input
-                    type="text"
-                    value={dexSearch}
-                    onChange={(e) => setDexSearch(e.target.value)}
-                    placeholder="Filtra per nome o razza..."
-                    className="w-full bg-slate-900 border border-slate-800 rounded-xl py-2 pl-9 pr-4 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-slate-700 font-mono"
-                  />
-                </div>
-
-                <div className="flex gap-1 w-full sm:w-auto font-mono text-[10.5px]">
-                  {['All', 'Comune', 'Rara', 'Epica', 'Leggendaria'].map((rarity) => (
-                    <button
-                      key={rarity}
-                      onClick={() => setDexRarityFilter(rarity)}
-                      className={`flex-1 sm:flex-none py-1.5 px-2.5 rounded-lg border font-bold transition-all whitespace-nowrap cursor-pointer ${dexRarityFilter === rarity ? 'bg-amber-500 border-amber-500 text-[#0b0820]' : 'bg-slate-900 border-slate-800 text-slate-400'}`}
-                    >
-                      {rarity}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Grid cards collection display */}
-              {vatsadex.length === 0 ? (
-                <div className="text-center py-10 bg-slate-900/10 border border-slate-850 rounded-2xl p-6">
-                  <p className="text-slate-500 text-xs font-mono">Nessuna Regina sintonizzata corrispondente ai criteri.</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 bg-slate-950" id="collection-grid">
-                  {vatsadex
-                    .filter(cow => {
-                      const textMatch = cow.name.toLowerCase().includes(dexSearch.toLowerCase()) || cow.breed.toLowerCase().includes(dexSearch.toLowerCase());
-                      const rarityMatch = dexRarityFilter === 'All' || cow.rarity === dexRarityFilter;
-                      return textMatch && rarityMatch;
-                    })
-                    .map((cow) => {
-                      const isActiveBuddy = cow.id === activeCombatantId;
-                      const edgeColor = 
-                        cow.rarity === 'Leggendaria' ? 'border-amber-500/40 hover:border-amber-400' :
-                        cow.rarity === 'Epica' ? 'border-purple-500/40 hover:border-purple-400' :
-                        cow.rarity === 'Rara' ? 'border-blue-500/40 hover:border-blue-400' : 'border-slate-850 hover:border-slate-700';
-
-                      return (
-                        <div
-                          key={cow.id}
-                          onClick={() => { playClickSfx(); setSelectedVatsamon(cow); }}
-                          className={`relative bg-slate-900 border-2 rounded-2xl p-3 text-center cursor-pointer transition-all hover:-translate-y-1 overflow-hidden group shadow ${edgeColor}`}
-                        >
-                          {isActiveBuddy && (
-                            <div className="absolute top-1.5 right-1.5 bg-rose-600 text-[8px] font-mono font-black text-white px-2 py-0.5 rounded-full uppercase shadow">
-                              BUDDY 👑
-                            </div>
-                          )}
-
-                          {/* Aura glow representation inside card */}
-                          <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-transparent via-slate-700/5 to-transparent"></div>
-
-                          <div className="my-2.5 flex justify-center">
-                            <CowVisual cow={cow} className="w-20 h-20 group-hover:scale-110 transition-transform" />
-                          </div>
-
-                          <div className="space-y-1 flex flex-col items-center">
-                            <h4 className="font-mono font-extrabold text-[#211b3a] text-xs truncate max-w-full leading-none">
-                              {cow.name}
-                            </h4>
-                            <span className="text-[9px] bg-slate-950 font-mono font-black text-yellow-400 border border-slate-800 px-1.5 py-0.5 rounded-md mt-1 shadow-sm uppercase">
-                              CP {cow.cp}
-                            </span>
-                          </div>
-
-                        </div>
-                      );
-                    })}
-                </div>
-              )}
-
-            </div>
-          </div>
-        )}
-
-        {/* DETAILS POPUP MODAL SCREEN FOR SINGLE SELECTED VATSAMON */}
-        {selectedVatsamon && (
-          <div className="fixed inset-0 bg-slate-950/90 z-50 flex items-center justify-center p-4 backdrop-blur-xs animate-fade-in overflow-y-auto" id="details-modal">
-            <div className="bg-slate-900 border-2 border-slate-800 rounded-3xl max-w-md w-full p-5 text-center space-y-4 shadow-2xl relative my-auto">
-
-              <button
-                onClick={() => { playClickSfx(); setSelectedVatsamon(null); }}
-                className="absolute top-3 right-3 z-20 text-slate-400 hover:text-slate-200 transition-colors p-1 bg-slate-950/60 rounded-full"
-              >
-                <X className="w-6 h-6" />
-              </button>
-
-              {/* Scheda "carta Pokémon" (componente dedicato) */}
-              <CowCard cow={selectedVatsamon} />
-
-              {/* Pokemon GO Action: Power Up and Transfers */}
-              <div className="border-t border-slate-850 pt-3 flex gap-2">
-                
-                {/* Activate Combat buddy */}
-                <button
-                  onClick={() => {
-                    playClickSfx();
-                    setActiveCombatantId(selectedVatsamon.id);
-                    setSelectedVatsamon(null);
-                  }}
-                  className={`flex-1 text-[11px] font-mono font-bold py-2.5 px-3 rounded-xl transition-all shadow ${
-                    activeCombatantId === selectedVatsamon.id 
-                      ? 'bg-rose-950 text-rose-400 border border-rose-500/30' 
-                      : 'bg-rose-600 hover:bg-rose-500 text-white'
-                  }`}
-                >
-                  {activeCombatantId === selectedVatsamon.id ? 'BUDDY ATTIVO 👑' : 'IMPOSTA COMPAGNO'}
-                </button>
-
-                {/* Power Up */}
-                <button
-                  onClick={() => handlePowerUpCow(selectedVatsamon)}
-                  className="flex-1 bg-amber-500 hover:bg-amber-400 text-[#0b0820] font-mono font-black text-[11px] py-2.5 px-3 rounded-xl transition-all cursor-pointer shadow border-b-4 border-amber-700 flex items-center justify-center gap-1"
-                >
-                  🔋 NOCCIOLO CP (+75)
-                </button>
-
-                {/* Transfer */}
-                <button
-                  onClick={() => handleTransferCow(selectedVatsamon)}
-                  className="bg-slate-950 hover:bg-slate-850 border border-slate-800 text-slate-500 hover:text-slate-300 transition-colors py-2 px-3 rounded-xl"
-                  title="Libera al pascolo"
-                >
-                  🌾 Libera
-                </button>
-
-              </div>
-
-            </div>
-          </div>
+          <VatsadexView
+            collection={vatsadex}
+            activeCombatantId={activeCombatantId}
+            onSetBuddy={setActiveCombatantId}
+            onPowerUp={handlePowerUpCow}
+            onTransfer={handleTransferCow}
+            playClick={playClickSfx}
+            playMoo={playMooSfx}
+            playFanfare={playVictorySfx}
+          />
         )}
 
         {/* VIEW: STAGIONE (second screen ufficiale delle Batailles de Reines) */}
@@ -2975,19 +2573,81 @@ export default function App() {
             <div id="fase-banner" className="rounded-2xl border border-[#c8102e]/40 p-3 flex items-center gap-3" style={{ background: "linear-gradient(90deg,#1a1626,#241a2e)" }}>
               <span className="text-3xl flex-shrink-0">{faseStato.emoji}</span>
               <div className="min-w-0 flex-grow">
-                <div className="text-[9px] font-mono uppercase tracking-widest text-amber-400">Fase · {faseStato.label}</div>
-                <div className="text-[10px] text-slate-300 leading-snug">{faseStato.nota}</div>
+                <div className="text-[10px] font-mono uppercase tracking-widest text-[#f6c873]">Fase · {faseStato.label}</div>
+                <div className="text-xs text-slate-900 leading-snug">{faseStato.nota}</div>
                 {faseStato.prossimo && (
-                  <div className="text-[9px] text-slate-400 mt-0.5">📍 Prossima: <b className="text-slate-200">{faseStato.prossimo.comune}</b> · {faseStato.prossimo.data}</div>
+                  <div className="text-[10px] text-slate-800 mt-0.5">📍 Prossima: <b className="text-slate-900">{faseStato.prossimo.comune}</b> · {faseStato.prossimo.data}</div>
                 )}
               </div>
               {faseStato.giorniAllaFinale >= 0 && (
                 <div className="text-center flex-shrink-0 bg-slate-950/60 rounded-xl px-2.5 py-1.5 border border-amber-700/40">
                   <div className="text-base font-mono font-black text-amber-300 leading-none">{faseStato.giorniAllaFinale}</div>
-                  <div className="text-[7px] font-mono uppercase text-slate-500">gg alla finale</div>
+                  <div className="text-[9px] font-mono uppercase text-slate-500">gg alla finale</div>
                 </div>
               )}
             </div>
+          {/* ingresso alla Scuola d'Alpeggio (il quiz non è più una tab) */}
+          <button
+            id="quiz-entry"
+            onClick={() => { playClickSfx(); setActiveTab('quiz'); }}
+            className="w-full bg-slate-950 border border-emerald-800/50 rounded-2xl p-3 flex items-center gap-3 text-left hover:border-emerald-600/60 transition-colors"
+          >
+            <GraduationCap className="w-6 h-6 text-emerald-400 flex-shrink-0" />
+            <div className="min-w-0 flex-grow">
+              <div className="text-[12px] font-mono font-black text-emerald-300 uppercase">Scuola d'Alpeggio</div>
+              <div className="text-[10px] text-slate-400 truncate">Quiz su tradizioni, regole e rispetto{quizBest > 0 ? ` · record ${quizBest}` : ''}</div>
+            </div>
+            <span className="text-slate-500 text-lg" aria-hidden="true">›</span>
+          </button>
+          {/* L'ÉLIMINATOIRE DU DIMANCHE — le tappe reali si giocano */}
+          <div className="bg-slate-950 border border-rose-800/40 rounded-2xl p-3 space-y-2" id="tappe-list">
+            <div className="flex items-center justify-between">
+              <div className="text-[11px] font-mono font-black uppercase tracking-widest text-rose-400">📯 L'Éliminatoire du Dimanche</div>
+              <div className="text-[9px] font-mono text-slate-500">{Object.values(tappeSave).filter(r => r.vinta).length}/{tappe().length} vinte</div>
+            </div>
+            <p className="text-[10px] text-slate-400 leading-snug">Ogni domenica del calendario vero si gioca: eliminazione diretta nella tua categoria alla pesa. Vinci il <b className="text-rose-300">mécro</b> della tappa; chi gioca la tappa mentre è aperta guadagna il timbro della domenica.</p>
+            <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-1">
+              {(() => {
+                const oggi = oggiISO();
+                return tappe().map(ev => {
+                  const stato = tappaStato(ev, oggi);
+                  const rec = tappeSave[ev.id];
+                  const chiusa = stato === 'futura';
+                  return (
+                    <button
+                      key={ev.id}
+                      data-tappa={ev.id}
+                      disabled={chiusa || vatsadex.length === 0}
+                      onClick={() => { playClickSfx(); setActiveTappa(ev); }}
+                      className={`flex-shrink-0 rounded-xl border-2 px-2.5 py-1.5 text-left min-h-[52px] ${
+                        stato === 'aperta' ? 'border-emerald-500 bg-emerald-950/40' :
+                        stato === 'memoriale' ? 'border-slate-700 bg-slate-900/70' : 'border-slate-850 bg-slate-900/40 opacity-60'}`}
+                    >
+                      <div className="text-[10px] font-mono font-black text-slate-100 whitespace-nowrap">{rec?.vinta ? '🌹 ' : ''}{ev.finale ? '👑 ' : ''}{ev.comune}</div>
+                      <div className="text-[10px] font-mono text-slate-500 whitespace-nowrap">
+                        {new Date(ev.data + 'T12:00:00').toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' })} ·{' '}
+                        <span className={STATO_LABEL[stato].tone}>{STATO_LABEL[stato].label}</span>{rec?.timbro ? ' · ✓ domenica' : ''}
+                      </div>
+                    </button>
+                  );
+                });
+              })()}
+            </div>
+          </div>
+          {/* L'ALBO DELLE LEGGENDE — sfida le campionesse vere della memoria */}
+          <button
+            id="leggende-entry"
+            disabled={vatsadex.length === 0}
+            onClick={() => { playClickSfx(); setShowLeggende(true); }}
+            className="w-full bg-slate-950 border border-amber-700/40 rounded-2xl p-3 flex items-center gap-3 text-left hover:border-amber-500/60 transition-colors disabled:opacity-50"
+          >
+            <span className="text-2xl" aria-hidden="true">🏛️</span>
+            <div className="min-w-0 flex-grow">
+              <div className="text-[12px] font-mono font-black text-amber-300 uppercase">L'Albo delle Leggende</div>
+              <div className="text-[10px] text-slate-400 truncate">Sfida Falchetta, Sirène e Suisse — le campionesse vere ({leggendeBattute.length}/3)</div>
+            </div>
+            <span className="text-slate-500 text-lg" aria-hidden="true">›</span>
+          </button>
           <SeasonView
             onReward={(coins, xp) => {
               setTrainer(prev => ({ ...prev, coins: prev.coins + coins }));
@@ -3015,7 +2675,7 @@ export default function App() {
                 addTrainerXp(correct * 30);
                 if (correct > quizBest) {
                   setQuizBest(correct);
-                  localStorage.setItem('vazzamon_quiz_go', String(correct));
+                  localStorage.setItem('vatsamon_quiz_go', String(correct));
                 }
                 setTrekkingFeed(prev => [`🎓 Scuola d'Alpeggio: ${correct}/${totale} risposte giuste (+${coinsWon} 🪙)`, ...prev.slice(0, 8)]);
               }}
@@ -3064,6 +2724,70 @@ export default function App() {
 
       </main>
 
+      {/* 🧭 NAV PRINCIPALE IN BASSO — 5 destinazioni, zona pollice, safe-area 🧭 */}
+      <nav
+        id="bottom-nav"
+        className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md z-40 bg-slate-950/95 backdrop-blur border-t border-slate-850 shadow-[0_-4px_16px_rgba(0,0,0,0.25)]"
+        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+      >
+        <div className="grid grid-cols-5 items-end gap-1 px-2 pt-1.5 pb-1.5 text-[11px] font-extrabold">
+          <button
+            onClick={() => { playClickSfx(); setActiveTab('map'); }}
+            aria-label="Alpeggio: mappa ed esplorazione"
+            className={`flex flex-col items-center justify-center gap-0.5 min-h-[48px] py-1.5 rounded-xl transition-all ${activeTab === 'map' ? 'nav-active text-white' : 'text-slate-400 hover:bg-slate-900'}`}
+          >
+            <Mountain className="w-5 h-5" />
+            <span>Alpeggio</span>
+          </button>
+
+          <button
+            onClick={() => { playClickSfx(); setActiveTab('routes'); }}
+            aria-label="Percorsi: cammini, sfide e stagione"
+            className={`flex flex-col items-center justify-center gap-0.5 min-h-[48px] py-1.5 rounded-xl transition-all ${activeTab === 'routes' ? 'nav-active text-white' : 'text-slate-400 hover:bg-slate-900'}`}
+          >
+            <Compass className="w-5 h-5" />
+            <span>Percorsi</span>
+          </button>
+
+          {/* bottone centrale rialzato: Scatta la Reina */}
+          <button
+            onClick={() => { playClickSfx(); setActiveTab('scanner'); }}
+            aria-label="Scatta la Reina: fotocamera"
+            className="flex flex-col items-center justify-end gap-0.5 group"
+          >
+            <span
+              className={`-mt-7 w-14 h-14 rounded-full flex items-center justify-center border-4 border-slate-950 shadow-lg transition-transform group-active:scale-95 ${activeTab === 'scanner' ? 'bg-gradient-to-br from-[#c8102e] to-amber-500 text-white' : 'bg-[#c8102e] text-white group-hover:brightness-110'}`}
+            >
+              <Camera className="w-6 h-6" />
+            </span>
+            <span className={activeTab === 'scanner' ? 'text-white' : 'text-slate-400'}>Scatta</span>
+          </button>
+
+          <button
+            onClick={() => { playClickSfx(); setActiveTab('stalla'); }}
+            aria-label="Stalla: allevamento e genealogia"
+            className={`flex flex-col items-center justify-center gap-0.5 min-h-[48px] py-1.5 rounded-xl transition-all ${activeTab === 'stalla' ? 'nav-active text-white' : 'text-slate-400 hover:bg-slate-900'}`}
+          >
+            <Warehouse className="w-5 h-5" />
+            <span>Stalla</span>
+          </button>
+
+          <button
+            onClick={() => { playClickSfx(); setActiveTab('vatsadex'); }}
+            aria-label="Libretto di Mandria: la tua collezione"
+            className={`relative flex flex-col items-center justify-center gap-0.5 min-h-[48px] py-1.5 rounded-xl transition-all ${activeTab === 'vatsadex' ? 'nav-active text-white' : 'text-slate-400 hover:bg-slate-900'}`}
+          >
+            <BookOpen className="w-5 h-5" />
+            <span>Libretto</span>
+            {vatsadex.length > 0 && (
+              <span className="absolute top-0.5 right-1.5 bg-amber-500 text-[#0b0820] text-[9px] px-1.5 rounded-full font-black">
+                {vatsadex.length}
+              </span>
+            )}
+          </button>
+        </div>
+      </nav>
+
       {/* Flash d'incontro casuale (transizione stile Pokémon) */}
       {encounterFlash && <div className="encounter-flash" />}
 
@@ -3071,9 +2795,10 @@ export default function App() {
       {activeBattle && (
         <BattleScene
           battle={activeBattle}
-          playerCows={vatsadex}
+          playerCows={disponibili}
           initialCowId={activeCombatantId}
           trainerLevel={trainer.level}
+          respectScore={respectScore}
           backpack={backpack}
           onConsumeItem={(id) => setBackpack(prev => prev.map(it => it.id === id ? { ...it, quantity: Math.max(0, it.quantity - 1) } : it))}
           onResult={handleBattleResult}
@@ -3082,11 +2807,45 @@ export default function App() {
         />
       )}
 
+      {/* L'ALBO DELLE LEGGENDE — sfide della memoria */}
+      {showLeggende && (
+        <LeggendeView
+          playerCows={disponibili}
+          respectScore={respectScore}
+          battute={leggendeBattute}
+          onWin={(nome) => {
+            if (!leggendeBattute.includes(nome)) {
+              setLeggendeBattute(prev => [...prev, nome]);
+              addTrainerXp(300);
+              setTrekkingFeed(prev => [`🏛️ Hai onorato la memoria: ${nome} battuta! Cartolina storica conquistata (+300 XP)`, ...prev.slice(0, 8)]);
+            }
+          }}
+          onClose={() => setShowLeggende(false)}
+          playClick={playClickSfx}
+        />
+      )}
+
+      {/* L'ÉLIMINATOIRE DU DIMANCHE — la tappa reale in gioco */}
+      {activeTappa && (
+        <EliminatoireView
+          evento={activeTappa}
+          stato={tappaStato(activeTappa, oggiISO())}
+          playerCows={disponibili}
+          respectScore={respectScore}
+          backpack={backpack}
+          onConsumeItem={(id) => setBackpack(prev => prev.map(it => it.id === id ? { ...it, quantity: Math.max(0, it.quantity - 1) } : it))}
+          onFinish={handleTappaFinish}
+          onClose={() => setActiveTappa(null)}
+          playClick={playClickSfx}
+        />
+      )}
+
       {/* DUNGEON "Lega delle Reines" (gauntlet di 5 battaglie con squadra di 4) */}
       {activeDungeon && (
         <DungeonRun
           dungeon={activeDungeon}
-          playerCows={vatsadex}
+          playerCows={disponibili}
+          respectScore={respectScore}
           backpack={backpack}
           onConsumeItem={(id) => setBackpack(prev => prev.map(it => it.id === id ? { ...it, quantity: Math.max(0, it.quantity - 1) } : it))}
           onResult={handleDungeonResult}
@@ -3135,7 +2894,7 @@ export default function App() {
               </div>
               {gradoStato.next && (
                 <div>
-                  <div className="flex justify-between text-[8px] font-mono text-slate-500"><span>Prestigio {gradoStato.prestigio}</span><span>→ {gradoStato.next.nome}</span></div>
+                  <div className="flex justify-between text-[10px] font-mono text-slate-500"><span>Prestigio {gradoStato.prestigio}</span><span>→ {gradoStato.next.nome}</span></div>
                   <div className="h-1.5 rounded-full bg-slate-800 overflow-hidden mt-0.5"><div className="h-full bg-gradient-to-r from-amber-500 to-amber-300" style={{ width: `${Math.round(gradoStato.versoNext * 100)}%` }} /></div>
                 </div>
               )}
@@ -3143,7 +2902,50 @@ export default function App() {
                 className="w-full bg-amber-600 hover:bg-amber-500 disabled:opacity-40 text-[#0b0820] font-mono font-black text-[11px] py-2.5 rounded-xl border-b-4 border-amber-800">
                 {pedigreeStars >= PEDIGREE_STAR_CAP ? '★ Prestigio massimo raggiunto' : `★ Stella di Pedigree — ${costoStellaPedigree(pedigreeStars)} 🧀`}
               </button>
-              <p className="text-[8px] text-slate-500 text-center leading-snug">La Désarpa premia chi ha portato lontano la propria mandria: ogni Stella è un riconoscimento permanente (+Rispetto).</p>
+              <p className="text-[10px] text-slate-500 text-center leading-snug">La Désarpa premia chi ha portato lontano la propria mandria: ogni Stella è un riconoscimento permanente (+Rispetto).</p>
+            </div>
+
+            {/* LE PAROLE DEL PATOIS — si guadagnano compiendole */}
+            <div className="bg-slate-950 rounded-2xl border border-slate-850 p-3 space-y-1.5" id="patois-raccolta">
+              <div className="text-[10px] font-mono font-black text-slate-300 uppercase tracking-widest">🗣️ Le tue parole di patois ({parolePatois().length}/{TOTALE_PAROLE})</div>
+              {vociSbloccate().length === 0 ? (
+                <p className="text-[10px] text-slate-500 leading-snug">Il patois non si studia: si vive. Ogni gesto della tradizione ti insegna la sua parola (la prima nascita in stalla, la salita all'alpe, il primo trofeo…).</p>
+              ) : (
+                <div className="space-y-1">
+                  {vociSbloccate().map(v => (
+                    <div key={v.chiave} className="text-[10px] font-mono text-slate-300 leading-snug">
+                      <b className="text-amber-300 italic font-display">{v.patois ?? v.fr}</b>
+                      <span className="text-slate-500"> · {v.it} / {v.fr}</span>
+                      <span className="block text-slate-500">{v.def}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {(() => {
+                const mancanti = Object.entries(PATOIS_TRIGGERS).filter(([k]) => !parolePatois().includes(k));
+                return mancanti.length > 0 && (
+                  <p className="text-[9px] text-slate-600 leading-snug pt-1">Prossima parola: {mancanti[0][1]}.</p>
+                );
+              })()}
+            </div>
+
+            {/* BACHECA DEI TROFEI — mécro, sonnaille, collari delle tappe vinte */}
+            <div className="bg-slate-950 rounded-2xl border border-slate-850 p-3 space-y-1.5" id="bacheca-trofei">
+              <div className="text-[10px] font-mono font-black text-slate-300 uppercase tracking-widest">🏆 Bacheca dei trofei ({trofei.length})</div>
+              {trofei.length === 0 ? (
+                <p className="text-[10px] text-slate-500 leading-snug">Vinci una tappa ufficiale del calendario per il tuo primo <b className="text-rose-400">mécro</b> — il bosquet di fiori rossi che si porta sulle corna.</p>
+              ) : (
+                <div className="space-y-1">
+                  {trofei.slice(0, 12).map((t) => (
+                    <div key={t.id} className="flex items-center gap-2 text-[10px] font-mono text-slate-300">
+                      <span aria-hidden="true">{TROFEO_META[t.tipo].emoji}</span>
+                      <span className="font-bold">{TROFEO_META[t.tipo].nome}</span>
+                      <span className="text-slate-500 truncate">· {t.comune} · {t.categoria} cat. · {t.reinaNome}</span>
+                    </div>
+                  ))}
+                  {trofei.length > 12 && <div className="text-[9px] text-slate-500">…e altri {trofei.length - 12}</div>}
+                </div>
+              )}
             </div>
 
             {/* risorse di test */}
@@ -3171,7 +2973,7 @@ export default function App() {
                 value={importText}
                 onChange={(e) => setImportText(e.target.value)}
                 placeholder="Incolla qui il codice di salvataggio…"
-                className="w-full h-20 bg-slate-950 border border-slate-800 rounded-xl p-2 text-[10px] font-mono text-slate-200 resize-none no-scrollbar"
+                className="w-full h-20 bg-slate-950 border border-slate-800 rounded-xl p-2 text-[11px] font-code text-slate-200 resize-none no-scrollbar"
               />
               <button onClick={importSave} className="w-full bg-blue-600 hover:bg-blue-500 text-white font-mono font-black text-xs py-2.5 rounded-xl border-b-4 border-blue-800">IMPORTA SALVATAGGIO</button>
             </div>
@@ -3185,20 +2987,14 @@ export default function App() {
 
       {/* FOOTER GENERAL LEGALS AND RESET ACCENTS */}
       <footer className="bg-slate-950 text-slate-500 text-[10px] text-center py-4 px-6 border-t border-slate-850 mt-12 gap-2 flex flex-col items-center relative z-10">
-        <p>© 2026 Vatsamon GO - Un'esplorazione virtuale ecologica della Valle d'Aosta.</p>
+        <p>© 2026 {BRAND.gameName} — il gioco delle Batailles de Reines · Vallée d'Aoste.</p>
         <p className="flex items-center gap-1.5 text-slate-400 font-mono font-bold">
           <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ background: "linear-gradient(90deg,#1a1626 0 50%, #c8102e 50% 100%)" }} aria-hidden="true" />
-          versione <span className="text-amber-400">v1.3</span>
+          versione <span className="text-amber-400">v{APP_VERSION}</span>
         </p>
         <div className="flex gap-4">
           <button
-            onClick={() => {
-              const confirmReset = window.confirm("Cancellare tutti i progressi memorizzati nel Vatsadex?");
-              if (confirmReset) {
-                localStorage.clear();
-                window.location.reload();
-              }
-            }}
+            onClick={resetAll}
             className="text-[9px] text-slate-500 hover:text-rose-500 underline decoration-dotted underline-offset-2 cursor-pointer transition-colors"
           >
             Cancella memoria locale (Reset)
@@ -3224,7 +3020,7 @@ export default function App() {
               <h5 className="text-[10px] font-mono text-slate-400 uppercase tracking-wide">Premi Sbloccati d'alta quota</h5>
               <div className="flex justify-center gap-4 text-xs font-mono font-bold text-amber-300 mt-2">
                 <span>+50 Monete 🪙</span>
-                <span>+5 Super Vatsa-ball 🛎️</span>
+                <span>+5 Campanacci d'Acciaio 🛎️</span>
               </div>
             </div>
 

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Flame, Check, Footprints, Sparkles } from "lucide-react";
 import { DailyMission, missionsForDay, todayKey, yesterdayKey } from "../data/dailyMissions";
 
-const LS = "vazzamon_daily";
+const LS = "vatsamon_daily";
 
 interface DailyState {
   day: string;
@@ -89,7 +89,7 @@ export function DailyPanel({ captured, km, onReward, playClick }: {
                   <div className="flex-grow bg-slate-900 rounded-full h-1.5 overflow-hidden border border-slate-850">
                     <div className="bg-amber-500 h-full transition-all" style={{ width: `${(prog / m.n) * 100}%` }} />
                   </div>
-                  <span className="text-[8.5px] font-mono text-slate-500 flex-shrink-0">{prog}/{m.n}</span>
+                  <span className="text-[10px] font-mono text-slate-500 flex-shrink-0">{prog}/{m.n}</span>
                 </div>
               </div>
               {claimed ? (
@@ -114,7 +114,7 @@ export function DailyPanel({ captured, km, onReward, playClick }: {
           <Sparkles className="w-3.5 h-3.5" /> Giro completato! Torna domani per non perdere lo streak.
         </div>
       )}
-      <p className="text-[8.5px] font-mono text-slate-600 leading-snug flex items-center gap-1">
+      <p className="text-[10px] font-mono text-slate-600 leading-snug flex items-center gap-1">
         <Footprints className="w-3 h-3" /> Le missioni si rinnovano ogni giorno. Saltare un giorno congela lo streak, non lo azzera.
       </p>
     </div>

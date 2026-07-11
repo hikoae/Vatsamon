@@ -21,7 +21,6 @@ export const VatsamonAvatar: React.FC<VatsamonAvatarProps> = ({
   let isSpotted = false;
   let spotColor = "#FFFFFF";
   let snoutColor = "#FAD3CF";
-  let bellColor = "#FBBF24"; // Golden bell
   
   if (breedLower.includes("nera") || breedLower.includes("black")) {
     hideColor = "#27272A"; // Charcoal black
@@ -42,12 +41,10 @@ export const VatsamonAvatar: React.FC<VatsamonAvatarProps> = ({
 
   // Rarity styling effects (card border aura or background sparkle)
   let hornColor = "#E4E4E7"; // Off-white
-  let hornDecoration = null;
   let eyeSparkle = true;
 
   if (rarity === 'Leggendaria') {
     hornColor = "#FBBF24";  // Radiant gold horns
-    bellColor = "#EF4444";  // Ruby embedded bell
   } else if (rarity === 'Epica') {
     hornColor = "#A855F7";  // Violet power horns
   } else if (rarity === 'Rara') {
@@ -57,9 +54,7 @@ export const VatsamonAvatar: React.FC<VatsamonAvatarProps> = ({
   // Generate a distinct hash-like layout based on breed to give variations in spots
   const hash = breed.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
   const spotX1 = 20 + (hash % 15);
-  const spotY1 = 45 + (hash % 10);
   const spotX2 = 65 - (hash % 12);
-  const spotY2 = 35 + (hash % 15);
 
   return (
     <div className={`relative flex items-center justify-center select-none ${className} ${isAttacking ? 'animate-bounce' : ''}`}>

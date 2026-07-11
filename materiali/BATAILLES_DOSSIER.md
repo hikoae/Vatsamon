@@ -62,7 +62,7 @@
 | Autunnali (ultimi 3 concorsi) | ≥ 611 kg | 561–610 kg | ≤ 560 kg |
 | **Finale regionale** | **≥ 631 kg** | **581–630 kg** | **≤ 580 kg** |
 
-Categorie collaterali: **Bataille des moudzons** (manze/junior), **Combats du samedi**
+Categorie collaterali: **Combats du samedi**
 (Premier/Deuxième Veau, Communautés de Montagne), **Bataille de tchèvre** (capre).
 
 ## 4. Calendario 2026 (69ème Concours Régional) — 15 eliminatorie + finale
