@@ -5,10 +5,14 @@ import { Vatsamon, BackpackItem } from "../types";
 import { CowVisual } from "./CowVisual";
 import { buildPlayerFighter, buildScaledBoss } from "../lib/battle";
 import {
-  Spintatore, SpintaState, AzioneId, AZIONI, PERSONALITA_LABEL, personalitaFromLegacy,
-  spintatoreFromFighter, initSpinta, applyAzione, pickAzioneAvversaria,
+  Spintatore, SpintaState, AzioneId, PERSONALITA_LABEL, personalitaFromLegacy,
+  spintatoreFromFighter, initSpinta, pickAzioneAvversaria, MAX_TURNI,
 } from "../lib/spinta";
 import { SAC_ITEMS, MAX_VIGILIA, LIMATURA_TESTO } from "../data/sac";
+import { Mossa, mosseEquipaggiate, mosseAvversaria, eseguiMossa } from "../data/mosse";
+import { spiegaEsito, cronacaTurno, cronacaEsito } from "../data/telecronaca";
+import { MossePanel } from "./battle/MossePanel";
+import { MossaInfoSheet } from "./battle/MossaInfoSheet";
 import { SeasonEvent } from "../data/season";
 import { categoriaAllaPesa, etichettaPesa } from "../data/pesa";
 import { avversarieTappa, faseTappa, TappaStato, TURNI_TAPPA } from "../data/eliminatoire";
@@ -71,6 +75,9 @@ export default function EliminatoireView({
   const oppsRef = useRef<Spintatore[]>([]);
   const fiatoRef = useRef(0); // il fiato si trascina tra i turni della giornata
   const stRef = useRef<SpintaState>({ barra: 50, fiatoP: 0, fiatoO: 0, calma: 80, stanceP: null, stanceO: null, esito: "corso" });
+  const mossePRef = useRef<Record<AzioneId, Mossa> | null>(null);
+  const mosseOppsRef = useRef<Record<AzioneId, Mossa>[]>([]);
+  const [infoMossa, setInfoMossa] = useState<Mossa | null>(null);
   const [, force] = useState(0);
   const rerender = () => force((n) => n + 1);
   const st = stRef.current;
@@ -88,6 +95,9 @@ export default function EliminatoireView({
     playerRef.current = spintatoreFromFighter(pf);
     fiatoRef.current = playerRef.current.fiatoMax;
     oppsRef.current = avversarie.map((a, i) => spintatoreFromFighter(buildScaledBoss(a, 0.95 + i * 0.08)));
+    mossePRef.current = mosseEquipaggiate(cow);
+    // in finale di tappa l'avversaria porta una mossa rara coerente con l'indole
+    mosseOppsRef.current = oppsRef.current.map((o, i) => mosseAvversaria(o.name, persona(i), i === 2));
     const s0 = initSpinta(playerRef.current, oppsRef.current[0], { personalita: persona(0), tellAccuracy });
     stRef.current = s0;
     setTurno(0);
@@ -96,21 +106,26 @@ export default function EliminatoireView({
     rerender();
   };
 
-  const performTurn = async (side: "p" | "o", azione: AzioneId) => {
+  const performTurn = async (side: "p" | "o", mossaId: string) => {
     const A = side === "p" ? player! : oppsRef.current[turno];
     const B = side === "p" ? oppsRef.current[turno] : player!;
     setLunge(side); await wait(150);
-    const r = applyAzione(side, azione, stRef.current, A, B);
+    const r = eseguiMossa(side, mossaId, stRef.current, A, B);
     stRef.current = r.state;
     fiatoRef.current = r.state.fiatoP;
-    pushLog(r.log);
+    pushLog(spiegaEsito(r) ?? r.log);
+    const cronaca = cronacaTurno(r, { p: player!.name, o: oppsRef.current[turno].name });
+    if (cronaca) pushLog(cronaca);
     rerender();
     setLunge(null);
-    if (azione === "incalza" || azione === "gira") { setShake(true); await wait(150); setShake(false); }
+    const fam = r.dettaglio?.famiglia;
+    if (fam === "incalza" || fam === "gira") { setShake(true); await wait(150); setShake(false); }
     await wait(240);
   };
 
   const chiudi = (vinta: boolean, turniSuperati: number) => {
+    const condotta = (stRef.current.turno ?? 0) >= MAX_TURNI;
+    pushLog(cronacaEsito(vinta, !vinta && condotta, { p: player?.name ?? cow!.name, o: oppsRef.current[turno]?.name ?? "la rivale" }));
     setPhase(vinta ? "vinta" : "eliminata");
     setBusy(false);
     onFinish({ vinta, categoria: pesa.cat, reinaId: cow!.id, reinaNome: cow!.name, turniSuperati });
@@ -131,15 +146,18 @@ export default function EliminatoireView({
     rerender();
   };
 
-  const doAction = async (azione: AzioneId) => {
+  const mossaAvversaria2 = () =>
+    mosseOppsRef.current[turno][pickAzioneAvversaria(stRef.current, oppsRef.current[turno], player!)].id;
+
+  const doAction = async (mossa: Mossa) => {
     if (busy || phase !== "fight" || stRef.current.esito !== "corso") return;
     playClick(); setBusy(true); setShowBag(false);
-    await performTurn("p", azione);
+    await performTurn("p", mossa.id);
     let esito = stRef.current.esito as SpintaState["esito"];
     if (esito === "vinto") { await avanzaTurno(); setBusy(false); return; }
     if (esito === "perso") { chiudi(false, turno); return; }
     await wait(200);
-    await performTurn("o", pickAzioneAvversaria(stRef.current, oppsRef.current[turno], player!));
+    await performTurn("o", mossaAvversaria2());
     esito = stRef.current.esito as SpintaState["esito"];
     if (esito === "vinto") { await avanzaTurno(); setBusy(false); return; }
     if (esito === "perso") { chiudi(false, turno); return; }
@@ -159,7 +177,7 @@ export default function EliminatoireView({
     pushLog(`🎒 ${eff.nome}: ${eff.desc}`);
     onConsumeItem(id); rerender();
     await wait(450);
-    await performTurn("o", pickAzioneAvversaria(stRef.current, oppsRef.current[turno], player!));
+    await performTurn("o", mossaAvversaria2());
     const esito = stRef.current.esito as SpintaState["esito"];
     if (esito === "vinto") { await avanzaTurno(); setBusy(false); return; }
     if (esito === "perso") { chiudi(false, turno); return; }
@@ -330,14 +348,10 @@ export default function EliminatoireView({
                 </div>
               </div>
             )}
-            <div className="grid grid-cols-2 gap-2" id="tappa-moves">
-              {AZIONI.map((a) => (
-                <button key={a.id} onClick={() => doAction(a.id)} disabled={busy} title={a.desc} className="text-left rounded-xl border p-2 disabled:opacity-40 bg-slate-900 border-slate-700 hover:border-amber-500/60">
-                  <div className="text-[11px] font-mono font-black text-slate-100 leading-tight">{a.emoji} {a.label}</div>
-                  <div className="text-[10px] font-mono text-amber-500/90 leading-tight mt-0.5">{a.counterHint}</div>
-                </button>
-              ))}
-            </div>
+            {mossePRef.current && (
+              <MossePanel id="tappa-moves" mosse={mossePRef.current} st={st} busy={busy}
+                onMossa={doAction} onInfo={(m) => { playClick(); setInfoMossa(m); }} />
+            )}
             <div className="flex gap-2">
               <button onClick={() => { playClick(); setShowBag(true); }} disabled={busy} className="flex-1 flex items-center justify-center gap-1.5 bg-slate-900 border border-amber-700/40 text-amber-400 font-mono font-black text-xs py-2 rounded-xl disabled:opacity-40"><Backpack className="w-4 h-4" /> Sac ({bagItems.reduce((n, b) => n + b.quantity, 0)})</button>
               <button onClick={ritirati} disabled={busy} className="px-3 bg-slate-900 border border-slate-800 text-slate-300 font-mono font-bold text-xs py-2 rounded-xl disabled:opacity-40">Ritìrati</button>
@@ -380,6 +394,8 @@ export default function EliminatoireView({
           </div>
         )}
       </div>
+
+      {infoMossa && <MossaInfoSheet mossa={infoMossa} onClose={() => setInfoMossa(null)} playClick={playClick} />}
     </div>
   );
 }

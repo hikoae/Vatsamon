@@ -5,11 +5,15 @@ import { Vatsamon } from "../types";
 import { CowVisual } from "./CowVisual";
 import { buildPlayerFighter } from "../lib/battle";
 import {
-  Spintatore, SpintaState, AzioneId, AZIONI, PERSONALITA_LABEL, Personalita,
-  spintatoreFromFighter, initSpinta, applyAzione, pickAzioneAvversaria,
+  Spintatore, SpintaState, AzioneId, PERSONALITA_LABEL, Personalita,
+  spintatoreFromFighter, initSpinta, pickAzioneAvversaria, MAX_TURNI,
 } from "../lib/spinta";
 import { LIMATURA_TESTO } from "../data/sac";
 import { LEGGENDE, Leggenda, reinaByName } from "../data/season";
+import { Mossa, mosseEquipaggiate, mosseAvversaria, eseguiMossa } from "../data/mosse";
+import { spiegaEsito, cronacaTurno, cronacaEsito } from "../data/telecronaca";
+import { MossePanel } from "./battle/MossePanel";
+import { MossaInfoSheet } from "./battle/MossaInfoSheet";
 
 /**
  * L'ALBO DELLE LEGGENDE — sfide della memoria contro le campionesse VERE
@@ -51,6 +55,9 @@ export default function LeggendeView({ playerCows, respectScore, battute, onWin,
   const playerRef = useRef<Spintatore | null>(null);
   const oppRef = useRef<Spintatore | null>(null);
   const stRef = useRef<SpintaState>({ barra: 50, fiatoP: 0, fiatoO: 0, calma: 80, stanceP: null, stanceO: null, esito: "corso" });
+  const mossePRef = useRef<Record<AzioneId, Mossa> | null>(null);
+  const mosseORef = useRef<Record<AzioneId, Mossa> | null>(null);
+  const [infoMossa, setInfoMossa] = useState<Mossa | null>(null);
   const [, force] = useState(0);
   const rerender = () => force((n) => n + 1);
   const st = stRef.current;
@@ -73,37 +80,43 @@ export default function LeggendeView({ playerCows, respectScore, battute, onWin,
       visual: { name: visual.name, breed: visual.breed, rarity: visual.rarity, realPhoto: visual.realPhoto ?? null },
     };
     stRef.current = initSpinta(playerRef.current, oppRef.current, { personalita: prof.personalita, tellAccuracy });
+    mossePRef.current = mosseEquipaggiate(cow);
+    mosseORef.current = mosseAvversaria(l.nome, prof.personalita, true); // le leggende portano una rara
     setLog([`🏛️ La memoria si fa spinta: ${cow.name} affronta ${l.nome} — ${l.titolo}.`]);
     setPhase("fight");
     rerender();
   };
 
-  const performTurn = async (side: "p" | "o", azione: AzioneId) => {
+  const performTurn = async (side: "p" | "o", mossaId: string) => {
     const A = side === "p" ? player! : opp!;
     const B = side === "p" ? opp! : player!;
     setLunge(side); await wait(150);
-    const r = applyAzione(side, azione, stRef.current, A, B);
+    const r = eseguiMossa(side, mossaId, stRef.current, A, B);
     stRef.current = r.state;
-    pushLog(r.log);
+    pushLog(spiegaEsito(r) ?? r.log);
+    const cronaca = cronacaTurno(r, { p: player!.name, o: opp!.name });
+    if (cronaca) pushLog(cronaca);
     rerender();
     setLunge(null);
     await wait(230);
   };
 
-  const doAction = async (azione: AzioneId) => {
+  const doAction = async (mossa: Mossa) => {
     if (busy || phase !== "fight" || stRef.current.esito !== "corso") return;
     playClick(); setBusy(true);
-    await performTurn("p", azione);
+    await performTurn("p", mossa.id);
     let esito = stRef.current.esito as SpintaState["esito"];
     if (esito !== "corso") { finisci(esito === "vinto"); return; }
     await wait(180);
-    await performTurn("o", pickAzioneAvversaria(stRef.current, opp!, player!));
+    await performTurn("o", mosseORef.current![pickAzioneAvversaria(stRef.current, opp!, player!)].id);
     esito = stRef.current.esito as SpintaState["esito"];
     if (esito !== "corso") { finisci(esito === "vinto"); return; }
     setBusy(false);
   };
 
   const finisci = (vinta: boolean) => {
+    const condotta = (stRef.current.turno ?? 0) >= MAX_TURNI;
+    pushLog(cronacaEsito(vinta, condotta, { p: player?.name ?? "La tua Reina", o: opp?.name ?? "la leggenda" }));
     setPhase(vinta ? "vinta" : "persa");
     setBusy(false);
     if (vinta && leggenda) onWin(leggenda.nome);
@@ -219,14 +232,10 @@ export default function LeggendeView({ playerCows, respectScore, battute, onWin,
                     </div>
                   </div>
                 )}
-                <div className="grid grid-cols-2 gap-2" id="leggende-moves">
-                  {AZIONI.map((a) => (
-                    <button key={a.id} onClick={() => doAction(a.id)} disabled={busy} title={a.desc} className="text-left rounded-xl border p-2 disabled:opacity-40 bg-slate-900 border-slate-700 hover:border-amber-500/60">
-                      <div className="text-[11px] font-mono font-black text-slate-100 leading-tight">{a.emoji} {a.label}</div>
-                      <div className="text-[10px] font-mono text-amber-500/90 leading-tight mt-0.5">{a.counterHint}</div>
-                    </button>
-                  ))}
-                </div>
+                {mossePRef.current && (
+                  <MossePanel id="leggende-moves" mosse={mossePRef.current} st={st} busy={busy}
+                    onMossa={doAction} onInfo={(m) => { playClick(); setInfoMossa(m); }} />
+                )}
               </>
             )}
 
@@ -251,6 +260,8 @@ export default function LeggendeView({ playerCows, respectScore, battute, onWin,
           </div>
         </>
       )}
+
+      {infoMossa && <MossaInfoSheet mossa={infoMossa} onClose={() => setInfoMossa(null)} playClick={playClick} />}
     </div>
   );
 }

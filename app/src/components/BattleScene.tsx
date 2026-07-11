@@ -5,12 +5,16 @@ import { Vatsamon, BackpackItem } from "../types";
 import { CowVisual } from "./CowVisual";
 import { buildPlayerFighter, buildOpponentFighter, buildScaledBoss, Fighter } from "../lib/battle";
 import {
-  Spintatore, SpintaState, AzioneId, AZIONI, PERSONALITA_LABEL, Personalita, personalitaFromLegacy,
-  spintatoreFromFighter, initSpinta, applyAzione, pickAzioneAvversaria,
+  Spintatore, SpintaState, AzioneId, PERSONALITA_LABEL, Personalita, personalitaFromLegacy,
+  spintatoreFromFighter, initSpinta, pickAzioneAvversaria, MAX_TURNI,
 } from "../lib/spinta";
 import { SAC_ITEMS, MAX_VIGILIA, LIMATURA_TESTO } from "../data/sac";
 import { MapBattle } from "../data/mapBattles";
 import { arenaBoss } from "../data/arenas";
+import { Mossa, mosseEquipaggiate, mosseAvversaria, eseguiMossa } from "../data/mosse";
+import { spiegaEsito, cronacaTurno, cronacaEsito } from "../data/telecronaca";
+import { MossePanel } from "./battle/MossePanel";
+import { MossaInfoSheet } from "./battle/MossaInfoSheet";
 
 type Phase = "intro" | "fight" | "end";
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -48,6 +52,9 @@ export default function BattleScene({
   const playerRef = useRef<Spintatore | null>(null);
   const oppRef = useRef<Spintatore | null>(null);
   const stRef = useRef<SpintaState>({ barra: 50, fiatoP: 0, fiatoO: 0, calma: 80, stanceP: null, stanceO: null, esito: "corso" });
+  const mossePRef = useRef<Record<AzioneId, Mossa> | null>(null);
+  const mosseORef = useRef<Record<AzioneId, Mossa> | null>(null);
+  const [infoMossa, setInfoMossa] = useState<Mossa | null>(null);
   const [, force] = useState(0);
   const rerender = () => force((n) => n + 1);
 
@@ -77,27 +84,34 @@ export default function BattleScene({
     const os = spintatoreFromFighter(of);
     playerRef.current = ps;
     oppRef.current = os;
+    mossePRef.current = mosseEquipaggiate(playerCow);
+    mosseORef.current = mosseAvversaria(os.name, personalita, battle.kind === "arena");
     stRef.current = initSpinta(ps, os, { personalita, tellAccuracy });
     setLog([`${battle.emoji} ${battle.name}: ${ps.name} affronta ${os.name}. Le corna si toccano…`]);
     setWinner(null); setShowBag(false);
     setPhase("fight"); rerender();
   };
 
-  const performTurn = async (side: "p" | "o", azione: AzioneId) => {
+  const performTurn = async (side: "p" | "o", mossaId: string) => {
     const A = side === "p" ? player! : opp!;
     const B = side === "p" ? opp! : player!;
     setLunge(side); await wait(160);
-    const r = applyAzione(side, azione, stRef.current, A, B);
+    const r = eseguiMossa(side, mossaId, stRef.current, A, B);
     stRef.current = r.state;
-    pushLog(r.log);
+    pushLog(spiegaEsito(r) ?? r.log);
+    const cronaca = cronacaTurno(r, { p: player!.name, o: opp!.name });
+    if (cronaca) pushLog(cronaca);
     rerender();
     setLunge(null);
-    if (azione === "incalza" || azione === "gira") { setShake(true); await wait(160); setShake(false); }
+    const fam = r.dettaglio?.famiglia;
+    if (fam === "incalza" || fam === "gira") { setShake(true); await wait(160); setShake(false); }
     await wait(260);
   };
 
   const endBattle = () => {
     const won = stRef.current.esito === "vinto";
+    const condotta = (stRef.current.turno ?? 0) >= MAX_TURNI;
+    pushLog(cronacaEsito(won, condotta, { p: player?.name ?? "La tua Reina", o: opp?.name ?? "la rivale" }));
     setWinner(won ? "player" : "opponent");
     setPhase("end"); setBusy(false);
     onResult(won, playerCow?.id);
@@ -112,13 +126,15 @@ export default function BattleScene({
     endBattle();
   };
 
-  const doAction = async (azione: AzioneId) => {
+  const mossaAvversaria = () => mosseORef.current![pickAzioneAvversaria(stRef.current, opp!, player!)].id;
+
+  const doAction = async (mossa: Mossa) => {
     if (busy || phase !== "fight" || stRef.current.esito !== "corso") return;
     playClick(); setBusy(true); setShowBag(false);
-    await performTurn("p", azione);
+    await performTurn("p", mossa.id);
     if (stRef.current.esito !== "corso") { endBattle(); return; }
     await wait(200);
-    await performTurn("o", pickAzioneAvversaria(stRef.current, opp!, player!));
+    await performTurn("o", mossaAvversaria());
     if (stRef.current.esito !== "corso") { endBattle(); return; }
     setBusy(false);
   };
@@ -136,7 +152,7 @@ export default function BattleScene({
     pushLog(`🎒 ${eff.nome}: ${eff.desc}`);
     onConsumeItem(id); rerender();
     await wait(500);
-    await performTurn("o", pickAzioneAvversaria(stRef.current, opp!, player!));
+    await performTurn("o", mossaAvversaria());
     if (stRef.current.esito !== "corso") { endBattle(); return; }
     setBusy(false);
   };
@@ -199,15 +215,10 @@ export default function BattleScene({
                   </div>
                 </div>
               )}
-              <div className="grid grid-cols-2 gap-2" id="battle-moves">
-                {AZIONI.map((a) => (
-                  <button key={a.id} onClick={() => doAction(a.id)} disabled={busy} title={a.desc}
-                    className="text-left rounded-xl border p-2 transition-all disabled:opacity-40 bg-slate-900 border-slate-700 hover:border-amber-500/60">
-                    <div className="text-[11px] font-mono font-black text-slate-100 leading-tight">{a.emoji} {a.label}</div>
-                    <div className="text-[10px] font-mono text-amber-500/90 leading-tight mt-0.5">{a.counterHint}</div>
-                  </button>
-                ))}
-              </div>
+              {mossePRef.current && (
+                <MossePanel id="battle-moves" mosse={mossePRef.current} st={st} busy={busy}
+                  onMossa={doAction} onInfo={(m) => { playClick(); setInfoMossa(m); }} />
+              )}
               <div className="flex gap-2">
                 <button onClick={() => { playClick(); setShowBag(true); }} disabled={busy} className="flex-1 flex items-center justify-center gap-2 bg-slate-900 border border-amber-700/40 text-amber-400 font-mono font-black text-xs py-2 rounded-xl disabled:opacity-40">
                   <Backpack className="w-4 h-4" /> Sac ({bagItems.reduce((n, b) => n + b.quantity, 0)})
@@ -244,6 +255,8 @@ export default function BattleScene({
           )}
         </div>
       )}
+
+      {infoMossa && <MossaInfoSheet mossa={infoMossa} onClose={() => setInfoMossa(null)} playClick={playClick} />}
     </div>
   );
 }
