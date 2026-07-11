@@ -122,6 +122,7 @@ export interface SpintaState {
   usiMosse?: Record<string, number>; // usi per spinta delle mosse speciali (chiave `p:${id}`)
   intentO?: AzioneId;       // intenzione telegrafata dell'avversaria
   tell?: string;            // il tell mostrato (può ingannare)
+  tellAzione?: AzioneId;    // l'azione che il tell LASCIA INTENDERE (per capire se ha mentito)
   turno?: number;
   personalita?: Personalita;
   tellAccuracy?: number;    // 0..1, dal Rispetto del giocatore
@@ -326,7 +327,16 @@ export function prepareIntent(s: SpintaState, _o?: Spintatore, _p?: Spintatore):
     shownAction = TUTTE[Math.floor(Math.random() * 4)];
     s.confusaP = false;
   }
+  s.tellAzione = shownAction;
   const variants = TELLS[shownAction];
+  s.tell = variants[Math.floor(Math.random() * variants.length)];
+}
+
+/** Forza l'intenzione dell'avversaria con tell veritiero (bataille-lezione di Mémé). */
+export function forzaIntento(s: SpintaState, azione: AzioneId): void {
+  s.intentO = azione;
+  s.tellAzione = azione;
+  const variants = TELLS[azione];
   s.tell = variants[Math.floor(Math.random() * variants.length)];
 }
 
