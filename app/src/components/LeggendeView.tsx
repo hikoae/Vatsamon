@@ -12,6 +12,7 @@ import { LIMATURA_TESTO } from "../data/sac";
 import { LEGGENDE, Leggenda, reinaByName } from "../data/season";
 import { Mossa, mosseEquipaggiate, mosseAvversaria, eseguiMossa } from "../data/mosse";
 import { spiegaEsito, cronacaTurno, cronacaEsito } from "../data/telecronaca";
+import { SpintaStats, nuoveSpintaStats, registraTurno } from "../lib/scuola";
 import { MossePanel } from "./battle/MossePanel";
 import { MossaInfoSheet } from "./battle/MossaInfoSheet";
 
@@ -38,7 +39,7 @@ export default function LeggendeView({ playerCows, respectScore, battute, onWin,
   playerCows: Vatsamon[];
   respectScore: number;
   battute: string[]; // nomi delle leggende già battute
-  onWin: (nomeLeggenda: string) => void;
+  onWin: (nomeLeggenda: string, cowId?: string, stats?: SpintaStats) => void;
   onClose: () => void;
   playClick: () => void;
 }) {
@@ -57,6 +58,7 @@ export default function LeggendeView({ playerCows, respectScore, battute, onWin,
   const stRef = useRef<SpintaState>({ barra: 50, fiatoP: 0, fiatoO: 0, calma: 80, stanceP: null, stanceO: null, esito: "corso" });
   const mossePRef = useRef<Record<AzioneId, Mossa> | null>(null);
   const mosseORef = useRef<Record<AzioneId, Mossa> | null>(null);
+  const statsRef = useRef<SpintaStats>(nuoveSpintaStats());
   const [infoMossa, setInfoMossa] = useState<Mossa | null>(null);
   const [, force] = useState(0);
   const rerender = () => force((n) => n + 1);
@@ -82,6 +84,7 @@ export default function LeggendeView({ playerCows, respectScore, battute, onWin,
     stRef.current = initSpinta(playerRef.current, oppRef.current, { personalita: prof.personalita, tellAccuracy });
     mossePRef.current = mosseEquipaggiate(cow);
     mosseORef.current = mosseAvversaria(l.nome, prof.personalita, true); // le leggende portano una rara
+    statsRef.current = nuoveSpintaStats();
     setLog([`🏛️ La memoria si fa spinta: ${cow.name} affronta ${l.nome} — ${l.titolo}.`]);
     setPhase("fight");
     rerender();
@@ -93,6 +96,7 @@ export default function LeggendeView({ playerCows, respectScore, battute, onWin,
     setLunge(side); await wait(150);
     const r = eseguiMossa(side, mossaId, stRef.current, A, B);
     stRef.current = r.state;
+    if (side === "p" && r.dettaglio) registraTurno(statsRef.current, r.dettaglio.famiglia, r.state.barra, r.state.turno ?? 0);
     pushLog(spiegaEsito(r) ?? r.log);
     const cronaca = cronacaTurno(r, { p: player!.name, o: opp!.name });
     if (cronaca) pushLog(cronaca);
@@ -116,10 +120,12 @@ export default function LeggendeView({ playerCows, respectScore, battute, onWin,
 
   const finisci = (vinta: boolean) => {
     const condotta = (stRef.current.turno ?? 0) >= MAX_TURNI;
+    statsRef.current.vittoriaPerFiato = vinta && stRef.current.fiatoO <= 0;
+    if (condotta) statsRef.current.giudizio = true;
     pushLog(cronacaEsito(vinta, condotta, { p: player?.name ?? "La tua Reina", o: opp?.name ?? "la leggenda" }));
     setPhase(vinta ? "vinta" : "persa");
     setBusy(false);
-    if (vinta && leggenda) onWin(leggenda.nome);
+    if (vinta && leggenda) onWin(leggenda.nome, cow?.id, statsRef.current);
   };
 
   const barraP = Math.round(st.barra);

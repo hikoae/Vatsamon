@@ -60,6 +60,7 @@ import EliminatoireView, { EsitoTappa } from './components/EliminatoireView';
 import { tappe, tappaStato, STATO_LABEL, LS_ELIMINATOIRE, EliminatoireSave } from './data/eliminatoire';
 import { ArpPanel } from './components/ArpPanel';
 import { sbloccaParola, vociSbloccate, parolePatois, PATOIS_TRIGGERS, TOTALE_PAROLE } from './lib/patois';
+import { SpintaStats, valutaImprese, insegnaMosse, mosseDaLivello, sbloccaGlobale } from './lib/scuola';
 import LeggendeView from './components/LeggendeView';
 import { ArpState, ARP_VUOTO, LS_ARP, ARP_KG_PER_CURA, ARP_GIORNI_PER_FONTINA } from './data/arp';
 import { SeasonEvent } from './data/season';
@@ -411,6 +412,7 @@ export default function App() {
     const giorni = capo.giorniCura + 1;
     setArpState(prev => ({ ...prev, capi: { ...prev.capi, [cowId]: { ...capo, ultimaCura: oggi, giorniCura: giorni } } }));
     setVatsadex(prev => prev.map(c => c.id === cowId ? { ...c, peso_kg: Math.min(750, (c.peso_kg ?? 550) + ARP_KG_PER_CURA) } : c));
+    if (giorni === 3) insegnaAllaReina(cowId, ['ruminazione-zen']);
     addTrainerXp(15);
     if (giorni % ARP_GIORNI_PER_FONTINA === 0) { guadagnaFontina(1, "l'alpe ha reso una forma"); impara('alpeggio'); }
     else setTrekkingFeed(prev => [`🌿 Cura all'arp: +${ARP_KG_PER_CURA} kg. L'erba d'alta quota fa la stazza.`, ...prev.slice(0, 8)]);
@@ -447,6 +449,7 @@ export default function App() {
     ));
     guadagnaFontina(2, 'la festa della désarpa');
     impara('desarpa');
+    if (corne) insegnaAllaReina(corne.id, ['sguardo-regale']);
     if (corne) impara('reina_corne');
     if (lait) impara('reina_latte');
     setTrekkingFeed(prev => [`🌸 DÉSARPA ${anno}! ${corne ? `🌹 ${corne.name} è la Reina di corne` : 'Nessuna Reina di corne (serve almeno una vittoria)'}${lait ? ` · 🤍 ${lait.name} è la Reine du lait` : ''}. La mandria scende a valle in festa.`, ...prev.slice(0, 8)]);
@@ -480,6 +483,7 @@ export default function App() {
 
     if (esito.vinta) {
       setVatsadex(prev => prev.map(c => c.id === esito.reinaId ? { ...c, vittorie: (c.vittorie ?? 0) + 1 } : c));
+      insegnaAllaReina(esito.reinaId, valutaImprese(esito.stats, t.finale ? 'finale' : 'tappa'));
       if (!giaVinta) {
         // Prima vittoria della tappa: i TRE premi reali (dossier §1) + XP pieno.
         const nuovi: Trofeo[] = (["mecro", "sonnaille", "collare"] as const).map(tipo => ({
@@ -509,12 +513,27 @@ export default function App() {
     }
   };
 
-  const handleBattleResult = (won: boolean, cowId?: string) => {
+  // LA SCUOLA DELLA REINA: assegna le mosse guadagnate da un'impresa alla
+  // Reina che l'ha compiuta e le sblocca nel catalogo globale (Mémé insegna).
+  const insegnaAllaReina = (cowId: string | undefined, ids: string[]) => {
+    if (!ids.length) return;
+    ids.forEach(sbloccaGlobale);
+    if (!cowId) return;
+    const c = vatsadex.find(x => x.id === cowId);
+    if (!c) return;
+    const { cow, nuove } = insegnaMosse(c, ids);
+    if (!nuove.length) return;
+    setVatsadex(prev => prev.map(x => x.id === cowId ? { ...x, mosseApprese: cow.mosseApprese } : x));
+    setTrekkingFeed(f => [`🎓 ${c.name} ha imparato ${nuove.map(m => `${m.emoji} ${m.nome.toUpperCase()}`).join(' · ')}! Equipaggiala dal Libretto.`, ...f.slice(0, 8)]);
+  };
+
+  const handleBattleResult = (won: boolean, cowId?: string, stats?: SpintaStats) => {
     const mb = activeBattle;
     if (!mb) return;
     // palmares personale della Reina che ha condotto la spinta
     if (won && cowId) setVatsadex(prev => prev.map(c => c.id === cowId ? { ...c, vittorie: (c.vittorie ?? 0) + 1 } : c));
     if (won) impara('bataille');
+    if (won) insegnaAllaReina(cowId, valutaImprese(stats, 'battle'));
     if (won && mb.kind === 'pastore' && mb.pastore) {
       const xp = mb.pastore.rewardXp, coins = Math.round(xp / 5);
       addTrainerXp(xp);
@@ -550,10 +569,11 @@ export default function App() {
     }
     setActiveDungeon(d);
   };
-  const handleDungeonResult = (won: boolean, cowId?: string) => {
+  const handleDungeonResult = (won: boolean, cowId?: string, stats?: SpintaStats) => {
     const d = activeDungeon;
     if (!d) return;
     if (won && cowId) setVatsadex(prev => prev.map(c => c.id === cowId ? { ...c, vittorie: (c.vittorie ?? 0) + 1 } : c));
+    if (won) insegnaAllaReina(cowId, valutaImprese(stats, 'dungeon'));
     if (won) {
       addTrainerXp(d.rewardXp);
       setTrainer(prev => ({ ...prev, coins: prev.coins + d.rewardCoins }));
@@ -1687,7 +1707,33 @@ export default function App() {
         agility: Math.min(cow.stats.agility + 1, 100)
       },
     };
-    setVatsadex(prev => prev.map(c => (c.id === cow.id ? updated : c)));
+    // Scuola della Reina: crescendo si imparano le mosse dei livelli (3/5/8/12)
+    const scuola = mosseDaLivello(updated);
+    if (scuola.nuove.length) {
+      scuola.nuove.forEach(m => sbloccaGlobale(m.id));
+      setTrekkingFeed(prev => [`🎓 ${scuola.cow.name} ha imparato ${scuola.nuove.map(m => `${m.emoji} ${m.nome.toUpperCase()}`).join(' · ')}! Equipaggiala dal Libretto.`, ...prev.slice(0, 8)]);
+    }
+    setVatsadex(prev => prev.map(c => (c.id === cow.id ? scuola.cow : c)));
+    return scuola.cow;
+  };
+
+  /** Equipaggia le mosse (4 id, una per famiglia) sulla Reina. */
+  const handleEquipMosse = (cow: Vatsamon, mosse: string[]): Vatsamon => {
+    setVatsadex(prev => prev.map(c => (c.id === cow.id ? { ...c, mosse } : c)));
+    return { ...cow, mosse };
+  };
+
+  /** Mémé insegna una mossa del catalogo globale in cambio di Fontina. */
+  const handleMemeTeach = (cow: Vatsamon, mossaId: string, costo: number): Vatsamon | null => {
+    if ((trainer.fontina ?? 0) < costo) {
+      setTrekkingFeed(prev => [`👵 Mémé: «Torna con ${costo} 🧀, il sapere si scambia con la fontina.»`, ...prev.slice(0, 8)]);
+      return null;
+    }
+    const { cow: updated, nuove } = insegnaMosse(cow, [mossaId]);
+    if (!nuove.length) return cow;
+    setTrainer(prev => ({ ...prev, fontina: (prev.fontina ?? 0) - costo }));
+    setVatsadex(prev => prev.map(c => (c.id === cow.id ? { ...c, mosseApprese: updated.mosseApprese } : c)));
+    setTrekkingFeed(prev => [`👵 Mémé insegna ${nuove[0].emoji} ${nuove[0].nome.toUpperCase()} a ${cow.name} (−${costo} 🧀).`, ...prev.slice(0, 8)]);
     return updated;
   };
 
@@ -2560,6 +2606,9 @@ export default function App() {
             onSetBuddy={setActiveCombatantId}
             onPowerUp={handlePowerUpCow}
             onTransfer={handleTransferCow}
+            fontina={trainer.fontina ?? 0}
+            onEquipMosse={handleEquipMosse}
+            onMemeTeach={handleMemeTeach}
             playClick={playClickSfx}
             playMoo={playMooSfx}
             playFanfare={playVictorySfx}
@@ -2813,7 +2862,8 @@ export default function App() {
           playerCows={disponibili}
           respectScore={respectScore}
           battute={leggendeBattute}
-          onWin={(nome) => {
+          onWin={(nome, cowId, stats) => {
+            insegnaAllaReina(cowId, valutaImprese(stats, 'leggenda'));
             if (!leggendeBattute.includes(nome)) {
               setLeggendeBattute(prev => [...prev, nome]);
               addTrainerXp(300);

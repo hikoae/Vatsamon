@@ -13,6 +13,7 @@ import { Dungeon } from "../data/dungeons";
 import { REAL_COWS } from "../data/realCows";
 import { Mossa, mosseEquipaggiate, mosseAvversaria, eseguiMossa } from "../data/mosse";
 import { spiegaEsito, cronacaTurno, cronacaEsito } from "../data/telecronaca";
+import { SpintaStats, nuoveSpintaStats, registraTurno } from "../lib/scuola";
 import { MossePanel } from "./battle/MossePanel";
 import { MossaInfoSheet } from "./battle/MossaInfoSheet";
 
@@ -28,7 +29,7 @@ export default function DungeonRun({
   respectScore: number;
   backpack: BackpackItem[];
   onConsumeItem: (id: string) => void;
-  onResult: (won: boolean, cowId?: string) => void;
+  onResult: (won: boolean, cowId?: string, stats?: SpintaStats) => void;
   onClose: () => void;
   playClick: () => void;
 }) {
@@ -53,6 +54,7 @@ export default function DungeonRun({
   const cowIdsRef = useRef<string[]>([]);
   const mosseTeamRef = useRef<Record<AzioneId, Mossa>[]>([]);
   const mosseOppsRef = useRef<Record<AzioneId, Mossa>[]>([]);
+  const statsRef = useRef<SpintaStats>(nuoveSpintaStats());
   const [infoMossa, setInfoMossa] = useState<Mossa | null>(null);
   const tellAccuracy = 0.68 + respectScore * 0.0022;
   const [, force] = useState(0);
@@ -84,6 +86,7 @@ export default function DungeonRun({
     // il Campione (ultima spinta) porta una mossa rara coerente con l'indole
     mosseOppsRef.current = dungeon.opponents.map((o, i) =>
       mosseAvversaria(o.name, persRef.current[i], i === dungeon.opponents.length - 1));
+    statsRef.current = nuoveSpintaStats();
     const s0 = initSpinta(team[0], oppsRef.current[0], { personalita: persRef.current[0], tellAccuracy });
     s0.fiatoP = fiatoRef.current[0];
     stRef.current = s0;
@@ -100,6 +103,7 @@ export default function DungeonRun({
     const r = eseguiMossa(side, mossaId, stRef.current, A, B);
     stRef.current = r.state;
     fiatoRef.current[activeIdx] = r.state.fiatoP; // il fiato della Reina attiva si trascina
+    if (side === "p" && r.dettaglio) registraTurno(statsRef.current, r.dettaglio.famiglia, r.state.barra, r.state.turno ?? 0);
     pushLog(spiegaEsito(r) ?? r.log);
     const cronaca = cronacaTurno(r, { p: teamRef.current[activeIdx].name, o: oppsRef.current[oppIdx].name });
     if (cronaca) pushLog(cronaca);
@@ -113,8 +117,9 @@ export default function DungeonRun({
   // L'avversaria cede → prossimo sfidante (il fiato della tua Reina si trascina)
   const advanceOpponent = async () => {
     if (oppIdx >= oppsRef.current.length - 1) {
+      statsRef.current.vittoriaPerFiato = stRef.current.fiatoO <= 0;
       pushLog(cronacaEsito(true, false, { p: teamRef.current[activeIdx].name, o: oppsRef.current[oppIdx].name }));
-      setPhase("won"); onResult(true, cowIdsRef.current[activeIdx]); return;
+      setPhase("won"); onResult(true, cowIdsRef.current[activeIdx], statsRef.current); return;
     }
     const next = oppIdx + 1;
     const s = initSpinta(teamRef.current[activeIdx], oppsRef.current[next], { personalita: persRef.current[next], tellAccuracy });

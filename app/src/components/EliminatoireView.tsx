@@ -11,6 +11,7 @@ import {
 import { SAC_ITEMS, MAX_VIGILIA, LIMATURA_TESTO } from "../data/sac";
 import { Mossa, mosseEquipaggiate, mosseAvversaria, eseguiMossa } from "../data/mosse";
 import { spiegaEsito, cronacaTurno, cronacaEsito } from "../data/telecronaca";
+import { SpintaStats, nuoveSpintaStats, registraTurno } from "../lib/scuola";
 import { MossePanel } from "./battle/MossePanel";
 import { MossaInfoSheet } from "./battle/MossaInfoSheet";
 import { SeasonEvent } from "../data/season";
@@ -35,6 +36,8 @@ export interface EsitoTappa {
   reinaId: string;
   reinaNome: string;
   turniSuperati: number;
+  /** Stile di gioco della giornata (per la Scuola della Reina). */
+  stats?: SpintaStats;
 }
 
 export default function EliminatoireView({
@@ -77,6 +80,7 @@ export default function EliminatoireView({
   const stRef = useRef<SpintaState>({ barra: 50, fiatoP: 0, fiatoO: 0, calma: 80, stanceP: null, stanceO: null, esito: "corso" });
   const mossePRef = useRef<Record<AzioneId, Mossa> | null>(null);
   const mosseOppsRef = useRef<Record<AzioneId, Mossa>[]>([]);
+  const statsRef = useRef<SpintaStats>(nuoveSpintaStats());
   const [infoMossa, setInfoMossa] = useState<Mossa | null>(null);
   const [, force] = useState(0);
   const rerender = () => force((n) => n + 1);
@@ -98,6 +102,7 @@ export default function EliminatoireView({
     mossePRef.current = mosseEquipaggiate(cow);
     // in finale di tappa l'avversaria porta una mossa rara coerente con l'indole
     mosseOppsRef.current = oppsRef.current.map((o, i) => mosseAvversaria(o.name, persona(i), i === 2));
+    statsRef.current = nuoveSpintaStats();
     const s0 = initSpinta(playerRef.current, oppsRef.current[0], { personalita: persona(0), tellAccuracy });
     stRef.current = s0;
     setTurno(0);
@@ -113,6 +118,7 @@ export default function EliminatoireView({
     const r = eseguiMossa(side, mossaId, stRef.current, A, B);
     stRef.current = r.state;
     fiatoRef.current = r.state.fiatoP;
+    if (side === "p" && r.dettaglio) registraTurno(statsRef.current, r.dettaglio.famiglia, r.state.barra, r.state.turno ?? 0);
     pushLog(spiegaEsito(r) ?? r.log);
     const cronaca = cronacaTurno(r, { p: player!.name, o: oppsRef.current[turno].name });
     if (cronaca) pushLog(cronaca);
@@ -125,10 +131,11 @@ export default function EliminatoireView({
 
   const chiudi = (vinta: boolean, turniSuperati: number) => {
     const condotta = (stRef.current.turno ?? 0) >= MAX_TURNI;
+    statsRef.current.vittoriaPerFiato = vinta && stRef.current.fiatoO <= 0;
     pushLog(cronacaEsito(vinta, !vinta && condotta, { p: player?.name ?? cow!.name, o: oppsRef.current[turno]?.name ?? "la rivale" }));
     setPhase(vinta ? "vinta" : "eliminata");
     setBusy(false);
-    onFinish({ vinta, categoria: pesa.cat, reinaId: cow!.id, reinaNome: cow!.name, turniSuperati });
+    onFinish({ vinta, categoria: pesa.cat, reinaId: cow!.id, reinaNome: cow!.name, turniSuperati, stats: statsRef.current });
   };
 
   const avanzaTurno = async () => {

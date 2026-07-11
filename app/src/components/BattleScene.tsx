@@ -13,6 +13,7 @@ import { MapBattle } from "../data/mapBattles";
 import { arenaBoss } from "../data/arenas";
 import { Mossa, mosseEquipaggiate, mosseAvversaria, eseguiMossa } from "../data/mosse";
 import { spiegaEsito, cronacaTurno, cronacaEsito } from "../data/telecronaca";
+import { SpintaStats, nuoveSpintaStats, registraTurno } from "../lib/scuola";
 import { MossePanel } from "./battle/MossePanel";
 import { MossaInfoSheet } from "./battle/MossaInfoSheet";
 
@@ -30,7 +31,7 @@ export default function BattleScene({
   respectScore: number;
   backpack: BackpackItem[];
   onConsumeItem: (id: string) => void;
-  onResult: (won: boolean, cowId?: string) => void;
+  onResult: (won: boolean, cowId?: string, stats?: SpintaStats) => void;
   onClose: () => void;
   playClick: () => void;
 }) {
@@ -54,6 +55,7 @@ export default function BattleScene({
   const stRef = useRef<SpintaState>({ barra: 50, fiatoP: 0, fiatoO: 0, calma: 80, stanceP: null, stanceO: null, esito: "corso" });
   const mossePRef = useRef<Record<AzioneId, Mossa> | null>(null);
   const mosseORef = useRef<Record<AzioneId, Mossa> | null>(null);
+  const statsRef = useRef<SpintaStats>(nuoveSpintaStats());
   const [infoMossa, setInfoMossa] = useState<Mossa | null>(null);
   const [, force] = useState(0);
   const rerender = () => force((n) => n + 1);
@@ -86,6 +88,7 @@ export default function BattleScene({
     oppRef.current = os;
     mossePRef.current = mosseEquipaggiate(playerCow);
     mosseORef.current = mosseAvversaria(os.name, personalita, battle.kind === "arena");
+    statsRef.current = nuoveSpintaStats();
     stRef.current = initSpinta(ps, os, { personalita, tellAccuracy });
     setLog([`${battle.emoji} ${battle.name}: ${ps.name} affronta ${os.name}. Le corna si toccano…`]);
     setWinner(null); setShowBag(false);
@@ -98,6 +101,7 @@ export default function BattleScene({
     setLunge(side); await wait(160);
     const r = eseguiMossa(side, mossaId, stRef.current, A, B);
     stRef.current = r.state;
+    if (side === "p" && r.dettaglio) registraTurno(statsRef.current, r.dettaglio.famiglia, r.state.barra, r.state.turno ?? 0);
     pushLog(spiegaEsito(r) ?? r.log);
     const cronaca = cronacaTurno(r, { p: player!.name, o: opp!.name });
     if (cronaca) pushLog(cronaca);
@@ -111,10 +115,12 @@ export default function BattleScene({
   const endBattle = () => {
     const won = stRef.current.esito === "vinto";
     const condotta = (stRef.current.turno ?? 0) >= MAX_TURNI;
+    statsRef.current.vittoriaPerFiato = won && stRef.current.fiatoO <= 0;
+    if (condotta) statsRef.current.giudizio = true;
     pushLog(cronacaEsito(won, condotta, { p: player?.name ?? "La tua Reina", o: opp?.name ?? "la rivale" }));
     setWinner(won ? "player" : "opponent");
     setPhase("end"); setBusy(false);
-    onResult(won, playerCow?.id);
+    onResult(won, playerCow?.id, statsRef.current);
   };
 
   // Ritirarsi è legittimo ma onesto: conta come sconfitta dichiarata.

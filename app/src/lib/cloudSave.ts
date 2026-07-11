@@ -42,6 +42,8 @@ export const SAVE_KEYS = [
   "vatsamon_arp",                  // alpeggio: capi all'arp, produzione, désarpa
   "vatsamon_patois",               // parole del glossario sbloccate giocando
   "vatsamon_leggende",             // cartoline storiche dell'Albo delle Leggende
+  "vatsamon_scuola",               // Scuola della Reina: catalogo mosse sbloccate
+  "vatsamon_tutorial",             // tutorial di Mémé: beat, consigli mostrati
 ] as const;
 
 export interface CloudSave {

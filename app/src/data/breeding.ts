@@ -1,5 +1,7 @@
 import { Vatsamon } from "../types";
 import { resolveIllustration } from "./illustrations";
+import { MOSSE } from "./mosse";
+import { mossaEreditata } from "../lib/scuola";
 
 /**
  * ALLEVAMENTO & GENEALOGIA — sostituisce il vecchio sistema a UOVA (irrealistico:
@@ -129,6 +131,9 @@ export function birthCalf(p: Pregnancy, collection: Vatsamon[], generation: numb
   const agility = clamp(stats4.grinta * expr + 20);
   const cp = Math.floor((strength * 2 + defense + agility) * 1.1);
   const lineTrait = `istinto di ${p.motherName}`;
+  // Scuola della Reina: il moudzon nasce con una mossa (non-base) della madre.
+  const madre = collection.find((c) => c.id === p.motherId);
+  const eredita = mossaEreditata(madre, Math.floor(p.startedAt));
   return {
     id: "stalla-" + Math.floor(p.startedAt) + "-" + (collection.length + 1),
     breed: razza,
@@ -136,7 +141,7 @@ export function birthCalf(p: Pregnancy, collection: Vatsamon[], generation: numb
     stats: { strength, defense, agility },
     rarity: "Rara",
     eco_tip: "Conduci con calma: una vitella cresce serena se rispetti i suoi tempi.",
-    lore: `Moudzon di ${p.motherName} × ${p.fatherName}. Eredita ${lineTrait}.`,
+    lore: `Moudzon di ${p.motherName} × ${p.fatherName}. Eredita ${lineTrait}.${eredita ? ` Ha già l'aria di chi conosce ${MOSSE[eredita].nome}.` : ""}`,
     capturedAt: new Date().toISOString(),
     cp,
     level: 1,
@@ -156,6 +161,7 @@ export function birthCalf(p: Pregnancy, collection: Vatsamon[], generation: numb
     generation,
     lineTrait,
     peso_kg: 42,
+    mosseApprese: eredita ? [eredita] : undefined,
   } as Vatsamon;
 }
 

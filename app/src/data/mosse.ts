@@ -214,9 +214,9 @@ function hashStr(s: string): number {
   return Math.abs(h);
 }
 
-/** Famiglia "preferita" di una Reina dalle sue 4 stat reali (stazza→incalza,
- *  testa→reggi, corna→gira, grinta→incoraggia): deterministica, per i default. */
-export function famigliaPreferita(cow: Pick<Vatsamon, "stats" | "stats4">): AzioneId {
+/** Le 4 famiglie in ordine di affinità con le stat reali della Reina
+ *  (stazza→incalza, testa→reggi, corna→gira, grinta→incoraggia): deterministico. */
+export function famigliePerPreferenza(cow: Pick<Vatsamon, "stats" | "stats4">): AzioneId[] {
   const s4 = cow.stats4 ?? {
     stazza: cow.stats.defense, corna: cow.stats.strength,
     testa: cow.stats.defense, grinta: cow.stats.agility,
@@ -225,7 +225,11 @@ export function famigliaPreferita(cow: Pick<Vatsamon, "stats" | "stats4">): Azio
     ["incalza", s4.stazza], ["reggi", s4.testa], ["gira", s4.corna], ["incoraggia", s4.grinta],
   ];
   coppie.sort((a, b) => b[1] - a[1]);
-  return coppie[0][0];
+  return coppie.map(([fam]) => fam);
+}
+
+export function famigliaPreferita(cow: Pick<Vatsamon, "stats" | "stats4">): AzioneId {
+  return famigliePerPreferenza(cow)[0];
 }
 
 const setBase = (): Record<AzioneId, Mossa> => ({
