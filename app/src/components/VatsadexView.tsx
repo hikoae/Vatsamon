@@ -228,14 +228,16 @@ export function VatsadexView({
             {/* Scheda "carta Pokémon" (componente dedicato) */}
             <CowCard cow={selected} />
 
-            {/* L'angolo delle mosse: equipaggia, impara da Mémé */}
-            <MosseEditor
-              cow={selected}
-              fontina={fontina}
-              onEquip={(c, mosse) => { const u = onEquipMosse(c, mosse); setSelected(u); return u; }}
-              onLearnFromMeme={(c, id, costo) => { const u = onMemeTeach(c, id, costo); if (u) setSelected(u); return u; }}
-              playClick={playClick}
-            />
+            {/* L'angolo delle mosse: equipaggia, impara da Mémé (solo cow possedute) */}
+            {collection.some((c) => c.id === selected.id) && (
+              <MosseEditor
+                cow={selected}
+                fontina={fontina}
+                onEquip={(c, mosse) => { const u = onEquipMosse(c, mosse); setSelected(u); return u; }}
+                onLearnFromMeme={(c, id, costo) => { const u = onMemeTeach(c, id, costo); if (u) setSelected(u); return u; }}
+                playClick={playClick}
+              />
+            )}
 
             {/* Pokemon GO Action: Power Up and Transfers */}
             <div className="border-t border-slate-850 pt-3 flex gap-2">
