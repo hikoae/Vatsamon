@@ -7,7 +7,7 @@ import { LogIn, Mail, Lock, Loader2 } from "lucide-react";
 import { useAuth, authErrorMessage } from "../lib/auth";
 
 export default function LoginScreen() {
-  const { signInWithGoogle, signInWithEmail, registerWithEmail } = useAuth();
+  const { signInWithGoogle, signInWithEmail, registerWithEmail, signInAsTest } = useAuth();
   const [mode, setMode] = useState<"login" | "register">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -30,6 +30,11 @@ export default function LoginScreen() {
   const handleEmail = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    // Accesso di prova senza registrazione: username «test» + password «test».
+    if (mode === "login" && email.trim().toLowerCase() === "test" && password === "test") {
+      signInAsTest();
+      return;
+    }
     setBusy(true);
     try {
       if (mode === "register") {
@@ -85,9 +90,12 @@ export default function LoginScreen() {
           )}
           <Field icon={<Mail size={16} />}>
             <input
-              type="email"
+              type="text"
+              inputMode="email"
+              autoCapitalize="none"
+              autoCorrect="off"
               required
-              placeholder="Email"
+              placeholder={mode === "login" ? "Email (o «test» per la demo)" : "Email"}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="bg-transparent outline-none w-full text-slate-100 placeholder:text-slate-400"
@@ -115,6 +123,17 @@ export default function LoginScreen() {
             {mode === "register" ? "Crea account" : "Accedi"}
           </button>
         </form>
+
+        {mode === "login" && (
+          <button
+            onClick={() => signInAsTest()}
+            disabled={busy}
+            className="mt-3 w-full flex flex-col items-center bg-slate-950 border border-slate-700 text-slate-200 rounded-2xl py-2.5 disabled:opacity-60 hover:border-slate-600"
+          >
+            <span className="font-semibold">👤 Entra come test</span>
+            <span className="text-slate-500 text-[11px]">demo · senza registrazione</span>
+          </button>
+        )}
 
         <p className="text-center text-sm text-slate-400 mt-4">
           {mode === "register" ? "Hai già un account?" : "Sei nuovo qui?"}{" "}
