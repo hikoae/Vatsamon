@@ -61,7 +61,7 @@ import { tappe, tappaStato, STATO_LABEL, LS_ELIMINATOIRE, EliminatoireSave } fro
 import { ArpPanel } from './components/ArpPanel';
 import { sbloccaParola, vociSbloccate, parolePatois, PATOIS_TRIGGERS, TOTALE_PAROLE } from './lib/patois';
 import { SpintaStats, valutaImprese, insegnaMosse, mosseDaLivello, sbloccaGlobale } from './lib/scuola';
-import { TutorialState, tutorialState, saveTutorial } from './lib/tutorial';
+import { TutorialState, tutorialState, saveTutorial, premioLezioneDaRitirare } from './lib/tutorial';
 import { TUTORIAL_BATTLE } from './data/tutorialBattle';
 import { MemeGuide } from './components/MemeGuide';
 import LeggendeView from './components/LeggendeView';
@@ -248,8 +248,10 @@ export default function App() {
   // Il tutorial di Mémé (beat giocati): pending solo per i NUOVI onboarding.
   const [tutorial, setTutorial] = useState<TutorialState>(() => tutorialState());
   const tutorialAttivo = tutorial.pending && !tutorial.done;
-  const passaBeat = (beat: number) => { const st = { ...tutorial, beat }; setTutorial(st); saveTutorial(st); };
-  const chiudiTutorial = () => { const st = { ...tutorial, done: true }; setTutorial(st); saveTutorial(st); };
+  // Rileggi SEMPRE lo stato fresco da localStorage: i tips/premi vengono
+  // scritti anche da BattleScene (tipDaDare) e non devono essere sovrascritti.
+  const passaBeat = (beat: number) => { const st = { ...tutorialState(), beat }; setTutorial(st); saveTutorial(st); };
+  const chiudiTutorial = () => { const st = { ...tutorialState(), done: true }; setTutorial(st); saveTutorial(st); };
   const [activeDungeon, setActiveDungeon] = useState<Dungeon | null>(null); // Lega/dungeon in corso
   const [dungeonsCleared, setDungeonsCleared] = useState<string[]>(() => {
     try { return JSON.parse(localStorage.getItem('vatsamon_dungeons') || '[]'); } catch { return []; }
@@ -542,14 +544,20 @@ export default function App() {
     if (mb.tutorial) {
       if (won) {
         impara('bataille');
-        addTrainerXp(100);
-        setBackpack(prev => {
-          const found = prev.find(it => it.id === 'item-buff-genepy');
-          if (found) return prev.map(it => it.id === 'item-buff-genepy' ? { ...it, quantity: it.quantity + 1 } : it);
-          const tpl = DEFAULT_BAG.find(it => it.id === 'item-buff-genepy');
-          return tpl ? [...prev, { ...tpl, quantity: 1 }] : prev;
-        });
-        setTrekkingFeed(prev => [`👵 «${mb.pastore?.dialogueWin}» +100 XP e un 🍵 Genepy da parte di Mémé.`, ...prev.slice(0, 8)]);
+        // Il premio si ritira solo alla PRIMA vittoria: la lezione è
+        // rigiocabile dal Profilo ma non è una fattoria di XP/Genepy.
+        if (premioLezioneDaRitirare()) {
+          addTrainerXp(100);
+          setBackpack(prev => {
+            const found = prev.find(it => it.id === 'item-buff-genepy');
+            if (found) return prev.map(it => it.id === 'item-buff-genepy' ? { ...it, quantity: it.quantity + 1 } : it);
+            const tpl = DEFAULT_BAG.find(it => it.id === 'item-buff-genepy');
+            return tpl ? [...prev, { ...tpl, quantity: 1 }] : prev;
+          });
+          setTrekkingFeed(prev => [`👵 «${mb.pastore?.dialogueWin}» +100 XP e un 🍵 Genepy da parte di Mémé.`, ...prev.slice(0, 8)]);
+        } else {
+          setTrekkingFeed(prev => [`👵 «${mb.pastore?.dialogueWin}» (Il ripasso fa bene; il premio, quello, fu dato.)`, ...prev.slice(0, 8)]);
+        }
         if (tutorialAttivo && tutorial.beat <= 2) passaBeat(3);
       } else {
         setTrekkingFeed(prev => [`👵 «${mb.pastore?.dialogueLoss}»`, ...prev.slice(0, 8)]);

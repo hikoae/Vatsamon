@@ -6,7 +6,7 @@ import { CowVisual } from "./CowVisual";
 import { buildPlayerFighter, buildScaledBoss } from "../lib/battle";
 import {
   Spintatore, SpintaState, AzioneId, PERSONALITA_LABEL, Personalita, personalitaFromLegacy,
-  spintatoreFromFighter, initSpinta, pickAzioneAvversaria,
+  spintatoreFromFighter, initSpinta, pickAzioneAvversaria, MAX_TURNI,
 } from "../lib/spinta";
 import { SAC_ITEMS, MAX_VIGILIA, LIMATURA_TESTO } from "../data/sac";
 import { Dungeon } from "../data/dungeons";
@@ -118,6 +118,8 @@ export default function DungeonRun({
   const advanceOpponent = async () => {
     if (oppIdx >= oppsRef.current.length - 1) {
       statsRef.current.vittoriaPerFiato = stRef.current.fiatoO <= 0;
+      // il giudizio può arrivare sull'azione avversaria: registraTurno non lo vede
+      if ((stRef.current.turno ?? 0) >= MAX_TURNI) statsRef.current.giudizio = true;
       pushLog(cronacaEsito(true, false, { p: teamRef.current[activeIdx].name, o: oppsRef.current[oppIdx].name }));
       setPhase("won"); onResult(true, cowIdsRef.current[activeIdx], statsRef.current); return;
     }

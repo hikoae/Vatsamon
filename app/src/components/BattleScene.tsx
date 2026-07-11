@@ -166,8 +166,8 @@ export default function BattleScene({
     if (!isTutorial && rP) consigliaSeServe(rP, "p");
     if (isTutorial) {
       tutStepRef.current += 1;
-      // la lezione del fiato (passo 4) chiede il fiato corto: la sceneggiatura lo prepara
-      if (tutStepRef.current === 3) stRef.current.fiatoP = Math.min(stRef.current.fiatoP, 40);
+      // la lezione del fiato (passo Incoraggia) chiede il fiato corto: la sceneggiatura lo prepara
+      if (tutStepRef.current === 2) stRef.current.fiatoP = Math.min(stRef.current.fiatoP, 40);
     }
     if (stRef.current.esito !== "corso") { endBattle(); return; }
     await wait(200);

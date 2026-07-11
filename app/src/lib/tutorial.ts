@@ -54,6 +54,12 @@ export function tipDaDare(chiave: string): boolean {
   return true;
 }
 
+/** Il premio della bataille-lezione si ritira UNA volta: la lezione resta
+ *  rigiocabile dal Profilo, ma senza XP/Genepy farmabili. */
+export function premioLezioneDaRitirare(): boolean {
+  return tipDaDare("premio-prima-lezione");
+}
+
 /** I «Consigli di Mémé» contestuali (once-only, via Diario di Bordo). */
 export const MEME_TIPS: Record<string, string> = {
   "primo-counter-subito": "👵 Mémé: «Hai visto? La tua mossa si è spenta sulla sua postura. Guarda cosa ha IN CAMPO l'avversaria, non solo cosa sta per fare.»",

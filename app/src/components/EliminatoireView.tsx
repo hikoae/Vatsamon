@@ -131,6 +131,8 @@ export default function EliminatoireView({
 
   const chiudi = (vinta: boolean, turniSuperati: number) => {
     const condotta = (stRef.current.turno ?? 0) >= MAX_TURNI;
+    // il giudizio può arrivare sull'azione avversaria: registraTurno non lo vede
+    if (condotta) statsRef.current.giudizio = true;
     statsRef.current.vittoriaPerFiato = vinta && stRef.current.fiatoO <= 0;
     pushLog(cronacaEsito(vinta, !vinta && condotta, { p: player?.name ?? cow!.name, o: oppsRef.current[turno]?.name ?? "la rivale" }));
     setPhase(vinta ? "vinta" : "eliminata");
