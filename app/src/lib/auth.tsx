@@ -34,6 +34,8 @@ interface AuthContextValue {
   signInWithGoogle: () => Promise<void>;
   signInWithEmail: (email: string, password: string) => Promise<void>;
   registerWithEmail: (email: string, password: string, displayName?: string) => Promise<void>;
+  /** Accesso di prova locale (nessuna registrazione): utente «test», dati solo su questo dispositivo. */
+  signInAsTest: () => void;
   signOut: () => Promise<void>;
 }
 
@@ -44,6 +46,18 @@ const GUEST: VatUser = {
   photoURL: null,
   isGuest: true,
 };
+
+// Account di prova locale (username/password «test»): salta la registrazione
+// Firebase e gioca con lo storage locale. isGuest → AuthGate lo tratta come
+// modalità locale. uid stabile così i progressi restano salvati tra i refresh.
+const TEST_USER: VatUser = {
+  uid: "local-test",
+  email: null,
+  displayName: "test",
+  photoURL: null,
+  isGuest: true,
+};
+const TEST_LOGIN_KEY = "vazzamon_test_login";
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
@@ -77,13 +91,19 @@ export function authErrorMessage(err: unknown): string {
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<VatUser | null>(firebaseEnabled ? null : GUEST);
-  const [loading, setLoading] = useState<boolean>(firebaseEnabled);
+  // Utente Firebase (reattivo) e utente locale di prova, tenuti separati: quello
+  // locale ha la precedenza e NON viene sovrascritto dagli eventi Firebase.
+  const [fbUser, setFbUser] = useState<VatUser | null>(firebaseEnabled ? null : GUEST);
+  const [localUser, setLocalUser] = useState<VatUser | null>(() =>
+    typeof localStorage !== "undefined" && localStorage.getItem(TEST_LOGIN_KEY) === "1" ? TEST_USER : null,
+  );
+  const user = localUser ?? fbUser;
+  const [loading, setLoading] = useState<boolean>(firebaseEnabled && localUser === null);
 
   useEffect(() => {
     if (!firebaseEnabled || !auth) return;
     const unsub = onAuthStateChanged(auth, (u) => {
-      setUser(u ? toVatUser(u) : null);
+      setFbUser(u ? toVatUser(u) : null);
       setLoading(false);
     });
     return unsub;
@@ -108,9 +128,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const signInAsTest = () => {
+    localStorage.setItem(TEST_LOGIN_KEY, "1");
+    setLocalUser(TEST_USER);
+    setLoading(false);
+  };
+
   const signOut = async () => {
-    if (!auth) return;
-    await fbSignOut(auth);
+    localStorage.removeItem(TEST_LOGIN_KEY);
+    setLocalUser(null);
+    if (auth) await fbSignOut(auth);
   };
 
   const value: AuthContextValue = {
@@ -120,6 +147,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     signInWithGoogle,
     signInWithEmail,
     registerWithEmail,
+    signInAsTest,
     signOut,
   };
 
