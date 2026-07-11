@@ -96,7 +96,7 @@ export default function LoginScreen() {
               autoCapitalize="none"
               autoCorrect="off"
               required
-              placeholder={mode === "login" ? "Email (o «test» per la demo)" : "Email"}
+              placeholder="Email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="bg-transparent outline-none w-full text-slate-100 placeholder:text-slate-400"
@@ -124,17 +124,6 @@ export default function LoginScreen() {
             {mode === "register" ? "Crea account" : "Accedi"}
           </button>
         </form>
-
-        {mode === "login" && (
-          <button
-            onClick={() => signInAsTest()}
-            disabled={busy}
-            className="mt-3 w-full flex flex-col items-center bg-slate-950 border border-slate-700 text-slate-200 rounded-2xl py-2.5 disabled:opacity-60 hover:border-slate-600"
-          >
-            <span className="font-semibold">👤 Entra come test</span>
-            <span className="text-slate-500 text-[11px]">demo · senza registrazione</span>
-          </button>
-        )}
 
         <p className="text-center text-sm text-slate-400 mt-4">
           {mode === "register" ? "Hai già un account?" : "Sei nuovo qui?"}{" "}
