@@ -57,7 +57,7 @@ const TEST_USER: VatUser = {
   photoURL: null,
   isGuest: true,
 };
-const TEST_LOGIN_KEY = "vazzamon_test_login";
+const TEST_LOGIN_KEY = "vatsamon_test_login";
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
