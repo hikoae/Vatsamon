@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { AzioneId, AZIONI } from "../lib/spinta";
-import { Mossa, MOSSE_BASE, MOSSE_PER_FAMIGLIA, FAMIGLIE, mosseEquipaggiate } from "../data/mosse";
+import { Mossa, MOSSE_BASE, MOSSE_PER_FAMIGLIA, FAMIGLIE, mosseEquipaggiate, mosseInnate } from "../data/mosse";
 import { COSTO_MEME, MOSSE_TRIGGERS, scuolaState } from "../lib/scuola";
 import { MossaInfoSheet } from "./battle/MossaInfoSheet";
 import { Vatsamon } from "../types";
@@ -28,6 +28,7 @@ export function MosseEditor({ cow, fontina, onEquip, onLearnFromMeme, playClick 
   const [info, setInfo] = useState<Mossa | null>(null);
   const equip = mosseEquipaggiate(cow);
   const apprese = new Set(cow.mosseApprese ?? []);
+  const innate = new Set(mosseInnate(cow)); // il corredo di nascita non si dimentica
   const globali = new Set(scuolaState().sbloccateGlobali);
 
   const equipaggia = (fam: AzioneId, m: Mossa) => {
@@ -37,7 +38,8 @@ export function MosseEditor({ cow, fontina, onEquip, onLearnFromMeme, playClick 
     setAperta(null);
   };
 
-  const conosciuta = (m: Mossa) => m.id === MOSSE_BASE[m.famiglia] || apprese.has(m.id) || equip[m.famiglia].id === m.id;
+  const conosciuta = (m: Mossa) =>
+    m.id === MOSSE_BASE[m.famiglia] || innate.has(m.id) || apprese.has(m.id) || equip[m.famiglia].id === m.id;
 
   return (
     <div className="border-t border-slate-850 pt-3 text-left space-y-2" id="mosse-editor">

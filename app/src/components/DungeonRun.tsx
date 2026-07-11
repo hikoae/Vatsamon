@@ -54,7 +54,8 @@ export default function DungeonRun({
   const cowIdsRef = useRef<string[]>([]);
   const mosseTeamRef = useRef<Record<AzioneId, Mossa>[]>([]);
   const mosseOppsRef = useRef<Record<AzioneId, Mossa>[]>([]);
-  const statsRef = useRef<SpintaStats>(nuoveSpintaStats());
+  // Stile di gioco PER REINA: le imprese le impara chi le compie, non chi chiude la Lega.
+  const statsTeamRef = useRef<SpintaStats[]>([]);
   const [infoMossa, setInfoMossa] = useState<Mossa | null>(null);
   const tellAccuracy = 0.68 + respectScore * 0.0022;
   const [, force] = useState(0);
@@ -86,7 +87,7 @@ export default function DungeonRun({
     // il Campione (ultima spinta) porta una mossa rara coerente con l'indole
     mosseOppsRef.current = dungeon.opponents.map((o, i) =>
       mosseAvversaria(o.name, persRef.current[i], i === dungeon.opponents.length - 1));
-    statsRef.current = nuoveSpintaStats();
+    statsTeamRef.current = cows.map(() => nuoveSpintaStats());
     const s0 = initSpinta(team[0], oppsRef.current[0], { personalita: persRef.current[0], tellAccuracy });
     s0.fiatoP = fiatoRef.current[0];
     stRef.current = s0;
@@ -103,7 +104,7 @@ export default function DungeonRun({
     const r = eseguiMossa(side, mossaId, stRef.current, A, B);
     stRef.current = r.state;
     fiatoRef.current[activeIdx] = r.state.fiatoP; // il fiato della Reina attiva si trascina
-    if (side === "p" && r.dettaglio) registraTurno(statsRef.current, r.dettaglio.famiglia, r.state.barra, r.state.turno ?? 0);
+    if (side === "p" && r.dettaglio) registraTurno(statsTeamRef.current[activeIdx], r.dettaglio.famiglia, r.state.barra, r.state.turno ?? 0);
     pushLog(spiegaEsito(r) ?? r.log);
     const cronaca = cronacaTurno(r, { p: teamRef.current[activeIdx].name, o: oppsRef.current[oppIdx].name });
     if (cronaca) pushLog(cronaca);
@@ -117,11 +118,12 @@ export default function DungeonRun({
   // L'avversaria cede → prossimo sfidante (il fiato della tua Reina si trascina)
   const advanceOpponent = async () => {
     if (oppIdx >= oppsRef.current.length - 1) {
-      statsRef.current.vittoriaPerFiato = stRef.current.fiatoO <= 0;
+      const stats = statsTeamRef.current[activeIdx]; // le imprese della Reina che chiude
+      stats.vittoriaPerFiato = stRef.current.fiatoO <= 0;
       // il giudizio può arrivare sull'azione avversaria: registraTurno non lo vede
-      if ((stRef.current.turno ?? 0) >= MAX_TURNI) statsRef.current.giudizio = true;
+      if ((stRef.current.turno ?? 0) >= MAX_TURNI) stats.giudizio = true;
       pushLog(cronacaEsito(true, false, { p: teamRef.current[activeIdx].name, o: oppsRef.current[oppIdx].name }));
-      setPhase("won"); onResult(true, cowIdsRef.current[activeIdx], statsRef.current); return;
+      setPhase("won"); onResult(true, cowIdsRef.current[activeIdx], stats); return;
     }
     const next = oppIdx + 1;
     const s = initSpinta(teamRef.current[activeIdx], oppsRef.current[next], { personalita: persRef.current[next], tellAccuracy });

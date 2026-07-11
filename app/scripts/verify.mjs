@@ -261,7 +261,8 @@ if (await nearBtn.count()) {
     while (bGuard++ < 80) {
       const ended = await page.locator("#battle-scene .font-mono.font-black", { hasText: /si ritira/ }).first().isVisible().catch(() => false);
       if (ended) break;
-      const mv = page.locator("#battle-moves button:not([disabled])").first();
+      // solo i bottoni-mossa: il rail «i» (data-mossa-info) apre la scheda info
+      const mv = page.locator("#battle-moves button:not([disabled]):not([data-mossa-info])").first();
       if (await mv.count()) await mv.click().catch(() => {});
       await page.waitForTimeout(350);
     }

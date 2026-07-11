@@ -240,26 +240,36 @@ const setBase = (): Record<AzioneId, Mossa> => ({
 });
 
 /**
- * Moveset equipaggiato di una Reina — SENZA migrazione dei salvataggi:
- * se `cow.mosse` manca (tutte le collezioni esistenti) il default è
- * deterministico: le 4 basi, e per le Epiche/Leggendarie la base della
- * famiglia preferita è sostituita da una rara (seed = id della cow).
- * Se `cow.mosse` è presente ma incompleto/corrotto, le famiglie mancanti
- * tornano alla base: mai uno slot vuoto (ogni postura ha una risposta).
+ * Il corredo INNATO della Reina (deterministico, seed = id): le 4 basi, e per
+ * le Epiche/Leggendarie la base della famiglia preferita sostituita da una
+ * rara. È conoscenza PERMANENTE: l'editor la considera sempre nota, anche se
+ * il giocatore equipaggia altro e `cow.mosse` diventa esplicito.
  */
-export function mosseEquipaggiate(cow: Vatsamon): Record<AzioneId, Mossa> {
+export function mosseInnate(cow: Vatsamon): string[] {
   const set = setBase();
-  if (cow.mosse?.length) {
-    for (const id of cow.mosse) {
-      const m = MOSSE[id];
-      if (m) set[m.famiglia] = m;
-    }
-    return set;
-  }
   if (cow.rarity === "Epica" || cow.rarity === "Leggendaria") {
     const fam = famigliaPreferita(cow);
     const rare = RARE_PER_FAMIGLIA[fam];
     if (rare.length) set[fam] = rare[hashStr(cow.id) % rare.length];
+  }
+  return FAMIGLIE.map((f) => set[f].id);
+}
+
+/**
+ * Moveset equipaggiato di una Reina — SENZA migrazione dei salvataggi:
+ * default = corredo innato (mosseInnate); `cow.mosse`, se presente, lo
+ * sovrascrive famiglia per famiglia. Id sconosciuti/corrotti vengono
+ * ignorati: mai uno slot vuoto (ogni postura ha una risposta).
+ */
+export function mosseEquipaggiate(cow: Vatsamon): Record<AzioneId, Mossa> {
+  const set = setBase();
+  for (const id of mosseInnate(cow)) {
+    const m = MOSSE[id];
+    if (m) set[m.famiglia] = m;
+  }
+  for (const id of cow.mosse ?? []) {
+    const m = MOSSE[id];
+    if (m) set[m.famiglia] = m;
   }
   return set;
 }

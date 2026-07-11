@@ -2899,8 +2899,12 @@ export default function App() {
           respectScore={respectScore}
           battute={leggendeBattute}
           onWin={(nome, cowId, stats) => {
-            insegnaAllaReina(cowId, valutaImprese(stats, 'leggenda'));
-            if (!leggendeBattute.includes(nome)) {
+            // la mossa-leggenda si guadagna solo alla PRIMA vittoria su QUELLA
+            // leggenda (vittorie uniche, come il premio XP/cartolina); le
+            // imprese di stile restano valutate anche nelle riprese
+            const primaVolta = !leggendeBattute.includes(nome);
+            insegnaAllaReina(cowId, valutaImprese(stats, primaVolta ? 'leggenda' : 'battle'));
+            if (primaVolta) {
               setLeggendeBattute(prev => [...prev, nome]);
               addTrainerXp(300);
               setTrekkingFeed(prev => [`🏛️ Hai onorato la memoria: ${nome} battuta! Cartolina storica conquistata (+300 XP)`, ...prev.slice(0, 8)]);

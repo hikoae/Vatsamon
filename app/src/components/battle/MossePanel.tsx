@@ -5,11 +5,11 @@ import { Mossa, FAMIGLIE, bloccoMossa } from "../../data/mosse";
  * La griglia 2×2 delle mosse (una per famiglia), condivisa dai 4 UI di
  * battaglia (BattleScene, DungeonRun, EliminatoireView, LeggendeView).
  *
- * VINCOLO PLAYWRIGHT (scripts/verify.mjs): dentro il contenitore `id` devono
- * esserci ESATTAMENTE 4 <button> — il selettore è `#…-moves button:not([disabled])`
- * e clicca il primo per giocare. Per questo l'icona ⓘ è uno <span role="button">
- * fuori dal bottone (posizionato sopra), mai un <button> in più: così resta
- * cliccabile anche quando la mossa è bloccata/disabilitata.
+ * Ogni cella ha DUE veri <button>: la mossa (flex-grow) e l'info «i» — un
+ * rail destro con target touch ≥44px, marcato `data-mossa-info` così i test
+ * Playwright selezionano solo le mosse con
+ * `#…-moves button:not([disabled]):not([data-mossa-info])` (verify.mjs).
+ * L'info resta cliccabile anche quando la mossa è bloccata/disabilitata.
  */
 
 const HINT: Record<AzioneId, string> = Object.fromEntries(AZIONI.map((a) => [a.id, a.counterHint])) as Record<AzioneId, string>;
@@ -42,11 +42,11 @@ export function MossePanel({ id, mosse, st, busy, onMossa, onInfo, famiglieAbili
         const disabled = busy || !!blocco || guidataOff;
         const usiLeft = m.usiMax !== undefined ? m.usiMax - (st.usiMosse?.[`p:${m.id}`] ?? 0) : null;
         return (
-          <div key={fam} className="relative">
+          <div key={fam} className={`flex rounded-xl border overflow-hidden bg-slate-900 transition-all hover:border-amber-500/60 ${RARITA_STILE[m.rarita]}`}>
             <button
               onClick={() => onMossa(m)}
               disabled={disabled}
-              className={`w-full h-full text-left rounded-xl border p-2 pr-6 transition-all disabled:opacity-40 bg-slate-900 hover:border-amber-500/60 ${RARITA_STILE[m.rarita]}`}
+              className="flex-grow min-w-0 text-left p-2 min-h-[44px] disabled:opacity-40"
             >
               <div className="text-[11px] font-mono font-black text-slate-100 leading-tight">
                 {m.emoji} {m.nome}
@@ -56,16 +56,15 @@ export function MossePanel({ id, mosse, st, busy, onMossa, onInfo, famiglieAbili
                 {guidataOff && hintDisabilitata ? hintDisabilitata : blocco ? `🔒 ${blocco}` : HINT[fam]}
               </div>
             </button>
-            <span
-              role="button"
-              tabIndex={0}
+            <button
+              type="button"
+              data-mossa-info
               aria-label={`Come funziona ${m.nome}`}
-              onClick={() => onInfo(m)}
-              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") onInfo(m); }}
-              className="absolute top-1.5 right-1.5 text-[10px] font-mono font-black text-sky-400 bg-slate-800 border border-slate-700 rounded-full min-w-[18px] min-h-[18px] flex items-center justify-center cursor-pointer"
+              onClick={(e) => { e.stopPropagation(); onInfo(m); }}
+              className="shrink-0 w-11 min-h-[44px] flex items-center justify-center border-l border-slate-800 text-sky-400"
             >
-              i
-            </span>
+              <span className="text-[10px] font-mono font-black bg-slate-800 border border-slate-700 rounded-full min-w-[18px] min-h-[18px] flex items-center justify-center">i</span>
+            </button>
           </div>
         );
       })}
