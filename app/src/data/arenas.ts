@@ -1,6 +1,7 @@
 import { Vatsamon } from "../types";
 import { VatsaType } from "./combat";
 import { REAL_COWS } from "./realCows";
+import { TerrainEffect } from "../lib/spinta";
 
 /**
  * Palestre (Gym) della Valle d'Aosta, piazzate sugli ALPEGGI reali — dove
@@ -30,9 +31,12 @@ export interface Arena {
   powerFactor: number;
   /** Tipo tematico del boss (portagli il tipo che lo batte). */
   bossType: VatsaType;
+  /** Effetto di TERRENO (S16): derivato dal bossType tematico, applicato via lib/spinta.ts.
+   *  Solo le Arene lo passano — Dungeon/Éliminatoire/PvP restano invariati (terrain undefined). */
+  terrain: TerrainEffect;
 }
 
-export const ARENAS: Arena[] = [
+const ARENAS_BASE: Omit<Arena, "terrain">[] = [
   {
     id: "herbetet",
     powerFactor: 0.88,
@@ -130,6 +134,9 @@ export const ARENAS: Arena[] = [
     preferRarity: "Leggendaria",
   },
 ];
+
+/** terrain = bossType: il terreno tematico dell'arena è il tipo del boss che ci vive. */
+export const ARENAS: Arena[] = ARENAS_BASE.map((a) => ({ ...a, terrain: a.bossType }));
 
 /** Pool di boss reali per rarità (con foto quando disponibile, ordinati per CP). */
 function bossPool(rarity: "Epica" | "Leggendaria"): Vatsamon[] {

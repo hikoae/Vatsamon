@@ -17,12 +17,16 @@
  * leggendarie entro ±15 (hanno usi contati e requisiti di condizione).
  */
 import {
-  AzioneId, Personalita, Spintatore, SpintaState, initSpinta, MAX_TURNI,
+  AzioneId, Personalita, Spintatore, SpintaState, TerrainEffect, initSpinta, MAX_TURNI,
 } from "../src/lib/spinta";
 import { MOSSE, MOSSE_BASE, Mossa, bloccoMossa, eseguiMossa } from "../src/data/mosse";
 
 const INDOLI: Personalita[] = ["focosa", "paziente", "astuta", "nervosa"];
-const N_DUELLI = 1000;
+// 4000 (era 1000): alcune varianti pre-esistenti (es. concerto-campanacci) vivono a
+// ~2pt dalla soglia già SENZA terreno — con 1000 duelli/indole il rumore Monte Carlo
+// (Math.random non seedato) da solo basta a farle oscillare oltre soglia da una run
+// all'altra. 4x campioni dimezza abbondantemente la deviazione standard (S16).
+const N_DUELLI = 4000;
 
 const media = (): Spintatore => ({
   name: "Media", breed: "Castana", massa: 55, presa: 55, volonta: 55, fiatoMax: 155,
@@ -55,16 +59,16 @@ function mossaPer(set: Record<AzioneId, string>, fam: AzioneId, st: SpintaState,
   return MOSSE_BASE[fam];
 }
 
-function duello(setP: Record<AzioneId, string>, indole: Personalita): boolean {
+function duello(setP: Record<AzioneId, string>, indole: Personalita, terrain?: TerrainEffect): boolean {
   const P = media(), O = media();
-  let st = initSpinta(P, O, { personalita: indole, tellAccuracy: 0.75 });
+  let st = initSpinta(P, O, { personalita: indole, tellAccuracy: 0.75, terrain });
   const setO = { ...MOSSE_BASE };
   for (let t = 0; t < MAX_TURNI * 2 + 4 && st.esito === "corso"; t++) {
     const famP = pickPlayer(st, indole);
-    st = eseguiMossa("p", mossaPer(setP, famP, st, "p"), st, P, O).state;
+    st = eseguiMossa("p", mossaPer(setP, famP, st, "p"), st, P, O, terrain).state;
     if (st.esito !== "corso") break;
     const famO = st.intentO ?? "incalza";
-    st = eseguiMossa("o", mossaPer(setO, famO, st, "o"), st, O, P).state;
+    st = eseguiMossa("o", mossaPer(setO, famO, st, "o"), st, O, P, terrain).state;
   }
   if (st.esito === "corso") {
     // non dovrebbe accadere (MAX_TURNI risolve), guardia di sicurezza
@@ -73,13 +77,15 @@ function duello(setP: Record<AzioneId, string>, indole: Personalita): boolean {
   return st.esito === "vinto";
 }
 
-function winRate(setP: Record<AzioneId, string>): number {
+function winRate(setP: Record<AzioneId, string>, terrain?: TerrainEffect): number {
   let w = 0, n = 0;
   for (const indole of INDOLI) {
-    for (let i = 0; i < N_DUELLI; i++) { if (duello(setP, indole)) w++; n++; }
+    for (let i = 0; i < N_DUELLI; i++) { if (duello(setP, indole, terrain)) w++; n++; }
   }
   return (100 * w) / n;
 }
+
+function soglia(m: Mossa): number { return m.rarita === "comune" || m.rarita === "rara" ? 8 : 15; }
 
 // ── run ────────────────────────────────────────────────────────────────
 const baseline = winRate({ ...MOSSE_BASE });
@@ -92,7 +98,7 @@ for (const m of varianti) {
   const set = { ...MOSSE_BASE, [m.famiglia]: m.id };
   const wr = winRate(set);
   const delta = wr - baseline;
-  const limite = m.rarita === "comune" || m.rarita === "rara" ? 8 : 15;
+  const limite = soglia(m);
   const ok = Math.abs(delta) <= limite;
   if (!ok) fuori++;
   console.log(
@@ -102,4 +108,47 @@ for (const m of varianti) {
   );
 }
 console.log(`\n${fuori === 0 ? "✅ Tutte le mosse entro soglia." : `⚠️ ${fuori} mosse fuori soglia: ritoccare i numeri in data/mosse.ts.`}`);
-process.exitCode = fuori === 0 ? 0 : 1;
+
+// ── S16: dimensione TERRENO ──────────────────────────────────────────────
+// Il terreno è SIMMETRICO (si applica a entrambi i lati): la baseline per
+// terreno deve restare vicina al 50% (nessun vantaggio strutturale), e ogni
+// combo terreno×variante deve restare entro la STESSA soglia ±8/±15 rispetto
+// alla baseline DI QUEL TERRENO (non quella globale, per isolare l'effetto
+// del terreno da quello della variante).
+const TERRAINS: TerrainEffect[] = ["prato", "latte", "tempesta", "roccia", "corna"];
+console.log("\n── Terreni (S16) ──────────────────────────────────────────────────────");
+console.log("terreno".padEnd(12) + "base vs base win%   Δ vs baseline globale   verdetto");
+let fuoriTerrainBase = 0;
+const baselinePerTerrain: Record<TerrainEffect, number> = {} as Record<TerrainEffect, number>;
+for (const terrain of TERRAINS) {
+  const wr = winRate({ ...MOSSE_BASE }, terrain);
+  baselinePerTerrain[terrain] = wr;
+  const delta = wr - baseline;
+  const ok = Math.abs(delta) <= 8; // terreno "neutro" di famiglia base: stessa soglia comune/rara
+  if (!ok) fuoriTerrainBase++;
+  console.log(
+    terrain.padEnd(12) + wr.toFixed(1).padStart(11) + "        " + (delta >= 0 ? "+" : "") + delta.toFixed(1).padStart(5) +
+    "  (±8)  " + (ok ? "OK" : "⚠️ FUORI SOGLIA"),
+  );
+}
+
+console.log("\nterreno×variante".padEnd(30) + "famiglia".padEnd(12) + "win%   Δ vs baseline terreno   verdetto");
+let fuoriTerrainCombo = 0;
+for (const terrain of TERRAINS) {
+  for (const m of varianti) {
+    const set = { ...MOSSE_BASE, [m.famiglia]: m.id };
+    const wr = winRate(set, terrain);
+    const delta = wr - baselinePerTerrain[terrain];
+    const limite = soglia(m);
+    const ok = Math.abs(delta) <= limite;
+    if (!ok) fuoriTerrainCombo++;
+    console.log(
+      `${terrain}×${m.id}`.padEnd(30) + m.famiglia.padEnd(12) +
+      wr.toFixed(1).padStart(5) + "  " + (delta >= 0 ? "+" : "") + delta.toFixed(1).padStart(5) +
+      `  (±${limite})  ` + (ok ? "OK" : "⚠️ FUORI SOGLIA"),
+    );
+  }
+}
+const fuoriTotale = fuori + fuoriTerrainBase + fuoriTerrainCombo;
+console.log(`\n${fuoriTerrainBase === 0 && fuoriTerrainCombo === 0 ? "✅ Tutti i terreni e le combo terreno×mossa entro soglia." : `⚠️ ${fuoriTerrainBase} baseline-terreno + ${fuoriTerrainCombo} combo terreno×mossa fuori soglia: ritoccare TERRAIN_MODS in lib/spinta.ts.`}`);
+process.exitCode = fuoriTotale === 0 ? 0 : 1;

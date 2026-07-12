@@ -1,5 +1,5 @@
 import {
-  AzioneId, MossaMods, MossaRef, Personalita, SpintaState, Spintatore, TurnResult, applyAzione,
+  AzioneId, MossaMods, MossaRef, Personalita, SpintaState, Spintatore, TerrainEffect, TurnResult, applyAzione,
 } from "../lib/spinta";
 import { Vatsamon } from "../types";
 
@@ -316,10 +316,10 @@ const toRef = (m: Mossa): MossaRef => ({ id: m.id, nome: m.nome, emoji: m.emoji,
  * motore e registra l'uso (per i limiti delle speciali). Se la mossa è
  * bloccata (l'AI non controlla i requisiti), ripiega sulla base di famiglia.
  */
-export function eseguiMossa(side: "p" | "o", mossaId: string, st: SpintaState, A: Spintatore, B: Spintatore): TurnResult {
+export function eseguiMossa(side: "p" | "o", mossaId: string, st: SpintaState, A: Spintatore, B: Spintatore, terrain?: TerrainEffect): TurnResult {
   let m = MOSSE[mossaId] ?? MOSSE[MOSSE_BASE.incalza];
   if (bloccoMossa(m, st, side)) m = MOSSE[MOSSE_BASE[m.famiglia]];
-  const r = applyAzione(side, m.famiglia, st, A, B, { mossa: toRef(m) });
+  const r = applyAzione(side, m.famiglia, st, A, B, { mossa: toRef(m), terrain });
   if (m.usiMax !== undefined) {
     const key = `${side}:${m.id}`;
     r.state.usiMosse = { ...(r.state.usiMosse ?? {}), [key]: (r.state.usiMosse?.[key] ?? 0) + 1 };

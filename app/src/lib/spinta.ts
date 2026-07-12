@@ -82,6 +82,42 @@ export interface MossaMods {
 /** Riferimento leggero a una mossa: basta al motore (il registry vive in data/mosse.ts). */
 export interface MossaRef { id: string; nome: string; emoji: string; mods: MossaMods }
 
+/**
+ * Effetto di TERRENO (S16): deriva dal bossType tematico dell'arena
+ * (data/arenas.ts). Modificatori SIMMETRICI — si applicano a ENTRAMBI i lati
+ * del duello, mai solo all'attaccante o solo al giocatore. Valori piccoli,
+ * validati da scripts/sim-spinta.ts (nessuna combo terreno×mossa fuori soglia).
+ * undefined (Dungeon/Éliminatoire/PvP/Pastori) = comportamento storico
+ * bit-identico: nessuna arena, nessun terreno, nessun cambio di numeri.
+ */
+export type TerrainEffect = "prato" | "latte" | "tempesta" | "roccia" | "corna";
+
+interface TerrainMods {
+  fiatoRecupMult?: number;   // ×fiato recuperato con Reggi/Incoraggia (chiunque lo usi)
+  calmaRecupMult?: number;   // ×calma recuperata con Reggi/Incoraggia (chiunque lo usi)
+  calmaCaloMult?: number;    // ×calma persa attaccando (Incalza/Gira, chiunque attacchi)
+  reggiAssorbiMult?: number; // ×reggiAssorbi quando SI regge un'incalzata (chiunque regga)
+  reggiRimbalzoAdd?: number; // + terreno guadagnato sul rimbalzo di chi regge
+  incalzaMult?: number;      // ×pushGain dell'Incalza (chiunque incalzi)
+}
+
+const TERRAIN_MODS: Record<TerrainEffect, TerrainMods> = {
+  prato: { fiatoRecupMult: 1.03 },
+  latte: { calmaRecupMult: 1.10 },
+  tempesta: { calmaCaloMult: 1.02 },
+  roccia: { reggiAssorbiMult: 0.92, reggiRimbalzoAdd: 0.25 },
+  corna: { incalzaMult: 1.04 },
+};
+
+/** Etichetta + hint di 1 riga per il pannello di vigilia (BattleScene). */
+export const TERRAIN_LABEL: Record<TerrainEffect, { label: string; hint: string }> = {
+  prato: { label: "Prato d'alpeggio", hint: "il fiato si recupera meglio" },
+  latte: { label: "Alpe da latte", hint: "la calma si ritrova più in fretta" },
+  tempesta: { label: "Tempesta", hint: "la calma cala più in fretta per entrambe" },
+  roccia: { label: "Roccia", hint: "chi regge assorbe meglio l'urto" },
+  corna: { label: "Corna", hint: "le incalzate spingono un po' più forte" },
+};
+
 export interface Azione { id: AzioneId; label: string; emoji: string; desc: string; counterHint: string }
 export const AZIONI: Azione[] = [
   { id: "incalza", label: "Incalza", emoji: "🐂", desc: "Spinta decisa a fronti opposti: la massa conta, il fiato se ne va.", counterHint: "forte su chi recupera o gira · si spegne su chi regge" },
@@ -140,6 +176,7 @@ export interface SpintaState {
   tellAzione?: AzioneId;    // l'azione che il tell LASCIA INTENDERE (per capire se ha mentito)
   turno?: number;
   personalita?: Personalita;
+  terrain?: TerrainEffect;  // effetto d'arena (S16), simmetrico, undefined altrove
   tellAccuracy?: number;    // 0..1, dal Rispetto del giocatore
   rng?: () => number;       // PRNG seedabile (mulberry32) per replay/test deterministici;
                              // assente = Math.random (comportamento identico a oggi)
@@ -159,13 +196,14 @@ export const MAX_TURNI = 16;
 export function initSpinta(
   p: Spintatore,
   o: Spintatore,
-  opts?: { personalita?: Personalita; tellAccuracy?: number; rng?: () => number },
+  opts?: { personalita?: Personalita; tellAccuracy?: number; rng?: () => number; terrain?: TerrainEffect },
 ): SpintaState {
   const barra = clamp(50 + (p.presa - o.presa) / 4, 30, 70);
   const st: SpintaState = {
     barra, fiatoP: p.fiatoMax, fiatoO: o.fiatoMax, calma: 80, calmaO: 80,
     stanceP: null, stanceO: null, turno: 0,
     personalita: opts?.personalita ?? "focosa",
+    terrain: opts?.terrain,
     tellAccuracy: opts?.tellAccuracy ?? 0.75,
     rng: opts?.rng,
     esito: "corso",
@@ -199,7 +237,7 @@ export interface TurnResult {
  *  dell'altro lato: è la matrice di counter che rende leggibile il duello.
  *  `opts.mossa` è la variante-mossa dell'azione (data/mosse.ts): senza di essa
  *  tutti i default riproducono il comportamento storico. */
-export function applyAzione(side: "p" | "o", azione: AzioneId, st: SpintaState, A: Spintatore, B: Spintatore, opts?: { mossa?: MossaRef }): TurnResult {
+export function applyAzione(side: "p" | "o", azione: AzioneId, st: SpintaState, A: Spintatore, B: Spintatore, opts?: { mossa?: MossaRef; terrain?: TerrainEffect }): TurnResult {
   const s: SpintaState = { ...st };
   if (s.calmaO === undefined) s.calmaO = 80;
   s.turno = (st.turno ?? 0) + 1;
@@ -222,15 +260,20 @@ export function applyAzione(side: "p" | "o", azione: AzioneId, st: SpintaState, 
   const mods = opts?.mossa?.mods ?? {};
   const stanceMossaAvv = (side === "p" ? s.stanceMossaO : s.stanceMossaP) ?? null;
   const stanceMods = stanceMossaAvv?.mods ?? {};
+  // effetto di TERRENO (S16): simmetrico, si applica a CHIUNQUE esegua l'azione.
+  // opts.terrain vince se passato esplicitamente, altrimenti persiste dallo stato (initSpinta).
+  const terrain = opts?.terrain ?? s.terrain;
+  const tmod = terrain ? TERRAIN_MODS[terrain] : undefined;
   let log = "";
   let counter: "A" | "B" | null = null;
   let shiftOut: number | undefined;
 
   if (azione === "incalza") {
-    let shift = pushGain(A, B) * varia() * (agitata ? 0.75 : 1) * (mods.spintaMult ?? 1);
+    let shift = pushGain(A, B) * varia() * (agitata ? 0.75 : 1) * (mods.spintaMult ?? 1) * (tmod?.incalzaMult ?? 1);
     if (stanceAvv === "reggi") {
       // si spegne sulla postura piantata: l'avversaria contro-guadagna terreno
-      shift = shift * (stanceMods.reggiAssorbi ?? 0.4) - (stanceMods.reggiRimbalzo ?? 2.5);
+      shift = shift * (stanceMods.reggiAssorbi ?? 0.4) * (tmod?.reggiAssorbiMult ?? 1)
+        - ((stanceMods.reggiRimbalzo ?? 2.5) + (tmod?.reggiRimbalzoAdd ?? 0));
       counter = "B";
       log = `${B.name} regge l'urto: ${A.name} si spegne sulla presa piantata.`;
     } else if (stanceAvv === "incoraggia") {
@@ -244,11 +287,11 @@ export function applyAzione(side: "p" | "o", azione: AzioneId, st: SpintaState, 
     }
     s.barra = clamp(s.barra + dir * shift, 0, 100);
     shiftOut = shift;
-    setMyCalma(myCalma - 10 + (mods.calmaDelta ?? 0));
+    setMyCalma(myCalma - 10 * (tmod?.calmaCaloMult ?? 1) + (mods.calmaDelta ?? 0));
     addMyFiato(-FIATO_INCALZA + (mods.fiatoDelta ?? 0));
   } else if (azione === "reggi") {
-    setMyCalma(myCalma + 5 + (mods.calmaDelta ?? 0));
-    addMyFiato(FIATO_RECUP + (mods.fiatoDelta ?? 0));
+    setMyCalma(myCalma + 5 * (tmod?.calmaRecupMult ?? 1) + (mods.calmaDelta ?? 0));
+    addMyFiato(FIATO_RECUP * (tmod?.fiatoRecupMult ?? 1) + (mods.fiatoDelta ?? 0));
     log = `${A.name} pianta gli zoccoli e regge la posizione.`;
   } else if (azione === "gira") {
     let shift = giraGain(A, B) * varia() * (agitata ? 0.85 : 1) * (mods.spintaMult ?? 1);
@@ -268,14 +311,14 @@ export function applyAzione(side: "p" | "o", azione: AzioneId, st: SpintaState, 
     }
     s.barra = clamp(s.barra + dir * shift, 0, 100);
     shiftOut = shift;
-    setMyCalma(myCalma - 4 + (mods.calmaDelta ?? 0));
+    setMyCalma(myCalma - 4 * (tmod?.calmaCaloMult ?? 1) + (mods.calmaDelta ?? 0));
     addMyFiato(-FIATO_GIRA + (mods.fiatoDelta ?? 0));
   } else {
     // incoraggia: recupero pieno se l'avversaria non sta attaccando
     const sottoAttacco = stanceAvv === "incalza" || stanceAvv === "gira";
     const rec = mods.recuperoMult ?? 1;
-    setMyCalma(myCalma + (sottoAttacco ? 8 : 14) * rec + (mods.calmaDelta ?? 0));
-    addMyFiato((sottoAttacco ? 8 : FIATO_INCOR) * rec + (mods.fiatoDelta ?? 0));
+    setMyCalma(myCalma + (sottoAttacco ? 8 : 14) * rec * (tmod?.calmaRecupMult ?? 1) + (mods.calmaDelta ?? 0));
+    addMyFiato((sottoAttacco ? 8 : FIATO_INCOR) * rec * (tmod?.fiatoRecupMult ?? 1) + (mods.fiatoDelta ?? 0));
     s.barra = clamp(s.barra - dir * (mods.barraCost ?? 4), 0, 100);
     log = `${A.name} viene incoraggiata: ritrova calma e fiato${sottoAttacco ? " (sotto pressione)" : ""}.`;
   }
