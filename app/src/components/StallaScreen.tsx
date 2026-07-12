@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { Sparkles, ChevronRight, Check, Heart } from "lucide-react";
 import { CowVisual } from "./CowVisual";
 import { Vatsamon } from "../types";
+import { PvpHub } from "./pvp/PvpHub";
 import {
   TORI, Toro, Pregnancy, Stats4, stats4Of, predictStats, inheritRazza, birthCalf, growCow,
   STAGE_LABEL, stageForAge, CARE_COOLDOWN_MS, CARE_PROGRESS, CARE_BENESSERE, GROW_COOLDOWN_MS, GROW_MONTHS,
@@ -16,12 +17,14 @@ import { gravidanzeCorrenti, LS_PREG, mesiGravidanza } from "../lib/gravidanza";
  * Loop: scegli MADRE + TORO → MONTA → GRAVIDANZA (cura quotidiana) → NASCITA del
  * moudzon (eredita le 4 stat reali) → CRESCITA a stadi. Tutto statico/localStorage.
  */
-export function StallaScreen({ collection, onBorn, onUpdateCow, onReward, playClick }: {
+export function StallaScreen({ collection, onBorn, onUpdateCow, onReward, onOpenPvpMatch, playClick }: {
   collection: Vatsamon[];
   onBorn: (cow: Vatsamon) => void;
   onUpdateCow: (cow: Vatsamon) => void;
   /** fontina: Forme di Fontina di prestigio (es. moudzon che diventa Reina). */
   onReward: (coins: number, xp: number, fontina?: number) => void;
+  /** Apre la scena PvpBattleScene (overlay a livello App, come BattleScene). */
+  onOpenPvpMatch: (matchId: string) => void;
   playClick: () => void;
 }) {
   // più gravidanze in parallelo (una per madre): requisito per i tornei ufficiali
@@ -131,6 +134,11 @@ export function StallaScreen({ collection, onBorn, onUpdateCow, onReward, playCl
           <b className="text-amber-200">crescita</b> in Reina. Tutto con la cura quotidiana.
         </p>
       </div>
+
+      {/* SFIDE TRA ALLEVATORI (PvP live a turni, S9) — sezione, non una tab
+          nuova: hub di creazione/join/lista partite, gated su login reale
+          (niente sfide online in modalità locale/ospite). */}
+      <PvpHub collection={collection} onOpenMatch={onOpenPvpMatch} playClick={playClick} />
 
       {/* GRAVIDANZE IN CORSO (una per madre): requisito per i tornei ufficiali */}
       {pregs.map((preg) => (

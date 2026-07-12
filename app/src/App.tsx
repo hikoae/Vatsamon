@@ -62,6 +62,7 @@ import { SeasonEvent } from './data/season';
 // mappa/HUD/ScattaView, che servono al primo paint o hanno già il proprio
 // lazy-loading interno (rilevatore TF.js in lib/detector.ts).
 const BattleScene = lazy(() => import('./components/BattleScene'));
+const PvpBattleScene = lazy(() => import('./components/pvp/PvpBattleScene'));
 const DungeonRun = lazy(() => import('./components/DungeonRun'));
 const EliminatoireView = lazy(() => import('./components/EliminatoireView'));
 const QuizScreen = lazy(() => import('./components/QuizScreen').then(m => ({ default: m.QuizScreen })));
@@ -368,6 +369,9 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<'map' | 'routes' | 'stagione' | 'scanner' | 'stalla' | 'vatsadex' | 'quiz' | 'premi'>('map');
   // Battaglia attiva (scena stile Pokémon lanciata dalla mappa).
   const [activeBattle, setActiveBattle] = useState<MapBattle | null>(null);
+  // Partita PvP attiva (S9): overlay separato, aperto dall'hub "Sfide tra
+  // Allevatori" dentro la Stalla — mai una nuova tab.
+  const [activePvpMatchId, setActivePvpMatchId] = useState<string | null>(null);
   // Il tutorial di Mémé (beat giocati): pending solo per i NUOVI onboarding.
   const [tutorial, setTutorial] = useState<TutorialState>(() => tutorialState());
   const tutorialAttivo = tutorial.pending && !tutorial.done;
@@ -2191,6 +2195,7 @@ export default function App() {
                 if (xp) addTrainerXp(xp);
                 if (fontinaN) guadagnaFontina(fontinaN, 'un moudzon di stalla è diventato Reina');
               }}
+              onOpenPvpMatch={(matchId) => setActivePvpMatchId(matchId)}
               playClick={playClickSfx}
             />
           </Suspense>
@@ -2475,6 +2480,19 @@ export default function App() {
             onConsumeItem={(id) => setBackpack(prev => prev.map(it => it.id === id ? { ...it, quantity: Math.max(0, it.quantity - 1) } : it))}
             onResult={handleBattleResult}
             onClose={() => setActiveBattle(null)}
+            playClick={playClickSfx}
+          />
+        </Suspense>
+      )}
+
+      {/* SCENA PvP live a turni (S9) — aperta dall'hub "Sfide tra Allevatori"
+          nella Stalla. La partita vive su Firestore: chiudere la scena non
+          la abbandona (il forfeit esplicito passa dal bottone dentro). */}
+      {activePvpMatchId && (
+        <Suspense fallback={<SceneFallback />}>
+          <PvpBattleScene
+            matchId={activePvpMatchId}
+            onClose={() => setActivePvpMatchId(null)}
             playClick={playClickSfx}
           />
         </Suspense>
