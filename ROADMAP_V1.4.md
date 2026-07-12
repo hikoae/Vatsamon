@@ -277,6 +277,9 @@ Ordine pensato per rischio/valore; ogni sprint termina con typecheck + build
   ([AVVISTAMENTO]/[VISTA DAL VIVO]), aggancio a geofence-gara e daily.
 - Sostituisce in toto lo scanner simulato e il lessico "DNA".
 
+> **[12/07/2026]** Sprint 3-4 assorbiti/superati da v1.5 — vedi `ROADMAP_V1.5.md`
+> (Désarpa/Arp in S3.5, gravidanza in S3.6, Albo delle Leggende in S3.8).
+
 ### Sprint 3 — Stagione viva
 - Désarpa (evento annuale) + Reine des cornes/du lait di mandria.
 - Combats du samedi (settimanale deterministico) + fiori/bosquet.

@@ -25,9 +25,22 @@ Stato in `localStorage`. Build **statica** (`vite build`).
 ## Comandi
 ```bash
 npm install
-npm run dev       # http://localhost:5173
-npm run build     # build statica in dist/
+npx playwright install chromium  # una tantum: scarica il browser usato da npm run verify
+
+npm run dev       # http://localhost:5173 — tienilo attivo in un terminale separato
+npm run build     # typecheck + build statica in dist/
+npm run lint      # ESLint (typescript-eslint + react-hooks)
+
+# npm run dev deve essere già avviato altrove: verify.mjs punta a http://localhost:5173
+# (override con la env var URL) e lancia Chromium via Playwright.
 npm run verify    # Playwright: tab, mappa reali, GPS, catalogo, scanner→cattura
+```
+
+`verify.mjs` risolve l'eseguibile Chromium con `process.env.PW_EXEC || "/opt/pw-browsers/..."`
+— quel fallback è un path da sandbox CI/agent, quasi certamente assente in locale. Dopo
+`npx playwright install chromium`, esporta sempre `PW_EXEC` con l'eseguibile installato:
+```bash
+PW_EXEC=$(node -e "console.log(require('playwright').chromium.executablePath())") npm run verify
 ```
 
 ## Dati
@@ -35,6 +48,6 @@ npm run verify    # Playwright: tab, mappa reali, GPS, catalogo, scanner→cattu
 - `scripts/place_bovine.py` — geocoding/pulizia comuni.
 - Foto reali in `public/photos/`.
 
-## Deploy GitHub Pages
-Repo chiamato **`vatsamon`** (base `/vatsamon/` in `vite.config.ts`).
-Push su `main` → la Action `.github/workflows/deploy.yml` builda e pubblica.
+## Deploy
+Netlify, automatico a ogni merge su `main` (build da `app/`). GitHub Pages
+dismesso — `.github/workflows/deploy.yml` rimosso.

@@ -24,10 +24,11 @@ fonte storica; non va trattata come codice runtime della PWA.
 ```bash
 cd app
 npm install
-npm run dev        # http://localhost:5173
+npx playwright install chromium  # una tantum, serve a npm run verify
+npm run dev        # http://localhost:5173 — tienilo attivo in un terminale separato
 npm run typecheck  # controllo TypeScript
 npm run build      # typecheck + build statica in app/dist
-npm run verify     # test Playwright sul flusso principale
+npm run verify     # test Playwright sul flusso principale (richiede npm run dev già avviato; vedi PW_EXEC in app/README.md)
 ```
 
 ## Stato attuale
@@ -37,7 +38,7 @@ npm run verify     # test Playwright sul flusso principale
 - Dati reali: 73 bovine del calendario 2026, 35 foto vere, comuni reali,
   coordinate, statistiche e schede convertite nel modello di gioco.
 - Scanner: simulato lato client, senza server e senza chiavi API.
-- Deploy: GitHub Pages tramite `.github/workflows/deploy.yml`, con build da
-  `app/` e base Vite `/vatsamon/`.
+- Deploy: Netlify, automatico a ogni merge su `main` (build da `app/`). GitHub
+  Pages dismesso.
 
 Per dettagli tecnici e workflow applicativo vedi [app/README.md](app/README.md).
