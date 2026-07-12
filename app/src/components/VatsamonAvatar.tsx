@@ -20,7 +20,7 @@ export const VatsamonAvatar: React.FC<VatsamonAvatarProps> = ({
   let hideColor = "#8D5B4C"; // Warm chestnut
   let isSpotted = false;
   let spotColor = "#FFFFFF";
-  let snoutColor = "#FAD3CF";
+  const snoutColor = "#FAD3CF";
   
   if (breedLower.includes("nera") || breedLower.includes("black")) {
     hideColor = "#27272A"; // Charcoal black
@@ -41,7 +41,7 @@ export const VatsamonAvatar: React.FC<VatsamonAvatarProps> = ({
 
   // Rarity styling effects (card border aura or background sparkle)
   let hornColor = "#E4E4E7"; // Off-white
-  let eyeSparkle = true;
+  const eyeSparkle = true;
 
   if (rarity === 'Leggendaria') {
     hornColor = "#FBBF24";  // Radiant gold horns

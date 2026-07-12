@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - run: npm ci --no-audit --no-fund
+
+      - run: npm run typecheck
+
+      - run: npm run build
+
+      - run: npm run lint
+
+      - name: Check changelog su version bump
+        run: |
+          set -euo pipefail
+          git fetch origin main
+          OLD_VERSION=$(git show origin/main:app/package.json | jq -r .version)
+          NEW_VERSION=$(jq -r .version package.json)
+          echo "version origin/main=$OLD_VERSION · PR=$NEW_VERSION"
+
+          if [ "$OLD_VERSION" = "$NEW_VERSION" ]; then
+            echo "Versione invariata: nessun changelog richiesto."
+            exit 0
+          fi
+
+          if [ ! -f "src/data/changelog.ts" ]; then
+            echo "::error::app/package.json version cambiata ($OLD_VERSION -> $NEW_VERSION) ma app/src/data/changelog.ts non esiste ancora."
+            exit 1
+          fi
+
+          if ! grep -qF -- "$NEW_VERSION" src/data/changelog.ts; then
+            echo "::error::app/package.json version cambiata a $NEW_VERSION ma app/src/data/changelog.ts non la menziona."
+            exit 1
+          fi
+
+          echo "Changelog aggiornato per la versione $NEW_VERSION."

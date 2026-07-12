@@ -160,35 +160,9 @@ vatsamon_discovered_cows, vatsamon_onboarded, vatsamon_respect, vatsamon_dungeon
 
 ---
 
-## 7. ⚠️ TASK APERTO PRIORITARIO — Sistema gravidanza (non uova)
+## 7. Sistema gravidanza (non uova)
 
-**Richiesta utente (testuale):**
-> "le reines sono mucche quindi non fanno uova e devi trovare altra soluzione piu verosimile"
->
-> "Concentrati sul migliorare la stalla in cui i vitelli nascono e crescono. Servirebbe un
-> sistema studiato che ci metta piu tempo per schiudere. Sarebbe carina un'animazione per la
-> nascita quando avviene, insomma ragiona a renderla interattiva e bella come fosse un vero gioco stile pokemon"
-
-**Cosa fare:**
-1. **`types.ts`**: rinomina `Egg` → `Gestazione`/`Pregnancy`. Aggiungi campo `stage`
-   (`'incinta' | 'vicina' | 'parto'`). Aumenta i km richiesti (gestazione = più lunga):
-   suggerito Comune=10, Rara=20, Epica=35, Leggendaria=50 km. (Oggi: Comune=2, Epica=5 → troppo corti.)
-2. **`HatchScene.tsx`**: riscrivi TUTTO il copy "uovo/schiusa" → "gravidanza/parto/vitellino".
-   Animazione: mucca nella stalla → tremore → flash → vitellino rivelato con scheda stat.
-   (Il file esiste già ma usa 🥚 e "L'uovo si sta schiudendo!" — da sostituire.) NB: oggi NON è
-   importato in App.tsx; l'overlay nascita inline è ~riga 3232 (`hatchingEgg`).
-3. **`App.tsx`**:
-   - stato `eggs`/`setEggs` (~riga 197) e default (`egg-1`, `egg-2`).
-   - `hatchingEgg`/`setHatchingEgg` (~riga 861).
-   - `triggerEggHatching` (~riga 1199) → rinomina `triggerBirth`, copy aggiornato (oggi dice "Schiusa da un raro uovo montano").
-   - `handleSimulatedWalk` (~riga 1110): incremento km gestazione (`distanceStep` 0.5) + check parto (~riga 1122-1139).
-   - Tab `eggs` UI (~riga 2725-2802): "Culla dei Vitellini" con provette di vetro 🍼 → ridisegnare come
-     **Stalla** con mucche incinte a stadi diversi, barra gestazione, azione interattiva "coccola"/visita con cooldown.
-   - Overlay nascita inline (~riga 3232): emoji 🍼🐮🍼 e "LIETO EVENTO" — sostituire con scena parto (idealmente usando `HatchScene`).
-4. Build (`npm run build`) + verifica + commit + merge su main.
-
-**Approccio consigliato stadi:** `incinta` → `vicina al parto` → `parto`. Azione "coccola/visita"
-con cooldown che dà un piccolo boost. Animazione parto: mucca trema → flash → vitellino con stat.
+RISOLTO in v1.5, vedi `lib/gravidanza.ts`.
 
 ---
 

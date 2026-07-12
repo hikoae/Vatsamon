@@ -1,5 +1,8 @@
 # Piano di merge — Vatsamon (`app/`) ⨉ Vatsamon
 
+> ⚠️ **DOCUMENTO SUPERATO** — il motore attuale è **La Spinta** (`lib/spinta.ts`),
+> vedi [`GAME_REDESIGN.md`](GAME_REDESIGN.md).
+
 > **Per una NUOVA chat a contesto pulito.** Questo file contiene tutto il
 > necessario per unire i due progetti **senza perdere pezzi né rompere nulla**.
 > Leggi anche [`STATO_ATTUALE.md`](STATO_ATTUALE.md) (inventario della base).

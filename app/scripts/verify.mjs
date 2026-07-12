@@ -1,12 +1,9 @@
 import { chromium } from "playwright";
-import { mkdirSync, readFileSync } from "node:fs";
+import { mkdirSync } from "node:fs";
 
 const APP_URL = process.env.URL ?? "http://localhost:5173/";
 const OUT = "/tmp/vatsamon-shots";
 mkdirSync(OUT, { recursive: true });
-
-const data = JSON.parse(readFileSync(new URL("../src/data/vatsadex.json", import.meta.url)));
-const target = data.bovine[0];
 
 // PNG 1x1 per simulare un upload allo scanner
 const PNG = Buffer.from(

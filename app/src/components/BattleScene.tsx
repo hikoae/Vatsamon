@@ -185,7 +185,7 @@ export default function BattleScene({
     setBusy(false);
   };
 
-  const useItem = async (id: string) => {
+  const applyItem = async (id: string) => {
     if (busy || phase !== "fight" || stRef.current.esito !== "corso") return;
     const eff = SAC_ITEMS[id];
     const owned = backpack.find((b) => b.id === id);
@@ -292,7 +292,7 @@ export default function BattleScene({
                 bagItems.map((b) => {
                   const eff = SAC_ITEMS[b.id];
                   return (
-                    <button key={b.id} onClick={() => useItem(b.id)} disabled={busy} className="w-full flex items-center gap-3 bg-slate-900 border border-slate-800 rounded-xl p-2 text-left disabled:opacity-40">
+                    <button key={b.id} onClick={() => applyItem(b.id)} disabled={busy} className="w-full flex items-center gap-3 bg-slate-900 border border-slate-800 rounded-xl p-2 text-left disabled:opacity-40">
                       <span className="text-xl">{eff.emoji}</span>
                       <div className="flex-grow"><div className="text-[11px] font-mono font-black text-slate-100">{eff.nome}</div><div className="text-[9px] text-slate-400">{eff.desc}</div></div>
                       <span className="text-[10px] font-mono text-amber-400">×{b.quantity}</span>
