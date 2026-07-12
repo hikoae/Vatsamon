@@ -5,13 +5,73 @@
 // modifichi qui, ripubblicale con `firebase deploy --only firestore:rules` oppure
 // incolla manualmente il contenuto aggiornato in console.
 //
-// Nota: la collection `battles/*` (PvP) NON ha una rule dedicata qui perché non esiste
-// ancora un flusso PvP implementato lato client/server. In assenza di un `match` esplicito,
-// Firestore applica il deny di default: qualunque lettura/scrittura su `battles/*` è
-// rifiutata finché non verrà disegnata una rule specifica (owner-scoped, non "chiunque
-// autenticato legge/scrive tutto").
+// PvP live a turni (S8, 2026-07-12): niente Cloud Functions (piano Spark) → gli esiti
+// sono client-trusted, come il resto del gioco. Le regole sotto sono la sola difesa
+// contro un client modificato: bound del motore "La Spinta" (lib/spinta.ts) replicati
+// il più possibile, transizioni di stato vincolate a chi-di-turno, mai un salto libero
+// a "vinto"/"finished" senza una condizione terminale plausibile.
 rules_version = '2';
 service cloud.firestore {
+
+  // ─── Helper condivisi ────────────────────────────────────────────────────
+  function isSignedIn() {
+    return request.auth != null;
+  }
+
+  // Sanity-cap fighterSnapshot (decisione operatore 2026-07-12): livello 1-60,
+  // stat 5-105, peso 300-850 kg. Margine volutamente più largo dei clamp UI
+  // (lib/battle.ts clamp 10-120): qui basta respingere valori assurdi, non
+  // replicare esattamente il builder del Fighter.
+  function validFighterSnapshot(f) {
+    return f is map
+      && f.name is string && f.name.size() > 0 && f.name.size() <= 60
+      && f.breed is string && f.breed.size() > 0 && f.breed.size() <= 60
+      && f.level is int && f.level >= 1 && f.level <= 60
+      && f.atk is number && f.atk >= 5 && f.atk <= 105
+      && f.def is number && f.def >= 5 && f.def <= 105
+      && f.agi is number && f.agi >= 5 && f.agi <= 105
+      && f.peso is number && f.peso >= 300 && f.peso <= 850;
+  }
+
+  // Moveset congelato: esattamente 4 id di mosse (data/mosse.ts), uno per famiglia.
+  function validMoveset(m) {
+    return m is list && m.size() == 4
+      && m[0] is string && m[0].size() > 0
+      && m[1] is string && m[1].size() > 0
+      && m[2] is string && m[2].size() > 0
+      && m[3] is string && m[3].size() > 0;
+  }
+
+  // fiatoMax = 100 + volontà, volontà = clamp(agi, 1, 100) — lib/spinta.ts:30,49-58.
+  function fiatoMaxFor(fighter) {
+    return 100 + (fighter.agi < 1 ? 1 : (fighter.agi > 100 ? 100 : fighter.agi));
+  }
+
+  // Bound di SpintaState (lib/spinta.ts:125-147): p1 è SEMPRE il lato "P",
+  // p2 è SEMPRE il lato "O" per l'intera partita (mai scambiati). barra/calma
+  // sempre clampati 0..100 dal motore, fiato 0..fiatoMax del fighter congelato,
+  // turno 0..MAX_TURNI (16, lib/spinta.ts:156).
+  function validSpintaState(st, fighters) {
+    return st is map
+      && st.barra is number && st.barra >= 0 && st.barra <= 100
+      && st.fiatoP is number && st.fiatoP >= 0 && st.fiatoP <= fiatoMaxFor(fighters.p1)
+      && st.fiatoO is number && st.fiatoO >= 0 && st.fiatoO <= fiatoMaxFor(fighters.p2)
+      && st.calma is number && st.calma >= 0 && st.calma <= 100
+      && st.calmaO is number && st.calmaO >= 0 && st.calmaO <= 100
+      && st.esito in ["corso", "vinto", "perso"]
+      && st.turno is int && st.turno >= 0 && st.turno <= 16
+      && (st.stanceP == null || st.stanceP in ["incalza", "reggi", "gira", "incoraggia"])
+      && (st.stanceO == null || st.stanceO in ["incalza", "reggi", "gira", "incoraggia"]);
+  }
+
+  // "Stato terminale plausibile" (giudizio di condotta incluso, lib/spinta.ts:291-301):
+  // non richiede di rigiocare l'esatta formula del punteggio, solo che ALMENO una
+  // delle condizioni di fine motore sia vera — una "vittoria finta" a metà spinta
+  // (barra 50, turno 3, esito forzato a "vinto") viene respinta.
+  function isPlausibleTerminal(st) {
+    return st.barra >= 100 || st.barra <= 0 || st.fiatoP <= 0 || st.fiatoO <= 0 || st.turno >= 16;
+  }
+
   match /databases/{database}/documents {
 
     // Ogni utente legge/scrive SOLO il proprio salvataggio
@@ -26,6 +86,183 @@ service cloud.firestore {
     match /leaderboard/{uid} {
       allow read: if request.auth != null;
       allow write: if request.auth != null && request.auth.uid == uid;
+    }
+
+    // ─── PvP live a turni (S8) ────────────────────────────────────────────
+
+    // pvpChallenges/{code}: codice di invito. Lettura per-id "a capability"
+    // (chi conosce il codice legge il documento), MAI list — niente
+    // enumerazione delle sfide aperte di altri.
+    match /pvpChallenges/{code} {
+      allow get: if isSignedIn();
+      allow list: if false;
+
+      allow create: if isSignedIn()
+        && request.resource.data.creatorUid == request.auth.uid
+        && request.resource.data.creatorNickname is string
+        && request.resource.data.creatorNickname.size() > 0
+        && request.resource.data.creatorNickname.size() <= 40
+        && request.resource.data.mode in ["live", "corrispondenza"]
+        && request.resource.data.turnDurationMs is int
+        && request.resource.data.turnDurationMs >= 5000
+        && request.resource.data.turnDurationMs <= 259200000
+        && validFighterSnapshot(request.resource.data.fighterSnapshot)
+        && validMoveset(request.resource.data.moveset)
+        && request.resource.data.status == "open"
+        && request.resource.data.expiresAt is timestamp
+        && request.resource.data.expiresAt > request.time
+        && request.resource.data.expiresAt < request.time + duration.value(8, 'd')
+        && !("matchId" in request.resource.data);
+
+      // Accetta: SOLO il non-creator, open -> accepted, scrive solo status+matchId.
+      allow update: if isSignedIn()
+        && resource.data.status == "open"
+        && request.auth.uid != resource.data.creatorUid
+        && request.resource.data.status == "accepted"
+        && request.resource.data.matchId is string
+        && request.resource.data.matchId.size() > 0
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["status", "matchId"]);
+
+      // Cancella: SOLO il creator, solo finché è ancora open.
+      allow update: if isSignedIn()
+        && request.auth.uid == resource.data.creatorUid
+        && resource.data.status == "open"
+        && request.resource.data.status == "cancelled"
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["status"]);
+
+      // Scaduta: chiunque autenticato la marca "expired" se expiresAt è passato
+      // (piano Spark, niente TTL/Cloud Functions lato server: pulizia client-trusted,
+      // innescata dal primo che la incontra dopo la scadenza).
+      allow update: if isSignedIn()
+        && resource.data.status == "open"
+        && request.time > resource.data.expiresAt
+        && request.resource.data.status == "expired"
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["status"]);
+
+      allow delete: if false;
+    }
+
+    // pvpMatches/{matchId}: partita live. Solo i due players in playerUids
+    // possono leggere; query app-side SEMPRE con
+    // where('playerUids', 'array-contains', uid) — un `list` non vincolato
+    // così viene respinto da Firestore (non può provare la regola).
+    match /pvpMatches/{matchId} {
+      allow read: if isSignedIn() && request.auth.uid in resource.data.playerUids;
+
+      // Create: SOLO in accept-flow, da uno dei due players (creator o
+      // acceptor della pvpChallenge — non c'è un back-link al codice sfida
+      // nello schema, il vincolo strutturale è "sei uno dei due playerUids").
+      allow create: if isSignedIn()
+        && request.resource.data.status == "active"
+        && request.resource.data.mode in ["live", "corrispondenza"]
+        && request.resource.data.playerUids is list
+        && request.resource.data.playerUids.size() == 2
+        && request.auth.uid in request.resource.data.playerUids
+        && request.resource.data.players is map
+        && request.resource.data.players.p1.uid == request.resource.data.playerUids[0]
+        && request.resource.data.players.p2.uid == request.resource.data.playerUids[1]
+        && request.resource.data.players.p1.uid != request.resource.data.players.p2.uid
+        && validFighterSnapshot(request.resource.data.fighters.p1)
+        && validFighterSnapshot(request.resource.data.fighters.p2)
+        && validMoveset(request.resource.data.moveset.p1)
+        && validMoveset(request.resource.data.moveset.p2)
+        && request.resource.data.turnOf in ["p1", "p2"]
+        && request.resource.data.turnNumber == 0
+        && validSpintaState(request.resource.data.state, request.resource.data.fighters)
+        && request.resource.data.turnDeadline is timestamp
+        && request.resource.data.turnDeadline > request.time
+        && request.resource.data.turnDeadline < request.time + duration.value(3, 'd')
+        && request.resource.data.createdAt is timestamp;
+
+      // Mossa regolare: SOLO chi ha turnOf. turnNumber avanza di 1 esatto,
+      // lo stato resta nei bound del motore, turnOf TOGGLA obbligatoriamente
+      // salvo che la mossa stessa chiuda la partita (status -> finished).
+      allow update: if isSignedIn()
+        && resource.data.status == "active"
+        && request.auth.uid == resource.data.players[resource.data.turnOf].uid
+        && request.resource.data.turnNumber == resource.data.turnNumber + 1
+        && validSpintaState(request.resource.data.state, resource.data.fighters)
+        && request.resource.data.state.turno == request.resource.data.turnNumber
+        && request.resource.data.usiMosse is map
+        && request.resource.data.turnDeadline is timestamp
+        && (
+          (request.resource.data.status == "active"
+            && request.resource.data.state.esito == "corso"
+            && request.resource.data.turnOf == (resource.data.turnOf == "p1" ? "p2" : "p1"))
+          ||
+          (request.resource.data.status == "finished"
+            && request.resource.data.state.esito in ["vinto", "perso"]
+            && isPlausibleTerminal(request.resource.data.state)
+            && request.resource.data.winnerUid == (
+                 request.resource.data.state.esito == "vinto"
+                   ? resource.data.players.p1.uid
+                   : resource.data.players.p2.uid
+               ))
+        )
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(["state", "usiMosse", "turnOf", "turnNumber", "turnDeadline",
+                       "lastMove", "status", "winnerUid", "updatedAt"]);
+
+      // Claim-timeout: chi NON è di turno chiude la partita a proprio favore,
+      // SOLO se la deadline del turno corrente è passata. Nessuna mossa
+      // giocata: lo stato di gioco resta invariato, cambia solo l'esito.
+      allow update: if isSignedIn()
+        && resource.data.status == "active"
+        && request.time > resource.data.turnDeadline
+        && request.auth.uid ==
+             resource.data.players[resource.data.turnOf == "p1" ? "p2" : "p1"].uid
+        && request.resource.data.status == "finished"
+        && request.resource.data.state == resource.data.state
+        && request.resource.data.turnNumber == resource.data.turnNumber
+        && request.resource.data.winnerUid == request.auth.uid
+        && request.resource.data.forfeitedBy == resource.data.players[resource.data.turnOf].uid
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(["status", "winnerUid", "forfeitedBy", "updatedAt"]);
+
+      // Abbandono volontario: un player rinuncia in qualunque momento con la
+      // partita ancora attiva; l'altro vince. Campo `status` esplicitamente
+      // previsto dallo schema (active→finished|abandoned).
+      allow update: if isSignedIn()
+        && resource.data.status == "active"
+        && request.auth.uid in resource.data.playerUids
+        && request.resource.data.status == "abandoned"
+        && request.resource.data.forfeitedBy == request.auth.uid
+        && request.resource.data.winnerUid == (
+             request.auth.uid == resource.data.players.p1.uid
+               ? resource.data.players.p2.uid
+               : resource.data.players.p1.uid
+           )
+        && request.resource.data.state == resource.data.state
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(["status", "winnerUid", "forfeitedBy", "updatedAt"]);
+
+      allow delete: if false;
+
+      // pvpMatches/{matchId}/moves/{turnNumber}: log append-only, immutabile.
+      // `turnNumber` nel path = il turno PRIMA che questa mossa venga
+      // applicata (0 per la prima mossa): coincide con il valore che questa
+      // regola legge da `resource.data.turnNumber` del match padre via get(),
+      // che è sempre l'ULTIMO STATO COMMESSO — indipendente dall'ordine dei
+      // singoli write dentro lo stesso batch/transazione che include anche
+      // l'update di pvpMatches/{matchId}.
+      match /moves/{turnNum} {
+        function parentMatch() {
+          return get(/databases/$(database)/documents/pvpMatches/$(matchId)).data;
+        }
+
+        allow read: if isSignedIn() && request.auth.uid in parentMatch().playerUids;
+
+        allow create: if isSignedIn()
+          && parentMatch().status == "active"
+          && int(turnNum) == parentMatch().turnNumber
+          && request.auth.uid == parentMatch().players[parentMatch().turnOf].uid
+          && request.resource.data.by == request.auth.uid
+          && request.resource.data.azione in ["incalza", "reggi", "gira", "incoraggia"]
+          && request.resource.data.log is string
+          && request.resource.data.at is timestamp;
+
+        allow update, delete: if false;
+      }
     }
 
     // Nessun catch-all: qualunque altra collection è deny-by-default.
