@@ -2876,10 +2876,13 @@ export default function App() {
           </button>
           <Suspense fallback={<SceneFallback />}>
             <SeasonView
-              onReward={(coins, xp) => {
+              onReward={(coins, xp, kind) => {
                 setTrainer(prev => ({ ...prev, coins: prev.coins + coins }));
                 addTrainerXp(xp);
-                setTrekkingFeed(prev => [`🏆 Tabellone completato! Pronostico finale fatto (+${coins} 🪙 +${xp} XP)`, ...prev.slice(0, 8)]);
+                const msg = kind === 'tappa'
+                  ? `🔮 Pronostico di tappa azzeccato! (+${coins} 🪙 +${xp} XP)`
+                  : `🏆 Tabellone completato! Pronostico finale fatto (+${coins} 🪙 +${xp} XP)`;
+                setTrekkingFeed(prev => [msg, ...prev.slice(0, 8)]);
               }}
             />
           </Suspense>
