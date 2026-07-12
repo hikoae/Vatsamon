@@ -135,8 +135,14 @@ export const PERSONALITA_LABEL: Record<Personalita, { label: string; desc: strin
   nervosa:  { label: "Nervosa",  desc: "Imprevedibile ma fragile di calma." },
 };
 
-/** Mappa i vecchi 'tipi' (etichette legacy nei dati arena/lega) su un'indole. */
-export function personalitaFromLegacy(t: string | undefined, seed = 0): Personalita {
+/**
+ * Mappa i vecchi 'tipi' (etichette legacy nei dati arena/lega) su un'indole.
+ * `biasStagionale` (S18, opzionale — solo Éliminatoire oggi): sfuma la
+ * distribuzione hash con la fase della stagione REALE duplicando una voce
+ * nel pool (stesso asse di 4 indoli, stesso hash%len — zero nuova
+ * matematica). Omesso = comportamento storico bit-identico.
+ */
+export function personalitaFromLegacy(t: string | undefined, seed = 0, biasStagionale?: Personalita): Personalita {
   switch (t) {
     case "corna": return "focosa";
     case "roccia": return "paziente";
@@ -145,7 +151,8 @@ export function personalitaFromLegacy(t: string | undefined, seed = 0): Personal
     case "latte": return "paziente";
     default: {
       const all: Personalita[] = ["focosa", "paziente", "astuta", "nervosa"];
-      return all[Math.abs(seed) % all.length];
+      const pool = biasStagionale ? [...all, biasStagionale] : all;
+      return pool[Math.abs(seed) % pool.length];
     }
   }
 }

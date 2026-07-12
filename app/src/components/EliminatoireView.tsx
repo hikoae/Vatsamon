@@ -5,7 +5,7 @@ import { Vatsamon, BackpackItem } from "../types";
 import { CowVisual } from "./CowVisual";
 import { buildPlayerFighter, buildScaledBoss } from "../lib/battle";
 import {
-  Spintatore, SpintaState, AzioneId, PERSONALITA_LABEL, personalitaFromLegacy,
+  Spintatore, SpintaState, AzioneId, Personalita, PERSONALITA_LABEL, personalitaFromLegacy,
   spintatoreFromFighter, initSpinta, pickAzioneAvversaria, MAX_TURNI,
 } from "../lib/spinta";
 import { SAC_ITEMS, MAX_VIGILIA, LIMATURA_TESTO } from "../data/sac";
@@ -92,7 +92,14 @@ export default function EliminatoireView({
   const tellAccuracy = 0.68 + respectScore * 0.0022;
   const pushLog = (line: string) => setLog((prev) => [line, ...prev].slice(0, 6));
 
-  const persona = (i: number) => personalitaFromLegacy(undefined, evento.id.length * 7 + i * 13 + evento.comune.length);
+  // S18: forma stagionale — l'indole delle avversarie era hash puro; ora si
+  // sfuma con la fase reale del calendario (autunno/finale → più nervosa,
+  // primavera → più paziente), riusando lo stesso asse di 4 indoli.
+  const biasStagionale: Personalita | undefined =
+    fase === "primavera" ? "paziente"
+    : fase === "autunno" || fase === "autunno-finale" || fase === "finale" ? "nervosa"
+    : undefined;
+  const persona = (i: number) => personalitaFromLegacy(undefined, evento.id.length * 7 + i * 13 + evento.comune.length, biasStagionale);
 
   const iscrivi = () => {
     if (!cow || !limato || !idoneita.ok) return;

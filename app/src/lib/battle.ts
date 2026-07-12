@@ -1,5 +1,6 @@
 import { Vatsamon, RarityType } from "../types";
 import { Pastore } from "../data/opponents";
+import { condizioneDaArp } from "./condizione";
 
 /**
  * Modello del combattente e builder (giocatore / Pastore / avversaria reale).
@@ -34,7 +35,10 @@ export function buildPlayerFighter(cow: Vatsamon): Fighter {
   const s4 = cow.stats4;
   const atk = clamp(s4 ? s4.corna : cow.stats.strength);
   const def = clamp(s4 ? s4.testa : cow.stats.defense);
-  const agi = clamp(s4 ? s4.grinta : cow.stats.agility);
+  // S18: nudge di condizione stagionale (Arp) — piccolo e cappato, su
+  // fiato/volontà (spintatoreFromFighter deriva volonta = clamp(agi) e
+  // fiatoMax = 100 + volonta). Solo il giocatore: mai gli avversari/boss.
+  const agi = clamp((s4 ? s4.grinta : cow.stats.agility) + condizioneDaArp(cow.id));
   const stazza = s4 ? s4.stazza : cow.stats.defense;
   return {
     name: cow.name,

@@ -20,6 +20,7 @@ import {
   AzioneId, Approccio, Personalita, Spintatore, SpintaState, TerrainEffect, initSpinta, MAX_TURNI,
 } from "../src/lib/spinta";
 import { MOSSE, MOSSE_BASE, Mossa, bloccoMossa, eseguiMossa } from "../src/data/mosse";
+import { CONDIZIONE_BONUS_MAX } from "../src/lib/condizione";
 
 const INDOLI: Personalita[] = ["focosa", "paziente", "astuta", "nervosa"];
 // 4000 (era 1000): alcune varianti pre-esistenti (es. concerto-campanacci) vivono a
@@ -59,8 +60,11 @@ function mossaPer(set: Record<AzioneId, string>, fam: AzioneId, st: SpintaState,
   return MOSSE_BASE[fam];
 }
 
-function duello(setP: Record<AzioneId, string>, indole: Personalita, terrain?: TerrainEffect, approccio?: Approccio): boolean {
-  const P = media(), O = media();
+function duello(setP: Record<AzioneId, string>, indole: Personalita, terrain?: TerrainEffect, approccio?: Approccio, volontaBonusP = 0): boolean {
+  const O = media();
+  const P: Spintatore = volontaBonusP
+    ? { ...media(), volonta: 55 + volontaBonusP, fiatoMax: 100 + 55 + volontaBonusP }
+    : media();
   // approccio si applica SOLO al lato P: è la scelta tattica del giocatore in
   // Arena (BattleScene) — l'avversaria non ne ha uno equivalente (asimmetria
   // intenzionale, coerente con initSpinta/opts.approccio).
@@ -84,6 +88,15 @@ function winRate(setP: Record<AzioneId, string>, terrain?: TerrainEffect): numbe
   let w = 0, n = 0;
   for (const indole of INDOLI) {
     for (let i = 0; i < N_DUELLI; i++) { if (duello(setP, indole, terrain)) w++; n++; }
+  }
+  return (100 * w) / n;
+}
+
+/** S18: win rate del lato P con la volontà gonfiata dal bonus di condizione (Arp). */
+function winRateCondizione(volontaBonusP: number): number {
+  let w = 0, n = 0;
+  for (const indole of INDOLI) {
+    for (let i = 0; i < N_DUELLI; i++) { if (duello({ ...MOSSE_BASE }, indole, undefined, undefined, volontaBonusP)) w++; n++; }
   }
   return (100 * w) / n;
 }
@@ -195,4 +208,23 @@ console.log(
 );
 
 const fuoriTotaleS17 = fuoriTotale + dominanti.length;
-process.exitCode = fuoriTotaleS17 === 0 ? 0 : 1;
+
+// ── S18: FORMA STAGIONALE (bonus condizione dall'Arp) ──────────────────────
+// La condizione applica un piccolo bonus CAPPATO a volontà (condizioneDaArp,
+// lib/condizione.ts) quando la Reina è stata curata all'arp. GATE: anche al
+// bonus MASSIMO il vantaggio non deve superare la soglia comune/rara (±8) —
+// è un nudge di forma, non una seconda leva di progressione.
+console.log("\n── S18: FORMA STAGIONALE (bonus condizione Arp) ──────────────────────────");
+const wrCondizioneMax = winRateCondizione(CONDIZIONE_BONUS_MAX);
+const deltaCondizione = wrCondizioneMax - baseline;
+const limiteCondizione = 8;
+const okCondizione = Math.abs(deltaCondizione) <= limiteCondizione;
+console.log(
+  `bonus max (+${CONDIZIONE_BONUS_MAX} volontà)`.padEnd(26) +
+  wrCondizioneMax.toFixed(1).padStart(5) + "  " + (deltaCondizione >= 0 ? "+" : "") + deltaCondizione.toFixed(1).padStart(5) +
+  `  (±${limiteCondizione})  ` + (okCondizione ? "OK" : "⚠️ FUORI SOGLIA"),
+);
+console.log(okCondizione ? "✅ Bonus condizione entro soglia anche al cap." : "⚠️ Bonus condizione FUORI SOGLIA: ridurre CONDIZIONE_BONUS_MAX in lib/condizione.ts.");
+
+const fuoriTotaleS18 = fuoriTotaleS17 + (okCondizione ? 0 : 1);
+process.exitCode = fuoriTotaleS18 === 0 ? 0 : 1;
