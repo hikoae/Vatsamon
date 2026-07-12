@@ -61,8 +61,10 @@ export default function Onboarding({ onComplete }: { onComplete: () => void }) {
       // Il nuovo giocatore riceve Mémé di Nus al primo avvio (beat giocati).
       avviaTutorialAlProssimoAvvio();
 
-      // Profilo pubblico/utente su Firestore (best-effort).
-      if (firebaseEnabled && db && user) {
+      // Profilo pubblico/utente su Firestore (best-effort). Gli utenti ospite/test
+      // hanno uid sintetici (non Firebase Auth reali): le regole Firestore li
+      // rifiuterebbero con "Missing or insufficient permissions".
+      if (firebaseEnabled && db && user && !user.isGuest) {
         await setDoc(
           doc(db, "users", user.uid),
           {
