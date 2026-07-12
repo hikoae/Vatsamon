@@ -8,27 +8,16 @@ import {
   BookOpen,
   Volume2,
   VolumeX,
-  Sparkles,
-  ShieldAlert,
-  MapPin,
-  LocateFixed,
-  X,
-  RotateCw,
   Gift,
-  Footprints,
   GraduationCap,
-  LogOut
 } from 'lucide-react';
-import { Vatsamon, Hotspot, BackpackItem, Trainer, RarityType } from './types';
+import { Vatsamon, Hotspot, BackpackItem, Trainer, RarityType, WildCow } from './types';
 import { normalizeSaveKey } from './lib/migrateSaveKeys';
 import { savePhoto } from './lib/photoStore';
 import { useAuth } from './lib/auth';
 import { backupLocalSave, restoreLocalBackup, saveCloudSave, BACKUP_KEY } from './lib/cloudSave';
 import { ConfirmDialog } from './components/ConfirmDialog';
 import { APP_VERSION, BRAND } from './config/brand';
-import { VatsamonAvatar } from './components/VatsamonAvatar';
-import { CowVisual } from './components/CowVisual';
-import { TrailOverlay } from './components/TrailOverlay';
 import { VALDOSTAN_TRAILS } from './data/trails';
 import { RESPONSIBLE_QUESTIONS, ResponsibleQuestion } from './data/responsibleQuestions';
 import { MAP_BATTLES, MapBattle } from './data/mapBattles';
@@ -37,10 +26,13 @@ import { ArenaId } from './data/arenas';
 import { TREK_ROUTES } from './data/routes';
 import { Challenges } from './components/Challenges';
 import { ScattaView } from './components/ScattaView';
-import { ThrowGauge, CaptureRing, ThrowPowerBar } from './components/ThrowGauge';
 import { DailyPanel } from './components/DailyPanel';
-import { GpsExplorerPanel, type NearbyPlace } from './components/GpsExplorerPanel';
+import { type NearbyPlace } from './components/GpsExplorerPanel';
 import { RoutesView } from './components/RoutesView';
+import { OverworldMapView } from './components/OverworldMapView';
+import { CaptureScreen } from './components/CaptureScreen';
+import { ProfileModal } from './components/ProfileModal';
+import { SceneFallback } from './components/SceneFallback';
 import { soundEngine } from './utils/audio';
 import { generateVatsamonClient } from './lib/generate';
 import { REAL_COWS, REAL_CASERE } from './data/realCows';
@@ -49,14 +41,13 @@ import { gradoCorrente } from './data/gradi';
 import { faseCorrente } from './data/fase';
 import { oggiISO } from './lib/oggi';
 import { VALUTE, FONTINA_REWARD, costoStellaPedigree, PEDIGREE_STAR_CAP } from './data/economy';
-import { WILD_BREEDS, WILD_NAMES, ECO_TREK_TIPS, LORE_POOL, BALL_META, BALL_ORDER, DEFAULT_BAG, SEED_COLLECTION } from './data/overworld';
-import { BASE_CATCH, estimateCatch, respectTone, catchDifficulty } from './lib/capture';
-import { SAC_ITEMS, BOTTEGA_EXTRA } from './data/sac';
-import { Trofeo, TROFEO_META } from './data/trofei';
+import { WILD_BREEDS, WILD_NAMES, ECO_TREK_TIPS, LORE_POOL, BALL_META, DEFAULT_BAG, SEED_COLLECTION } from './data/overworld';
+import { BASE_CATCH, respectTone } from './lib/capture';
+import { Trofeo } from './data/trofei';
 import type { EsitoTappa } from './components/EliminatoireView';
 import { tappe, tappaStato, STATO_LABEL, LS_ELIMINATOIRE, EliminatoireSave } from './data/eliminatoire';
 import { ArpPanel } from './components/ArpPanel';
-import { sbloccaParola, vociSbloccate, parolePatois, PATOIS_TRIGGERS, TOTALE_PAROLE } from './lib/patois';
+import { sbloccaParola, parolePatois, TOTALE_PAROLE } from './lib/patois';
 import { SpintaStats, valutaImprese, insegnaMosse, mosseDaLivello, sbloccaGlobale } from './lib/scuola';
 import { TutorialState, tutorialState, saveTutorial, premioLezioneDaRitirare } from './lib/tutorial';
 import { TUTORIAL_BATTLE } from './data/tutorialBattle';
@@ -75,20 +66,7 @@ const QuizScreen = lazy(() => import('./components/QuizScreen').then(m => ({ def
 const SeasonView = lazy(() => import('./components/SeasonView').then(m => ({ default: m.SeasonView })));
 const StallaScreen = lazy(() => import('./components/StallaScreen').then(m => ({ default: m.StallaScreen })));
 const VatsadexView = lazy(() => import('./components/VatsadexView').then(m => ({ default: m.VatsadexView })));
-const ValutazioneReina = lazy(() => import('./components/ValutazioneReina'));
 const RespectEncounter = lazy(() => import('./components/RespectEncounter').then(m => ({ default: m.RespectEncounter })));
-
-/** Fallback Suspense uniforme per le scene lazy: spinner coerente col resto dell'app. */
-function SceneFallback() {
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0b0820]/80 backdrop-blur-sm">
-      <div className="flex flex-col items-center gap-2 text-slate-300">
-        <div className="w-8 h-8 rounded-full border-2 border-slate-700 border-t-emerald-400 animate-spin" />
-        <span className="text-[11px] font-mono uppercase tracking-widest">Caricamento…</span>
-      </div>
-    </div>
-  );
-}
 
 // Indice delle Reines reali del bundle (per i codici di salvataggio compatti:
 // si salva l'id + le sole differenze, non l'intera scheda statica).
@@ -428,16 +406,7 @@ export default function App() {
   }, [claimedChallenges]);
   const [soundEnabled, setSoundEnabled] = useState(true);
 
-  // Overworld spawned wild Vatsamons
-  interface WildCow {
-    id: string;
-    vatsa: Vatsamon;
-    lat?: number;
-    lng?: number;
-    x: number; // coordinates relative to map width
-    y: number;
-    angle: number;
-  }
+  // Overworld spawned wild Vatsamons (tipo WildCow in ./types, S7)
   const [wildCows, setWildCows] = useState<WildCow[]>([]);
 
   // Choose between Leaflet real OSM map & sci-fi SVG overworld sonar radar
@@ -1553,6 +1522,22 @@ export default function App() {
     );
   };
 
+  // ProfileModal (S7): handler composti, identici agli onClick inline che sostituiscono.
+  const canLogoutFromProfile = firebaseEnabled && !!user && !user.isGuest;
+  const handleReplayTutorial = () => { playClickSfx(); setShowProfile(false); setActiveBattle(TUTORIAL_BATTLE); };
+  const handleLogoutClick = () => {
+    if (!user) return;
+    showConfirm(
+      "Uscire dall'account?",
+      "I progressi vengono sincronizzati col cloud prima di uscire.",
+      () => {
+        saveCloudSave(user.uid).catch(() => { /* sync best-effort: non blocca il logout */ })
+          .finally(() => { signOut().catch(() => { /* logout locale già avvenuto: best-effort */ }); });
+      },
+      { confirmLabel: "Esci", danger: true },
+    );
+  };
+
   // Pre-spawn some wild cows around the screen if none exist (senza duplicati)
   useEffect(() => {
     if (wildCows.length === 0) {
@@ -2069,657 +2054,77 @@ export default function App() {
       <main className="flex-grow p-4 max-w-4xl w-full mx-auto" id="app-viewport">
         <div key={activeTab} className="view-in">
         
-        {/* VIEW 1: INTERACTIVE MAP OVERWORLD */}
-        {activeTab === 'map' && (
-          <div className="flex flex-col gap-6" id="overworld-view">
+        {/* VIEW 1: INTERACTIVE MAP OVERWORLD (S7: estratta in OverworldMapView) */}
+        <OverworldMapView
+          isActiveTab={activeTab === 'map'}
+          mapMode={mapMode}
+          setMapMode={setMapMode}
+          playClickSfx={playClickSfx}
+          mapContainerRef={mapContainerRef}
+          handleSimulatedWalk={handleSimulatedWalk}
+          gpsOn={gpsOn}
+          gpsState={gpsState}
+          toggleGps={toggleGps}
+          currentWaypoint={currentWaypoint}
+          effLat={effLat}
+          effLng={effLng}
+          waypointProgress={waypointProgress}
+          caseraCooldowns={caseraCooldowns}
+          setSelectedCasera={setSelectedCasera}
+          setSpinState={setSpinState}
+          setSpinRewards={setSpinRewards}
+          wildCows={wildCows}
+          initiateCatchWild={initiateCatchWild}
+          gpsAccuracy={gpsAccuracy}
+          gpsUpdatedAt={gpsUpdatedAt}
+          gpsIssue={gpsIssue}
+          gpsTargetName={gpsTarget.name}
+          gpsTargetDistance={gpsTargetDistance}
+          gpsDirection={gpsDirection}
+          gpsRouteDistanceM={gpsRouteMatch?.distanceM ?? null}
+          claimedCheckpointsCount={claimedGpsCheckpoints.length}
+          totalCheckpoints={activeTrail.length - 1}
+          checkpointReady={checkpointReady}
+          checkpointClaimed={checkpointClaimed}
+          checkpointMission={checkpointMission}
+          nearbyGpsPlaces={nearbyGpsPlaces}
+          centerGpsPosition={centerGpsPosition}
+          registraCheckpointGps={registraCheckpointGps}
+          mapInstance={mapInstance}
+          selectedTrail={selectedTrail}
+          selectedTrailId={selectedTrailId}
+          setSelectedTrailId={setSelectedTrailId}
+          trekkingFeed={trekkingFeed}
+          selectedCasera={selectedCasera}
+          spinState={spinState}
+          spinDeg={spinDeg}
+          spinRewards={spinRewards}
+          handleSpinCasera={handleSpinCasera}
+          coins={trainer.coins}
+          buyBottega={buyBottega}
+        />
 
-            <div className="bg-slate-950 rounded-3xl p-3 border border-slate-850 relative overflow-hidden shadow-2xl">
-
-              {/* Overworld Title HUD */}
-              <div className="flex flex-col items-start justify-between gap-3 mb-4 z-10 relative border-b border-slate-900 pb-4">
-                <div>
-                  <h2 className="text-lg font-mono font-black text-emerald-400 flex items-center gap-1.5 uppercase">
-                    <Compass className="w-5 h-5 text-emerald-500" />
-                    Sentiero d'Alta Quota
-                  </h2>
-                  <p className="text-xs text-slate-400">Esplora la Valle d'Aosta reale. Tocca le casere o cattura i Vatsamon sul cammino!</p>
-                </div>
-
-                {/* Map Mode Toggle & Simulated Walk in flex */}
-                <div className="flex flex-wrap items-center gap-2 w-full">
-                  {/* Selector Segment */}
-                  <div className="flex items-center gap-1 bg-slate-900 border border-slate-800 p-1 rounded-xl">
-                    <button
-                      onClick={() => { playClickSfx(); setMapMode('real'); }}
-                      className={`font-mono text-[10px] font-bold px-2.5 py-1.5 rounded-lg transition-all ${mapMode === 'real' ? 'bg-emerald-500 text-[#0b0820] font-black' : 'text-slate-400 hover:bg-slate-850'}`}
-                    >
-                      Mappa OSM Reale
-                    </button>
-                    <button
-                      onClick={() => { playClickSfx(); setMapMode('radar'); }}
-                      className={`font-mono text-[10px] font-bold px-2.5 py-1.5 rounded-lg transition-all ${mapMode === 'radar' ? 'bg-emerald-500 text-[#0b0820] font-black' : 'text-slate-400 hover:bg-slate-850'}`}
-                    >
-                      Sguardo del Pastore
-                    </button>
-                  </div>
-
-                  {/* Hike Button */}
-                  <button
-                    onClick={handleSimulatedWalk}
-                    disabled={gpsOn || gpsState === 'requesting'}
-                    aria-label={gpsOn || gpsState === 'requesting' ? 'Il GPS sta aggiornando il percorso' : 'Cammina 500 metri in modalità simulata'}
-                    className="bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-400 hover:to-green-400 text-[#0b0820] font-black text-xs py-2.5 px-4 rounded-xl shadow active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer border-b-2 border-emerald-700 ml-auto"
-                    id="simulate-walk-btn"
-                  >
-                    <Footprints className="w-4 h-4 fill-current animate-bounce" />
-                    {gpsOn || gpsState === 'requesting' ? 'GPS guida il percorso' : 'CAMMINA 500m'}
-                  </button>
-
-                  {/* GPS reale */}
-                  <button
-                    onClick={toggleGps}
-                    aria-pressed={gpsOn || gpsState === 'requesting'}
-                    aria-label={gpsOn || gpsState === 'requesting' ? 'Ferma GPS' : 'Attiva GPS reale'}
-                    className={`font-black text-xs py-2.5 px-4 rounded-xl shadow active:scale-95 transition-all flex items-center gap-1.5 border-b-2 ${gpsOn ? 'bg-blue-500 text-white border-blue-700' : 'bg-slate-900 text-slate-200 border-slate-800 hover:bg-slate-850'}`}
-                    id="gps-btn"
-                  >
-                    <LocateFixed className="w-4 h-4" />
-                    {gpsOn || gpsState === 'requesting' ? 'Ferma GPS' : 'Attiva GPS'}
-                  </button>
-                </div>
-              </div>
-
-              {/* Conditional Map View Frame */}
-              {mapMode === 'real' ? (
-                /* GEOGRAPHIC INTERACTIVE REAL MAP VIEW */
-                <div className="relative w-full h-[460px] bg-slate-900 border-2 border-emerald-500/20 rounded-2xl overflow-hidden shadow-inner group z-0">
-                  <div ref={mapContainerRef} className="w-full h-full" id="real-gps-map" />
-                  
-                  {/* Overlay HUD status regarding current trekking location */}
-                  <div className="absolute top-3 left-3 bg-slate-950/95 border border-slate-855 font-mono text-[9px] text-slate-200 px-3.5 py-2.5 rounded-2xl backdrop-blur-md shadow-2xl pointer-events-none z-35 max-w-[260px] space-y-1.5">
-                    <span className="text-emerald-400 font-extrabold uppercase block tracking-wider flex items-center gap-1">
-                      <MapPin className="w-3 h-3 text-emerald-500 animate-bounce" />
-                      {gpsOn ? 'Posizione GPS' : 'Tappa attuale'}
-                    </span>
-                    <div className="font-mono text-[11px] font-black text-slate-100 truncate">{currentWaypoint.name}</div>
-                    <div className="text-slate-400 text-[10px]">Coordinate: <span className="text-emerald-300 font-bold">{effLat.toFixed(4)}°N, {effLng.toFixed(4)}°E</span></div>
-                    
-                    <div className="pt-1">
-                      <div className="w-full bg-slate-900 rounded-full h-1 relative overflow-hidden">
-                        <div className="bg-emerald-400 h-full transition-all duration-500" style={{ width: `${waypointProgress}%` }} />
-                      </div>
-                      <div className="text-[9.5px] text-slate-500 flex justify-between mt-1">
-                        <span>Punto Successivo</span>
-                        <span>{waypointProgress}%</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Leaflet Tip Ribbon overlay */}
-                  <div className="absolute bottom-2.5 right-2.5 bg-slate-950/80 border border-slate-850 rounded-full py-0.5 px-3 text-[10px] text-slate-400 font-mono tracking-tight text-center whitespace-nowrap backdrop-blur-xs z-35">
-                    🧀 Tocca i campanacci sulla mappa reale per interagire
-                  </div>
-                </div>
-              ) : (
-                /* RADAR MAP INTERACTIVE SVG VISUAL FALLBACK */
-                <div className="relative aspect-[16/10] bg-gradient-to-b from-slate-900 to-emerald-950/60 rounded-3xl border-2 border-emerald-500/20 overflow-hidden shadow-inner group">
-                  
-                  {/* Geodesic radar sonar pinging ring */}
-                  <div className="absolute top-[48%] left-[50%] -translate-x-1/2 -translate-y-1/2 w-[70%] h-[70%] rounded-full border border-emerald-500/10 pointer-events-none animate-radar"></div>
-                  <div className="absolute top-[48%] left-[50%] -translate-x-1/2 -translate-y-1/2 w-[40%] h-[40%] rounded-full border border-emerald-500/20 pointer-events-none animate-radar delay-700"></div>
-
-                  {/* Mountains SVG background silhouette */}
-                  <svg className="absolute inset-0 w-full h-full opacity-10 pointer-events-none">
-                    <path d="M 0 160 L 150 50 L 300 200 L 450 100 L 600 220 L 750 90 L 900 180 Z" fill="none" stroke="#10b981" strokeWidth="2" strokeDasharray="3 3" />
-                    <path d="M 0 240 Q 180 180, 360 270 T 720 220 T 1200 300 L 1200 800 L 0 800 Z" fill="#10b981" />
-                  </svg>
-
-                  {/* Trainer in the very center */}
-                  <div className="absolute top-[48%] left-[50%] -translate-x-1/2 -translate-y-1/2 z-20 flex flex-col items-center">
-                    <div className="w-10 h-10 rounded-full bg-emerald-500 border-2 border-slate-100 flex items-center justify-center shadow-lg relative animate-float">
-                      <span className="text-xl">🧑‍🌾</span>
-                      <span className="absolute -inset-1 rounded-full border-2 border-emerald-300 animate-ping opacity-30"></span>
-                    </div>
-                    <span className="text-[9px] bg-slate-950/90 text-slate-200 py-0.5 px-2 rounded-full font-mono font-bold mt-1 shadow-md border border-slate-850">
-                      Tu (Vetta)
-                    </span>
-                  </div>
-
-                  {/* POKESTOPS: Traditional Dairy Casere — pascoli reali */}
-                  {REAL_CASERE.map((hp) => {
-                    const onCooldown = caseraCooldowns[hp.id] && caseraCooldowns[hp.id] > Date.now();
-                    return (
-                      <button
-                        key={hp.id}
-                        onClick={() => { playClickSfx(); setSelectedCasera(hp); setSpinState('idle'); setSpinRewards([]); }}
-                        className="absolute transform -translate-x-1/2 -translate-y-1/2 cursor-pointer focus:outline-none z-10"
-                        style={{ left: `${hp.x}%`, top: `${hp.y}%` }}
-                      >
-                        <div className="flex flex-col items-center group/marker">
-                          <div className={`w-8 h-8 rounded-full ${onCooldown ? 'bg-slate-700 border-slate-500' : 'bg-blue-500 border-white'} text-white flex items-center justify-center border-2 shadow-lg transition-transform hover:scale-110`}>
-                            <RotateCw className={`w-4 h-4 ${onCooldown ? 'text-slate-400' : 'text-blue-200 animate-spin-slow'}`} />
-                          </div>
-                          <span className="text-[10px] bg-slate-950/80 font-mono text-slate-300 py-0.5 px-1.5 rounded-md mt-1 group-hover/marker:bg-slate-950 border border-slate-800">
-                            {hp.name.split(" ")[0]} 🥛
-                          </span>
-                        </div>
-                      </button>
-                    );
-                  })}
-
-                  {/* WILD ROAMING VATSAMONS POPPING OUT */}
-                  {wildCows.map((wc) => (
-                    <button
-                      key={wc.id}
-                      onClick={() => initiateCatchWild(wc)}
-                      className="absolute transform -translate-x-1/2 -translate-y-1/2 cursor-pointer focus:outline-none z-10 animate-float"
-                      style={{ left: `${wc.x}%`, top: `${wc.y}%`, animationDelay: `${wc.x % 2}s` }}
-                    >
-                      <div className="flex flex-col items-center group/cow">
-                        <div className="relative">
-                          {/* Sparkly pointer background */}
-                          <div className="absolute -inset-1.5 bg-yellow-500/20 rounded-full animate-ping opacity-60"></div>
-                          <VatsamonAvatar breed={wc.vatsa.breed} rarity={wc.vatsa.rarity} className="w-14 h-14 bg-slate-950/40 rounded-full border border-amber-500/30 p-1 backdrop-blur-xs transition-transform group-hover/cow:scale-125" />
-                        </div>
-                        <span className="text-[10px] font-mono font-black bg-slate-950/95 text-yellow-400 border border-amber-500/20 px-1.5 py-0.5 rounded shadow">
-                          Potenza {wc.vatsa.cp}
-                        </span>
-                      </div>
-                    </button>
-                  ))}
-
-                  {/* Bottom instructions ribbon */}
-                  <div className="absolute bottom-2 left-1/2 -translate-x-1/2 bg-slate-950/80 border border-slate-800/80 rounded-full py-1 px-4 text-[10px] text-slate-400 font-mono tracking-tight text-center whitespace-nowrap backdrop-blur-xs">
-                    🐮 Sintonizzati {wildCows.length} Vatsamon selvatici nelle vicinanze
-                  </div>
-                </div>
-              )}
-
-            </div>
-
-            <GpsExplorerPanel
-              gpsState={gpsState}
-              gpsAccuracy={gpsAccuracy}
-              gpsUpdatedAt={gpsUpdatedAt}
-              gpsIssue={gpsIssue}
-              nextName={gpsTarget.name}
-              nextDistanceM={gpsTargetDistance}
-              direction={gpsDirection}
-              routeDistanceM={gpsRouteMatch?.distanceM ?? null}
-              claimedCheckpoints={claimedGpsCheckpoints.length}
-              totalCheckpoints={activeTrail.length - 1}
-              checkpointReady={checkpointReady}
-              checkpointClaimed={checkpointClaimed}
-              checkpointMission={checkpointMission}
-              nearby={nearbyGpsPlaces}
-              onToggleGps={toggleGps}
-              onCenter={centerGpsPosition}
-              onCheckIn={registraCheckpointGps}
-            />
-
-            {/* Overlay sentieri reali (disegna su Leaflet, non rende nulla nel DOM) */}
-            <TrailOverlay map={mapInstance} trail={selectedTrail} />
-
-            {/* SELETTORE SENTIERI REALI (trekking responsabile) */}
-            <div className="bg-slate-950 border border-slate-850 rounded-3xl p-4 space-y-3" id="trail-selector">
-              <h4 className="text-xs font-mono font-extrabold uppercase text-slate-300 tracking-wider flex items-center gap-1.5">
-                <MapPin className="w-4 h-4 text-amber-400" />
-                Sentieri reali della Valle d'Aosta
-              </h4>
-              <div className="flex flex-wrap gap-2">
-                <button
-                  onClick={() => { playClickSfx(); setSelectedTrailId(null); }}
-                  className={`text-[10px] font-mono font-bold px-3 py-1.5 rounded-full border transition-all ${selectedTrailId === null ? 'bg-emerald-500 text-[#0b0820] border-emerald-400' : 'bg-slate-900 text-slate-300 border-slate-800 hover:bg-slate-850'}`}
-                >
-                  🧭 Esplora libera
-                </button>
-                {VALDOSTAN_TRAILS.map((t) => (
-                  <button
-                    key={t.id}
-                    onClick={() => { playClickSfx(); setMapMode('real'); setSelectedTrailId(t.id); }}
-                    className={`text-[10px] font-mono font-bold px-3 py-1.5 rounded-full border transition-all ${selectedTrailId === t.id ? 'bg-amber-500 text-[#0b0820] border-amber-400' : 'bg-slate-900 text-amber-200 border-amber-700/40 hover:bg-slate-850'}`}
-                  >
-                    {t.location}
-                  </button>
-                ))}
-              </div>
-
-              {selectedTrail && (
-                <div className="bg-slate-900/60 border border-amber-700/30 rounded-2xl p-3 space-y-3" id="trail-panel">
-                  <div>
-                    <div className="text-sm font-mono font-black text-amber-300">{selectedTrail.name}</div>
-                    <p className="text-[10px] text-slate-400 leading-relaxed mt-0.5">{selectedTrail.description}</p>
-                  </div>
-
-                  <div className="grid grid-cols-4 gap-2 text-center">
-                    <div className="bg-slate-950 rounded-xl border border-slate-850 py-1.5">
-                      <div className="text-[9px] text-slate-500 font-mono uppercase">Difficoltà</div>
-                      <div className="text-[11px] font-mono font-black text-slate-100">{selectedTrail.difficulty}</div>
-                    </div>
-                    <div className="bg-slate-950 rounded-xl border border-slate-850 py-1.5">
-                      <div className="text-[9px] text-slate-500 font-mono uppercase">Lunghezza</div>
-                      <div className="text-[11px] font-mono font-black text-slate-100">{selectedTrail.lengthKm} km</div>
-                    </div>
-                    <div className="bg-slate-950 rounded-xl border border-slate-850 py-1.5">
-                      <div className="text-[9px] text-slate-500 font-mono uppercase">Durata</div>
-                      <div className="text-[11px] font-mono font-black text-slate-100">{selectedTrail.durationHours} h</div>
-                    </div>
-                    <div className="bg-slate-950 rounded-xl border border-slate-850 py-1.5">
-                      <div className="text-[9px] text-slate-500 font-mono uppercase">Dislivello</div>
-                      <div className="text-[11px] font-mono font-black text-slate-100">{selectedTrail.altitudeGain} m</div>
-                    </div>
-                  </div>
-
-                  <div className="bg-emerald-950/30 border border-emerald-900 rounded-2xl p-3 space-y-1.5">
-                    <div className="text-[10px] font-mono font-black text-emerald-400 uppercase tracking-widest flex items-center gap-1">
-                      <ShieldAlert className="w-3.5 h-3.5" /> Trekking responsabile
-                    </div>
-                    <ul className="space-y-1">
-                      {selectedTrail.responsibleTips.map((tip, i) => (
-                        <li key={i} className="flex items-start gap-1.5 text-[10px] text-slate-300 leading-snug">
-                          <span className="text-emerald-500 mt-0.5">✓</span>
-                          <span>{tip}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-
-                  <div className="text-[9.5px] text-slate-500 font-mono">
-                    Incontri tipici: <span className="text-amber-200">{selectedTrail.cowsToEncounter.join(' · ')}</span>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* LIVE TREKKING ACTIVITY FEED LOG */}
-            <div className="bg-slate-950 border border-slate-850 p-4 rounded-3xl space-y-2">
-              <h4 className="text-xs font-mono font-extrabold uppercase text-slate-300 tracking-wider flex items-center gap-1.5">
-                <Footprints className="w-4 h-4 text-emerald-500" />
-                Diario di Bordo del Camminatore Alpino
-              </h4>
-              <div className="bg-slate-900/60 border border-slate-850/80 rounded-2xl p-3 max-h-[140px] overflow-y-auto space-y-2 no-scrollbar">
-                {trekkingFeed.length === 0 ? (
-                  <p className="text-[10px] text-slate-500 font-mono">Inizia a camminare per incontrare nuovi eventi sul sentiero...</p>
-                ) : (
-                  trekkingFeed.map((feedItem, index) => (
-                    <div key={index} className="flex items-start gap-1.5 text-[10px] font-mono leading-relaxed border-b border-slate-850/30 pb-1.5 last:border-0 last:pb-0">
-                      <span className="text-emerald-500 mt-0.5">❖</span>
-                      <span className="text-slate-200">{feedItem}</span>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-
-            {/* RADAR SILHOUETTE NEARBY PANEL */}
-            <div className="bg-slate-950 border border-slate-850 rounded-3xl p-4">
-              <h4 className="text-xs font-mono font-extrabold uppercase text-slate-400 tracking-wider mb-2 flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5 text-amber-550" />
-                Vatsamon Selvatici Vicini (Sospetti)
-              </h4>
-              <div className="grid grid-cols-4 gap-3">
-                {WILD_BREEDS.map((breed, idx) => (
-                  <div key={idx} className="bg-slate-900 border border-slate-800 rounded-2xl p-3 flex flex-col items-center justify-center text-center relative overflow-hidden group">
-                    <div className="absolute top-1 left-2 text-[9px] font-mono text-slate-500">{(idx + 1) * 150}m</div>
-                    <div className="w-14 h-14 brightness-0 opacity-40 group-hover:opacity-60 transition-opacity">
-                      <VatsamonAvatar breed={breed} rarity="Comune" className="w-12 h-12" />
-                    </div>
-                    <span className="text-[9px] font-mono text-slate-400 mt-1 truncate max-w-full">{breed}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* CASCADING OVERLAY MODAL: SPIN MOUNTAIN DAIRY (POKESTOP) */}
-        {selectedCasera && (
-          <div className="fixed inset-0 bg-slate-950/90 z-50 flex items-center justify-center p-4 backdrop-blur-xs animate-fade-in" id="pokestop-modal">
-            <div className="bg-slate-900 border-2 border-blue-500 rounded-3xl max-w-md w-full p-6 text-center space-y-5 shadow-2xl relative">
-              
-              <button
-                onClick={() => { playClickSfx(); setSelectedCasera(null); }}
-                className="absolute top-4 right-4 text-slate-400 hover:text-slate-200 transition-colors p-1"
-              >
-                <X className="w-6 h-6" />
-              </button>
-
-              <div>
-                <span className="text-[10px] uppercase font-mono font-bold tracking-widest text-blue-400 px-2.5 py-1 rounded-full bg-blue-950/60 border border-blue-500/20">
-                  Casera d'Alpeggio 🏔️
-                </span>
-                <h3 className="text-xl font-mono font-black text-slate-100 mt-2">{selectedCasera.name}</h3>
-                <p className="text-xs text-slate-400">{selectedCasera.valley}</p>
-              </div>
-
-              {/* Spinning photo-disc graphics */}
-              <div className="flex justify-center py-4">
-                <button type="button" aria-label="Ruota il disco della casera" className="relative w-40 h-40 rounded-full border-4 border-blue-400 flex items-center justify-center bg-slate-800 overflow-hidden shadow-inner" onClick={handleSpinCasera}>
-                  
-                  {/* Photo representation in rotate transition frame */}
-                  <div 
-                    className="w-full h-full rounded-full transition-transform duration-[2800ms] ease-out border-4 border-slate-900"
-                    style={{ transform: `rotate(${spinDeg}deg)`, backgroundImage: 'radial-gradient(circle, #10b981 0%, #064e3b 100%)' }}
-                  >
-                    {/* Concentric rings styled like camera disc */}
-                    <div className="absolute inset-2 border-2 border-dashed border-white/20 rounded-full"></div>
-                    <div className="absolute inset-8 border border-white/10 rounded-full"></div>
-                    <div className="absolute inset-14 bg-slate-900 rounded-full flex items-center justify-center text-3xl">🥛</div>
-                  </div>
-
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent pointer-events-none"></div>
-                </button>
-              </div>
-
-              <div className="space-y-2">
-                {spinState === 'idle' && (
-                  <button
-                    onClick={handleSpinCasera}
-                    className="w-full bg-blue-600 hover:bg-blue-500 text-white font-mono font-black text-xs py-3 rounded-xl shadow-lg border-b-4 border-blue-800 cursor-pointer"
-                  >
-                    SPINGI PER RUOTARE IL DISCO!
-                  </button>
-                )}
-
-                {spinState === 'spinning' && (
-                  <div className="py-2 text-blue-400 font-mono text-xs font-bold animate-pulse">
-                    Munta & Analisi d'Alpeggio in corso...
-                  </div>
-                )}
-
-                {spinState === 'rewarded' && (
-                  <div className="space-y-3">
-                    <p className="text-xs text-green-400 font-mono font-bold">Rifornimento Sbloccato con Successo! 🎒</p>
-                    <div className="flex justify-center gap-2 flex-wrap">
-                      {spinRewards.map((r, i) => (
-                        <span key={i} className="text-xs font-mono font-black bg-slate-950 text-amber-300 border border-amber-500/20 py-1 px-3 rounded-full animate-bounce">
-                          {r}
-                        </span>
-                      ))}
-                    </div>
-                    <button
-                      onClick={() => setSelectedCasera(null)}
-                      className="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 font-mono text-xs py-2 rounded-xl"
-                    >
-                      Ottimo! Chiudi zaino
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {/* BOTTEGA DELLA CASERA — qui si spendono i Denari */}
-              <div className="text-left space-y-1.5" id="casera-shop">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-mono font-black uppercase tracking-widest text-amber-400">🛒 Bottega della Casera</span>
-                  <span className="text-[10px] font-mono text-amber-300">🪙 {trainer.coins}</span>
-                </div>
-                {[...Object.values(SAC_ITEMS), ...BOTTEGA_EXTRA].map((it) => (
-                  <div key={it.id} className="flex items-center gap-2 bg-slate-950 border border-slate-850 rounded-xl p-1.5">
-                    <span className="text-lg w-7 text-center" aria-hidden="true">{it.emoji}</span>
-                    <div className="flex-grow min-w-0">
-                      <div className="text-[11px] font-mono font-bold text-slate-100 truncate">{it.nome}</div>
-                      <div className="text-[9px] text-slate-500 truncate">{it.desc}</div>
-                    </div>
-                    <button
-                      data-buy={it.id}
-                      onClick={() => buyBottega(it.id, it.prezzo, it.nome)}
-                      disabled={trainer.coins < it.prezzo}
-                      className="flex-shrink-0 bg-amber-600 hover:bg-amber-500 disabled:opacity-40 text-[#0b0820] font-mono font-black text-[10px] px-2.5 py-1.5 rounded-lg min-h-[36px]"
-                    >
-                      {it.prezzo} 🪙
-                    </button>
-                  </div>
-                ))}
-              </div>
-
-              <p className="text-[10px] text-slate-400 italic font-sans px-4">
-                "{selectedCasera.description}"
-              </p>
-
-            </div>
-          </div>
-        )}
-
-        {/* WILD CAPTURE / AR WILD ENCOUNTER SCREEN */}
-        {isCapturingMode && encounterCow && (
-          <ThrowGauge isCapturingMode={isCapturingMode} captureStep={captureStep} speedRef={throwSpeedRef}>
-          <div className="fixed inset-0 bg-slate-950/95 z-50 flex items-center justify-center p-3 sm:p-4 animate-scale-in overflow-y-auto" id="encounter-screen">
-            <div className="encounter-flash" aria-hidden="true" />
-            <div className="bg-gradient-to-b from-sky-950 via-emerald-950 to-slate-900 border-2 border-emerald-500/50 rounded-3xl max-w-lg w-full p-4 sm:p-5 flex flex-col gap-3 sm:gap-4 shadow-2xl relative max-h-[94dvh] overflow-y-auto overflow-x-hidden no-scrollbar my-auto">
-              
-              {/* Back out button */}
-              <button
-                onClick={() => { playClickSfx(); setIsCapturingMode(false); setEncounterCow(null); }}
-                className="absolute top-4 left-4 z-20 bg-slate-950/70 text-slate-300 py-1.5 px-3 rounded-xl hover:text-slate-100 transition-colors flex items-center gap-1 cursor-pointer text-xs font-bold"
-              >
-                <X className="w-4 h-4" />
-                Fuggi al sentiero
-              </button>
-
-              {/* Stat HUD Top Card */}
-              <div className="bg-slate-950/80 border border-slate-850 p-3 rounded-2xl z-10 flex items-center justify-between gap-4 mt-6">
-                <div>
-                  <h3 className="font-mono font-black text-amber-400 tracking-tight flex items-center gap-1.5 text-base">
-                    {encounterCow.name}
-                  </h3>
-                  <div className="flex items-center gap-1 text-[10.5px] text-slate-400 mt-0.5">
-                    <span>Razza: {encounterCow.breed}</span>
-                    <span className="text-slate-600">•</span>
-                    <span className={`font-bold ${encounterCow.rarity === 'Leggendaria' ? 'text-amber-400' : encounterCow.rarity === 'Epica' ? 'text-purple-400' : 'text-blue-400'}`}>{encounterCow.rarity}</span>
-                  </div>
-                </div>
-
-                <div className="text-right">
-                  <div className="text-[10px] text-slate-500 font-mono">POTENZA</div>
-                  <div className="font-mono font-black text-xl text-yellow-400 leading-none">{encounterCow.cp}</div>
-                </div>
-              </div>
-
-              {/* FASE 3 — Valutazione del Giudice: evento speciale per Reine rare+ */}
-              {encounterCow.rarity !== 'Comune' && captureStep === 'aiming' && (
-                valutazione === null ? (
-                  <button id="open-valutazione" onClick={() => { playClickSfx(); setShowValutazione(true); }}
-                    className="bg-amber-950/40 border border-amber-600/50 text-amber-300 font-mono font-black text-[11px] py-2 rounded-xl flex items-center justify-center gap-2 hover:bg-amber-900/40">
-                    ⚖️ Valuta la Reina (Giudice) — migliora l'affidamento
-                  </button>
-                ) : (
-                  <div className="bg-emerald-950/40 border border-emerald-600/40 text-emerald-300 font-mono text-[11px] py-2 rounded-xl text-center" id="valutazione-esito">
-                    ⚖️ Valutazione del giudice: <b>{valutazione}/100</b> · affidamento più probabile
-                  </div>
-                )
-              )}
-
-              {/* IMMERSIVE MIDDLE STAGE: BOUNCING COW & SHRINKING CAPTURE RING */}
-              <div className="flex-grow flex flex-col items-center justify-center relative my-4">
-                
-                {/* Simulated landscape grid */}
-                <div className="absolute inset-x-0 bottom-10 h-1 bg-emerald-500/10 border-b border-emerald-500/5 pointer-events-none"></div>
-
-                <div className="relative z-10 flex flex-col items-center">
-                  
-                  {/* Bouncing Cow Avatar with Custom Keyframe Glow */}
-                  <div className={`transition-all duration-300 ${captureStep === 'wobbling' ? 'scale-0 translate-y-24 opacity-0 rotate-180 duration-[1200ms]' : captureStep === 'secured' ? 'opacity-0 scale-0' : 'animate-bounce'}`}>
-                    <CowVisual cow={encounterCow} className="w-36 h-36" />
-                  </div>
-
-                  {/* Circular target shrinking selector HUD (S4 perf: tick isolato in ThrowGauge) */}
-                  {captureStep === 'aiming' && (
-                    <CaptureRing hasFedApple={hasFedApple} isLegendary={encounterCow.rarity === 'Leggendaria'} />
-                  )}
-
-                  {/* Golden schweiz bell capture wobbling representation */}
-                  {captureStep === 'wobbling' && (
-                    <div className="animate-wobble flex flex-col items-center">
-                      <div className="w-16 h-16 bg-amber-500 rounded-full border-2 border-white flex items-center justify-center shadow-2xl relative">
-                        <span className="text-3xl">🔔</span>
-                        <span className="absolute -top-1 -right-1 bg-red-500 w-3 h-3 rounded-full animate-ping"></span>
-                      </div>
-                      <span className="text-[10px] font-mono font-bold text-amber-300 mt-2 animate-pulse">SI FIDERÀ?</span>
-                    </div>
-                  )}
-
-                  {/* Success capture sparkle overlay */}
-                  {captureStep === 'secured' && (
-                    <div className="text-center p-3 space-y-2 animate-scale-in">
-                      <div className="w-16 h-16 rounded-full bg-emerald-500/20 border-2 border-emerald-400 mx-auto flex items-center justify-center text-3xl animate-bounce">
-                        ✨💖✨
-                      </div>
-                      <h4 className="font-mono font-black text-xl text-emerald-400 capitalize">REINA SILLY CATTURATA!</h4>
-                      <p className="text-xs text-slate-300 font-mono">+120 XP • +25 Monete 🪙</p>
-                    </div>
-                  )}
-
-                  {/* Escaped alert */}
-                  {captureStep === 'escaped' && (
-                    <div className="text-center p-3 space-y-2 animate-pulse">
-                      <div className="w-16 h-16 rounded-full bg-red-500/20 border-2 border-red-400 mx-auto flex items-center justify-center text-3xl">
-                        💨🐂
-                      </div>
-                      <h4 className="font-mono font-black text-lg text-red-400">Si è spezzato lo scontro!</h4>
-                      <p className="text-xs text-slate-300">La Regina è sfuggita lungo i boschi.</p>
-                    </div>
-                  )}
-
-                </div>
-
-              </div>
-
-              {/* ADVENTURE CAPTURE UTILITY CONSOLE BOX */}
-              <div className="bg-slate-950/95 border-b-2 border-slate-850 p-4 rounded-2xl z-10 space-y-3">
-                
-                {/* Console Log Logline */}
-                <div className="text-center text-[11px] font-mono text-emerald-400 leading-none">
-                  📟 {captureLogMsg}
-                </div>
-
-                {captureStep === 'aiming' && (() => {
-                  // Probabilità stimata con la ball selezionata (stile Pokémon GO).
-                  const selMeta = BALL_META[selectedBallId];
-                  const estP = estimateCatch(encounterCow.rarity, selectedBallId, hasFedApple);
-                  const diff = catchDifficulty(estP);
-                  const pctLabel = selMeta?.mult === null ? '100%' : `${Math.round(estP * 100)}%`;
-                  return (
-                  <div className="space-y-3">
-
-                    {/* Indicatore difficoltà di cattura (reagisce a ball + mela + rarità) */}
-                    <div
-                      id="catch-chance"
-                      className="flex items-center justify-between rounded-xl px-3 py-1.5 border"
-                      style={{ borderColor: diff.color, backgroundColor: `${diff.color}1a` }}
-                    >
-                      <div className="flex items-center gap-2">
-                        <span className="w-2.5 h-2.5 rounded-full animate-pulse" style={{ backgroundColor: diff.color }} />
-                        <span className="text-[10px] font-mono font-black tracking-wide" style={{ color: diff.color }}>
-                          CATTURA {diff.label}
-                        </span>
-                      </div>
-                      <span className="text-[11px] font-mono font-black" style={{ color: diff.color }}>{pctLabel}</span>
-                    </div>
-
-                    {/* Throw speed bar indicator (S4 perf: tick isolato in ThrowGauge) */}
-                    <ThrowPowerBar />
-
-                    {/* Selettore del campanaccio: una tessera per potenza di richiamo */}
-                    <div id="ball-selector" className="space-y-1">
-                      <div className="flex items-center justify-between text-[9px] font-mono uppercase tracking-wider text-slate-400">
-                        <span>Scegli il campanaccio</span>
-                        <span className="text-slate-500">{selMeta?.bestFor}</span>
-                      </div>
-                      <div className="grid grid-cols-4 gap-1.5">
-                        {BALL_ORDER.map(id => {
-                          const meta = BALL_META[id];
-                          const item = backpack.find(b => b.id === id);
-                          const qty = item?.quantity ?? 0;
-                          const selected = selectedBallId === id;
-                          const out = qty <= 0;
-                          return (
-                            <button
-                              key={id}
-                              id={`ball-${id}`}
-                              onClick={() => { if (!out) { playClickSfx(); setSelectedBallId(id); } }}
-                              disabled={out}
-                              title={meta.description}
-                              className={`relative bg-slate-900 hover:bg-slate-850 rounded-xl py-2 px-1 flex flex-col items-center justify-center text-center transition-all active:scale-95 cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed ${selected ? 'border-2' : 'border border-slate-800'}`}
-                              style={selected ? { borderColor: meta.color, boxShadow: `0 0 10px ${meta.color}66` } : undefined}
-                            >
-                              {/* badge quantità */}
-                              <span
-                                className="absolute -top-1.5 -right-1.5 min-w-4 h-4 px-1 rounded-full text-[10px] font-mono font-black flex items-center justify-center text-[#0b0820]"
-                                style={{ backgroundColor: meta.color }}
-                              >
-                                {qty}
-                              </span>
-                              <span className="text-lg leading-none">{meta.emoji}</span>
-                              <span className="text-[10px] font-mono font-bold mt-1 leading-tight" style={{ color: selected ? meta.color : '#cbd5e1' }}>
-                                {meta.short}
-                              </span>
-                              <span className="text-[10px] font-mono font-black mt-0.5" style={{ color: meta.color }}>
-                                {meta.mult === null ? '100%' : `×${meta.mult}`}
-                              </span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                    {/* Azioni: mela alpina + lancio */}
-                    <div className="grid grid-cols-[1fr_1.4fr] gap-2 py-0.5">
-                      {/* Interactive Feed apple */}
-                      <button
-                        onClick={handleFeedApple}
-                        disabled={hasFedApple || backpack.find(item => item.id === 'item-apple')?.quantity === 0}
-                        className="bg-slate-900 hover:bg-slate-850 border border-slate-800 disabled:opacity-50 py-2 rounded-xl flex flex-col items-center justify-center text-center cursor-pointer active:scale-95 transition-all group"
-                      >
-                        <span className="text-xl group-hover:scale-125 transition-transform">🍏</span>
-                        <span className="text-[9px] font-mono text-slate-300 mt-1">{hasFedApple ? 'Mela offerta!' : 'Mela Alpina'}</span>
-                        <span className="text-[9px] font-bold text-emerald-400 mt-0.5">×1.5 ({backpack.find(item => item.id === 'item-apple')?.quantity || 0})</span>
-                      </button>
-
-                      {/* Launch Trigger Button */}
-                      <button
-                        onClick={executeThrow}
-                        className="text-[#0b0820] font-mono font-black text-sm px-2 rounded-xl border-b-4 flex flex-col items-center justify-center text-center active:scale-95 cursor-pointer"
-                        style={{ backgroundColor: selMeta?.color ?? '#f59e0b', borderColor: 'rgba(0,0,0,0.35)' }}
-                        id="throw-btn"
-                      >
-                        <span className="text-lg">{selMeta?.emoji ?? '📢'}</span>
-                        <span>SUONA · {selMeta?.short || ''}</span>
-                      </button>
-                    </div>
-
-                  </div>
-                  );
-                })()}
-
-                {captureStep !== 'aiming' && (
-                  <div className="flex justify-center pt-2">
-                    <button
-                      onClick={() => { playClickSfx(); setIsCapturingMode(false); setEncounterCow(null); }}
-                      className="bg-slate-900 hover:bg-slate-850 border border-slate-800 text-slate-300 font-mono text-xs py-2 px-8 rounded-xl cursor-pointer"
-                    >
-                      Torna al Sentiero
-                    </button>
-                  </div>
-                )}
-
-              </div>
-
-            </div>
-          </div>
-          </ThrowGauge>
-        )}
-
-        {/* FASE 3 — Overlay Valutazione del Giudice (sopra l'incontro) */}
-        {showValutazione && encounterCow && (
-          <Suspense fallback={<SceneFallback />}>
-            <ValutazioneReina
-              cow={encounterCow}
-              playClick={playClickSfx}
-              onClose={() => setShowValutazione(false)}
-              onDone={(acc) => { setValutazione(acc); setShowValutazione(false); }}
-            />
-          </Suspense>
-        )}
+        {/* WILD CAPTURE / AR WILD ENCOUNTER SCREEN + Valutazione (S7: estratte in CaptureScreen) */}
+        <CaptureScreen
+          isCapturingMode={isCapturingMode}
+          encounterCow={encounterCow}
+          captureStep={captureStep}
+          throwSpeedRef={throwSpeedRef}
+          playClickSfx={playClickSfx}
+          setIsCapturingMode={setIsCapturingMode}
+          setEncounterCow={setEncounterCow}
+          valutazione={valutazione}
+          showValutazione={showValutazione}
+          setShowValutazione={setShowValutazione}
+          setValutazione={setValutazione}
+          hasFedApple={hasFedApple}
+          captureLogMsg={captureLogMsg}
+          selectedBallId={selectedBallId}
+          setSelectedBallId={setSelectedBallId}
+          backpack={backpack}
+          handleFeedApple={handleFeedApple}
+          executeThrow={executeThrow}
+        />
 
         {/* VIEW 2: PERCORSI — pianificazione separata dall'esplorazione */}
         {activeTab === 'routes' && (
@@ -3154,165 +2559,31 @@ export default function App() {
         )
       )}
 
-      {/* PROFILO & SALVATAGGIO (risorse di test, export/import progressi) */}
+      {/* PROFILO & SALVATAGGIO (S7: estratto in ProfileModal) */}
       {showProfile && (
-        <div className="fixed inset-0 bg-slate-950/95 z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto" id="profile-modal" onClick={() => setShowProfile(false)}>
-          <div className="bg-slate-900 border-2 border-emerald-500/40 rounded-3xl max-w-md w-full p-5 space-y-4 shadow-2xl my-auto max-h-[94dvh] overflow-y-auto no-scrollbar" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-mono font-black text-emerald-400 flex items-center gap-2">👨‍🌾 Profilo & Salvataggio</h3>
-              <button onClick={() => setShowProfile(false)} className="text-slate-400 hover:text-slate-200 p-1"><X className="w-5 h-5" /></button>
-            </div>
-
-            {/* riepilogo */}
-            <div className="grid grid-cols-3 gap-2 text-center">
-              <div className="bg-slate-950 rounded-xl border border-slate-850 py-2"><div className="text-[9px] text-slate-500 font-mono uppercase">Reines</div><div className="text-sm font-mono font-black text-emerald-300">{vatsadex.length}</div></div>
-              <div className="bg-slate-950 rounded-xl border border-slate-850 py-2"><div className="text-[9px] text-slate-500 font-mono uppercase">Livello</div><div className="text-sm font-mono font-black text-amber-300">{trainer.level}</div></div>
-              <div className="bg-slate-950 rounded-xl border border-slate-850 py-2"><div className="text-[9px] text-slate-500 font-mono uppercase">Denari</div><div className="text-sm font-mono font-black text-amber-300">{trainer.coins}</div></div>
-            </div>
-
-            {/* PRESTIGIO — grado Amis des Reines + Stella di Pedigree (sink Fontina) */}
-            <div className="bg-slate-950 rounded-2xl border border-amber-700/40 p-3 space-y-2">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-[9px] text-slate-500 font-mono uppercase tracking-widest">Grado Amis des Reines</div>
-                  <div className="text-sm font-mono font-black text-amber-300">{gradoStato.grado.emoji} {gradoStato.grado.nome}{pedigreeStars > 0 ? ` ${'★'.repeat(Math.min(pedigreeStars, 5))}` : ''}</div>
-                  <div className="text-[9px] text-slate-400 italic">{gradoStato.grado.perk}</div>
-                </div>
-                <div className="text-right">
-                  <div className="text-[9px] text-slate-500 font-mono uppercase">Fontina</div>
-                  <div className="text-base font-mono font-black" style={{ color: VALUTE.fontina.colore }}>🧀 {fontina}</div>
-                </div>
-              </div>
-              {gradoStato.next && (
-                <div>
-                  <div className="flex justify-between text-[10px] font-mono text-slate-500"><span>Prestigio {gradoStato.prestigio}</span><span>→ {gradoStato.next.nome}</span></div>
-                  <div className="h-1.5 rounded-full bg-slate-800 overflow-hidden mt-0.5"><div className="h-full bg-gradient-to-r from-amber-500 to-amber-300" style={{ width: `${Math.round(gradoStato.versoNext * 100)}%` }} /></div>
-                </div>
-              )}
-              <button onClick={buyPedigreeStar} id="buy-pedigree" disabled={pedigreeStars >= PEDIGREE_STAR_CAP}
-                className="w-full bg-amber-600 hover:bg-amber-500 disabled:opacity-40 text-[#0b0820] font-mono font-black text-[11px] py-2.5 rounded-xl border-b-4 border-amber-800">
-                {pedigreeStars >= PEDIGREE_STAR_CAP ? '★ Prestigio massimo raggiunto' : `★ Stella di Pedigree — ${costoStellaPedigree(pedigreeStars)} 🧀`}
-              </button>
-              <p className="text-[10px] text-slate-500 text-center leading-snug">La Désarpa premia chi ha portato lontano la propria mandria: ogni Stella è un riconoscimento permanente (+Rispetto).</p>
-            </div>
-
-            {/* COME SI GIOCA — la lezione di Mémé, ripetibile quando si vuole */}
-            <button
-              id="replay-tutorial"
-              onClick={() => { playClickSfx(); setShowProfile(false); setActiveBattle(TUTORIAL_BATTLE); }}
-              className="w-full flex items-center gap-2.5 bg-slate-950 rounded-2xl border border-[#c8102e]/40 p-3 text-left"
-            >
-              <span className="text-2xl" aria-hidden="true">👵</span>
-              <div>
-                <div className="text-[10px] font-mono font-black text-rose-300 uppercase tracking-widest">Come si gioca — la lezione di Mémé</div>
-                <p className="text-[10px] text-slate-500 leading-snug">Rifai la bataille guidata con Fripouille: barra, fiato, tell e contromosse, un colpo alla volta.</p>
-              </div>
-            </button>
-
-            {/* LE PAROLE DEL PATOIS — si guadagnano compiendole */}
-            <div className="bg-slate-950 rounded-2xl border border-slate-850 p-3 space-y-1.5" id="patois-raccolta">
-              <div className="text-[10px] font-mono font-black text-slate-300 uppercase tracking-widest">🗣️ Le tue parole di patois ({parolePatois().length}/{TOTALE_PAROLE})</div>
-              {vociSbloccate().length === 0 ? (
-                <p className="text-[10px] text-slate-500 leading-snug">Il patois non si studia: si vive. Ogni gesto della tradizione ti insegna la sua parola (la prima nascita in stalla, la salita all'alpe, il primo trofeo…).</p>
-              ) : (
-                <div className="space-y-1">
-                  {vociSbloccate().map(v => (
-                    <div key={v.chiave} className="text-[10px] font-mono text-slate-300 leading-snug">
-                      <b className="text-amber-300 italic font-display">{v.patois ?? v.fr}</b>
-                      <span className="text-slate-500"> · {v.it} / {v.fr}</span>
-                      <span className="block text-slate-500">{v.def}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-              {(() => {
-                const mancanti = Object.entries(PATOIS_TRIGGERS).filter(([k]) => !parolePatois().includes(k));
-                return mancanti.length > 0 && (
-                  <p className="text-[9px] text-slate-600 leading-snug pt-1">Prossima parola: {mancanti[0][1]}.</p>
-                );
-              })()}
-            </div>
-
-            {/* BACHECA DEI TROFEI — mécro, sonnaille, collari delle tappe vinte */}
-            <div className="bg-slate-950 rounded-2xl border border-slate-850 p-3 space-y-1.5" id="bacheca-trofei">
-              <div className="text-[10px] font-mono font-black text-slate-300 uppercase tracking-widest">🏆 Bacheca dei trofei ({trofei.length})</div>
-              {trofei.length === 0 ? (
-                <p className="text-[10px] text-slate-500 leading-snug">Vinci una tappa ufficiale del calendario per il tuo primo <b className="text-rose-400">mécro</b> — il bosquet di fiori rossi che si porta sulle corna.</p>
-              ) : (
-                <div className="space-y-1">
-                  {trofei.slice(0, 12).map((t) => (
-                    <div key={t.id} className="flex items-center gap-2 text-[10px] font-mono text-slate-300">
-                      <span aria-hidden="true">{TROFEO_META[t.tipo].emoji}</span>
-                      <span className="font-bold">{TROFEO_META[t.tipo].nome}</span>
-                      <span className="text-slate-500 truncate">· {t.comune} · {t.categoria} cat. · {t.reinaNome}</span>
-                    </div>
-                  ))}
-                  {trofei.length > 12 && <div className="text-[9px] text-slate-500">…e altri {trofei.length - 12}</div>}
-                </div>
-              )}
-            </div>
-
-            {/* risorse di test */}
-            <div className="space-y-2">
-              <div className="text-[10px] font-mono font-black text-slate-300 uppercase tracking-widest">🎒 Risorse di test</div>
-              <button onClick={restockResources} className="w-full bg-emerald-600 hover:bg-emerald-500 text-[#0b0820] font-mono font-black text-xs py-3 rounded-xl border-b-4 border-emerald-800">
-                RIFORNISCI TUTTO (balls, +2000 🪙, Lv ≥ 12)
-              </button>
-            </div>
-
-            {/* salvataggio */}
-            <div className="space-y-2">
-              <div className="text-[10px] font-mono font-black text-slate-300 uppercase tracking-widest">💾 Salva i progressi</div>
-              <p className="text-[10px] text-slate-400 leading-snug">Copia il codice o scarica il file: serve a riportare i progressi su un altro dispositivo o dopo un nuovo deploy (i salvataggi sono per-browser).</p>
-              <div className="grid grid-cols-2 gap-2">
-                <button onClick={copySaveCode} className="bg-slate-950 hover:bg-slate-850 border border-slate-800 text-slate-200 font-mono font-bold text-[11px] py-2.5 rounded-xl">📋 Copia codice</button>
-                <button onClick={downloadSave} className="bg-slate-950 hover:bg-slate-850 border border-slate-800 text-slate-200 font-mono font-bold text-[11px] py-2.5 rounded-xl">💾 Scarica file</button>
-              </div>
-            </div>
-
-            {/* ripristino */}
-            <div className="space-y-2">
-              <div className="text-[10px] font-mono font-black text-slate-300 uppercase tracking-widest">📥 Ripristina</div>
-              <textarea
-                value={importText}
-                onChange={(e) => setImportText(e.target.value)}
-                placeholder="Incolla qui il codice di salvataggio…"
-                className="w-full h-20 bg-slate-950 border border-slate-800 rounded-xl p-2 text-[11px] font-code text-slate-200 resize-none no-scrollbar"
-              />
-              <button onClick={importSave} className="w-full bg-blue-600 hover:bg-blue-500 text-white font-mono font-black text-xs py-2.5 rounded-xl border-b-4 border-blue-800">IMPORTA SALVATAGGIO</button>
-              {(() => {
-                const hasBackup = !!localStorage.getItem(BACKUP_KEY);
-                return hasBackup && (
-                  <button onClick={undoLastRestore} className="w-full bg-slate-950 hover:bg-slate-850 border border-amber-700/40 text-amber-300 font-mono font-bold text-[11px] py-2.5 rounded-xl">
-                    ↩️ Annulla ultimo ripristino
-                  </button>
-                );
-              })()}
-            </div>
-
-            {profileMsg && <div className="text-[11px] font-mono text-emerald-300 bg-emerald-950/40 border border-emerald-900 rounded-xl p-2">{profileMsg}</div>}
-
-            {/* account */}
-            {firebaseEnabled && user && !user.isGuest && (
-              <button
-                onClick={() => showConfirm(
-                  "Uscire dall'account?",
-                  "I progressi vengono sincronizzati col cloud prima di uscire.",
-                  () => {
-                    saveCloudSave(user.uid).catch(() => { /* sync best-effort: non blocca il logout */ })
-                      .finally(() => { signOut().catch(() => { /* logout locale già avvenuto: best-effort */ }); });
-                  },
-                  { confirmLabel: "Esci", danger: true },
-                )}
-                className="w-full flex items-center justify-center gap-2 bg-slate-950 hover:bg-slate-850 border border-slate-800 text-slate-300 font-mono font-bold text-[11px] py-2.5 rounded-xl"
-              >
-                <LogOut className="w-3.5 h-3.5" /> Esci dall'account
-              </button>
-            )}
-
-            <button onClick={resetAll} className="w-full text-[10px] font-mono text-rose-400 hover:text-rose-300 underline pt-1">Azzera tutti i progressi</button>
-          </div>
-        </div>
+        <ProfileModal
+          onClose={() => setShowProfile(false)}
+          reinesCount={vatsadex.length}
+          level={trainer.level}
+          coins={trainer.coins}
+          gradoStato={gradoStato}
+          pedigreeStars={pedigreeStars}
+          fontina={fontina}
+          onBuyPedigreeStar={buyPedigreeStar}
+          onReplayTutorial={handleReplayTutorial}
+          trofei={trofei}
+          onRestockResources={restockResources}
+          onCopySaveCode={copySaveCode}
+          onDownloadSave={downloadSave}
+          importText={importText}
+          onImportTextChange={setImportText}
+          onImportSave={importSave}
+          onUndoLastRestore={undoLastRestore}
+          profileMsg={profileMsg}
+          canLogout={canLogoutFromProfile}
+          onLogout={handleLogoutClick}
+          onResetAll={resetAll}
+        />
       )}
 
       {/* FOOTER GENERAL LEGALS AND RESET ACCENTS */}

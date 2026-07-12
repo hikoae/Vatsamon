@@ -69,6 +69,18 @@ export interface Vatsamon {
   lineTrait?: string;
 }
 
+// Overworld spawned wild Vatsamon (mappa radar/leaflet). Estratta da App.tsx
+// (S7) per essere condivisa col tipo props di OverworldMapView.
+export interface WildCow {
+  id: string;
+  vatsa: Vatsamon;
+  lat?: number;
+  lng?: number;
+  x: number; // coordinates relative to map width
+  y: number;
+  angle: number;
+}
+
 export interface Hotspot {
   id: string;
   name: string;
