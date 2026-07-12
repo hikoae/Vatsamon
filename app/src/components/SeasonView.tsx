@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "motion/react";
 import {
   Trophy, CalendarDays, Swords, MapPin, Heart, Check, Sparkles,
   ChevronRight, Star, Crown, Info, Medal, BookOpen, Scroll, Languages,
-  Newspaper, Clock, Megaphone, ExternalLink, ShieldCheck, BadgeCheck, FlaskConical,
+  Newspaper, Clock, Megaphone, ExternalLink, ShieldCheck, BadgeCheck, FlaskConical, Ticket,
 } from "lucide-react";
 import { CowVisual } from "./CowVisual";
 import { RisultatiAdmin } from "./RisultatiAdmin";
@@ -13,12 +13,18 @@ import {
   winnersFor, cowsByCategory, buildRounds, bracketChampion, roundLabel,
   ALBO_DORO, LEGGENDE, ALBO_ANNI, reinaByName, SOGLIE_PER_FASE,
 } from "../data/season";
+import {
+  tappaPronosticabile, poolPronosticoTappa, esitoPronosticoTappa,
+  LS_PRONOSTICI_TAPPA, LS_PRONOSTICI_TAPPA_SCORED,
+  PronosticiTappa, PronosticiTappaScored,
+} from "../data/eliminatoire";
 import { CULTURA, GLOSSARIO, FONTI, STORIA } from "../data/bataillesContent";
 import { loadNews, NewsItem } from "../data/news";
 import { SPONSOR_SLOTS } from "../config/brand";
 import { useLang, tr, Lang } from "../i18n/hub";
 import { useAuth } from "../lib/auth";
 import { ADMIN_UIDS, getAllRisultati } from "../lib/risultati";
+import { oggiISO } from "../lib/oggi";
 
 /**
  * STAGIONE — il "second screen" ufficiale della stagione Batailles de Reines.
@@ -52,34 +58,36 @@ function fmtDate(iso: string, lang: Lang = "it"): string {
 function monthShort(iso: string, lang: Lang = "it"): string {
   return new Intl.DateTimeFormat(LOCALE[lang], { month: "short" }).format(new Date(iso + "T12:00:00"));
 }
-function toISO(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
 
-export function SeasonView({ onReward }: { onReward?: (coins: number, xp: number) => void }) {
+export function SeasonView({ onReward }: { onReward?: (coins: number, xp: number, kind?: "tabellone" | "tappa") => void }) {
   const [sub, setSub] = useState<SubTab>("notizie");
   const [lang, setLang] = useLang();
   const [picks, setPicks] = useState<Record<string, string>>(() => loadJSON(LS_PICKS, {}));
   const [followId, setFollowId] = useState<string | null>(() => localStorage.getItem(LS_FOLLOW));
+  const [tappaPicks, setTappaPicks] = useState<PronosticiTappa>(() => loadJSON(LS_PRONOSTICI_TAPPA, {}));
   const [catSel, setCatSel] = useState<CategoriaId>("1");
   const { user } = useAuth();
   const isAdmin = Boolean(user && ADMIN_UIDS.includes(user.uid));
   // Bump per forzare un re-render dopo il fetch bulk dei risultati reali
   // (winnersFor legge la cache in memoria in modo sincrono, vedi lib/risultati.ts).
-  const [, bumpRisultati] = useState(0);
+  const [risultatiTick, bumpRisultati] = useState(0);
 
   useEffect(() => { localStorage.setItem(LS_PICKS, JSON.stringify(picks)); }, [picks]);
   useEffect(() => {
     if (followId) localStorage.setItem(LS_FOLLOW, followId);
     else localStorage.removeItem(LS_FOLLOW);
   }, [followId]);
+  useEffect(() => { localStorage.setItem(LS_PRONOSTICI_TAPPA, JSON.stringify(tappaPicks)); }, [tappaPicks]);
   useEffect(() => {
     let alive = true;
     getAllRisultati().then(() => { if (alive) bumpRisultati((v) => v + 1); });
     return () => { alive = false; };
   }, []);
 
-  const todayISO = toISO(new Date());
+  // `oggiISO()` (non `new Date()` locale) rispetta `?oggi=YYYY-MM-DD`: la
+  // finestra dei pronostici di tappa deve essere time-travel-abile per i
+  // test E2E/demo, come il resto della stagione (App.tsx, eliminatoire.ts).
+  const todayISO = oggiISO();
 
   // Prossimo evento in calendario (prima bataille non disputata da oggi in poi).
   const nextEventId = useMemo(() => {
@@ -87,8 +95,17 @@ export function SeasonView({ onReward }: { onReward?: (coins: number, xp: number
     return fut.length ? fut[0].id : null;
   }, [todayISO]);
 
-  // Punteggio "Tifoso": premia partecipazione (pronostici + seguire una Reina).
-  const puntiTifoso = Object.keys(picks).length * 10 + (followId ? 20 : 0);
+  // Tappa (non finale) su cui la schedina pronostici è ancora apribile —
+  // chiude all'inizio del giorno di gara (data/eliminatoire.ts).
+  const tappaInFinestra = useMemo(() => tappaPronosticabile(todayISO), [todayISO]);
+
+  const tappaPicksCount = useMemo(
+    () => Object.values(tappaPicks).reduce((n, byCat) => n + Object.keys(byCat).length, 0),
+    [tappaPicks],
+  );
+
+  // Punteggio "Tifoso": premia partecipazione (pronostici finale + di tappa + seguire una Reina).
+  const puntiTifoso = Object.keys(picks).length * 10 + tappaPicksCount * 10 + (followId ? 20 : 0);
 
   // Ricompensa (monete/XP) una sola volta per categoria con tabellone completato.
   useEffect(() => {
@@ -106,6 +123,28 @@ export function SeasonView({ onReward }: { onReward?: (coins: number, xp: number
     if (changed) localStorage.setItem(LS_REWARDED, JSON.stringify(rewarded));
   }, [picks, onReward]);
 
+  // Ricompensa pronostici di tappa: SOLO contro il risultato ufficiale (mai
+  // il simulato — "attesa" finché l'admin non pubblica), grant idempotente
+  // via LS_PRONOSTICI_TAPPA_SCORED (riaprire l'app non duplica il premio).
+  useEffect(() => {
+    if (!onReward) return;
+    const scored = loadJSON<PronosticiTappaScored>(LS_PRONOSTICI_TAPPA_SCORED, {});
+    let changed = false;
+    for (const [eventId, byCat] of Object.entries(tappaPicks)) {
+      for (const cat of Object.keys(byCat) as CategoriaId[]) {
+        if (scored[eventId]?.includes(cat)) continue;
+        const pickedId = byCat[cat];
+        if (!pickedId) continue;
+        const esito = esitoPronosticoTappa(eventId, cat, pickedId);
+        if (esito === "attesa") continue;
+        scored[eventId] = [...(scored[eventId] ?? []), cat];
+        changed = true;
+        if (esito === "corretto") onReward(10, 25, "tappa");
+      }
+    }
+    if (changed) localStorage.setItem(LS_PRONOSTICI_TAPPA_SCORED, JSON.stringify(scored));
+  }, [tappaPicks, onReward, risultatiTick]);
+
   const followCow = useMemo<Vatsamon | null>(() => {
     if (!followId) return null;
     for (const c of CATEGORIES) {
@@ -114,6 +153,10 @@ export function SeasonView({ onReward }: { onReward?: (coins: number, xp: number
     }
     return null;
   }, [followId]);
+
+  function pickTappa(eventId: string, cat: CategoriaId, cowId: string) {
+    setTappaPicks((prev) => ({ ...prev, [eventId]: { ...prev[eventId], [cat]: cowId } }));
+  }
 
   return (
     <div className="max-w-2xl mx-auto space-y-4" id="season-view">
@@ -191,7 +234,10 @@ export function SeasonView({ onReward }: { onReward?: (coins: number, xp: number
             <NewsSection lang={lang} todayISO={todayISO} onGoCalendario={() => setSub("calendario")} onGoTabellone={() => setSub("tabellone")} />
           )}
           {sub === "calendario" && (
-            <CalendarSection lang={lang} nextEventId={nextEventId} todayISO={todayISO} onGoPronostici={() => setSub("tabellone")} />
+            <CalendarSection
+              lang={lang} nextEventId={nextEventId} todayISO={todayISO} onGoPronostici={() => setSub("tabellone")}
+              tappaInFinestra={tappaInFinestra} tappaPicks={tappaPicks} onPickTappa={pickTappa}
+            />
           )}
           {sub === "albo" && <AlboSection lang={lang} />}
           {sub === "tabellone" && (
@@ -230,8 +276,11 @@ function statusOf(ev: SeasonEvent, todayISO: string, nextEventId: string | null,
   return { label: tr(lang, "st_inCalendario"), color: "#64748b" };
 }
 
-function CalendarSection({ lang, nextEventId, todayISO, onGoPronostici }: {
+function CalendarSection({ lang, nextEventId, todayISO, onGoPronostici, tappaInFinestra, tappaPicks, onPickTappa }: {
   lang: Lang; nextEventId: string | null; todayISO: string; onGoPronostici: () => void;
+  tappaInFinestra: SeasonEvent | null;
+  tappaPicks: PronosticiTappa;
+  onPickTappa: (eventId: string, cat: CategoriaId, cowId: string) => void;
 }) {
   return (
     <div className="space-y-2.5">
@@ -343,6 +392,17 @@ function CalendarSection({ lang, nextEventId, todayISO, onGoPronostici }: {
                     <Swords className="w-3.5 h-3.5" /> {tr(lang, "cal_ctaFinale")}
                   </button>
                 )}
+
+                {/* CTA schedina pronostici di tappa (S12) — SOLO sulla prossima
+                    tappa ancora in finestra (chiude all'inizio del giorno di gara). */}
+                {tappaInFinestra?.id === ev.id && (
+                  <PronosticoTappaSchedina
+                    lang={lang}
+                    evento={ev}
+                    picks={tappaPicks[ev.id] ?? {}}
+                    onPick={(cat, cowId) => onPickTappa(ev.id, cat, cowId)}
+                  />
+                )}
               </div>
             </div>
           </div>
@@ -353,6 +413,59 @@ function CalendarSection({ lang, nextEventId, todayISO, onGoPronostici }: {
         <Info className="w-3.5 h-3.5 text-sky-400 flex-shrink-0 mt-0.5" />
         {tr(lang, "cal_disclaimer")}
       </div>
+    </div>
+  );
+}
+
+/**
+ * Schedina pronostici di tappa (S12) — una riga per categoria, 3 Reines
+ * pronosticabili (pool `poolPronosticoTappa`, stesso hash deterministico di
+ * `avversarieTappa`). L'esito si valuta altrove (SeasonView, contro il
+ * risultato ufficiale): qui c'è solo la raccolta del pronostico.
+ */
+function PronosticoTappaSchedina({ lang, evento, picks, onPick }: {
+  lang: Lang;
+  evento: SeasonEvent;
+  picks: Partial<Record<CategoriaId, string>>;
+  onPick: (cat: CategoriaId, cowId: string) => void;
+}) {
+  return (
+    <div id="pronostico-tappa-schedina" data-tappa-id={evento.id} className="mt-2.5 bg-slate-900/60 border border-amber-800/30 rounded-xl p-2.5 space-y-2">
+      <div className="text-[9px] font-mono font-black uppercase tracking-widest text-amber-400 flex items-center gap-1">
+        <Ticket className="w-3 h-3" /> {tr(lang, "cal_schedinaTitle")}
+      </div>
+      {evento.categorie.map((cat) => {
+        const catMeta = CATEGORIES.find((c) => c.id === cat)!;
+        const pool = poolPronosticoTappa(evento, cat);
+        const pickedId = picks[cat];
+        return (
+          <div key={cat} className="space-y-1">
+            <div className="text-[9px] font-mono font-bold" style={{ color: catMeta.accent }}>
+              {catMeta.emoji} {lang === "fr" ? catMeta.labelFr : catMeta.label}
+            </div>
+            <div className="grid grid-cols-3 gap-1">
+              {pool.map((cow) => {
+                const picked = pickedId === cow.id;
+                return (
+                  <button
+                    key={cow.id}
+                    onClick={() => onPick(cat, cow.id)}
+                    className={`flex flex-col items-center gap-0.5 rounded-lg px-1 py-1.5 border transition-all ${
+                      picked ? "border-amber-500 bg-amber-500/15" : "border-slate-800 bg-slate-950 hover:border-amber-600/50"
+                    }`}
+                  >
+                    <CowVisual cow={cow} className="w-7 h-7" />
+                    <span className={`text-[8px] font-mono font-bold truncate max-w-full ${picked ? "text-amber-200" : "text-slate-400"}`}>
+                      {cow.name}
+                    </span>
+                    {picked && <Check className="w-2.5 h-2.5 text-amber-400" />}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
