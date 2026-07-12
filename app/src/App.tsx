@@ -2281,12 +2281,26 @@ export default function App() {
           </button>
           <Suspense fallback={<SceneFallback />}>
             <SeasonView
-              onReward={(coins, xp, kind) => {
+              onReward={(coins, xp, kind, trofeoReale) => {
                 setTrainer(prev => ({ ...prev, coins: prev.coins + coins }));
                 addTrainerXp(xp);
-                const msg = kind === 'tappa'
-                  ? `🔮 Pronostico di tappa azzeccato! (+${coins} 🪙 +${xp} XP)`
-                  : `🏆 Tabellone completato! Pronostico finale fatto (+${coins} 🪙 +${xp} XP)`;
+                if (kind === 'reale' && trofeoReale) {
+                  // S13 — ponte gioco↔realtà: la Reina seguita ha vinto DAVVERO
+                  // la sua categoria (risultato ufficiale, mai simulato).
+                  setTrofei(prev => [{
+                    id: `trofeo-${trofeoReale.eventId}-mecro-reale`,
+                    tipo: 'mecro-reale',
+                    comune: trofeoReale.comune,
+                    data: trofeoReale.data,
+                    categoria: trofeoReale.categoria,
+                    reinaNome: trofeoReale.reinaNome,
+                  }, ...prev]);
+                }
+                const msg = kind === 'reale'
+                  ? `📰 ${trofeoReale?.reinaNome ?? 'La Reina che segui'} ha vinto DAVVERO a ${trofeoReale?.comune ?? '—'}! Mécro reale in bacheca (+${coins} 🪙 +${xp} XP)`
+                  : kind === 'tappa'
+                    ? `🔮 Pronostico di tappa azzeccato! (+${coins} 🪙 +${xp} XP)`
+                    : `🏆 Tabellone completato! Pronostico finale fatto (+${coins} 🪙 +${xp} XP)`;
                 setTrekkingFeed(prev => [msg, ...prev.slice(0, 8)]);
               }}
             />

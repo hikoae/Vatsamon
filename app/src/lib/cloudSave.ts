@@ -38,6 +38,7 @@ export const SAVE_KEYS = [
   "vatsamon_pronostici_rewarded",  // pronostici già premiati (SeasonView)
   "vatsamon_pronostici_tappa",     // pronostici per OGNI tappa, non solo la finale (S12)
   "vatsamon_pronostici_scored",    // pronostici di tappa già valutati contro il reale (S12, idempotenza)
+  "vatsamon_risultati_seen",       // ponte gioco↔realtà: coppie eventId:categoria già valutate (S13, idempotenza)
   "vatsamon_lang",                 // lingua IT/FR dell'hub
   "vatsamon_trofei",               // bacheca trofei (mécro/sonnaille/collari)
   "vatsamon_eliminatoire",         // tappe del calendario giocate/vinte/timbri

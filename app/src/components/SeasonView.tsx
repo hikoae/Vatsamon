@@ -3,13 +3,13 @@ import { motion, AnimatePresence } from "motion/react";
 import {
   Trophy, CalendarDays, Swords, MapPin, Heart, Check, Sparkles,
   ChevronRight, Star, Crown, Info, Medal, BookOpen, Scroll, Languages,
-  Newspaper, Clock, Megaphone, ExternalLink, ShieldCheck, BadgeCheck, FlaskConical, Ticket,
+  Newspaper, Clock, Megaphone, ExternalLink, ShieldCheck, BadgeCheck, FlaskConical, Ticket, History,
 } from "lucide-react";
 import { CowVisual } from "./CowVisual";
 import { RisultatiAdmin } from "./RisultatiAdmin";
 import { Vatsamon } from "../types";
 import {
-  CALENDAR, CATEGORIES, CategoriaId, SEASON_META, SeasonEvent,
+  CALENDAR, CATEGORIES, CategoriaId, SEASON_META, SeasonEvent, WinnerEntry,
   winnersFor, cowsByCategory, buildRounds, bracketChampion, roundLabel,
   ALBO_DORO, LEGGENDE, ALBO_ANNI, reinaByName, SOGLIE_PER_FASE,
 } from "../data/season";
@@ -21,7 +21,7 @@ import {
 import { CULTURA, GLOSSARIO, FONTI, STORIA } from "../data/bataillesContent";
 import { loadNews, NewsItem } from "../data/news";
 import { SPONSOR_SLOTS } from "../config/brand";
-import { useLang, tr, Lang } from "../i18n/hub";
+import { useLang, tr, Lang, DictKey } from "../i18n/hub";
 import { useAuth } from "../lib/auth";
 import { ADMIN_UIDS, getAllRisultati } from "../lib/risultati";
 import { oggiISO } from "../lib/oggi";
@@ -42,9 +42,87 @@ type SubTab = "notizie" | "calendario" | "albo" | "tabellone" | "segui" | "scopr
 const LS_PICKS = "vatsamon_pronostici";
 const LS_FOLLOW = "vatsamon_follow_reine";
 const LS_REWARDED = "vatsamon_pronostici_rewarded";
+/** S13 — coppie "eventId:categoria" già valutate contro un risultato UFFICIALE
+ * per il ponte gioco↔realtà (mai ri-valutate: il vincitore di una tappa
+ * passata non cambia, vedi useEffect dedicato in SeasonView). */
+const LS_RISULTATI_SEEN = "vatsamon_risultati_seen";
 
 function loadJSON<T>(key: string, fallback: T): T {
   try { const raw = localStorage.getItem(key); return raw ? (JSON.parse(raw) as T) : fallback; } catch { return fallback; }
+}
+
+/** Normalizza `cow.categoria` ("1ª"/"2ª"/"3ª" o varianti) in CategoriaId di season.ts. */
+export function catIdOf(cow: Vatsamon): CategoriaId {
+  const raw = (cow.categoria ?? "").trim();
+  if (raw.startsWith("2")) return "2";
+  if (raw.startsWith("3")) return "3";
+  return "1";
+}
+
+/** Payload del trofeo "Mécro reale" (S13) passato via `onReward` quando la
+ * Reina seguita vince davvero la sua categoria in una tappa ufficiale. */
+export interface RealTrofeoPayload {
+  eventId: string;
+  comune: string;
+  categoria: string;
+  reinaNome: string;
+  data: string;
+}
+
+/** Banner "gareggia oggi/domenica" (S13) — pura, testabile fuori da React:
+ * stessa fonte di verità della schedina pronostici (poolPronosticoTappa),
+ * ma senza il vincolo di finestra-chiusa-il-giorno-gara: deve accendersi
+ * ANCHE il giorno stesso della tappa, non solo prima. `tappaInFinestra` è
+ * calcolata dal chiamante (SeasonView) con `tappaPronosticabile(todayISO)`. */
+export function computeFollowBanner(
+  followCow: Vatsamon | null,
+  todayISO: string,
+  tappaInFinestra: SeasonEvent | null,
+  calendar: SeasonEvent[] = CALENDAR,
+): { ev: SeasonEvent; oggi: boolean } | null {
+  if (!followCow) return null;
+  const catId = catIdOf(followCow);
+  const oggiEv = calendar.find((e) => e.kind === "bataille" && !e.finale && e.data === todayISO);
+  if (oggiEv && poolPronosticoTappa(oggiEv, catId).some((c) => c.id === followCow.id)) {
+    return { ev: oggiEv, oggi: true };
+  }
+  if (tappaInFinestra && poolPronosticoTappa(tappaInFinestra, catId).some((c) => c.id === followCow.id)) {
+    return { ev: tappaInFinestra, oggi: false };
+  }
+  return null;
+}
+
+/** PONTE GIOCO↔REALTÀ (S13) — pura, testabile fuori da React: `winnersLookup`
+ * è iniettato (in produzione è `winnersFor` di data/season.ts, che legge
+ * Firestore via lib/risultati.ts; nei test si può passare un finto risultato
+ * UFFICIALE senza toccare Firestore). Se un risultato UFFICIALE (mai
+ * `simulato`) dice che la Reina seguita ha vinto la sua categoria, produce
+ * un reward one-shot. Idempotente per (eventId, categoria): una volta
+ * valutato un risultato reale non si ri-valuta più — il vincitore di una
+ * tappa passata non cambia, quindi "non ancora vista" è sempre e solo
+ * "risultato non ancora pubblicato" (mai un motivo per ri-controllare). */
+export function computeRealtaBridgeRewards(
+  followCow: Vatsamon,
+  seen: string[],
+  winnersLookup: (eventId: string) => Partial<Record<CategoriaId, WinnerEntry>>,
+  calendar: SeasonEvent[] = CALENDAR,
+): { nextSeen: string[]; rewards: RealTrofeoPayload[] } {
+  const nextSeen = [...seen];
+  const rewards: RealTrofeoPayload[] = [];
+  for (const ev of calendar) {
+    if (ev.kind !== "bataille") continue;
+    for (const cat of ev.categorie) {
+      const key = `${ev.id}:${cat}`;
+      if (nextSeen.includes(key)) continue;
+      const w = winnersLookup(ev.id)[cat];
+      if (!w || w.simulato) continue; // non ancora ufficiale: si ricontrolla al prossimo giro
+      nextSeen.push(key);
+      if (w.cow?.id === followCow.id) {
+        rewards.push({ eventId: ev.id, comune: ev.comune, categoria: `${cat}ª`, reinaNome: followCow.name, data: ev.data });
+      }
+    }
+  }
+  return { nextSeen, rewards };
 }
 
 const LOCALE: Record<Lang, string> = { it: "it-IT", fr: "fr-FR" };
@@ -59,7 +137,9 @@ function monthShort(iso: string, lang: Lang = "it"): string {
   return new Intl.DateTimeFormat(LOCALE[lang], { month: "short" }).format(new Date(iso + "T12:00:00"));
 }
 
-export function SeasonView({ onReward }: { onReward?: (coins: number, xp: number, kind?: "tabellone" | "tappa") => void }) {
+export function SeasonView({ onReward }: {
+  onReward?: (coins: number, xp: number, kind?: "tabellone" | "tappa" | "reale", trofeo?: RealTrofeoPayload) => void;
+}) {
   const [sub, setSub] = useState<SubTab>("notizie");
   const [lang, setLang] = useLang();
   const [picks, setPicks] = useState<Record<string, string>>(() => loadJSON(LS_PICKS, {}));
@@ -154,6 +234,24 @@ export function SeasonView({ onReward }: { onReward?: (coins: number, xp: number
     return null;
   }, [followId]);
 
+  // Banner "gareggia oggi/domenica" (S13) — vedi `computeFollowBanner` sotto
+  // (estratta pura per essere testabile fuori da React/browser).
+  const followBanner = useMemo(
+    () => computeFollowBanner(followCow, todayISO, tappaInFinestra),
+    [followCow, todayISO, tappaInFinestra],
+  );
+
+  // PONTE GIOCO↔REALTÀ (S13) — vedi `computeRealtaBridgeRewards` sotto (estratta
+  // pura per essere testabile fuori da React/browser: iniettando un
+  // `winnersLookup` finto si può simulare un risultato UFFICIALE senza Firestore).
+  useEffect(() => {
+    if (!onReward || !followCow) return;
+    const seen = loadJSON<string[]>(LS_RISULTATI_SEEN, []);
+    const { nextSeen, rewards } = computeRealtaBridgeRewards(followCow, seen, winnersFor);
+    if (nextSeen.length !== seen.length) localStorage.setItem(LS_RISULTATI_SEEN, JSON.stringify(nextSeen));
+    rewards.forEach((trofeo) => onReward(30, 75, "reale", trofeo));
+  }, [followCow, onReward, risultatiTick]);
+
   function pickTappa(eventId: string, cat: CategoriaId, cowId: string) {
     setTappaPicks((prev) => ({ ...prev, [eventId]: { ...prev[eventId], [cat]: cowId } }));
   }
@@ -245,7 +343,11 @@ export function SeasonView({ onReward }: { onReward?: (coins: number, xp: number
           )}
           {sub === "scopri" && <ScopriSection lang={lang} />}
           {sub === "segui" && (
-            <FollowSection lang={lang} followCow={followCow} onFollow={setFollowId} onOpenBracket={(cat) => { setCatSel(cat); setSub("tabellone"); }} />
+            <FollowSection
+              lang={lang} followCow={followCow} onFollow={setFollowId}
+              onOpenBracket={(cat) => { setCatSel(cat); setSub("tabellone"); }}
+              todayISO={todayISO} banner={followBanner}
+            />
           )}
           {sub === "admin" && isAdmin && (
             <RisultatiAdmin lang={lang} onSaved={() => bumpRisultati((v) => v + 1)} />
@@ -608,20 +710,73 @@ function BracketSection({ lang, catSel, setCatSel, picks, setPicks }: {
 //  SEGUI LA TUA REINE
 // ===========================================================================
 
-function FollowSection({ lang, followCow, onFollow, onOpenBracket }: {
+/** Riga di storico apparizioni/vittorie della Reina seguita (S13) — derivata
+ * da CALENDAR + risultati ufficiali (`winnersFor`) + pool deterministico di
+ * tappa (`poolPronosticoTappa`, la stessa fonte della schedina pronostici).
+ * Zero storage nuovo: pura funzione di dati già esistenti. */
+export type StoricoEsito = "vittoria" | "gareggia" | "gareggiata" | "seed" | "reineDesReines";
+export interface StoricoEntry { key: string; ev: SeasonEvent; esito: StoricoEsito }
+
+export function buildStorico(followCow: Vatsamon, catId: CategoriaId, todayISO: string): StoricoEntry[] {
+  const out: StoricoEntry[] = [];
+  for (const ev of CALENDAR) {
+    if (ev.kind !== "bataille" || !ev.categorie.includes(catId)) continue;
+    if (ev.finale) {
+      const w = winnersFor(ev.id)[catId];
+      if (w && !w.simulato && w.cow?.id === followCow.id) {
+        out.push({ key: ev.id, ev, esito: "reineDesReines" });
+      } else if (cowsByCategory(catId).slice(0, 8).some((c) => c.id === followCow.id)) {
+        out.push({ key: ev.id, ev, esito: "seed" });
+      }
+      continue;
+    }
+    const w = winnersFor(ev.id)[catId];
+    if (w && !w.simulato && w.cow?.id === followCow.id) {
+      out.push({ key: ev.id, ev, esito: "vittoria" });
+      continue;
+    }
+    if (poolPronosticoTappa(ev, catId).some((c) => c.id === followCow.id)) {
+      out.push({ key: ev.id, ev, esito: ev.data <= todayISO ? "gareggiata" : "gareggia" });
+    }
+  }
+  return out;
+}
+
+const STORICO_META: Record<StoricoEsito, { icon: typeof Trophy; tone: string; key: DictKey }> = {
+  vittoria: { icon: Trophy, tone: "text-amber-300", key: "fol_storicoVittoria" },
+  gareggia: { icon: Swords, tone: "text-amber-300", key: "fol_storicoGareggia" },
+  gareggiata: { icon: Swords, tone: "text-slate-400", key: "fol_storicoGareggiata" },
+  seed: { icon: Crown, tone: "text-slate-300", key: "fol_storicoSeed" },
+  reineDesReines: { icon: Crown, tone: "text-amber-300", key: "fol_storicoReine" },
+};
+
+function FollowSection({ lang, followCow, onFollow, onOpenBracket, todayISO, banner }: {
   lang: Lang;
   followCow: Vatsamon | null;
   onFollow: (id: string | null) => void;
   onOpenBracket: (cat: CategoriaId) => void;
+  todayISO: string;
+  banner: { ev: SeasonEvent; oggi: boolean } | null;
 }) {
   const [catFilter, setCatFilter] = useState<CategoriaId>("1");
 
   if (followCow) {
-    const catId = (followCow.categoria ?? "").startsWith("2") ? "2" : (followCow.categoria ?? "").startsWith("3") ? "3" : "1";
-    const cat = CATEGORIES.find((x) => x.id === (catId as CategoriaId))!;
+    const catId = catIdOf(followCow);
+    const cat = CATEGORIES.find((x) => x.id === catId)!;
     const seeded = cowsByCategory(cat.id).slice(0, 8).some((c) => c.id === followCow.id);
+    const storico = buildStorico(followCow, catId, todayISO);
     return (
       <div className="space-y-3">
+        {/* banner "gareggia oggi/domenica" — deterministico via avversarieTappa */}
+        {banner && (
+          <div className="bg-gradient-to-br from-amber-500/20 to-slate-950 border border-amber-500/50 rounded-2xl p-3 flex items-center gap-2.5">
+            <Megaphone className="w-5 h-5 text-amber-400 flex-shrink-0" />
+            <p className="text-[11px] font-mono font-black text-amber-200 leading-snug">
+              {tr(lang, banner.oggi ? "fol_bannerOggi" : "fol_bannerDomenica", { nome: followCow.name, comune: banner.ev.comune })}
+            </p>
+          </div>
+        )}
+
         <div className="bg-gradient-to-br from-rose-950/30 to-slate-950 border border-rose-800/40 rounded-3xl p-4">
           <div className="flex items-center gap-3">
             <CowVisual cow={followCow} className="w-20 h-20 flex-shrink-0" />
@@ -651,6 +806,38 @@ function FollowSection({ lang, followCow, onFollow, onOpenBracket }: {
           >
             <Swords className="w-3.5 h-3.5" /> {tr(lang, "fol_vaiTabellone")} {lang === "fr" ? cat.labelFr : cat.label} <ChevronRight className="w-3.5 h-3.5" />
           </button>
+        </div>
+
+        {/* storico stagione reale — apparizioni/vittorie derivate, zero storage nuovo */}
+        <div className="bg-slate-950 border border-slate-850 rounded-2xl p-4 space-y-2">
+          <div className="text-[10px] font-mono font-black uppercase tracking-widest text-slate-300 flex items-center gap-1.5">
+            <History className="w-3.5 h-3.5 text-amber-400" /> {tr(lang, "fol_storico")}
+          </div>
+          {storico.length === 0 ? (
+            <p className="text-[11px] font-mono text-slate-500 leading-relaxed">{tr(lang, "fol_storicoVuoto")}</p>
+          ) : (
+            <div className="space-y-1">
+              {storico.map((s) => {
+                const meta = STORICO_META[s.esito];
+                const Icon = meta.icon;
+                const isWin = s.esito === "vittoria" || s.esito === "reineDesReines";
+                return (
+                  <div key={s.key} className="flex items-center gap-2 bg-slate-900/70 rounded-lg px-2 py-1.5">
+                    <Icon className={`w-3.5 h-3.5 flex-shrink-0 ${meta.tone}`} />
+                    <span className="text-[10px] font-mono text-slate-300 truncate flex items-center gap-1 flex-wrap">
+                      <b className={meta.tone}>{tr(lang, meta.key)}</b>
+                      <span className="text-slate-500"> · {s.ev.finale ? <Crown className="inline w-2.5 h-2.5 mb-0.5 mr-0.5" /> : null}{s.ev.comune} · {fmtDate(s.ev.data, lang)}</span>
+                      {isWin && (
+                        <span className="inline-flex items-center gap-0.5 text-[8px] font-mono font-black px-1.5 py-0.5 rounded-full border text-emerald-300 bg-emerald-500/15 border-emerald-600/40">
+                          <BadgeCheck className="w-2.5 h-2.5" /> {tr(lang, "res_ufficiale")}
+                        </span>
+                      )}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         <button
