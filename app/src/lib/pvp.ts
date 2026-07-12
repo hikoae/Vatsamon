@@ -12,7 +12,7 @@
  * ma avrebbe reso l'ingaggio meno prevedibile per l'UI senza vantaggio reale.
  */
 import {
-  collection, doc, getDoc, getDocs, onSnapshot, query, runTransaction,
+  collection, deleteDoc, doc, getDoc, getDocs, onSnapshot, query, runTransaction,
   serverTimestamp, setDoc, updateDoc, where, orderBy, Timestamp,
   type UpdateData,
 } from "firebase/firestore";
@@ -22,6 +22,7 @@ import {
   AzioneId, SpintaState, Spintatore, initSpinta, spintatoreFromFighter,
 } from "./spinta";
 import { Mossa, MOSSE, MOSSE_BASE, eseguiMossa } from "../data/mosse";
+import { cronacaEsito, cronacaTurno } from "../data/telecronaca";
 import {
   PvpChallenge, PvpFighterSnapshot, PvpMatch, PvpMode, PvpMoveset,
   PvpPlayerSlot, PvpSpintaState,
@@ -242,6 +243,9 @@ export interface CreateChallengeParams {
   turnDurationMs: number;
   fighter: Fighter;
   moveset: PvpMoveset;
+  /** matchId della partita precedente (S10, bottone "Rivincita"): presente
+   *  solo per una sfida di rivincita, copiato sul match all'accept. */
+  rematchOf?: string;
 }
 
 /** Crea `pvpChallenges/{code}` con un codice ad alta entropia generato lato
@@ -267,6 +271,9 @@ export async function createChallenge(params: CreateChallengeParams): Promise<st
           moveset: params.moveset,
           status: "open",
           expiresAt,
+          // Firestore rifiuta `undefined`: il campo va omesso del tutto per
+          // una sfida normale, non scritto come null (vedi PvpChallenge.rematchOf).
+          ...(params.rematchOf ? { rematchOf: params.rematchOf } : {}),
         });
       });
       return code;
@@ -361,6 +368,7 @@ export async function acceptChallenge(params: AcceptChallengeParams): Promise<st
       turnDeadline: Timestamp.fromMillis(now + challenge.turnDurationMs),
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
+      ...(challenge.rematchOf ? { rematchOf: challenge.rematchOf } : {}),
     });
   } catch (err) {
     // La sfida è già "accepted" con questo matchId: un retry di questa stessa
@@ -407,11 +415,20 @@ export async function submitMove(matchId: string, myUid: string, mossaId: string
       const appliedMossaId = r.dettaglio?.mossa?.id ?? mossaId;
       const famiglia = r.dettaglio?.famiglia ?? "incalza";
 
+      // Telecronaca (S10, riuso data/telecronaca.ts): calcolata QUI, l'unico
+      // punto con il TurnResult completo dell'engine (RNG incluso). p1 è
+      // SEMPRE "p"/nomi.p, p2 SEMPRE "o"/nomi.o — stessa convenzione fissa
+      // di tutto il file, indipendente da chi ha giocato la mossa.
+      const nomi = { p: match.fighters.p1.name, o: match.fighters.p2.name };
+      const commento = finished
+        ? cronacaEsito(newState.esito === "vinto", newState.turno >= 16, nomi)
+        : cronacaTurno(r, nomi);
+
       const payload: UpdateData<PvpMatch> = {
         state: newState,
         usiMosse: newUsiMosse,
         turnNumber: newState.turno,
-        lastMove: { by: mySlot, azione: famiglia, mossaId: appliedMossaId, log: r.log },
+        lastMove: { by: mySlot, azione: famiglia, mossaId: appliedMossaId, log: r.log, commento },
         updatedAt: serverTimestamp(),
       };
       if (finished) {
@@ -516,4 +533,80 @@ export function subscribeMatch(
     (snap) => onChange(snap.exists() ? { id: snap.id, ...(snap.data() as PvpMatch) } : null),
     (err) => onError(wrapPvpError(err)),
   );
+}
+
+// ─── GC lazy (S10) ──────────────────────────────────────────────────────
+
+const GC_STALE_MS = 30 * 24 * 3600 * 1000;
+
+/** Elimina i PROPRI match conclusi (finished/abandoned) più vecchi di 30gg.
+ *  Best-effort e silenzioso, pensato per essere chiamato (senza await, senza
+ *  bloccare la UI) all'apertura dell'hub — su `matches` già letti da
+ *  `listMyMatches` (niente query aggiuntiva). Le rules permettono la delete
+ *  SOLO a un player della partita, SOLO se status!=="active" e updatedAt
+ *  oltre 30gg (vedi firestore.rules). La subcollection `moves` non viene
+ *  toccata: resta orfana ma mai più raggiungibile da UI — costo di storage
+ *  trascurabile per la scala di questo gioco. */
+export async function gcStaleMatches(matches: (PvpMatch & { id: string })[]): Promise<void> {
+  let database: ReturnType<typeof requireDb>;
+  try { database = requireDb(); } catch { return; }
+  const cutoff = Date.now() - GC_STALE_MS;
+  const stale = matches.filter((m) => m.status !== "active" && m.updatedAt.toMillis() < cutoff);
+  await Promise.all(stale.map((m) =>
+    deleteDoc(doc(database, "pvpMatches", m.id)).catch(() => { /* best effort, silenzioso */ }),
+  ));
+}
+
+// ─── Esiti visti + vittorie locali (S10) ─────────────────────────────────
+//
+// Puramente locali (localStorage), MAI sincronizzati su Firestore: il badge
+// "tocca a te" e le ricompense cosmetiche non fanno parte dello schema
+// pvpMatches. Ricompense di proposito NON farmabili — nessuna valuta/XP
+// ripetibile (esito client-trusted, vedi header file): solo un contatore
+// vetrina e un flair "prima vittoria", mai spesi nell'economia del gioco.
+
+const SEEN_KEY = "vatsamon_pvp_seen_results";
+const SEEN_MAX = 200; // tetto per non far crescere la chiave all'infinito
+
+/** true se il risultato di `matchId` (finished/abandoned) è già stato
+ *  mostrato al giocatore — usato sia per il badge Stalla sia per non
+ *  ricontare una vittoria già accreditata. */
+export function isPvpResultSeen(matchId: string): boolean {
+  try {
+    const arr = JSON.parse(localStorage.getItem(SEEN_KEY) || "[]") as string[];
+    return arr.includes(matchId);
+  } catch { return false; }
+}
+
+/** Marca `matchId` come visto (idempotente). */
+export function markPvpResultSeen(matchId: string): void {
+  try {
+    const arr = JSON.parse(localStorage.getItem(SEEN_KEY) || "[]") as string[];
+    if (arr.includes(matchId)) return;
+    arr.push(matchId);
+    while (arr.length > SEEN_MAX) arr.shift();
+    localStorage.setItem(SEEN_KEY, JSON.stringify(arr));
+  } catch { /* noop */ }
+}
+
+interface PvpWinsState { count: number; firstWinAt?: string }
+const WINS_KEY = "vatsamon_pvp_wins";
+
+/** Contatore locale di vittorie PvP ("vittorie in Piazza") — SOLO vetrina,
+ *  non farmabile, non convertibile in coins/XP. Ritorna il nuovo totale e se
+ *  QUESTA è la primissima vittoria (per sbloccare il flair "Prima vittoria
+ *  in Piazza"). Chiamare al massimo una volta per match (guardia lato
+ *  chiamante con isPvpResultSeen/markPvpResultSeen). */
+export function recordPvpWin(): { count: number; firstWin: boolean } {
+  let state: PvpWinsState = { count: 0 };
+  try { state = { ...state, ...(JSON.parse(localStorage.getItem(WINS_KEY) || "{}") as PvpWinsState) }; } catch { /* noop */ }
+  const firstWin = !state.count;
+  const next: PvpWinsState = { count: (state.count ?? 0) + 1, firstWinAt: state.firstWinAt ?? (firstWin ? new Date().toISOString() : undefined) };
+  try { localStorage.setItem(WINS_KEY, JSON.stringify(next)); } catch { /* noop */ }
+  return { count: next.count, firstWin };
+}
+
+export function readPvpWinsCount(): number {
+  try { return (JSON.parse(localStorage.getItem(WINS_KEY) || "{}") as PvpWinsState).count ?? 0; }
+  catch { return 0; }
 }

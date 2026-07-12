@@ -24,6 +24,11 @@
 //  • il fiato dell'AVVERSARIA non può cambiare durante la tua mossa (il motore tocca
 //    solo il proprio lato: addMyFiato, lib/spinta.ts:210-213).
 //  • stato iniziale del match = initSpinta (fiato pieni, calma 80/80, turno 0, corso).
+//
+// Rifiniture PvP (S10, 2026-07-12): claim-timeout/forfeit erano già in S8, qui solo
+// UI. Aggiunte alle regole: rematchOf opzionale (bottone "Rivincita", legato 1:1 alla
+// sua challenge — matchBoundToChallenge) e delete GC lazy (match conclusi >30gg, solo
+// dai due player, mai su "active" — pulizia client-trusted senza Cloud Functions/TTL).
 rules_version = '2';
 service cloud.firestore {
 
@@ -131,7 +136,11 @@ service cloud.firestore {
       && d.players.p1.uid == c.creatorUid
       && d.players.p2.uid == c.acceptorUid
       && d.fighters.p1 == c.fighterSnapshot
-      && d.moveset.p1 == c.moveset;
+      && d.moveset.p1 == c.moveset
+      // rematchOf (S10): se il match lo porta, deve combaciare 1:1 col
+      // rematchOf della SUA challenge — mai un link forgiato a un'altra
+      // partita che il creator non ha davvero staccato come rivincita.
+      && (!("rematchOf" in d) || (("rematchOf" in c) && d.rematchOf == c.rematchOf));
   }
 
   // Forma del documento match al create (tutto ciò che non dipende dalla
@@ -159,7 +168,10 @@ service cloud.firestore {
       // Un match non nasce mai già deciso.
       && !("winnerUid" in d)
       && !("forfeitedBy" in d)
-      && !("lastMove" in d);
+      && !("lastMove" in d)
+      // rematchOf (S10, bottone "Rivincita"): opzionale, solo un matchId
+      // di link — equality col rematchOf della challenge in matchBoundToChallenge.
+      && (!("rematchOf" in d) || (d.rematchOf is string && d.rematchOf.size() > 0 && d.rematchOf.size() <= 128));
   }
 
   // Deadline del prossimo turno: floor a metà del turnDurationMs pattuito
@@ -214,7 +226,14 @@ service cloud.firestore {
         && request.resource.data.expiresAt > request.time
         && request.resource.data.expiresAt < request.time + duration.value(8, 'd')
         && !("matchId" in request.resource.data)
-        && !("acceptorUid" in request.resource.data);
+        && !("acceptorUid" in request.resource.data)
+        // rematchOf (S10, bottone "Rivincita"): opzionale, solo un matchId
+        // di link alla partita precedente — nessun get() qui, il binding
+        // reale è verificato al create di pvpMatches (matchBoundToChallenge).
+        && (!("rematchOf" in request.resource.data)
+              || (request.resource.data.rematchOf is string
+                  && request.resource.data.rematchOf.size() > 0
+                  && request.resource.data.rematchOf.size() <= 128));
 
       // Accetta: SOLO il non-creator, open -> accepted, scrive solo
       // status+matchId+acceptorUid. acceptorUid = chi accetta: è il gancio che
@@ -358,7 +377,17 @@ service cloud.firestore {
         && request.resource.data.diff(resource.data).affectedKeys()
              .hasOnly(["status", "winnerUid", "forfeitedBy", "updatedAt"]);
 
-      allow delete: if false;
+      // GC lazy (S10): un player elimina una PROPRIA partita conclusa (mai
+      // "active") più vecchia di 30gg. Best-effort, client-trusted come il
+      // resto del PvP (piano Spark, niente Cloud Functions/TTL): nessun dato
+      // di gioco/economia in gioco, solo pulizia storage innescata al primo
+      // che apre l'hub dopo la scadenza. La subcollection `moves` resta
+      // orfana (la sua `allow delete: if false` sotto non cambia): mai più
+      // raggiungibile da UI, costo trascurabile per la scala di questo gioco.
+      allow delete: if isSignedIn()
+        && request.auth.uid in resource.data.playerUids
+        && resource.data.status != "active"
+        && request.time > resource.data.updatedAt + duration.value(30, 'd');
 
       // pvpMatches/{matchId}/moves/{turnNumber}: log append-only, immutabile.
       // `turnNumber` nel path = il turno PRIMA che questa mossa venga
