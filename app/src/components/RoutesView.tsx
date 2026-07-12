@@ -17,6 +17,8 @@ type Props = {
   onStartBattle: (battle: MapBattle) => void;
   onStartDungeon: (dungeon: Dungeon) => void;
   onOpenSeason: () => void;
+  /** S14: pallino quando una tappa è in finestra (oggi/domenica imminente). */
+  seasonBadge?: boolean;
 };
 
 export function RoutesView({
@@ -31,6 +33,7 @@ export function RoutesView({
   onStartBattle,
   onStartDungeon,
   onOpenSeason,
+  seasonBadge,
 }: Props) {
   const nearbyBattles = [...battles]
     .map((battle) => ({ battle, distanceM: distanza(position, battle) }))
@@ -52,9 +55,16 @@ export function RoutesView({
             </div>
             <p className="text-sm text-slate-400 mt-1 leading-relaxed">Scegli un cammino: tornerai subito alla mappa per iniziare a esplorare.</p>
           </div>
-          <button id="open-season-btn" type="button" onClick={onOpenSeason} className="min-h-[44px] shrink-0 rounded-xl border border-amber-700/50 bg-amber-950/30 px-3 text-xs font-mono font-black text-amber-300 flex items-center gap-1.5">
+          <button id="open-season-btn" type="button" onClick={onOpenSeason} className="relative min-h-[44px] shrink-0 rounded-xl border border-amber-700/50 bg-amber-950/30 px-3 text-xs font-mono font-black text-amber-300 flex items-center gap-1.5">
             <Trophy className="w-4 h-4" aria-hidden="true" />
             Stagione
+            {seasonBadge && (
+              <span
+                id="badge-stagione-tappa"
+                className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-amber-400 ring-2 ring-slate-950"
+                aria-label="Tappa in finestra"
+              />
+            )}
           </button>
         </div>
       </header>

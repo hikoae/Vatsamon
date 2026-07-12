@@ -373,6 +373,13 @@ function statusOf(ev: SeasonEvent, todayISO: string, nextEventId: string | null,
         ? { label: tr(lang, "st_inArrivo"), color: "#64748b" }
         : { label: tr(lang, "st_conclusa"), color: "#475569" };
   }
+  // Cerimonia (Désarpa, S14): mai "disputata"/"prossima" — quelle etichette
+  // implicano un vincitore di gara, che qui non esiste.
+  if (ev.kind === "cerimonia") {
+    return todayISO > ev.data
+      ? { label: tr(lang, "st_conclusa"), color: "#475569" }
+      : { label: tr(lang, "st_cerimonia"), color: "#c084fc", dot: todayISO === ev.data };
+  }
   if (ev.disputata) return { label: tr(lang, "st_disputata"), color: "#34d399" };
   if (ev.id === nextEventId) return { label: tr(lang, "st_prossima"), color: "#f59e0b", dot: true };
   return { label: tr(lang, "st_inCalendario"), color: "#64748b" };
@@ -391,6 +398,7 @@ function CalendarSection({ lang, nextEventId, todayISO, onGoPronostici, tappaInF
         const winners = winnersFor(ev.id);
         const hasWinners = Object.keys(winners).length > 0;
         const isPausa = ev.kind === "pausa";
+        const isCerimonia = ev.kind === "cerimonia";
         const note = lang === "fr" ? (ev.noteFr ?? ev.note) : ev.note;
 
         return (
@@ -401,7 +409,9 @@ function CalendarSection({ lang, nextEventId, todayISO, onGoPronostici, tappaInF
                 ? "bg-gradient-to-br from-amber-950/40 to-slate-950 border-amber-700/50"
                 : isPausa
                   ? "bg-sky-950/20 border-sky-900/40 border-dashed"
-                  : "bg-slate-950 border-slate-850"
+                  : isCerimonia
+                    ? "bg-violet-950/20 border-violet-800/40 border-dashed"
+                    : "bg-slate-950 border-slate-850"
             }`}
           >
             <div className="flex items-start gap-3">
@@ -431,7 +441,7 @@ function CalendarSection({ lang, nextEventId, todayISO, onGoPronostici, tappaInF
                   {ev.dataFine && <span className="text-slate-600"> · {tr(lang, "cal_finoAl")} {fmtDate(ev.dataFine, lang)}</span>}
                 </div>
 
-                {!isPausa && (
+                {!isPausa && !isCerimonia && (
                   <div className="flex items-center gap-1 mt-1.5 flex-wrap">
                     {ev.categorie.map((c) => {
                       const cat = CATEGORIES.find((x) => x.id === c)!;
@@ -909,7 +919,11 @@ function NewsSection({ lang, todayISO, onGoCalendario, onGoTabellone }: {
     return () => { alive = false; };
   }, []);
 
-  const next = CALENDAR.find((e) => e.kind === "bataille" && e.data >= todayISO);
+  // S14: la Désarpa (kind "cerimonia") entra nello stesso countdown delle
+  // batailles — altrimenti una tappa lontana la "salterebbe" nel conteggio
+  // anche quando la cerimonia è cronologicamente più vicina.
+  const next = CALENDAR.find((e) => (e.kind === "bataille" || e.kind === "cerimonia") && e.data >= todayISO);
+  const isNextCerimonia = next?.kind === "cerimonia";
   const giorni = next ? Math.max(0, Math.round((new Date(next.data + "T12:00:00").getTime() - new Date(todayISO + "T12:00:00").getTime()) / 86400000)) : null;
 
   return (
@@ -918,7 +932,7 @@ function NewsSection({ lang, todayISO, onGoCalendario, onGoTabellone }: {
       {next && (
         <div className="bg-gradient-to-br from-amber-950/50 to-slate-950 border border-amber-700/40 rounded-2xl p-4">
           <div className="flex items-center gap-1.5 text-[9px] font-mono uppercase tracking-widest text-amber-400">
-            <Clock className="w-3 h-3" /> {next.finale ? tr(lang, "news_finale") : tr(lang, "news_prossimaTappa")}
+            <Clock className="w-3 h-3" /> {next.finale ? tr(lang, "news_finale") : isNextCerimonia ? tr(lang, "news_cerimonia") : tr(lang, "news_prossimaTappa")}
           </div>
           <div className="flex items-end justify-between mt-1">
             <div className="min-w-0">
@@ -930,9 +944,13 @@ function NewsSection({ lang, todayISO, onGoCalendario, onGoTabellone }: {
               <div className="text-[10px] font-mono uppercase text-slate-500">{tr(lang, "news_giorni")}</div>
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-2 mt-3">
+          {/* "Pronostici" porta al tabellone della finale: non pertinente per la
+              Désarpa (nessun vincitore di gara), quindi si nasconde solo lì. */}
+          <div className={`grid gap-2 mt-3 ${isNextCerimonia ? "grid-cols-1" : "grid-cols-2"}`}>
             <button onClick={onGoCalendario} className="bg-slate-900 hover:bg-slate-850 border border-slate-800 text-slate-200 font-mono font-black text-[10px] py-2 rounded-xl flex items-center justify-center gap-1"><CalendarDays className="w-3.5 h-3.5" /> {tr(lang, "news_btnCalendario")}</button>
-            <button onClick={onGoTabellone} className="bg-amber-500 hover:bg-amber-400 text-[#0b0820] font-mono font-black text-[10px] py-2 rounded-xl flex items-center justify-center gap-1"><Swords className="w-3.5 h-3.5" /> {tr(lang, "news_btnPronostici")}</button>
+            {!isNextCerimonia && (
+              <button onClick={onGoTabellone} className="bg-amber-500 hover:bg-amber-400 text-[#0b0820] font-mono font-black text-[10px] py-2 rounded-xl flex items-center justify-center gap-1"><Swords className="w-3.5 h-3.5" /> {tr(lang, "news_btnPronostici")}</button>
+            )}
           </div>
         </div>
       )}
