@@ -44,6 +44,7 @@ export const SAVE_KEYS = [
   "vatsamon_leggende",             // cartoline storiche dell'Albo delle Leggende
   "vatsamon_scuola",               // Scuola della Reina: catalogo mosse sbloccate
   "vatsamon_tutorial",             // tutorial di Mémé: beat, consigli mostrati
+  "vatsamon_gps_checkpoints",      // checkpoint GPS raggiunti (App.tsx)
 ] as const;
 
 export interface CloudSave {
