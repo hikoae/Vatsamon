@@ -17,7 +17,7 @@
  * leggendarie entro ±15 (hanno usi contati e requisiti di condizione).
  */
 import {
-  AzioneId, Personalita, Spintatore, SpintaState, TerrainEffect, initSpinta, MAX_TURNI,
+  AzioneId, Approccio, Personalita, Spintatore, SpintaState, TerrainEffect, initSpinta, MAX_TURNI,
 } from "../src/lib/spinta";
 import { MOSSE, MOSSE_BASE, Mossa, bloccoMossa, eseguiMossa } from "../src/data/mosse";
 
@@ -59,9 +59,12 @@ function mossaPer(set: Record<AzioneId, string>, fam: AzioneId, st: SpintaState,
   return MOSSE_BASE[fam];
 }
 
-function duello(setP: Record<AzioneId, string>, indole: Personalita, terrain?: TerrainEffect): boolean {
+function duello(setP: Record<AzioneId, string>, indole: Personalita, terrain?: TerrainEffect, approccio?: Approccio): boolean {
   const P = media(), O = media();
-  let st = initSpinta(P, O, { personalita: indole, tellAccuracy: 0.75, terrain });
+  // approccio si applica SOLO al lato P: è la scelta tattica del giocatore in
+  // Arena (BattleScene) — l'avversaria non ne ha uno equivalente (asimmetria
+  // intenzionale, coerente con initSpinta/opts.approccio).
+  let st = initSpinta(P, O, { personalita: indole, tellAccuracy: 0.75, terrain, approccio });
   const setO = { ...MOSSE_BASE };
   for (let t = 0; t < MAX_TURNI * 2 + 4 && st.esito === "corso"; t++) {
     const famP = pickPlayer(st, indole);
@@ -83,6 +86,12 @@ function winRate(setP: Record<AzioneId, string>, terrain?: TerrainEffect): numbe
     for (let i = 0; i < N_DUELLI; i++) { if (duello(setP, indole, terrain)) w++; n++; }
   }
   return (100 * w) / n;
+}
+
+function winRateIndole(indole: Personalita, approccio: Approccio): number {
+  let w = 0;
+  for (let i = 0; i < N_DUELLI; i++) { if (duello({ ...MOSSE_BASE }, indole, undefined, approccio)) w++; }
+  return (100 * w) / N_DUELLI;
 }
 
 function soglia(m: Mossa): number { return m.rarita === "comune" || m.rarita === "rara" ? 8 : 15; }
@@ -151,4 +160,39 @@ for (const terrain of TERRAINS) {
 }
 const fuoriTotale = fuori + fuoriTerrainBase + fuoriTerrainCombo;
 console.log(`\n${fuoriTerrainBase === 0 && fuoriTerrainCombo === 0 ? "✅ Tutti i terreni e le combo terreno×mossa entro soglia." : `⚠️ ${fuoriTerrainBase} baseline-terreno + ${fuoriTerrainCombo} combo terreno×mossa fuori soglia: ritoccare TERRAIN_MODS in lib/spinta.ts.`}`);
-process.exitCode = fuoriTotale === 0 ? 0 : 1;
+
+// ── S17: dimensione APPROCCIO D'INGAGGIO ──────────────────────────────────
+// Solo il lato P applica l'approccio (è la scelta del giocatore in Arena; la
+// rivale non ne ha uno equivalente — coerente con opts.approccio in initSpinta,
+// mai passato per il lato O). GATE: nessun approccio deve battere ENTRAMBI gli
+// altri su TUTTE e 4 le indoli con un margine non-rumore (>2pt, oltre la
+// deviazione Monte Carlo tipica a N_DUELLI=4000/cella) — altrimenti sarebbe
+// una scelta strettamente dominante e andrebbe ritarato in lib/spinta.ts.
+const APPROCCI: Approccio[] = ["naturale", "riscaldata", "voce"];
+const DOMINANZA_MARGINE = 2; // punti percentuali minimi per contare come "batte" un altro approccio
+console.log("\n── S17: APPROCCIO D'INGAGGIO — matrice winrate (3 approcci × 4 indoli) ──");
+const matriceApproccio: Record<Approccio, Record<Personalita, number>> = { naturale: {}, riscaldata: {}, voce: {} } as Record<Approccio, Record<Personalita, number>>;
+for (const appr of APPROCCI) {
+  for (const indole of INDOLI) matriceApproccio[appr][indole] = winRateIndole(indole, appr);
+}
+console.log("approccio".padEnd(14) + INDOLI.map((i) => i.padEnd(12)).join("") + "media");
+for (const appr of APPROCCI) {
+  const riga = INDOLI.map((i) => matriceApproccio[appr][i]);
+  const media2 = riga.reduce((a, b) => a + b, 0) / riga.length;
+  console.log(appr.padEnd(14) + riga.map((v) => v.toFixed(1).padEnd(12)).join("") + media2.toFixed(1));
+}
+
+let dominanti: Approccio[] = [];
+for (const appr of APPROCCI) {
+  const altri = APPROCCI.filter((a) => a !== appr);
+  const batteTutti = INDOLI.every((indole) => altri.every((altro) => matriceApproccio[appr][indole] - matriceApproccio[altro][indole] > DOMINANZA_MARGINE));
+  if (batteTutti) dominanti.push(appr);
+}
+console.log(
+  dominanti.length === 0
+    ? "✅ Nessun approccio strettamente dominante su tutte le indoli."
+    : `⚠️ Approccio/i dominante/i su tutte le indoli: ${dominanti.join(", ")} — ritarare i malus in lib/spinta.ts e ri-simulare.`,
+);
+
+const fuoriTotaleS17 = fuoriTotale + dominanti.length;
+process.exitCode = fuoriTotaleS17 === 0 ? 0 : 1;
