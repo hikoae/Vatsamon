@@ -1,0 +1,33 @@
+// SOURCE OF TRUTH — deploy: firebase deploy --only firestore:rules (o copia in console)
+//
+// Queste regole sono la versione autoritativa per il progetto Firebase di Vatsamon GO.
+// La console Firebase (Firestore Database → Regole) è una COPIA di questo file: se le
+// modifichi qui, ripubblicale con `firebase deploy --only firestore:rules` oppure
+// incolla manualmente il contenuto aggiornato in console.
+//
+// Nota: la collection `battles/*` (PvP) NON ha una rule dedicata qui perché non esiste
+// ancora un flusso PvP implementato lato client/server. In assenza di un `match` esplicito,
+// Firestore applica il deny di default: qualunque lettura/scrittura su `battles/*` è
+// rifiutata finché non verrà disegnata una rule specifica (owner-scoped, non "chiunque
+// autenticato legge/scrive tutto").
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Ogni utente legge/scrive SOLO il proprio salvataggio
+    match /saves/{uid} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+    match /users/{uid} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+
+    // Classifica: tutti gli utenti autenticati possono leggere; ognuno scrive solo la propria riga
+    match /leaderboard/{uid} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == uid;
+    }
+
+    // Nessun catch-all: qualunque altra collection è deny-by-default.
+  }
+}

@@ -89,35 +89,22 @@ VITE_FIREBASE_APP_ID=1:123456789012:web:abcdef1234567890
 
 ## Passo 6 — Incolla le Security Rules (importante!)
 
+Le regole **non vivono più solo in questa guida**: la source of truth versionata è il file
+[`firestore.rules`](./firestore.rules) nella root del repo. La console Firebase è solo una
+**copia** di quel file — se le regole cambiano, cambia prima `firestore.rules` e poi ripubblica.
+
 1. **Firestore Database → scheda "Regole" (*Rules*)**.
-2. Cancella tutto e incolla questo, poi **Pubblica**:
+2. Cancella tutto e incolla il contenuto di [`firestore.rules`](./firestore.rules), poi **Pubblica**.
+   In alternativa, con la Firebase CLI: `firebase deploy --only firestore:rules`.
 
-```
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
+> Le regole scopano `saves/{uid}` e `users/{uid}` all'owner (`request.auth.uid == uid`), e
+> `leaderboard/{uid}` a lettura-per-autenticati / scrittura-owner. La collection `battles/*`
+> (PvP, fase futura) **non ha ancora una rule**: senza un `match` esplicito, Firestore nega
+> di default lettura/scrittura — niente accesso "chiunque autenticato" finché non verrà
+> disegnata una rule owner-scoped dedicata.
 
-    // Ogni utente legge/scrive SOLO il proprio salvataggio
-    match /saves/{uid} {
-      allow read, write: if request.auth != null && request.auth.uid == uid;
-    }
-    match /users/{uid} {
-      allow read, write: if request.auth != null && request.auth.uid == uid;
-    }
-
-    // Classifica: tutti possono leggere; ognuno scrive solo la propria riga
-    match /leaderboard/{uid} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null && request.auth.uid == uid;
-    }
-
-    // Sfide PvP (fase futura): leggibili dai due sfidanti
-    match /battles/{battleId} {
-      allow read, write: if request.auth != null;
-    }
-  }
-}
-```
+Test automatici delle regole (owner-only, deny su collection sconosciute): vedi
+[`tests/rules/`](./tests/rules/README.md).
 
 ---
 
