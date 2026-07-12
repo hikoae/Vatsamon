@@ -45,6 +45,28 @@ export function spintatoreFromFighter(f: Fighter): Spintatore {
 
 export type AzioneId = "incalza" | "reggi" | "gira" | "incoraggia";
 
+/**
+ * Modificatori di una MOSSA (data/mosse.ts): ogni mossa è il comportamento
+ * base della sua famiglia (AzioneId) + questi piccoli scostamenti. Tutti i
+ * default riproducono ESATTAMENTE i numeri storici del motore, così una
+ * partita senza mosse equipaggiate è identica a prima.
+ */
+export interface MossaMods {
+  spintaMult?: number;           // ×shift per incalza/gira (default 1)
+  fiatoDelta?: number;           // sommato al bilancio fiato dell'azione (negativo = costa di più)
+  calmaDelta?: number;           // sommato all'effetto calma su di sé
+  calmaAvv?: number;             // quanto INNERVOSISCE l'avversaria (calma avversaria -= n)
+  reggiAssorbi?: number;         // postura: residuo dell'incalzata subita (default 0.4)
+  reggiRimbalzo?: number;        // postura: terreno contro-guadagnato sul rimbalzo (default 2.5)
+  reggiEsposizioneGira?: number; // postura: vulnerabilità al gira (default 1.35)
+  recuperoMult?: number;         // ×fiato e ×calma recuperati con incoraggia (default 1)
+  barraCost?: number;            // terreno ceduto incoraggiando (default 4)
+  scrambleTell?: boolean;        // confonde l'avversaria: prossima scelta/lettura casuale
+}
+
+/** Riferimento leggero a una mossa: basta al motore (il registry vive in data/mosse.ts). */
+export interface MossaRef { id: string; nome: string; emoji: string; mods: MossaMods }
+
 export interface Azione { id: AzioneId; label: string; emoji: string; desc: string; counterHint: string }
 export const AZIONI: Azione[] = [
   { id: "incalza", label: "Incalza", emoji: "🐂", desc: "Spinta decisa a fronti opposti: la massa conta, il fiato se ne va.", counterHint: "forte su chi recupera o gira · si spegne su chi regge" },
@@ -93,8 +115,14 @@ export interface SpintaState {
   calmaO?: number;   // Reina avversaria (si innervosisce se forzata)
   stanceP: AzioneId | null; // ultima azione in campo (postura)
   stanceO: AzioneId | null;
+  stanceMossaP?: MossaRef | null; // la MOSSA in campo come postura (i mods del Reggi
+  stanceMossaO?: MossaRef | null; // si esprimono quando l'avversaria la attacca)
+  confusaP?: boolean;       // la prossima LETTURA del giocatore è casuale (tell inaffidabile)
+  confusaO?: boolean;       // la prossima SCELTA dell'avversaria è casuale (ignora indole)
+  usiMosse?: Record<string, number>; // usi per spinta delle mosse speciali (chiave `p:${id}`)
   intentO?: AzioneId;       // intenzione telegrafata dell'avversaria
   tell?: string;            // il tell mostrato (può ingannare)
+  tellAzione?: AzioneId;    // l'azione che il tell LASCIA INTENDERE (per capire se ha mentito)
   turno?: number;
   personalita?: Personalita;
   tellAccuracy?: number;    // 0..1, dal Rispetto del giocatore
@@ -133,11 +161,20 @@ function giraGain(A: Spintatore, B: Spintatore): number {
   return 5 + Math.max(0, A.presa - B.presa) / 4.5;
 }
 
-export interface TurnResult { state: SpintaState; log: string; nervosa: boolean; counter: "A" | "B" | null }
+export interface TurnResult {
+  state: SpintaState;
+  log: string;
+  nervosa: boolean;
+  counter: "A" | "B" | null;
+  /** Dati per la UI di spiegazione e la telecronaca (che cosa è successo e perché). */
+  dettaglio?: { shift?: number; famiglia: AzioneId; counter: "A" | "B" | null; mossa?: MossaRef; mossaAvv?: MossaRef | null };
+}
 
 /** Applica un'azione di un lato. L'azione si risolve CONTRO la postura (stance)
- *  dell'altro lato: è la matrice di counter che rende leggibile il duello. */
-export function applyAzione(side: "p" | "o", azione: AzioneId, st: SpintaState, A: Spintatore, B: Spintatore): TurnResult {
+ *  dell'altro lato: è la matrice di counter che rende leggibile il duello.
+ *  `opts.mossa` è la variante-mossa dell'azione (data/mosse.ts): senza di essa
+ *  tutti i default riproducono il comportamento storico. */
+export function applyAzione(side: "p" | "o", azione: AzioneId, st: SpintaState, A: Spintatore, B: Spintatore, opts?: { mossa?: MossaRef }): TurnResult {
   const s: SpintaState = { ...st };
   if (s.calmaO === undefined) s.calmaO = 80;
   s.turno = (st.turno ?? 0) + 1;
@@ -149,16 +186,26 @@ export function applyAzione(side: "p" | "o", azione: AzioneId, st: SpintaState, 
     if (side === "p") s.fiatoP = Math.min(A.fiatoMax, s.fiatoP + d);
     else s.fiatoO = Math.min(A.fiatoMax, s.fiatoO + d);
   };
+  // effetto sull'avversaria (mosse che innervosiscono: la calma è dell'ALTRA)
+  const addAvvCalma = (d: number) => {
+    if (side === "p") s.calmaO = clamp((s.calmaO ?? 80) + d, 0, 100);
+    else s.calma = clamp(s.calma + d, 0, 100);
+  };
   const varia = () => 1 + (Math.random() * 2 - 1) * (agitata ? 0.16 : 0.08);
   const stanceAvv = side === "p" ? s.stanceO : s.stanceP;
+  // i mods della MIA mossa e della POSTURA avversaria in campo
+  const mods = opts?.mossa?.mods ?? {};
+  const stanceMossaAvv = (side === "p" ? s.stanceMossaO : s.stanceMossaP) ?? null;
+  const stanceMods = stanceMossaAvv?.mods ?? {};
   let log = "";
   let counter: "A" | "B" | null = null;
+  let shiftOut: number | undefined;
 
   if (azione === "incalza") {
-    let shift = pushGain(A, B) * varia() * (agitata ? 0.75 : 1);
+    let shift = pushGain(A, B) * varia() * (agitata ? 0.75 : 1) * (mods.spintaMult ?? 1);
     if (stanceAvv === "reggi") {
       // si spegne sulla postura piantata: l'avversaria contro-guadagna terreno
-      shift = shift * 0.4 - 2.5;
+      shift = shift * (stanceMods.reggiAssorbi ?? 0.4) - (stanceMods.reggiRimbalzo ?? 2.5);
       counter = "B";
       log = `${B.name} regge l'urto: ${A.name} si spegne sulla presa piantata.`;
     } else if (stanceAvv === "incoraggia") {
@@ -171,18 +218,20 @@ export function applyAzione(side: "p" | "o", azione: AzioneId, st: SpintaState, 
       log = `${A.name} incalza a fronti opposti${agitata ? " (ma è nervosa)" : ""}.`;
     }
     s.barra = clamp(s.barra + dir * shift, 0, 100);
-    setMyCalma(myCalma - 10);
-    addMyFiato(-FIATO_INCALZA);
+    shiftOut = shift;
+    setMyCalma(myCalma - 10 + (mods.calmaDelta ?? 0));
+    addMyFiato(-FIATO_INCALZA + (mods.fiatoDelta ?? 0));
   } else if (azione === "reggi") {
-    setMyCalma(myCalma + 5);
-    addMyFiato(FIATO_RECUP);
+    setMyCalma(myCalma + 5 + (mods.calmaDelta ?? 0));
+    addMyFiato(FIATO_RECUP + (mods.fiatoDelta ?? 0));
     log = `${A.name} pianta gli zoccoli e regge la posizione.`;
   } else if (azione === "gira") {
-    let shift = giraGain(A, B) * varia() * (agitata ? 0.85 : 1);
+    let shift = giraGain(A, B) * varia() * (agitata ? 0.85 : 1) * (mods.spintaMult ?? 1);
     if (stanceAvv === "reggi") {
-      shift *= 1.35; counter = "A";
+      shift *= (stanceMods.reggiEsposizioneGira ?? 1.35); counter = "A";
       log = `${A.name} aggira la presa piantata di ${B.name}: leva di fianco!`;
     } else if (stanceAvv === "incalza") {
+      // il counter frontale che subisci non è amplificato dalla tua variante
       shift = -pushGain(B, A) * 0.5;
       counter = "B";
       log = `${A.name} cerca il fianco ma ${B.name} la travolge frontale.`;
@@ -193,19 +242,26 @@ export function applyAzione(side: "p" | "o", azione: AzioneId, st: SpintaState, 
       log = `${A.name} gira di leno cercando la leva.`;
     }
     s.barra = clamp(s.barra + dir * shift, 0, 100);
-    setMyCalma(myCalma - 4);
-    addMyFiato(-FIATO_GIRA);
+    shiftOut = shift;
+    setMyCalma(myCalma - 4 + (mods.calmaDelta ?? 0));
+    addMyFiato(-FIATO_GIRA + (mods.fiatoDelta ?? 0));
   } else {
     // incoraggia: recupero pieno se l'avversaria non sta attaccando
     const sottoAttacco = stanceAvv === "incalza" || stanceAvv === "gira";
-    setMyCalma(myCalma + (sottoAttacco ? 8 : 14));
-    addMyFiato(sottoAttacco ? 8 : FIATO_INCOR);
-    s.barra = clamp(s.barra - dir * 4, 0, 100);
+    const rec = mods.recuperoMult ?? 1;
+    setMyCalma(myCalma + (sottoAttacco ? 8 : 14) * rec + (mods.calmaDelta ?? 0));
+    addMyFiato((sottoAttacco ? 8 : FIATO_INCOR) * rec + (mods.fiatoDelta ?? 0));
+    s.barra = clamp(s.barra - dir * (mods.barraCost ?? 4), 0, 100);
     log = `${A.name} viene incoraggiata: ritrova calma e fiato${sottoAttacco ? " (sotto pressione)" : ""}.`;
   }
 
-  // la mia azione diventa la mia postura in campo
-  if (side === "p") s.stanceP = azione; else s.stanceO = azione;
+  // effetti "di carattere" della mossa: innervosire l'avversaria, confonderla
+  if (mods.calmaAvv) addAvvCalma(-mods.calmaAvv);
+  if (mods.scrambleTell) { if (side === "p") s.confusaO = true; else s.confusaP = true; }
+
+  // la mia azione diventa la mia postura in campo (con la sua mossa)
+  if (side === "p") { s.stanceP = azione; s.stanceMossaP = opts?.mossa ?? null; }
+  else { s.stanceO = azione; s.stanceMossaO = opts?.mossa ?? null; }
 
   // esiti
   if (s.barra >= 100) s.esito = "vinto";
@@ -222,7 +278,10 @@ export function applyAzione(side: "p" | "o", azione: AzioneId, st: SpintaState, 
   // dopo il turno dell'avversaria (e a duello vivo) prepara la prossima intenzione + tell
   if (side === "o" && s.esito === "corso") prepareIntent(s, A, B);
 
-  return { state: s, log, nervosa: agitata, counter };
+  return {
+    state: s, log, nervosa: agitata, counter,
+    dettaglio: { shift: shiftOut, famiglia: azione, counter, mossa: opts?.mossa, mossaAvv: stanceMossaAvv },
+  };
 }
 
 /** Sceglie la prossima intenzione dell'avversaria secondo l'indole, e genera il
@@ -230,10 +289,16 @@ export function applyAzione(side: "p" | "o", azione: AzioneId, st: SpintaState, 
 export function prepareIntent(s: SpintaState, _o?: Spintatore, _p?: Spintatore): void {
   const pers = s.personalita ?? "focosa";
   const r = Math.random();
+  const TUTTE: AzioneId[] = ["incalza", "reggi", "gira", "incoraggia"];
   let intent: AzioneId;
 
+  if (s.confusaO) {
+    // confusa da una finta: la prossima scelta ignora guardie e indole
+    intent = TUTTE[Math.floor(Math.random() * 4)];
+    s.confusaO = false;
+  }
   // guardie di buon senso (valgono per tutte le indoli)
-  if (s.fiatoO < 25) intent = r < 0.7 ? "incoraggia" : "reggi";
+  else if (s.fiatoO < 25) intent = r < 0.7 ? "incoraggia" : "reggi";
   else if ((s.calmaO ?? 80) < 28 && r < 0.6) intent = "incoraggia";
   // se il giocatore si è appena piantato due volte, l'astuta/paziente lo aggira
   else if (s.stanceP === "reggi" && (pers === "astuta" || pers === "paziente") && r < 0.6) intent = "gira";
@@ -254,10 +319,24 @@ export function prepareIntent(s: SpintaState, _o?: Spintatore, _p?: Spintatore):
   s.intentO = intent;
   // tell: veritiero con probabilità tellAccuracy, altrimenti fuorviante
   const truthful = Math.random() < (s.tellAccuracy ?? 0.75);
-  const shownAction: AzioneId = truthful
+  let shownAction: AzioneId = truthful
     ? intent
-    : (["incalza", "reggi", "gira", "incoraggia"] as AzioneId[]).filter((a) => a !== intent)[Math.floor(Math.random() * 3)];
+    : TUTTE.filter((a) => a !== intent)[Math.floor(Math.random() * 3)];
+  if (s.confusaP) {
+    // la finta avversaria ha confuso la lettura: il tell mostrato è casuale
+    shownAction = TUTTE[Math.floor(Math.random() * 4)];
+    s.confusaP = false;
+  }
+  s.tellAzione = shownAction;
   const variants = TELLS[shownAction];
+  s.tell = variants[Math.floor(Math.random() * variants.length)];
+}
+
+/** Forza l'intenzione dell'avversaria con tell veritiero (bataille-lezione di Mémé). */
+export function forzaIntento(s: SpintaState, azione: AzioneId): void {
+  s.intentO = azione;
+  s.tellAzione = azione;
+  const variants = TELLS[azione];
   s.tell = variants[Math.floor(Math.random() * variants.length)];
 }
 

@@ -3,6 +3,7 @@ import { BookOpen, Award, Search, X } from 'lucide-react';
 import { Vatsamon } from '../types';
 import { CowVisual } from './CowVisual';
 import { CowCard } from './CowCard';
+import { MosseEditor } from './MosseEditor';
 import { REAL_TOTAL, SHOWCASE_BY_RARITY } from '../data/realCows';
 
 /**
@@ -16,6 +17,9 @@ export function VatsadexView({
   onSetBuddy,
   onPowerUp,
   onTransfer,
+  fontina,
+  onEquipMosse,
+  onMemeTeach,
   playClick,
   playMoo,
   playFanfare,
@@ -27,6 +31,12 @@ export function VatsadexView({
   onPowerUp: (cow: Vatsamon) => Vatsamon | null;
   /** Libera la Reina al pascolo; true se l'operazione è andata a buon fine. */
   onTransfer: (cow: Vatsamon) => boolean;
+  /** Forme di Fontina possedute (per la Scuola di Mémé). */
+  fontina: number;
+  /** Scrive cow.mosse; ritorna la scheda aggiornata. */
+  onEquipMosse: (cow: Vatsamon, mosse: string[]) => Vatsamon;
+  /** Mémé insegna dal catalogo globale per Fontina; null se non basta. */
+  onMemeTeach: (cow: Vatsamon, mossaId: string, costo: number) => Vatsamon | null;
   playClick: () => void;
   playMoo: () => void;
   playFanfare: () => void;
@@ -217,6 +227,17 @@ export function VatsadexView({
 
             {/* Scheda "carta Pokémon" (componente dedicato) */}
             <CowCard cow={selected} />
+
+            {/* L'angolo delle mosse: equipaggia, impara da Mémé (solo cow possedute) */}
+            {collection.some((c) => c.id === selected.id) && (
+              <MosseEditor
+                cow={selected}
+                fontina={fontina}
+                onEquip={(c, mosse) => { const u = onEquipMosse(c, mosse); setSelected(u); return u; }}
+                onLearnFromMeme={(c, id, costo) => { const u = onMemeTeach(c, id, costo); if (u) setSelected(u); return u; }}
+                playClick={playClick}
+              />
+            )}
 
             {/* Pokemon GO Action: Power Up and Transfers */}
             <div className="border-t border-slate-850 pt-3 flex gap-2">

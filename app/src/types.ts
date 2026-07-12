@@ -51,6 +51,12 @@ export interface Vatsamon {
   defense4?: number;
   funFact?: string;
 
+  // ===== Mosse della Spinta (data/mosse.ts) =====
+  // Assenti nei salvataggi storici: il moveset default è deterministico
+  // (mosseEquipaggiate), quindi nessuna migrazione è necessaria.
+  mosse?: string[];        // equipaggiate (4, una per famiglia)
+  mosseApprese?: string[]; // pool personale imparato (Scuola della Reina)
+
   // ===== Genealogia / Stalla (nati in stalla) =====
   bornInStalla?: boolean;
   stage?: 'moudzon' | 'manza' | 'giovenca' | 'reina';

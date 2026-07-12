@@ -5,12 +5,19 @@ import { Vatsamon, BackpackItem } from "../types";
 import { CowVisual } from "./CowVisual";
 import { buildPlayerFighter, buildOpponentFighter, buildScaledBoss, Fighter } from "../lib/battle";
 import {
-  Spintatore, SpintaState, AzioneId, AZIONI, PERSONALITA_LABEL, Personalita, personalitaFromLegacy,
-  spintatoreFromFighter, initSpinta, applyAzione, pickAzioneAvversaria,
+  Spintatore, SpintaState, AzioneId, PERSONALITA_LABEL, Personalita, personalitaFromLegacy,
+  spintatoreFromFighter, initSpinta, pickAzioneAvversaria, forzaIntento, MAX_TURNI,
 } from "../lib/spinta";
 import { SAC_ITEMS, MAX_VIGILIA, LIMATURA_TESTO } from "../data/sac";
 import { MapBattle } from "../data/mapBattles";
 import { arenaBoss } from "../data/arenas";
+import { Mossa, mosseEquipaggiate, mosseAvversaria, eseguiMossa } from "../data/mosse";
+import { spiegaEsito, cronacaTurno, cronacaEsito } from "../data/telecronaca";
+import { SpintaStats, nuoveSpintaStats, registraTurno, campionaBarra } from "../lib/scuola";
+import { TUTORIAL_SCRIPT, TUTORIAL_VIGILIA } from "../data/tutorialBattle";
+import { tipDaDare, MEME_TIPS } from "../lib/tutorial";
+import { MossePanel } from "./battle/MossePanel";
+import { MossaInfoSheet } from "./battle/MossaInfoSheet";
 
 type Phase = "intro" | "fight" | "end";
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -26,7 +33,7 @@ export default function BattleScene({
   respectScore: number;
   backpack: BackpackItem[];
   onConsumeItem: (id: string) => void;
-  onResult: (won: boolean, cowId?: string) => void;
+  onResult: (won: boolean, cowId?: string, stats?: SpintaStats) => void;
   onClose: () => void;
   playClick: () => void;
 }) {
@@ -48,6 +55,14 @@ export default function BattleScene({
   const playerRef = useRef<Spintatore | null>(null);
   const oppRef = useRef<Spintatore | null>(null);
   const stRef = useRef<SpintaState>({ barra: 50, fiatoP: 0, fiatoO: 0, calma: 80, stanceP: null, stanceO: null, esito: "corso" });
+  const mossePRef = useRef<Record<AzioneId, Mossa> | null>(null);
+  const mosseORef = useRef<Record<AzioneId, Mossa> | null>(null);
+  const statsRef = useRef<SpintaStats>(nuoveSpintaStats());
+  const [infoMossa, setInfoMossa] = useState<Mossa | null>(null);
+  // Bataille-lezione di Mémé: sceneggiatura per turno del giocatore
+  const isTutorial = !!battle.tutorial;
+  const tutStepRef = useRef(0);
+  const tutStep = isTutorial ? TUTORIAL_SCRIPT[Math.min(tutStepRef.current, TUTORIAL_SCRIPT.length - 1)] : null;
   const [, force] = useState(0);
   const rerender = () => force((n) => n + 1);
 
@@ -77,30 +92,52 @@ export default function BattleScene({
     const os = spintatoreFromFighter(of);
     playerRef.current = ps;
     oppRef.current = os;
-    stRef.current = initSpinta(ps, os, { personalita, tellAccuracy });
+    mossePRef.current = mosseEquipaggiate(playerCow);
+    mosseORef.current = mosseAvversaria(os.name, personalita, battle.kind === "arena");
+    statsRef.current = nuoveSpintaStats();
+    stRef.current = initSpinta(ps, os, {
+      personalita: isTutorial ? "paziente" : personalita,
+      tellAccuracy: isTutorial ? 1 : tellAccuracy,
+    });
+    campionaBarra(statsRef.current, stRef.current.barra); // l'ingaggio può già partire in svantaggio
+    if (isTutorial) {
+      tutStepRef.current = 0;
+      const primo = TUTORIAL_SCRIPT[0].intentoAvversaria;
+      if (primo) forzaIntento(stRef.current, primo);
+    }
     setLog([`${battle.emoji} ${battle.name}: ${ps.name} affronta ${os.name}. Le corna si toccano…`]);
     setWinner(null); setShowBag(false);
     setPhase("fight"); rerender();
   };
 
-  const performTurn = async (side: "p" | "o", azione: AzioneId) => {
+  const performTurn = async (side: "p" | "o", mossaId: string) => {
     const A = side === "p" ? player! : opp!;
     const B = side === "p" ? opp! : player!;
     setLunge(side); await wait(160);
-    const r = applyAzione(side, azione, stRef.current, A, B);
+    const r = eseguiMossa(side, mossaId, stRef.current, A, B);
     stRef.current = r.state;
-    pushLog(r.log);
+    if (side === "p" && r.dettaglio) registraTurno(statsRef.current, r.dettaglio.famiglia, r.state.barra, r.state.turno ?? 0);
+    campionaBarra(statsRef.current, r.state.barra); // anche i cali causati dall'avversaria
+    pushLog(spiegaEsito(r) ?? r.log);
+    const cronaca = cronacaTurno(r, { p: player!.name, o: opp!.name });
+    if (cronaca) pushLog(cronaca);
     rerender();
     setLunge(null);
-    if (azione === "incalza" || azione === "gira") { setShake(true); await wait(160); setShake(false); }
+    const fam = r.dettaglio?.famiglia;
+    if (fam === "incalza" || fam === "gira") { setShake(true); await wait(160); setShake(false); }
     await wait(260);
+    return r;
   };
 
   const endBattle = () => {
     const won = stRef.current.esito === "vinto";
+    const condotta = (stRef.current.turno ?? 0) >= MAX_TURNI;
+    statsRef.current.vittoriaPerFiato = won && stRef.current.fiatoO <= 0;
+    if (condotta) statsRef.current.giudizio = true;
+    pushLog(cronacaEsito(won, condotta, { p: player?.name ?? "La tua Reina", o: opp?.name ?? "la rivale" }));
     setWinner(won ? "player" : "opponent");
     setPhase("end"); setBusy(false);
-    onResult(won, playerCow?.id);
+    onResult(won, playerCow?.id, statsRef.current);
   };
 
   // Ritirarsi è legittimo ma onesto: conta come sconfitta dichiarata.
@@ -112,13 +149,38 @@ export default function BattleScene({
     endBattle();
   };
 
-  const doAction = async (azione: AzioneId) => {
+  const mossaAvversaria = () => mosseORef.current![pickAzioneAvversaria(stRef.current, opp!, player!)].id;
+
+  // Consigli di Mémé contestuali (una volta sola, in QUALSIASI battaglia)
+  const consigliaSeServe = (r: ReturnType<typeof eseguiMossa>, side: "p" | "o", tellPromesso?: AzioneId) => {
+    const punito = (side === "p" && r.counter === "B") || (side === "o" && r.counter === "A");
+    if (punito && tipDaDare("primo-counter-subito")) { pushLog(MEME_TIPS["primo-counter-subito"]); return; }
+    if (side === "o" && tellPromesso && r.dettaglio && r.dettaglio.famiglia !== tellPromesso && tipDaDare("primo-tell-ingannevole")) {
+      pushLog(MEME_TIPS["primo-tell-ingannevole"]); return;
+    }
+    if (r.state.esito === "corso" && r.state.fiatoP < 30 && tipDaDare("primo-fiato-basso")) pushLog(MEME_TIPS["primo-fiato-basso"]);
+  };
+
+  const doAction = async (mossa: Mossa) => {
     if (busy || phase !== "fight" || stRef.current.esito !== "corso") return;
     playClick(); setBusy(true); setShowBag(false);
-    await performTurn("p", azione);
+    const rP = await performTurn("p", mossa.id);
+    if (!isTutorial && rP) consigliaSeServe(rP, "p");
+    if (isTutorial) {
+      tutStepRef.current += 1;
+      // la lezione del fiato (passo Incoraggia) chiede il fiato corto: la sceneggiatura lo prepara
+      if (tutStepRef.current === 3) stRef.current.fiatoP = Math.min(stRef.current.fiatoP, 40);
+    }
     if (stRef.current.esito !== "corso") { endBattle(); return; }
     await wait(200);
-    await performTurn("o", pickAzioneAvversaria(stRef.current, opp!, player!));
+    const tellPromesso = stRef.current.tellAzione;
+    const rOpp = await performTurn("o", mossaAvversaria());
+    if (isTutorial && stRef.current.esito === "corso") {
+      const prossimo = TUTORIAL_SCRIPT[tutStepRef.current]?.intentoAvversaria;
+      if (prossimo) forzaIntento(stRef.current, prossimo);
+      rerender();
+    }
+    if (!isTutorial && rOpp) consigliaSeServe(rOpp, "o", tellPromesso);
     if (stRef.current.esito !== "corso") { endBattle(); return; }
     setBusy(false);
   };
@@ -136,7 +198,11 @@ export default function BattleScene({
     pushLog(`🎒 ${eff.nome}: ${eff.desc}`);
     onConsumeItem(id); rerender();
     await wait(500);
-    await performTurn("o", pickAzioneAvversaria(stRef.current, opp!, player!));
+    await performTurn("o", mossaAvversaria());
+    if (isTutorial && stRef.current.esito === "corso") {
+      const prossimo = TUTORIAL_SCRIPT[tutStepRef.current]?.intentoAvversaria;
+      if (prossimo) forzaIntento(stRef.current, prossimo);
+    }
     if (stRef.current.esito !== "corso") { endBattle(); return; }
     setBusy(false);
   };
@@ -190,6 +256,12 @@ export default function BattleScene({
 
           {phase === "fight" && !showBag && (
             <>
+              {isTutorial && tutStep && (
+                <div className="flex items-start gap-2 bg-rose-950/40 border border-[#c8102e]/50 rounded-xl px-3 py-2" id="tutorial-meme">
+                  <span className="text-xl" aria-hidden="true">👵</span>
+                  <p className="text-[11px] text-rose-100 leading-snug">{tutStep.memeText}</p>
+                </div>
+              )}
               {st.tell && (
                 <div id="battle-tell" className="flex items-center gap-2 bg-amber-500/10 border border-amber-600/40 rounded-xl px-3 py-1.5">
                   <span aria-hidden="true">👁</span>
@@ -199,15 +271,12 @@ export default function BattleScene({
                   </div>
                 </div>
               )}
-              <div className="grid grid-cols-2 gap-2" id="battle-moves">
-                {AZIONI.map((a) => (
-                  <button key={a.id} onClick={() => doAction(a.id)} disabled={busy} title={a.desc}
-                    className="text-left rounded-xl border p-2 transition-all disabled:opacity-40 bg-slate-900 border-slate-700 hover:border-amber-500/60">
-                    <div className="text-[11px] font-mono font-black text-slate-100 leading-tight">{a.emoji} {a.label}</div>
-                    <div className="text-[10px] font-mono text-amber-500/90 leading-tight mt-0.5">{a.counterHint}</div>
-                  </button>
-                ))}
-              </div>
+              {mossePRef.current && (
+                <MossePanel id="battle-moves" mosse={mossePRef.current} st={st} busy={busy}
+                  onMossa={doAction} onInfo={(m) => { playClick(); setInfoMossa(m); }}
+                  famiglieAbilitate={tutStep?.famiglieAbilitate}
+                  hintDisabilitata="👵 non ora — segui Mémé" />
+              )}
               <div className="flex gap-2">
                 <button onClick={() => { playClick(); setShowBag(true); }} disabled={busy} className="flex-1 flex items-center justify-center gap-2 bg-slate-900 border border-amber-700/40 text-amber-400 font-mono font-black text-xs py-2 rounded-xl disabled:opacity-40">
                   <Backpack className="w-4 h-4" /> Sac ({bagItems.reduce((n, b) => n + b.quantity, 0)})
@@ -244,6 +313,8 @@ export default function BattleScene({
           )}
         </div>
       )}
+
+      {infoMossa && <MossaInfoSheet mossa={infoMossa} onClose={() => setInfoMossa(null)} playClick={playClick} />}
     </div>
   );
 }
@@ -266,6 +337,7 @@ function IntroPanel({ battle, playerCows, cowId, setCowId, onStart, onClose, pla
         <div className="text-base font-mono font-black text-slate-100">{battle.name}</div>
         <div className="text-[11px] text-slate-300">{battle.subtitle}</div>
         {battle.pastore && <p className="text-[11px] text-slate-200 italic mt-2 bg-slate-900/60 border border-slate-800 rounded-2xl p-3 max-w-xs">"{battle.pastore.dialogueIntro}"</p>}
+        {battle.tutorial && <p className="text-[11px] text-rose-100 mt-2 bg-rose-950/40 border border-[#c8102e]/50 rounded-2xl p-3 max-w-xs leading-snug">{TUTORIAL_VIGILIA}</p>}
         <p className="text-[11px] font-mono mt-2 text-slate-300">È una <b className="text-emerald-700">spinta a corna limate</b>: vince chi fa cedere l'avversaria. Osserva i suoi movimenti e rispondi — conduci, non forzare.</p>
         <p className="text-[10px] font-mono mt-1 text-amber-600">Indole avversaria: <b>{PERSONALITA_LABEL[personalita].label}</b> — {PERSONALITA_LABEL[personalita].desc}</p>
       </div>

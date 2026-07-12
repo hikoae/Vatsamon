@@ -13,6 +13,7 @@ import { saveCloudSave } from "../lib/cloudSave";
 import { useAuth } from "../lib/auth";
 import { AVATARS, VALLEYS, STARTERS } from "../data/starters";
 import { CowVisual } from "./CowVisual";
+import { avviaTutorialAlProssimoAvvio } from "../lib/tutorial";
 import { Vatsamon, Trainer } from "../types";
 
 const STEPS = ["Nome", "Avatar", "Valle", "Starter"] as const;
@@ -57,6 +58,8 @@ export default function Onboarding({ onComplete }: { onComplete: () => void }) {
         "vatsamon_onboarded",
         JSON.stringify({ avatarId, valleyId, starterId: starter.id, at: Date.now() }),
       );
+      // Il nuovo giocatore riceve Mémé di Nus al primo avvio (beat giocati).
+      avviaTutorialAlProssimoAvvio();
 
       // Profilo pubblico/utente su Firestore (best-effort).
       if (firebaseEnabled && db && user) {

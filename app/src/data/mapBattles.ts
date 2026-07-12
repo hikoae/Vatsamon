@@ -18,6 +18,8 @@ export interface MapBattle {
   accent: string; // hex
   pastore?: Pastore;
   arena?: Arena;
+  /** Bataille-lezione di Mémé (data/tutorialBattle.ts): fuori mappa, scena guidata. */
+  tutorial?: boolean;
 }
 
 // Luoghi reali dei Pastori (vicino ai loro alpeggi narrativi).

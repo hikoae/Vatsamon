@@ -60,6 +60,10 @@ import EliminatoireView, { EsitoTappa } from './components/EliminatoireView';
 import { tappe, tappaStato, STATO_LABEL, LS_ELIMINATOIRE, EliminatoireSave } from './data/eliminatoire';
 import { ArpPanel } from './components/ArpPanel';
 import { sbloccaParola, vociSbloccate, parolePatois, PATOIS_TRIGGERS, TOTALE_PAROLE } from './lib/patois';
+import { SpintaStats, valutaImprese, insegnaMosse, mosseDaLivello, sbloccaGlobale } from './lib/scuola';
+import { TutorialState, tutorialState, saveTutorial, premioLezioneDaRitirare } from './lib/tutorial';
+import { TUTORIAL_BATTLE } from './data/tutorialBattle';
+import { MemeGuide } from './components/MemeGuide';
 import LeggendeView from './components/LeggendeView';
 import { ArpState, ARP_VUOTO, LS_ARP, ARP_KG_PER_CURA, ARP_GIORNI_PER_FONTINA } from './data/arp';
 import { SeasonEvent } from './data/season';
@@ -241,6 +245,13 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<'map' | 'routes' | 'stagione' | 'scanner' | 'stalla' | 'vatsadex' | 'quiz' | 'premi'>('map');
   // Battaglia attiva (scena stile Pokémon lanciata dalla mappa).
   const [activeBattle, setActiveBattle] = useState<MapBattle | null>(null);
+  // Il tutorial di Mémé (beat giocati): pending solo per i NUOVI onboarding.
+  const [tutorial, setTutorial] = useState<TutorialState>(() => tutorialState());
+  const tutorialAttivo = tutorial.pending && !tutorial.done;
+  // Rileggi SEMPRE lo stato fresco da localStorage: i tips/premi vengono
+  // scritti anche da BattleScene (tipDaDare) e non devono essere sovrascritti.
+  const passaBeat = (beat: number) => { const st = { ...tutorialState(), beat }; setTutorial(st); saveTutorial(st); };
+  const chiudiTutorial = () => { const st = { ...tutorialState(), done: true }; setTutorial(st); saveTutorial(st); };
   const [activeDungeon, setActiveDungeon] = useState<Dungeon | null>(null); // Lega/dungeon in corso
   const [dungeonsCleared, setDungeonsCleared] = useState<string[]>(() => {
     try { return JSON.parse(localStorage.getItem('vatsamon_dungeons') || '[]'); } catch { return []; }
@@ -411,6 +422,7 @@ export default function App() {
     const giorni = capo.giorniCura + 1;
     setArpState(prev => ({ ...prev, capi: { ...prev.capi, [cowId]: { ...capo, ultimaCura: oggi, giorniCura: giorni } } }));
     setVatsadex(prev => prev.map(c => c.id === cowId ? { ...c, peso_kg: Math.min(750, (c.peso_kg ?? 550) + ARP_KG_PER_CURA) } : c));
+    if (giorni === 3) insegnaAllaReina(cowId, ['flemma-ghiacciaio']);
     addTrainerXp(15);
     if (giorni % ARP_GIORNI_PER_FONTINA === 0) { guadagnaFontina(1, "l'alpe ha reso una forma"); impara('alpeggio'); }
     else setTrekkingFeed(prev => [`🌿 Cura all'arp: +${ARP_KG_PER_CURA} kg. L'erba d'alta quota fa la stazza.`, ...prev.slice(0, 8)]);
@@ -447,6 +459,7 @@ export default function App() {
     ));
     guadagnaFontina(2, 'la festa della désarpa');
     impara('desarpa');
+    if (corne) insegnaAllaReina(corne.id, ['sguardo-regale']);
     if (corne) impara('reina_corne');
     if (lait) impara('reina_latte');
     setTrekkingFeed(prev => [`🌸 DÉSARPA ${anno}! ${corne ? `🌹 ${corne.name} è la Reina di corne` : 'Nessuna Reina di corne (serve almeno una vittoria)'}${lait ? ` · 🤍 ${lait.name} è la Reine du lait` : ''}. La mandria scende a valle in festa.`, ...prev.slice(0, 8)]);
@@ -480,6 +493,7 @@ export default function App() {
 
     if (esito.vinta) {
       setVatsadex(prev => prev.map(c => c.id === esito.reinaId ? { ...c, vittorie: (c.vittorie ?? 0) + 1 } : c));
+      insegnaAllaReina(esito.reinaId, valutaImprese(esito.stats, t.finale ? 'finale' : 'tappa'));
       if (!giaVinta) {
         // Prima vittoria della tappa: i TRE premi reali (dossier §1) + XP pieno.
         const nuovi: Trofeo[] = (["mecro", "sonnaille", "collare"] as const).map(tipo => ({
@@ -509,12 +523,51 @@ export default function App() {
     }
   };
 
-  const handleBattleResult = (won: boolean, cowId?: string) => {
+  // LA SCUOLA DELLA REINA: assegna le mosse guadagnate da un'impresa alla
+  // Reina che l'ha compiuta e le sblocca nel catalogo globale (Mémé insegna).
+  const insegnaAllaReina = (cowId: string | undefined, ids: string[]) => {
+    if (!ids.length) return;
+    ids.forEach(sbloccaGlobale);
+    if (!cowId) return;
+    const c = vatsadex.find(x => x.id === cowId);
+    if (!c) return;
+    const { cow, nuove } = insegnaMosse(c, ids);
+    if (!nuove.length) return;
+    setVatsadex(prev => prev.map(x => x.id === cowId ? { ...x, mosseApprese: cow.mosseApprese } : x));
+    setTrekkingFeed(f => [`🎓 ${c.name} ha imparato ${nuove.map(m => `${m.emoji} ${m.nome.toUpperCase()}`).join(' · ')}! Equipaggiala dal Libretto.`, ...f.slice(0, 8)]);
+  };
+
+  const handleBattleResult = (won: boolean, cowId?: string, stats?: SpintaStats) => {
     const mb = activeBattle;
     if (!mb) return;
+    // La bataille-lezione di Mémé: premi suoi, niente circuito normale.
+    if (mb.tutorial) {
+      if (won) {
+        impara('bataille');
+        // Il premio si ritira solo alla PRIMA vittoria: la lezione è
+        // rigiocabile dal Profilo ma non è una fattoria di XP/Genepy.
+        if (premioLezioneDaRitirare()) {
+          addTrainerXp(100);
+          setBackpack(prev => {
+            const found = prev.find(it => it.id === 'item-buff-genepy');
+            if (found) return prev.map(it => it.id === 'item-buff-genepy' ? { ...it, quantity: it.quantity + 1 } : it);
+            const tpl = DEFAULT_BAG.find(it => it.id === 'item-buff-genepy');
+            return tpl ? [...prev, { ...tpl, quantity: 1 }] : prev;
+          });
+          setTrekkingFeed(prev => [`👵 «${mb.pastore?.dialogueWin}» +100 XP e un 🍵 Genepy da parte di Mémé.`, ...prev.slice(0, 8)]);
+        } else {
+          setTrekkingFeed(prev => [`👵 «${mb.pastore?.dialogueWin}» (Il ripasso fa bene; il premio, quello, fu dato.)`, ...prev.slice(0, 8)]);
+        }
+        if (tutorialAttivo && tutorial.beat <= 2) passaBeat(3);
+      } else {
+        setTrekkingFeed(prev => [`👵 «${mb.pastore?.dialogueLoss}»`, ...prev.slice(0, 8)]);
+      }
+      return;
+    }
     // palmares personale della Reina che ha condotto la spinta
     if (won && cowId) setVatsadex(prev => prev.map(c => c.id === cowId ? { ...c, vittorie: (c.vittorie ?? 0) + 1 } : c));
     if (won) impara('bataille');
+    if (won) insegnaAllaReina(cowId, valutaImprese(stats, 'battle'));
     if (won && mb.kind === 'pastore' && mb.pastore) {
       const xp = mb.pastore.rewardXp, coins = Math.round(xp / 5);
       addTrainerXp(xp);
@@ -550,10 +603,15 @@ export default function App() {
     }
     setActiveDungeon(d);
   };
-  const handleDungeonResult = (won: boolean, cowId?: string) => {
+  const handleDungeonResult = (won: boolean, cowId?: string, stats?: SpintaStats, squadra?: { cowId: string; stats: SpintaStats }[]) => {
     const d = activeDungeon;
     if (!d) return;
     if (won && cowId) setVatsadex(prev => prev.map(c => c.id === cowId ? { ...c, vittorie: (c.vittorie ?? 0) + 1 } : c));
+    // Regola della Lega: le imprese di STILE le impara ogni partecipante
+    // (sulle proprie stats); il premio contestuale (Concerto) va a chi chiude.
+    if (won) insegnaAllaReina(cowId, valutaImprese(stats, 'dungeon'));
+    if (won) squadra?.filter(m => m.cowId !== cowId).forEach(m =>
+      insegnaAllaReina(m.cowId, valutaImprese(m.stats, 'battle')));
     if (won) {
       addTrainerXp(d.rewardXp);
       setTrainer(prev => ({ ...prev, coins: prev.coins + d.rewardCoins }));
@@ -1687,7 +1745,35 @@ export default function App() {
         agility: Math.min(cow.stats.agility + 1, 100)
       },
     };
-    setVatsadex(prev => prev.map(c => (c.id === cow.id ? updated : c)));
+    // Scuola della Reina: crescendo si imparano le mosse dei livelli (3/5/8/12)
+    const scuola = mosseDaLivello(updated);
+    if (scuola.nuove.length) {
+      scuola.nuove.forEach(m => sbloccaGlobale(m.id));
+      setTrekkingFeed(prev => [`🎓 ${scuola.cow.name} ha imparato ${scuola.nuove.map(m => `${m.emoji} ${m.nome.toUpperCase()}`).join(' · ')}! Equipaggiala dal Libretto.`, ...prev.slice(0, 8)]);
+    }
+    setVatsadex(prev => prev.map(c => (c.id === cow.id ? scuola.cow : c)));
+    // Tutorial di Mémé, beat «Nutri la tua Reina»: la Razione è il gesto giocato.
+    if (tutorialAttivo && tutorial.beat === 1) passaBeat(2);
+    return scuola.cow;
+  };
+
+  /** Equipaggia le mosse (4 id, una per famiglia) sulla Reina. */
+  const handleEquipMosse = (cow: Vatsamon, mosse: string[]): Vatsamon => {
+    setVatsadex(prev => prev.map(c => (c.id === cow.id ? { ...c, mosse } : c)));
+    return { ...cow, mosse };
+  };
+
+  /** Mémé insegna una mossa del catalogo globale in cambio di Fontina. */
+  const handleMemeTeach = (cow: Vatsamon, mossaId: string, costo: number): Vatsamon | null => {
+    if ((trainer.fontina ?? 0) < costo) {
+      setTrekkingFeed(prev => [`👵 Mémé: «Torna con ${costo} 🧀, il sapere si scambia con la fontina.»`, ...prev.slice(0, 8)]);
+      return null;
+    }
+    const { cow: updated, nuove } = insegnaMosse(cow, [mossaId]);
+    if (!nuove.length) return cow;
+    setTrainer(prev => ({ ...prev, fontina: (prev.fontina ?? 0) - costo }));
+    setVatsadex(prev => prev.map(c => (c.id === cow.id ? { ...c, mosseApprese: updated.mosseApprese } : c)));
+    setTrekkingFeed(prev => [`👵 Mémé insegna ${nuove[0].emoji} ${nuove[0].nome.toUpperCase()} a ${cow.name} (−${costo} 🧀).`, ...prev.slice(0, 8)]);
     return updated;
   };
 
@@ -2560,6 +2646,9 @@ export default function App() {
             onSetBuddy={setActiveCombatantId}
             onPowerUp={handlePowerUpCow}
             onTransfer={handleTransferCow}
+            fontina={trainer.fontina ?? 0}
+            onEquipMosse={handleEquipMosse}
+            onMemeTeach={handleMemeTeach}
             playClick={playClickSfx}
             playMoo={playMooSfx}
             playFanfare={playVictorySfx}
@@ -2813,8 +2902,15 @@ export default function App() {
           playerCows={disponibili}
           respectScore={respectScore}
           battute={leggendeBattute}
-          onWin={(nome) => {
-            if (!leggendeBattute.includes(nome)) {
+          onWin={(nome, cowId, stats) => {
+            // la mossa-leggenda si guadagna solo alla PRIMA vittoria su QUELLA
+            // leggenda; la progressione (Muggito → Slavina) segue le Leggende
+            // DISTINTE già battute, non il catalogo globale. Le imprese di
+            // stile restano valutate anche nelle riprese.
+            const primaVolta = !leggendeBattute.includes(nome);
+            insegnaAllaReina(cowId, valutaImprese(stats, primaVolta ? 'leggenda' : 'battle',
+              { leggendeGiaBattute: leggendeBattute.length }));
+            if (primaVolta) {
               setLeggendeBattute(prev => [...prev, nome]);
               addTrainerXp(300);
               setTrekkingFeed(prev => [`🏛️ Hai onorato la memoria: ${nome} battuta! Cartolina storica conquistata (+300 XP)`, ...prev.slice(0, 8)]);
@@ -2863,6 +2959,52 @@ export default function App() {
         />
       )}
 
+      {/* IL TUTORIAL DI MÉMÉ — beat giocati, bubble sopra la nav (non blocca l'input) */}
+      {tutorialAttivo && !activeBattle && !activeDungeon && !activeTappa && (
+        tutorial.beat === 0 ? (
+          <MemeGuide
+            testo="Ohilà! Mémé, di Nus: tre generazioni di Reines. Ti insegno io come si sta in questa valle. Intanto due cose: quel riquadro è il DIARIO DI BORDO — racconta tutto quel che ti succede — e qui si va A PIEDI: cammina, e la valle si apre."
+            labelAvanti="Avanti"
+            onAvanti={() => {
+              // Mémé mette in sacca ciò che serve alla lezione della Razione
+              setBackpack(prev => {
+                const found = prev.find(it => it.id === 'item-hay');
+                if (found && found.quantity > 0) return prev;
+                if (found) return prev.map(it => it.id === 'item-hay' ? { ...it, quantity: 1 } : it);
+                const tpl = DEFAULT_BAG.find(it => it.id === 'item-hay');
+                return tpl ? [...prev, { ...tpl, quantity: 1 }] : prev;
+              });
+              setTrainer(prev => prev.coins < 15 ? { ...prev, coins: prev.coins + 20 } : prev);
+              setTrekkingFeed(prev => [`👵 Mémé ti mette in sacca 1 🌾 Fieno e qualche denaro: «Alla tua Reina serve la Razione.»`, ...prev.slice(0, 8)]);
+              passaBeat(1);
+            }}
+            onSalta={chiudiTutorial}
+            playClick={playClickSfx}
+          />
+        ) : tutorial.beat === 1 ? (
+          <MemeGuide
+            testo="Una Reina si NUTRE. Apri il 🐄 Libretto qui sotto, tocca la tua Reina e dalle la RAZIONE D'ALPEGGIO: cresce il peso, e il peso decide la categoria alla pesa — come nelle batailles vere."
+            onSalta={chiudiTutorial}
+            playClick={playClickSfx}
+          />
+        ) : tutorial.beat === 2 ? (
+          <MemeGuide
+            testo="Ora la piazza. Fripouille, la mia vecchia Reina, ti aspetta per la tua PRIMA BATAILLE: vieni, ti spiego tutto io, un colpo alla volta."
+            labelAvanti="Alla lezione! 🐂"
+            onAvanti={() => setActiveBattle(TUTORIAL_BATTLE)}
+            onSalta={chiudiTutorial}
+            playClick={playClickSfx}
+          />
+        ) : (
+          <MemeGuide
+            testo="Hai condotto, non hai forzato: così si fa. Là fuori trovi Pastori e arene sulla mappa, e la STAGIONE con le tappe della domenica. Le mosse nuove? Si guadagnano giocando. Adesso vai. E salutami la valle."
+            labelAvanti="Vado! ⛰️"
+            onAvanti={chiudiTutorial}
+            playClick={playClickSfx}
+          />
+        )
+      )}
+
       {/* PROFILO & SALVATAGGIO (risorse di test, export/import progressi) */}
       {showProfile && (
         <div className="fixed inset-0 bg-slate-950/95 z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto" id="profile-modal" onClick={() => setShowProfile(false)}>
@@ -2904,6 +3046,19 @@ export default function App() {
               </button>
               <p className="text-[10px] text-slate-500 text-center leading-snug">La Désarpa premia chi ha portato lontano la propria mandria: ogni Stella è un riconoscimento permanente (+Rispetto).</p>
             </div>
+
+            {/* COME SI GIOCA — la lezione di Mémé, ripetibile quando si vuole */}
+            <button
+              id="replay-tutorial"
+              onClick={() => { playClickSfx(); setShowProfile(false); setActiveBattle(TUTORIAL_BATTLE); }}
+              className="w-full flex items-center gap-2.5 bg-slate-950 rounded-2xl border border-[#c8102e]/40 p-3 text-left"
+            >
+              <span className="text-2xl" aria-hidden="true">👵</span>
+              <div>
+                <div className="text-[10px] font-mono font-black text-rose-300 uppercase tracking-widest">Come si gioca — la lezione di Mémé</div>
+                <p className="text-[10px] text-slate-500 leading-snug">Rifai la bataille guidata con Fripouille: barra, fiato, tell e contromosse, un colpo alla volta.</p>
+              </div>
+            </button>
 
             {/* LE PAROLE DEL PATOIS — si guadagnano compiendole */}
             <div className="bg-slate-950 rounded-2xl border border-slate-850 p-3 space-y-1.5" id="patois-raccolta">

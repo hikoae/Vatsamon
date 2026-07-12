@@ -5,12 +5,17 @@ import { Vatsamon, BackpackItem } from "../types";
 import { CowVisual } from "./CowVisual";
 import { buildPlayerFighter, buildScaledBoss } from "../lib/battle";
 import {
-  Spintatore, SpintaState, AzioneId, AZIONI, PERSONALITA_LABEL, Personalita, personalitaFromLegacy,
-  spintatoreFromFighter, initSpinta, applyAzione, pickAzioneAvversaria,
+  Spintatore, SpintaState, AzioneId, PERSONALITA_LABEL, Personalita, personalitaFromLegacy,
+  spintatoreFromFighter, initSpinta, pickAzioneAvversaria, MAX_TURNI,
 } from "../lib/spinta";
 import { SAC_ITEMS, MAX_VIGILIA, LIMATURA_TESTO } from "../data/sac";
 import { Dungeon } from "../data/dungeons";
 import { REAL_COWS } from "../data/realCows";
+import { Mossa, mosseEquipaggiate, mosseAvversaria, eseguiMossa } from "../data/mosse";
+import { spiegaEsito, cronacaTurno, cronacaEsito } from "../data/telecronaca";
+import { SpintaStats, nuoveSpintaStats, registraTurno, campionaBarra } from "../lib/scuola";
+import { MossePanel } from "./battle/MossePanel";
+import { MossaInfoSheet } from "./battle/MossaInfoSheet";
 
 type Phase = "team" | "fight" | "won" | "lost";
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -24,7 +29,9 @@ export default function DungeonRun({
   respectScore: number;
   backpack: BackpackItem[];
   onConsumeItem: (id: string) => void;
-  onResult: (won: boolean, cowId?: string) => void;
+  /** `squadra` = TUTTE le partecipanti con le proprie stats: le imprese di
+   *  stile le impara chi le compie, anche se non chiude la Lega. */
+  onResult: (won: boolean, cowId?: string, stats?: SpintaStats, squadra?: { cowId: string; stats: SpintaStats }[]) => void;
   onClose: () => void;
   playClick: () => void;
 }) {
@@ -47,6 +54,11 @@ export default function DungeonRun({
   const stRef = useRef<SpintaState>({ barra: 50, fiatoP: 0, fiatoO: 0, calma: 80, stanceP: null, stanceO: null, esito: "corso" });
   const persRef = useRef<Personalita[]>([]);
   const cowIdsRef = useRef<string[]>([]);
+  const mosseTeamRef = useRef<Record<AzioneId, Mossa>[]>([]);
+  const mosseOppsRef = useRef<Record<AzioneId, Mossa>[]>([]);
+  // Stile di gioco PER REINA: le imprese le impara chi le compie, non chi chiude la Lega.
+  const statsTeamRef = useRef<SpintaStats[]>([]);
+  const [infoMossa, setInfoMossa] = useState<Mossa | null>(null);
   const tellAccuracy = 0.68 + respectScore * 0.0022;
   const [, force] = useState(0);
   const rerender = () => force((n) => n + 1);
@@ -73,36 +85,59 @@ export default function DungeonRun({
       return spintatoreFromFighter(buildScaledBoss({ ...visual, name: o.name }, o.powerFactor));
     });
     persRef.current = dungeon.opponents.map((o, i) => personalitaFromLegacy(o.type, i));
+    mosseTeamRef.current = cows.map(mosseEquipaggiate);
+    // il Campione (ultima spinta) porta una mossa rara coerente con l'indole
+    mosseOppsRef.current = dungeon.opponents.map((o, i) =>
+      mosseAvversaria(o.name, persRef.current[i], i === dungeon.opponents.length - 1));
+    statsTeamRef.current = cows.map(() => nuoveSpintaStats());
     const s0 = initSpinta(team[0], oppsRef.current[0], { personalita: persRef.current[0], tellAccuracy });
     s0.fiatoP = fiatoRef.current[0];
     stRef.current = s0;
+    campionaBarra(statsTeamRef.current[0], s0.barra); // l'ingaggio può già partire in svantaggio
     setActiveIdx(0); setOppIdx(0);
     setLog([`${dungeon.emoji} ${dungeon.league}: 5 spinte consecutive! Sfidante 1 — ${dungeon.opponents[0].name}`]);
     setShowBag(false); setShowSwitch(false);
     setPhase("fight"); rerender();
   };
 
-  const performTurn = async (side: "p" | "o", azione: AzioneId) => {
+  const performTurn = async (side: "p" | "o", mossaId: string) => {
     const A = side === "p" ? teamRef.current[activeIdx] : oppsRef.current[oppIdx];
     const B = side === "p" ? oppsRef.current[oppIdx] : teamRef.current[activeIdx];
     setLunge(side); await wait(150);
-    const r = applyAzione(side, azione, stRef.current, A, B);
+    const r = eseguiMossa(side, mossaId, stRef.current, A, B);
     stRef.current = r.state;
     fiatoRef.current[activeIdx] = r.state.fiatoP; // il fiato della Reina attiva si trascina
-    pushLog(r.log);
+    if (side === "p" && r.dettaglio) registraTurno(statsTeamRef.current[activeIdx], r.dettaglio.famiglia, r.state.barra, r.state.turno ?? 0);
+    campionaBarra(statsTeamRef.current[activeIdx], r.state.barra); // anche i cali causati dall'avversaria
+    pushLog(spiegaEsito(r) ?? r.log);
+    const cronaca = cronacaTurno(r, { p: teamRef.current[activeIdx].name, o: oppsRef.current[oppIdx].name });
+    if (cronaca) pushLog(cronaca);
     rerender();
     setLunge(null);
-    if (azione === "incalza" || azione === "gira") { setShake(true); await wait(150); setShake(false); }
+    const fam = r.dettaglio?.famiglia;
+    if (fam === "incalza" || fam === "gira") { setShake(true); await wait(150); setShake(false); }
     await wait(240);
   };
 
   // L'avversaria cede → prossimo sfidante (il fiato della tua Reina si trascina)
   const advanceOpponent = async () => {
-    if (oppIdx >= oppsRef.current.length - 1) { setPhase("won"); onResult(true, cowIdsRef.current[activeIdx]); return; }
+    if (oppIdx >= oppsRef.current.length - 1) {
+      const stats = statsTeamRef.current[activeIdx]; // la Reina che chiude
+      stats.vittoriaPerFiato = stRef.current.fiatoO <= 0;
+      // il giudizio può arrivare sull'azione avversaria: registraTurno non lo vede
+      if ((stRef.current.turno ?? 0) >= MAX_TURNI) stats.giudizio = true;
+      // tutte le partecipanti (chi ha giocato almeno un'azione), con le PROPRIE stats
+      const squadra = cowIdsRef.current
+        .map((cowId, i) => ({ cowId, stats: statsTeamRef.current[i] }))
+        .filter((m) => Object.values(m.stats.perFamiglia).some((n) => n > 0));
+      pushLog(cronacaEsito(true, false, { p: teamRef.current[activeIdx].name, o: oppsRef.current[oppIdx].name }));
+      setPhase("won"); onResult(true, cowIdsRef.current[activeIdx], stats, squadra); return;
+    }
     const next = oppIdx + 1;
     const s = initSpinta(teamRef.current[activeIdx], oppsRef.current[next], { personalita: persRef.current[next], tellAccuracy });
     s.fiatoP = fiatoRef.current[activeIdx]; // carry
     stRef.current = s;
+    campionaBarra(statsTeamRef.current[activeIdx], s.barra);
     setOppIdx(next);
     pushLog(`⬇️ ${dungeon.opponents[oppIdx].name} cede e si ritira! Sfidante ${next + 1}: ${dungeon.opponents[next].name}`);
     rerender();
@@ -114,10 +149,14 @@ export default function DungeonRun({
     fiatoRef.current[activeIdx] = 0;
     pushLog(`💨 ${teamRef.current[activeIdx].name} cede e si ritira.`);
     const nextAlive = fiatoRef.current.findIndex((f) => f > 0);
-    if (nextAlive === -1) { setPhase("lost"); onResult(false); return false; }
+    if (nextAlive === -1) {
+      pushLog(cronacaEsito(false, false, { p: teamRef.current[activeIdx].name, o: oppsRef.current[oppIdx].name }));
+      setPhase("lost"); onResult(false); return false;
+    }
     const s = initSpinta(teamRef.current[nextAlive], oppsRef.current[oppIdx], { personalita: persRef.current[oppIdx], tellAccuracy });
     s.fiatoP = fiatoRef.current[nextAlive];
     stRef.current = s;
+    campionaBarra(statsTeamRef.current[nextAlive], s.barra);
     setActiveIdx(nextAlive);
     pushLog(`➡️ Scende in campo ${teamRef.current[nextAlive].name}!`);
     rerender();
@@ -125,17 +164,18 @@ export default function DungeonRun({
   };
 
   const opponentTurn = async () => {
-    await performTurn("o", pickAzioneAvversaria(stRef.current, oppsRef.current[oppIdx], teamRef.current[activeIdx]));
+    const fam = pickAzioneAvversaria(stRef.current, oppsRef.current[oppIdx], teamRef.current[activeIdx]);
+    await performTurn("o", mosseOppsRef.current[oppIdx][fam].id);
     // la spinta può risolversi anche nel turno avversario (es. risoluzione a tempo)
     if (stRef.current.esito === "vinto") { await advanceOpponent(); setBusy(false); return; }
     if (stRef.current.esito === "perso") { if (!cowRetreats()) return; }
     setBusy(false);
   };
 
-  const doAction = async (azione: AzioneId) => {
+  const doAction = async (mossa: Mossa) => {
     if (busy || phase !== "fight") return;
     playClick(); setBusy(true); setShowBag(false); setShowSwitch(false);
-    await performTurn("p", azione);
+    await performTurn("p", mossa.id);
     if (stRef.current.esito === "vinto") { await advanceOpponent(); setBusy(false); return; }
     if (stRef.current.esito === "perso") { if (!cowRetreats()) return; }
     await wait(220);
@@ -303,14 +343,10 @@ export default function DungeonRun({
                 </div>
               </div>
             )}
-            <div className="grid grid-cols-2 gap-2" id="dungeon-moves">
-              {AZIONI.map((a) => (
-                <button key={a.id} onClick={() => doAction(a.id)} disabled={busy} title={a.desc} className="text-left rounded-xl border p-2 disabled:opacity-40 bg-slate-900 border-slate-700 hover:border-amber-500/60">
-                  <div className="text-[11px] font-mono font-black text-slate-100 leading-tight">{a.emoji} {a.label}</div>
-                  <div className="text-[10px] font-mono text-amber-500/90 leading-tight mt-0.5">{a.counterHint}</div>
-                </button>
-              ))}
-            </div>
+            {mosseTeamRef.current[activeIdx] && (
+              <MossePanel id="dungeon-moves" mosse={mosseTeamRef.current[activeIdx]} st={st} busy={busy}
+                onMossa={doAction} onInfo={(m) => { playClick(); setInfoMossa(m); }} />
+            )}
             <div className="flex gap-2">
               <button onClick={() => { playClick(); setShowSwitch(true); }} disabled={busy} className="flex-1 flex items-center justify-center gap-1.5 bg-slate-900 border border-emerald-700/40 text-emerald-600 font-mono font-black text-xs py-2 rounded-xl disabled:opacity-40"><Repeat className="w-4 h-4" /> Cambia</button>
               <button onClick={() => { playClick(); setShowBag(true); }} disabled={busy} className="flex-1 flex items-center justify-center gap-1.5 bg-slate-900 border border-amber-700/40 text-amber-400 font-mono font-black text-xs py-2 rounded-xl disabled:opacity-40"><Backpack className="w-4 h-4" /> Sac ({bagItems.reduce((n, b) => n + b.quantity, 0)})</button>
@@ -370,6 +406,8 @@ export default function DungeonRun({
           </div>
         )}
       </div>
+
+      {infoMossa && <MossaInfoSheet mossa={infoMossa} onClose={() => setInfoMossa(null)} playClick={playClick} />}
     </div>
   );
 }
