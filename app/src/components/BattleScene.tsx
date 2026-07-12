@@ -9,6 +9,7 @@ import { buildPlayerFighter, buildOpponentFighter, buildScaledBoss, Fighter } fr
 import {
   Spintatore, SpintaState, AzioneId, PERSONALITA_LABEL, Personalita, personalitaFromLegacy,
   spintatoreFromFighter, initSpinta, pickAzioneAvversaria, forzaIntento, MAX_TURNI, TERRAIN_LABEL,
+  Approccio, APPROCCIO_LABEL,
 } from "../lib/spinta";
 import { SAC_ITEMS, MAX_VIGILIA, LIMATURA_TESTO } from "../data/sac";
 import { MapBattle } from "../data/mapBattles";
@@ -51,6 +52,8 @@ export default function BattleScene({
   // VIGILIA: cosa porti nello Sac (max 3 scorte) e il rito della limatura
   const [loadout, setLoadout] = useState<string[]>([]);
   const [limato, setLimato] = useState(false);
+  // APPROCCIO D'INGAGGIO (S17): scelta tattica pre-match, SOLO in Arena (mai Pastore/Tutorial).
+  const [approccio, setApproccio] = useState<Approccio>("naturale");
   const [lunge, setLunge] = useState<"p" | "o" | null>(null);
   const [shake, setShake] = useState(false);
   const [confirmRetire, setConfirmRetire] = useState(false);
@@ -105,10 +108,13 @@ export default function BattleScene({
     mossePRef.current = mosseEquipaggiate(playerCow);
     mosseORef.current = mosseAvversaria(os.name, personalita, battle.kind === "arena");
     statsRef.current = nuoveSpintaStats();
+    // Approccio esposto SOLO in Arena (battle.kind === "arena"): Pastori e Tutorial
+    // restano "naturale" anche se lo stato locale fosse rimasto sporco da una selezione precedente.
     stRef.current = initSpinta(ps, os, {
       personalita: isTutorial ? "paziente" : personalita,
       tellAccuracy: isTutorial ? 1 : tellAccuracy,
       terrain: battle.arena?.terrain,
+      approccio: isTutorial || battle.kind !== "arena" ? "naturale" : approccio,
     });
     campionaBarra(statsRef.current, stRef.current.barra); // l'ingaggio può già partire in svantaggio
     if (isTutorial) {
@@ -237,7 +243,8 @@ export default function BattleScene({
 
       {phase === "intro" && (
         <IntroPanel battle={battle} playerCows={sorted} cowId={cowId} setCowId={setCowId} onStart={begin} onClose={onClose} playClick={playClick} trainerLevel={trainerLevel} personalita={personalita}
-          backpack={backpack} loadout={loadout} setLoadout={setLoadout} limato={limato} setLimato={setLimato} />
+          backpack={backpack} loadout={loadout} setLoadout={setLoadout} limato={limato} setLimato={setLimato}
+          approccio={approccio} setApproccio={setApproccio} />
       )}
 
       {phase !== "intro" && player && opp && (
@@ -344,12 +351,15 @@ export default function BattleScene({
   );
 }
 
-function IntroPanel({ battle, playerCows, cowId, setCowId, onStart, onClose, playClick, trainerLevel, personalita, backpack, loadout, setLoadout, limato, setLimato }: {
+function IntroPanel({ battle, playerCows, cowId, setCowId, onStart, onClose, playClick, trainerLevel, personalita, backpack, loadout, setLoadout, limato, setLimato, approccio, setApproccio }: {
   battle: MapBattle; playerCows: Vatsamon[]; cowId: string; setCowId: (id: string) => void;
   onStart: () => void; onClose: () => void; playClick: () => void; trainerLevel: number; personalita: Personalita;
   backpack: BackpackItem[]; loadout: string[]; setLoadout: (v: string[]) => void; limato: boolean; setLimato: (v: boolean) => void;
+  approccio: Approccio; setApproccio: (v: Approccio) => void;
 }) {
   const locked = trainerLevel < battle.reqLevel;
+  // Scelta tattica SOLO in Arena (mai Pastore, mai Tutorial — che è sempre kind "pastore").
+  const showApproccio = battle.kind === "arena" && !battle.tutorial;
   const sacDisponibili = backpack.filter((b) => SAC_ITEMS[b.id] && b.quantity > 0);
   const toggleSac = (id: string) => {
     playClick();
@@ -406,6 +416,25 @@ function IntroPanel({ battle, playerCows, cowId, setCowId, onStart, onClose, pla
               </div>
             )}
           </div>
+
+          {/* APPROCCIO D'INGAGGIO (S17) — scelta tattica, solo in Arena */}
+          {showApproccio && (
+            <div className="w-full max-w-sm" id="vigilia-approccio">
+              <div className="text-[10px] font-mono text-slate-400 mb-1">Approccio all'ingaggio:</div>
+              <div className="flex gap-1.5 justify-center">
+                {(Object.keys(APPROCCIO_LABEL) as Approccio[]).map((a) => {
+                  const sel = approccio === a;
+                  return (
+                    <button key={a} data-approccio={a} onClick={() => { playClick(); setApproccio(a); }} title={APPROCCIO_LABEL[a].desc}
+                      className={`flex-1 rounded-xl border-2 px-2 py-1.5 text-[10px] font-mono font-bold min-h-[40px] ${sel ? "border-sky-500 bg-sky-500/15 text-sky-200" : "border-slate-700 bg-slate-900/70 text-slate-300"}`}>
+                      {APPROCCIO_LABEL[a].label}
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="text-[9px] text-slate-500 mt-1 leading-snug">{APPROCCIO_LABEL[approccio].desc}</div>
+            </div>
+          )}
 
           {/* IL RITO DELLA LIMATURA — obbligatorio, garanzia d'incruenza */}
           <button

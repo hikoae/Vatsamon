@@ -150,6 +150,20 @@ export function personalitaFromLegacy(t: string | undefined, seed = 0): Personal
   }
 }
 
+/**
+ * APPROCCIO D'INGAGGIO (S17): scelta tattica pre-match, SOLO in Arena (mai
+ * Dungeon/Éliminatoire/PvP/Pastori, mai Tutorial — che forza "naturale").
+ * Applicato UNA TANTUM alla costruzione (initSpinta): nessun nuovo stato
+ * per-turno, nessuna persistenza fra spinte (Spintatore/SpintaState sono
+ * ricostruiti da zero a ogni battaglia).
+ */
+export type Approccio = "naturale" | "riscaldata" | "voce";
+export const APPROCCIO_LABEL: Record<Approccio, { label: string; desc: string }> = {
+  naturale: { label: "Naturale", desc: "Nessuna preparazione: si va alla spinta così com'è." },
+  riscaldata: { label: "Riscaldata", desc: "La scaldi prima dell'ingaggio: più fiato e più spinta da subito, ma parte meno calma." },
+  voce: { label: "Condotta a Voce", desc: "La guidi con la voce fin dall'ingaggio: più calma e lettura più affidabile, ma cedi un po' di terreno iniziale." },
+};
+
 /** Tell comportamentali (descrizioni d'osservazione, non "tradizioni"). */
 const TELLS: Record<AzioneId, string[]> = {
   incalza: ["scalpita e abbassa la testa", "punta dritta, muso a terra"],
@@ -192,19 +206,43 @@ function rand(s: SpintaState): number {
 /** Oltre questo numero di azioni il duello si risolve al giudizio di condotta. */
 export const MAX_TURNI = 16;
 
+/** Scostamenti dell'APPROCCIO D'INGAGGIO (S17), applicati una tantum in initSpinta. */
+const APPROCCIO_MASSA_BONUS = 2;    // riscaldata: +massa (leva pushGain per tutta la spinta)
+const APPROCCIO_FIATO_BONUS = 8;    // riscaldata: +fiato iniziale (sopra fiatoMax, si consuma naturalmente)
+const APPROCCIO_CALMA_RISCALDATA = -8; // riscaldata: -calma iniziale (nervosismo da scaldamento)
+const APPROCCIO_CALMA_VOCE = 8;     // voce: +calma iniziale
+const APPROCCIO_TELL_VOCE = 0.08;   // voce: +tellAccuracy per questa spinta
+const APPROCCIO_BARRA_VOCE = -3;    // voce: -barra iniziale (terreno ceduto conducendo a voce)
+
 /** Ingaggio: chi ha più presa parte leggermente avanti. */
 export function initSpinta(
   p: Spintatore,
   o: Spintatore,
-  opts?: { personalita?: Personalita; tellAccuracy?: number; rng?: () => number; terrain?: TerrainEffect },
+  opts?: { personalita?: Personalita; tellAccuracy?: number; rng?: () => number; terrain?: TerrainEffect; approccio?: Approccio },
 ): SpintaState {
-  const barra = clamp(50 + (p.presa - o.presa) / 4, 30, 70);
+  const approccio = opts?.approccio ?? "naturale";
+  // "riscaldata" alza la massa della Reina per TUTTA questa spinta: p è
+  // ricostruito da zero a ogni battaglia (spintatoreFromFighter), quindi la
+  // mutazione non persiste fra spinte — coerente con "nessuna persistenza".
+  if (approccio === "riscaldata") p.massa = clamp(p.massa + APPROCCIO_MASSA_BONUS);
+  let barra = clamp(50 + (p.presa - o.presa) / 4, 30, 70);
+  let fiatoP = p.fiatoMax;
+  let calma = 80;
+  let tellAccuracy = opts?.tellAccuracy ?? 0.75;
+  if (approccio === "riscaldata") {
+    fiatoP += APPROCCIO_FIATO_BONUS;
+    calma = clamp(calma + APPROCCIO_CALMA_RISCALDATA, 0, 100);
+  } else if (approccio === "voce") {
+    calma = clamp(calma + APPROCCIO_CALMA_VOCE, 0, 100);
+    tellAccuracy = Math.min(1, tellAccuracy + APPROCCIO_TELL_VOCE);
+    barra = clamp(barra + APPROCCIO_BARRA_VOCE, 0, 100);
+  }
   const st: SpintaState = {
-    barra, fiatoP: p.fiatoMax, fiatoO: o.fiatoMax, calma: 80, calmaO: 80,
+    barra, fiatoP, fiatoO: o.fiatoMax, calma, calmaO: 80,
     stanceP: null, stanceO: null, turno: 0,
     personalita: opts?.personalita ?? "focosa",
     terrain: opts?.terrain,
-    tellAccuracy: opts?.tellAccuracy ?? 0.75,
+    tellAccuracy,
     rng: opts?.rng,
     esito: "corso",
   };
