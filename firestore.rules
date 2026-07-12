@@ -427,14 +427,10 @@ service cloud.firestore {
     // seguito da appassionati che non necessariamente hanno un account), in
     // scrittura solo per l'allowlist admin sotto.
     //
-    // TODO G7: "__ADMIN_UID__" è un placeholder che non corrisponde a nessun
-    // uid Firebase reale — finché non viene sostituito con l'uid vero
-    // dell'operatore, QUESTA COLLECTION RESTA IN SOLA LETTURA PER TUTTI
-    // (nessuno può scrivere). Sostituirlo prima del deploy rules che
-    // accompagna la pubblicazione del form admin (app/src/lib/risultati.ts,
-    // stesso TODO su ADMIN_UIDS lato client).
+    // G7 (chiuso 2026-07-12): uid admin = account operatore hikoae@gmail.com.
+    // Tenere allineato con ADMIN_UIDS in app/src/lib/risultati.ts.
     function isRisultatiAdmin() {
-      return isSignedIn() && request.auth.uid in ["__ADMIN_UID__"];
+      return isSignedIn() && request.auth.uid in ["6f8lhVEeX2OI3jZZYGK7jMvEa1L2"];
     }
 
     // {nome, note?}: note opzionale (es. "vittoria a punti", cause di forfait…).

@@ -37,7 +37,7 @@ export interface RisultatoEvento {
  * profondità: questo è solo gating UI, l'autorità reale resta
  * firestore.rules (placeholder "__ADMIN_UID__" lì, stesso TODO).
  */
-export const ADMIN_UIDS: string[] = [];
+export const ADMIN_UIDS: string[] = ["6f8lhVEeX2OI3jZZYGK7jMvEa1L2"];
 
 const COLLECTION = "risultati";
 
