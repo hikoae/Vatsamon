@@ -29,6 +29,21 @@ export interface Spintatore {
 
 function clamp(n: number, lo = 1, hi = 100) { return Math.max(lo, Math.min(hi, Math.round(n))); }
 
+/**
+ * PRNG deterministico (mulberry32) per test/replay: dato lo stesso seed produce
+ * SEMPRE la stessa sequenza. Nessuno stato module-level — ogni chiamata crea
+ * un generatore indipendente, thread-safe rispetto a più duelli in parallelo.
+ */
+export function mulberry32(seed: number): () => number {
+  let a = seed >>> 0;
+  return function () {
+    a |= 0; a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
 /** Massa dal peso vivo: 480 kg ≈ 25 · 560 ≈ 50 · 640 ≈ 75 · 720+ ≈ 100.
  *  Il piccolo contributo di `def` premia l'allenamento senza dominare il peso. */
 export function massaFromPeso(pesoKg: number, defBonus = 50): number {
@@ -126,7 +141,15 @@ export interface SpintaState {
   turno?: number;
   personalita?: Personalita;
   tellAccuracy?: number;    // 0..1, dal Rispetto del giocatore
+  rng?: () => number;       // PRNG seedabile (mulberry32) per replay/test deterministici;
+                             // assente = Math.random (comportamento identico a oggi)
   esito: "corso" | "vinto" | "perso";
+}
+
+/** Prossimo numero pseudocasuale: usa il PRNG dello stato se presente,
+ *  altrimenti Math.random (nessun cambio di comportamento senza rng). */
+function rand(s: SpintaState): number {
+  return (s.rng ?? Math.random)();
 }
 
 /** Oltre questo numero di azioni il duello si risolve al giudizio di condotta. */
@@ -136,7 +159,7 @@ export const MAX_TURNI = 16;
 export function initSpinta(
   p: Spintatore,
   o: Spintatore,
-  opts?: { personalita?: Personalita; tellAccuracy?: number },
+  opts?: { personalita?: Personalita; tellAccuracy?: number; rng?: () => number },
 ): SpintaState {
   const barra = clamp(50 + (p.presa - o.presa) / 4, 30, 70);
   const st: SpintaState = {
@@ -144,8 +167,10 @@ export function initSpinta(
     stanceP: null, stanceO: null, turno: 0,
     personalita: opts?.personalita ?? "focosa",
     tellAccuracy: opts?.tellAccuracy ?? 0.75,
+    rng: opts?.rng,
     esito: "corso",
   };
+  // rng già in stato PRIMA del primo prepareIntent: replay deterministico dal turno 0.
   prepareIntent(st, o, p);
   return st;
 }
@@ -191,7 +216,7 @@ export function applyAzione(side: "p" | "o", azione: AzioneId, st: SpintaState, 
     if (side === "p") s.calmaO = clamp((s.calmaO ?? 80) + d, 0, 100);
     else s.calma = clamp(s.calma + d, 0, 100);
   };
-  const varia = () => 1 + (Math.random() * 2 - 1) * (agitata ? 0.16 : 0.08);
+  const varia = () => 1 + (rand(s) * 2 - 1) * (agitata ? 0.16 : 0.08);
   const stanceAvv = side === "p" ? s.stanceO : s.stanceP;
   // i mods della MIA mossa e della POSTURA avversaria in campo
   const mods = opts?.mossa?.mods ?? {};
@@ -288,13 +313,13 @@ export function applyAzione(side: "p" | "o", azione: AzioneId, st: SpintaState, 
  *  tell mostrato al giocatore (veritiero con probabilità = tellAccuracy). */
 export function prepareIntent(s: SpintaState, _o?: Spintatore, _p?: Spintatore): void {
   const pers = s.personalita ?? "focosa";
-  const r = Math.random();
+  const r = rand(s);
   const TUTTE: AzioneId[] = ["incalza", "reggi", "gira", "incoraggia"];
   let intent: AzioneId;
 
   if (s.confusaO) {
     // confusa da una finta: la prossima scelta ignora guardie e indole
-    intent = TUTTE[Math.floor(Math.random() * 4)];
+    intent = TUTTE[Math.floor(rand(s) * 4)];
     s.confusaO = false;
   }
   // guardie di buon senso (valgono per tutte le indoli)
@@ -312,24 +337,24 @@ export function prepareIntent(s: SpintaState, _o?: Spintatore, _p?: Spintatore):
       nervosa:  [0.30, 0.25, 0.25, 0.20],
     };
     const w = W[pers];
-    const x = Math.random();
+    const x = rand(s);
     intent = x < w[0] ? "incalza" : x < w[0] + w[1] ? "reggi" : x < w[0] + w[1] + w[2] ? "gira" : "incoraggia";
   }
 
   s.intentO = intent;
   // tell: veritiero con probabilità tellAccuracy, altrimenti fuorviante
-  const truthful = Math.random() < (s.tellAccuracy ?? 0.75);
+  const truthful = rand(s) < (s.tellAccuracy ?? 0.75);
   let shownAction: AzioneId = truthful
     ? intent
-    : TUTTE.filter((a) => a !== intent)[Math.floor(Math.random() * 3)];
+    : TUTTE.filter((a) => a !== intent)[Math.floor(rand(s) * 3)];
   if (s.confusaP) {
     // la finta avversaria ha confuso la lettura: il tell mostrato è casuale
-    shownAction = TUTTE[Math.floor(Math.random() * 4)];
+    shownAction = TUTTE[Math.floor(rand(s) * 4)];
     s.confusaP = false;
   }
   s.tellAzione = shownAction;
   const variants = TELLS[shownAction];
-  s.tell = variants[Math.floor(Math.random() * variants.length)];
+  s.tell = variants[Math.floor(rand(s) * variants.length)];
 }
 
 /** Forza l'intenzione dell'avversaria con tell veritiero (bataille-lezione di Mémé). */
@@ -337,7 +362,7 @@ export function forzaIntento(s: SpintaState, azione: AzioneId): void {
   s.intentO = azione;
   s.tellAzione = azione;
   const variants = TELLS[azione];
-  s.tell = variants[Math.floor(Math.random() * variants.length)];
+  s.tell = variants[Math.floor(rand(s) * variants.length)];
 }
 
 /** L'azione che l'avversaria esegue è quella telegrafata (il tell può aver

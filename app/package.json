@@ -8,7 +8,8 @@
     "typecheck": "tsc --noEmit",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
-    "verify": "node scripts/verify.mjs"
+    "verify": "node scripts/verify.mjs",
+    "test:determinismo": "npx tsx scripts/test-determinismo.ts"
   },
   "dependencies": {
     "@fontsource-variable/fraunces": "^5.2.9",
