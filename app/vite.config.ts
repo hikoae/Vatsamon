@@ -14,7 +14,11 @@ export default defineConfig(({ mode }) => ({
     react(),
     tailwindcss(),
     VitePWA({
-      registerType: "autoUpdate",
+      // "prompt" (non "autoUpdate"): un aggiornamento pronto NON ricarica più
+      // la pagina da solo. main.tsx decide quando applicarlo (subito se non
+      // c'è un'attività critica in corso — foto/battaglia — altrimenti al
+      // ritorno in idle), per non perdere una cattura in "Scatta la Reina".
+      registerType: "prompt",
       // Registriamo noi il SW (src/main.tsx via virtual:pwa-register) per avere
       // l'auto-reload quando esce una nuova versione: lo script iniettato di
       // default si limita a registrare, senza ricaricare la pagina.
@@ -38,9 +42,12 @@ export default defineConfig(({ mode }) => ({
       workbox: {
         globPatterns: ["**/*.{js,css,html,svg,png,jpg,woff2}"],
         maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
-        // La nuova versione prende subito il controllo e pulisce le cache vecchie,
-        // così un reload basta a vedere l'aggiornamento (niente blocchi infiniti).
-        skipWaiting: true,
+        // skipWaiting NON forzato (default false): con registerType "prompt" il
+        // nuovo SW deve restare "in attesa" finché main.tsx non gli manda
+        // esplicitamente il messaggio SKIP_WAITING (via updateSW(true)). Con
+        // skipWaiting:true il SW generato salta quell'attesa a prescindere e
+        // l'evento "waiting" da cui dipende onNeedRefresh non scatterebbe mai
+        // (vedi workbox-build/templates/sw-template.js).
         clientsClaim: true,
         cleanupOutdatedCaches: true,
         runtimeCaching: [

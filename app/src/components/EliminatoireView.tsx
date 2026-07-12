@@ -14,6 +14,7 @@ import { spiegaEsito, cronacaTurno, cronacaEsito } from "../data/telecronaca";
 import { SpintaStats, nuoveSpintaStats, registraTurno, campionaBarra } from "../lib/scuola";
 import { MossePanel } from "./battle/MossePanel";
 import { MossaInfoSheet } from "./battle/MossaInfoSheet";
+import { ConfirmDialog } from "./ConfirmDialog";
 import { SeasonEvent } from "../data/season";
 import { categoriaAllaPesa, etichettaPesa } from "../data/pesa";
 import { avversarieTappa, faseTappa, TappaStato, TURNI_TAPPA } from "../data/eliminatoire";
@@ -82,6 +83,7 @@ export default function EliminatoireView({
   const mosseOppsRef = useRef<Record<AzioneId, Mossa>[]>([]);
   const statsRef = useRef<SpintaStats>(nuoveSpintaStats());
   const [infoMossa, setInfoMossa] = useState<Mossa | null>(null);
+  const [confirmRitiro, setConfirmRitiro] = useState(false);
   const [, force] = useState(0);
   const rerender = () => force((n) => n + 1);
   const st = stRef.current;
@@ -199,7 +201,10 @@ export default function EliminatoireView({
   const ritirati = () => {
     if (busy || phase !== "fight") return;
     playClick();
-    if (!window.confirm("Ritiri la tua Reina dalla tappa? Conta come eliminazione.")) return;
+    setConfirmRitiro(true);
+  };
+  const confirmRitiroYes = () => {
+    setConfirmRitiro(false);
     chiudi(false, turno);
   };
 
@@ -408,6 +413,17 @@ export default function EliminatoireView({
       </div>
 
       {infoMossa && <MossaInfoSheet mossa={infoMossa} onClose={() => setInfoMossa(null)} playClick={playClick} />}
+
+      {confirmRitiro && (
+        <ConfirmDialog
+          title="Ritirarsi dalla tappa?"
+          message="Conta come eliminazione."
+          confirmLabel="Ritìrati"
+          danger
+          onConfirm={confirmRitiroYes}
+          onCancel={() => setConfirmRitiro(false)}
+        />
+      )}
     </div>
   );
 }

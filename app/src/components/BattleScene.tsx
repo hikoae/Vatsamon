@@ -1,8 +1,10 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion } from "motion/react";
 import { Backpack, X } from "lucide-react";
 import { Vatsamon, BackpackItem } from "../types";
 import { CowVisual } from "./CowVisual";
+import { ConfirmDialog } from "./ConfirmDialog";
+import { beginCriticalActivity, endCriticalActivity } from "../lib/swUpdate";
 import { buildPlayerFighter, buildOpponentFighter, buildScaledBoss, Fighter } from "../lib/battle";
 import {
   Spintatore, SpintaState, AzioneId, PERSONALITA_LABEL, Personalita, personalitaFromLegacy,
@@ -51,6 +53,14 @@ export default function BattleScene({
   const [limato, setLimato] = useState(false);
   const [lunge, setLunge] = useState<"p" | "o" | null>(null);
   const [shake, setShake] = useState(false);
+  const [confirmRetire, setConfirmRetire] = useState(false);
+
+  // Una battaglia intera (intro→fight→end) è "attività critica": il SW non
+  // deve ricaricare la pagina a metà spinta (vedi lib/swUpdate.ts).
+  useEffect(() => {
+    beginCriticalActivity();
+    return () => endCriticalActivity();
+  }, []);
 
   const playerRef = useRef<Spintatore | null>(null);
   const oppRef = useRef<Spintatore | null>(null);
@@ -144,7 +154,10 @@ export default function BattleScene({
   const retire = () => {
     if (busy || phase !== "fight") return;
     playClick();
-    if (!window.confirm("Ritiri la tua Reina? La spinta conta come sconfitta.")) return;
+    setConfirmRetire(true);
+  };
+  const confirmRetireYes = () => {
+    setConfirmRetire(false);
     stRef.current = { ...stRef.current, esito: "perso" };
     endBattle();
   };
@@ -315,6 +328,17 @@ export default function BattleScene({
       )}
 
       {infoMossa && <MossaInfoSheet mossa={infoMossa} onClose={() => setInfoMossa(null)} playClick={playClick} />}
+
+      {confirmRetire && (
+        <ConfirmDialog
+          title="Ritirarsi dalla spinta?"
+          message="La spinta conta come sconfitta."
+          confirmLabel="Ritìrati"
+          danger
+          onConfirm={confirmRetireYes}
+          onCancel={() => setConfirmRetire(false)}
+        />
+      )}
     </div>
   );
 }

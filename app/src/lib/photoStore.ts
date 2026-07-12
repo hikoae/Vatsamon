@@ -39,17 +39,34 @@ export async function loadPhoto(id: string): Promise<Blob | null> {
   });
 }
 
-// cache degli object URL già risolti (evita di ricreare URL a ogni render)
+// Cache LRU degli object URL già risolti (evita di ricreare URL a ogni
+// render). Senza un cap gli object URL non vengono mai revocati: ogni foto
+// vista nella sessione resta bloccata in memoria per sempre. Un Map
+// preserva l'ordine di inserimento: "ritoccare" una chiave (delete+set) la
+// sposta in coda = più recente; la più vecchia sta sempre in testa.
 const urlCache = new Map<string, string>();
+const URL_CACHE_CAP = 40;
+
+function touchCache(id: string, url: string) {
+  urlCache.delete(id);
+  urlCache.set(id, url);
+  while (urlCache.size > URL_CACHE_CAP) {
+    const oldestId = urlCache.keys().next().value;
+    if (oldestId === undefined) break;
+    const oldestUrl = urlCache.get(oldestId);
+    urlCache.delete(oldestId);
+    if (oldestUrl) URL.revokeObjectURL(oldestUrl);
+  }
+}
 
 export async function photoUrl(id: string): Promise<string | null> {
   const cached = urlCache.get(id);
-  if (cached) return cached;
+  if (cached) { touchCache(id, cached); return cached; }
   try {
     const blob = await loadPhoto(id);
     if (!blob) return null;
     const url = URL.createObjectURL(blob);
-    urlCache.set(id, url);
+    touchCache(id, url);
     return url;
   } catch {
     return null;

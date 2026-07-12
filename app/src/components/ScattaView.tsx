@@ -1,6 +1,7 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Camera, RefreshCw, X } from 'lucide-react';
 import { detectBovina, nomeAnimale, DetectResult } from '../lib/detector';
+import { beginCriticalActivity, endCriticalActivity } from '../lib/swUpdate';
 
 /**
  * SCATTA LA REINA — lo scanner fotografico vero (ispirato a CatchCat, ma con
@@ -46,6 +47,18 @@ export function ScattaView({ onSighting, playClick }: {
       v.srcObject = null;
     }
   };
+
+  // Spegne la fotocamera se il componente viene smontato mentre è accesa
+  // (es. cambio tab durante 'Scatta la Reina') — evita il LED acceso a vuoto.
+  useEffect(() => () => stopCamera(), []);
+
+  // Finché non si è tornati a 'idle' c'è una cattura/verifica in corso: il SW
+  // non deve ricaricare la pagina sotto ai piedi (vedi lib/swUpdate.ts).
+  useEffect(() => {
+    if (fase === 'idle') return;
+    beginCriticalActivity();
+    return () => endCriticalActivity();
+  }, [fase]);
 
   const snapFromCamera = () => {
     playClick();
