@@ -12,7 +12,7 @@ import {
   assertSucceeds,
   assertFails,
 } from '@firebase/rules-unit-testing';
-import { doc, getDoc, setDoc, updateDoc, Timestamp } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, deleteDoc, Timestamp } from 'firebase/firestore';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const RULES_PATH = join(__dirname, '..', '..', 'firestore.rules');
@@ -637,4 +637,69 @@ test('moves: lettura da un terzo utente NON in playerUids fallisce', async () =>
   await seedAsAdmin('pvpMatches/m24', baseMatch());
   await seedAsAdmin('pvpMatches/m24/moves/0', { by: P1_UID, azione: 'incalza', mossaId: null, log: 'x', at: Timestamp.now() });
   await assertFails(getDoc(doc(asP3(), 'pvpMatches/m24/moves/0')));
+});
+
+// --- risultati/{eventId} (S11) ----------------------------------------------
+// Copre la collection dei risultati UFFICIALI di gara: lettura pubblica,
+// scrittura riservata all'allowlist admin. Il placeholder "__ADMIN_UID__" in
+// firestore.rules NON è un vero uid Firebase (TODO G7) — qui lo usiamo
+// letteralmente come uid del contesto di test "admin" per esercitare la
+// stessa logica di allowlist che girerà in produzione una volta sostituito.
+
+function asRisultatiAdmin() { return testEnv.authenticatedContext('__ADMIN_UID__').firestore(); }
+
+const VALID_RISULTATO = {
+  cat1: { nome: 'Suisse' },
+  cat2: { nome: 'Berline', note: 'vittoria a punti' },
+  cat3: { nome: 'Falchetta' },
+  inseritoAt: Timestamp.now(),
+};
+
+test('risultati: lettura anonima (get) riesce', async () => {
+  await seedAsAdmin('risultati/el-01', VALID_RISULTATO);
+  await assertSucceeds(getDoc(doc(asAnon(), 'risultati/el-01')));
+});
+
+test('risultati: create valido dall\'admin allowlist riesce', async () => {
+  await assertSucceeds(setDoc(doc(asRisultatiAdmin(), 'risultati/el-02'), VALID_RISULTATO));
+});
+
+test('risultati: create dallo stesso documento valido MA da un utente NON admin fallisce', async () => {
+  await assertFails(setDoc(doc(asOwner(), 'risultati/el-03'), VALID_RISULTATO));
+});
+
+test('risultati: create anonimo fallisce', async () => {
+  await assertFails(setDoc(doc(asAnon(), 'risultati/el-04'), VALID_RISULTATO));
+});
+
+test('risultati: update dall\'admin allowlist riesce (correzione di un risultato già pubblicato)', async () => {
+  await seedAsAdmin('risultati/el-05', VALID_RISULTATO);
+  await assertSucceeds(setDoc(doc(asRisultatiAdmin(), 'risultati/el-05'), {
+    ...VALID_RISULTATO,
+    cat1: { nome: 'Suisse', note: 'corretto post-reclamo' },
+  }));
+});
+
+test('risultati: create con cat2 senza nome fallisce (schema non valido)', async () => {
+  await assertFails(setDoc(doc(asRisultatiAdmin(), 'risultati/el-06'), {
+    ...VALID_RISULTATO,
+    cat2: { note: 'manca il nome' },
+  }));
+});
+
+test('risultati: create con nome oltre 60 caratteri fallisce', async () => {
+  await assertFails(setDoc(doc(asRisultatiAdmin(), 'risultati/el-07'), {
+    ...VALID_RISULTATO,
+    cat1: { nome: 'x'.repeat(61) },
+  }));
+});
+
+test('risultati: create senza inseritoAt fallisce', async () => {
+  const { inseritoAt, ...senzaData } = VALID_RISULTATO;
+  await assertFails(setDoc(doc(asRisultatiAdmin(), 'risultati/el-08'), senzaData));
+});
+
+test('risultati: delete fallisce sempre, anche per l\'admin allowlist', async () => {
+  await seedAsAdmin('risultati/el-09', VALID_RISULTATO);
+  await assertFails(deleteDoc(doc(asRisultatiAdmin(), 'risultati/el-09')));
 });
