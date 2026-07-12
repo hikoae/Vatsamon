@@ -1,6 +1,6 @@
 import { Vatsamon } from "../types";
 import { REAL_COWS } from "./realCows";
-import { getCachedRisultato } from "../lib/risultati";
+import { getMergedRisultato, RisultatoConfidence } from "../lib/risultati";
 import { DESARPA_GIORNO } from "./arp";
 
 /**
@@ -197,19 +197,29 @@ for (const ev of CALENDAR) {
 }
 
 /**
- * Vincitrice di una categoria per un evento, com'è mostrata in UI. `simulato:
- * true` = NESSUN risultato reale pubblicato per questo evento/categoria: è
- * il vecchio calcolo per `potenza` interna, fabbricato, mai un dato di gara.
- * `simulato: false` = risultato reale inserito dall'admin (S11) su Firestore
- * `risultati/{eventId}`. `cow` è presente solo se il nome è stato riconosciuto
- * tra le 73 REAL_COWS (match tollerante via `reinaByName`) — un nome libero
- * digitato dall'admin resta valido anche senza foto/illustrazione.
+ * Vincitrice di una categoria per un evento, com'è mostrata in UI. Tre stati
+ * possibili in `confidence`:
+ *  - "ufficiale": risultato confermato dall'admin (S11) su Firestore
+ *    `risultati/{eventId}` — l'unico che conta per pronostici/premi.
+ *  - "auto" (G5): pre-compilazione letta dal tabellone pubblicato su
+ *    amisdesreines.it via `scripts/build-risultati.mjs` — MAI confermata da
+ *    un umano, mostrata come "non ufficiale" in UI, mai un sostituto del
+ *    dato confermato.
+ *  - "simulato": NESSUN risultato reale pubblicato: il vecchio calcolo per
+ *    `potenza` interna, fabbricato, mai un dato di gara.
+ * `simulato: true` per qualunque cosa diversa da "ufficiale" (retro-
+ * compatibilità: i consumer che usano solo il booleano — pronostici,
+ * premi — restano corretti anche con la cache auto, che NON deve mai
+ * contare come dato confermato). `cow` è presente solo se il nome è stato
+ * riconosciuto tra le 73 REAL_COWS (match tollerante via `reinaByName`).
  */
 export interface WinnerEntry {
   nome: string;
   note?: string;
   cow?: Vatsamon;
   simulato: boolean;
+  confidence: RisultatoConfidence;
+  sourceUrl?: string;
 }
 
 const CAT_FIELD: Record<CategoriaId, "cat1" | "cat2" | "cat3"> = { "1": "cat1", "2": "cat2", "3": "cat3" };
@@ -217,18 +227,25 @@ const CAT_FIELD: Record<CategoriaId, "cat1" | "cat2" | "cat3"> = { "1": "cat1", 
 export function winnersFor(eventId: string): Partial<Record<CategoriaId, WinnerEntry>> {
   const ev = CALENDAR.find((e) => e.id === eventId);
   if (!ev) return {};
-  const real = getCachedRisultato(eventId);
+  const merged = getMergedRisultato(eventId);
   const simulated = WINNERS_BY_EVENT[eventId] ?? {};
   const out: Partial<Record<CategoriaId, WinnerEntry>> = {};
   for (const cat of ev.categorie) {
-    const r = real?.[CAT_FIELD[cat]];
+    const r = merged?.[CAT_FIELD[cat]];
     if (r && r.nome) {
-      out[cat] = { nome: r.nome, note: r.note, cow: reinaByName(r.nome), simulato: false };
+      out[cat] = {
+        nome: r.nome,
+        note: r.note,
+        cow: reinaByName(r.nome),
+        simulato: merged!.confidence !== "ufficiale",
+        confidence: merged!.confidence,
+        sourceUrl: merged!.sourceUrl,
+      };
       continue;
     }
     const simCow = simulated[cat];
     if (simCow) {
-      out[cat] = { nome: simCow.name, cow: simCow, simulato: true };
+      out[cat] = { nome: simCow.name, cow: simCow, simulato: true, confidence: "simulato" };
     }
   }
   return out;
