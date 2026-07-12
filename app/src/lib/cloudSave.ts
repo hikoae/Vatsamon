@@ -63,13 +63,39 @@ export function readLocalSave(): Record<string, string> {
   return out;
 }
 
+/**
+ * Chiavi del salvataggio che NON sono JSON (stringhe/numeri grezzi salvati
+ * con `String(...)` o direttamente, non `JSON.stringify(...)`). Per queste
+ * il controllo di parsabilità JSON in `writeLocalSave` andrebbe in falso
+ * positivo (es. "cogne" o "it" non sono JSON validi pur essendo valori
+ * legittimi) e va saltato.
+ */
+const RAW_STRING_KEYS = new Set<string>([
+  "vatsamon_active_route_id",
+  "vatsamon_lang",
+  "vatsamon_follow_reine",
+]);
+
 /** Scrive nello localStorage le chiavi del salvataggio (idratazione da cloud). */
 export function writeLocalSave(keys: Record<string, string>) {
   // normalizza i salvataggi cloud scritti prima della rinomina (vazzamon_*)
   const normalized: Record<string, string> = {};
   for (const [k, v] of Object.entries(keys)) normalized[normalizeSaveKey(k)] = v;
   for (const k of SAVE_KEYS) {
-    if (k in normalized) localStorage.setItem(k, normalized[k]);
+    if (!(k in normalized)) continue;
+    const v = normalized[k];
+    // Valida che il valore sia JSON parsabile prima di scriverlo: un
+    // salvataggio cloud corrotto/troncato non deve mai far crashare l'app
+    // al successivo JSON.parse in lettura (App.tsx e vari lib/*.ts).
+    if (!RAW_STRING_KEYS.has(k)) {
+      try {
+        JSON.parse(v);
+      } catch {
+        console.warn(`[cloudSave] valore non parsabile per "${k}", salto idratazione di questa chiave`);
+        continue;
+      }
+    }
+    localStorage.setItem(k, v);
   }
 }
 

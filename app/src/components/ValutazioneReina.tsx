@@ -112,6 +112,10 @@ export default function ValutazioneReina({ cow, onDone, onClose, playClick }: {
   };
   const [mediaFinale, setMediaFinale] = useState(0);
 
+  // Cancella il rAF dello sguardo se il componente viene smontato mentre si
+  // sta tenendo premuto (es. si salta la valutazione a metà gesto).
+  useEffect(() => () => { if (holdRafRef.current) cancelAnimationFrame(holdRafRef.current); }, []);
+
   const badge = mediaFinale >= 85 ? { t: "VALUTAZIONE ECCELLENTE", c: "#10b981" }
     : mediaFinale >= 60 ? { t: "BUONA VALUTAZIONE", c: "#f59e0b" }
     : { t: "VALUTAZIONE INCERTA", c: "#94a3b8" };

@@ -16,6 +16,7 @@ import { spiegaEsito, cronacaTurno, cronacaEsito } from "../data/telecronaca";
 import { SpintaStats, nuoveSpintaStats, registraTurno, campionaBarra } from "../lib/scuola";
 import { MossePanel } from "./battle/MossePanel";
 import { MossaInfoSheet } from "./battle/MossaInfoSheet";
+import { ConfirmDialog } from "./ConfirmDialog";
 
 type Phase = "team" | "fight" | "won" | "lost";
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -65,6 +66,7 @@ export default function DungeonRun({
   // Stile di gioco PER REINA: le imprese le impara chi le compie, non chi chiude la Lega.
   const statsTeamRef = useRef<SpintaStats[]>([]);
   const [infoMossa, setInfoMossa] = useState<Mossa | null>(null);
+  const [confirmRitiro, setConfirmRitiro] = useState(false);
   const tellAccuracy = 0.68 + respectScore * 0.0022;
   const [, force] = useState(0);
   const rerender = () => force((n) => n + 1);
@@ -366,8 +368,7 @@ export default function DungeonRun({
               <button onClick={() => {
                 if (busy) return;
                 playClick();
-                if (!window.confirm("Ritiri la mandria? La Lega conta come persa.")) return;
-                setPhase("lost"); onResult(false);
+                setConfirmRitiro(true);
               }} disabled={busy} className="px-3 bg-slate-900 border border-slate-800 text-slate-300 font-mono font-bold text-xs py-2 rounded-xl disabled:opacity-40">Ritìrati</button>
             </div>
           </>
@@ -421,6 +422,17 @@ export default function DungeonRun({
       </div>
 
       {infoMossa && <MossaInfoSheet mossa={infoMossa} onClose={() => setInfoMossa(null)} playClick={playClick} />}
+
+      {confirmRitiro && (
+        <ConfirmDialog
+          title="Ritirarsi dalla Lega?"
+          message="La Lega conta come persa."
+          confirmLabel="Ritìrati"
+          danger
+          onConfirm={() => { setConfirmRitiro(false); setPhase("lost"); onResult(false); }}
+          onCancel={() => setConfirmRitiro(false)}
+        />
+      )}
     </div>
   );
 }

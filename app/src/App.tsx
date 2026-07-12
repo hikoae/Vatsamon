@@ -16,11 +16,15 @@ import {
   RotateCw,
   Gift,
   Footprints,
-  GraduationCap
+  GraduationCap,
+  LogOut
 } from 'lucide-react';
 import { Vatsamon, Hotspot, BackpackItem, Trainer, RarityType } from './types';
 import { normalizeSaveKey } from './lib/migrateSaveKeys';
 import { savePhoto } from './lib/photoStore';
+import { useAuth } from './lib/auth';
+import { backupLocalSave, restoreLocalBackup, saveCloudSave, BACKUP_KEY } from './lib/cloudSave';
+import { ConfirmDialog } from './components/ConfirmDialog';
 import { APP_VERSION, BRAND } from './config/brand';
 import { VatsamonAvatar } from './components/VatsamonAvatar';
 import { CowVisual } from './components/CowVisual';
@@ -99,6 +103,8 @@ export const getSvgCoords = (lat: number, lng: number) => {
 };
 
 export default function App() {
+  const { user, firebaseEnabled, signOut } = useAuth();
+
   // ---- 1. PERSISTENT STATS ----
   const [vatsadex, setVatsadex] = useState<Vatsamon[]>(() => {
     const cached = localStorage.getItem('vatsamon_collection_go');
@@ -268,7 +274,8 @@ export default function App() {
   // Medaglie delle Arene conquistate (bonus permanenti).
   const [trainerBadges, setTrainerBadges] = useState<ArenaId[]>(() => {
     const saved = localStorage.getItem('vatsamon_badges');
-    return saved ? JSON.parse(saved) : ['cogne', 'gran_paradiso'];
+    if (!saved) return ['cogne', 'gran_paradiso'];
+    try { return JSON.parse(saved); } catch { return ['cogne', 'gran_paradiso']; }
   });
   useEffect(() => {
     localStorage.setItem('vatsamon_badges', JSON.stringify(trainerBadges));
@@ -276,7 +283,8 @@ export default function App() {
   // Sfide riscosse (per non riscuotere due volte la ricompensa).
   const [claimedChallenges, setClaimedChallenges] = useState<string[]>(() => {
     const saved = localStorage.getItem('vatsamon_challenges_go');
-    return saved ? JSON.parse(saved) : [];
+    if (!saved) return [];
+    try { return JSON.parse(saved); } catch { return []; }
   });
   useEffect(() => {
     localStorage.setItem('vatsamon_challenges_go', JSON.stringify(claimedChallenges));
@@ -1201,6 +1209,22 @@ export default function App() {
   const [importText, setImportText] = useState("");
   const [profileMsg, setProfileMsg] = useState("");
 
+  // Modale generico di conferma/avviso — sostituisce i vari alert()/window.confirm()
+  // sparsi nei flussi core (bloccano l'intera pagina, fuori stile con l'app).
+  const [dialog, setDialog] = useState<{
+    title: string; message: string; confirmLabel?: string; cancelLabel?: string; danger?: boolean;
+    onConfirm: () => void; onCancel?: () => void;
+  } | null>(null);
+  const showAlert = (title: string, message: string) => setDialog({ title, message, onConfirm: () => setDialog(null) });
+  const showConfirm = (
+    title: string, message: string, onYes: () => void,
+    opts?: { confirmLabel?: string; danger?: boolean },
+  ) => setDialog({
+    title, message, confirmLabel: opts?.confirmLabel, danger: opts?.danger,
+    onConfirm: () => { setDialog(null); onYes(); },
+    onCancel: () => setDialog(null),
+  });
+
   // Rifornimento "modalità test": scorte abbondanti, monete e livello per provare tutto.
   const restockResources = () => {
     playClickSfx();
@@ -1344,6 +1368,9 @@ export default function App() {
       const json = await decodeSave(raw);
       const obj = JSON.parse(json);
       const data = obj.data ?? obj;
+      // Backup di sicurezza PRIMA di sovrascrivere: se l'importazione era un
+      // errore, "Annulla ultimo ripristino" nel Profilo la disfa.
+      backupLocalSave('pre-import');
       Object.entries(data).forEach(([rawKey, v]) => {
         // accetta anche i codici esportati prima della rinomina (vazzamon_*)
         const k = normalizeSaveKey(rawKey);
@@ -1362,13 +1389,35 @@ export default function App() {
 
   const resetAll = () => {
     playClickSfx();
-    if (!window.confirm("Azzerare TUTTI i progressi? L'operazione non è reversibile.")) return;
-    for (let i = localStorage.length - 1; i >= 0; i--) {
-      const k = localStorage.key(i);
-      // azzera anche le copie legacy pre-rinomina, o la migrazione le farebbe risorgere
-      if (k && (k.startsWith('vatsamon_') || k.startsWith('vazzamon_'))) localStorage.removeItem(k);
-    }
-    window.location.reload();
+    showConfirm(
+      "Azzerare tutti i progressi?",
+      "L'operazione non è reversibile (puoi comunque provare \"Annulla ultimo ripristino\" nel Profilo se cambi idea subito dopo).",
+      () => {
+        // Backup PRIMA di azzerare: è quello che "Annulla ultimo ripristino" userà.
+        backupLocalSave('pre-reset');
+        for (let i = localStorage.length - 1; i >= 0; i--) {
+          const k = localStorage.key(i);
+          // azzera anche le copie legacy pre-rinomina, o la migrazione le farebbe risorgere.
+          // Esclude BACKUP_KEY: è il backup appena fatto, non va perso nell'azzeramento.
+          if (k && k !== BACKUP_KEY && (k.startsWith('vatsamon_') || k.startsWith('vazzamon_'))) localStorage.removeItem(k);
+        }
+        window.location.reload();
+      },
+      { confirmLabel: "Azzera tutto", danger: true },
+    );
+  };
+
+  /** "Annulla ultimo ripristino": disfa l'ultimo reset/import ripristinando il backup pre-operazione. */
+  const undoLastRestore = () => {
+    playClickSfx();
+    showConfirm(
+      "Annullare l'ultimo ripristino?",
+      "Ripristina i progressi salvati prima dell'ultimo azzeramento o importazione.",
+      () => {
+        if (restoreLocalBackup()) window.location.reload();
+        else showAlert("Nessun backup disponibile", "Non c'è un backup locale da ripristinare.");
+      },
+    );
   };
 
   // Pre-spawn some wild cows around the screen if none exist (senza duplicati)
@@ -1629,7 +1678,7 @@ export default function App() {
     // Deduct ball from inventory
     const targetBall = backpack.find(item => item.id === selectedBallId);
     if (!targetBall || targetBall.quantity <= 0) {
-      alert("Nessun campanello rimasto di questo tipo! Cambia ball.");
+      showAlert("Campanaccio esaurito", "Nessun campanello rimasto di questo tipo! Cambia ball.");
       return;
     }
 
@@ -1721,7 +1770,7 @@ export default function App() {
     // Costs 10 coins and 1 Fieno delle Vette
     const hasHayObj = backpack.find(item => item.id === 'item-hay' && item.quantity > 0);
     if (trainer.coins < 15 || !hasHayObj) {
-      alert("Non hai abbastanza risorse! Mancano monete (costo: 15🪙) o Fieno delle Vette (costo: 1 fieno🌾) per nutrire e potenziare questa bovina.");
+      showAlert("Risorse insufficienti", "Mancano monete (costo: 15🪙) o Fieno delle Vette (costo: 1 fieno🌾) per nutrire e potenziare questa bovina.");
       return null;
     }
 
@@ -1780,10 +1829,15 @@ export default function App() {
   /** Libera la Reina al pascolo; true se l'operazione è andata a buon fine. */
   const handleTransferCow = (cow: Vatsamon): boolean => {
     if (vatsadex.length <= 1) {
-      alert("Non puoi liberare la tua unica Regina al pascolo! Devi tenere almeno un Vatsamon.");
+      showAlert("Non puoi liberare questa Reina", "Non puoi liberare la tua unica Regina al pascolo! Devi tenere almeno un Vatsamon.");
       return false;
     }
     playClickSfx();
+    // NOTA: resta window.confirm() (non il ConfirmDialog custom) perché il
+    // chiamante (VatsadexView, fuori scope in questo step) si aspetta un
+    // boolean SINCRONO per decidere se chiudere subito il pannello di
+    // dettaglio — un modale React risolverebbe la conferma solo al giro di
+    // render successivo, disallineando "libera confermata" da "pannello chiuso".
     const confirmed = window.confirm(`Vuoi davvero liberare ${cow.name} rimandandola al pascolo libero? Riceverai +5 kg di Fieno delle Vette in premio!`);
     if (!confirmed) return false;
 
@@ -1798,7 +1852,7 @@ export default function App() {
 
     // Reward fodder
     setBackpack(prev => prev.map(item => item.id === 'item-hay' ? { ...item, quantity: item.quantity + 5 } : item));
-    alert(`${cow.name} è tornata felice nell'alpeggio d'alta quota! Ricevuti +5 fieni.`);
+    showAlert("Reina liberata", `${cow.name} è tornata felice nell'alpeggio d'alta quota! Ricevuti +5 fieni.`);
     return true;
   };
 
@@ -3131,9 +3185,35 @@ export default function App() {
                 className="w-full h-20 bg-slate-950 border border-slate-800 rounded-xl p-2 text-[11px] font-code text-slate-200 resize-none no-scrollbar"
               />
               <button onClick={importSave} className="w-full bg-blue-600 hover:bg-blue-500 text-white font-mono font-black text-xs py-2.5 rounded-xl border-b-4 border-blue-800">IMPORTA SALVATAGGIO</button>
+              {(() => {
+                const hasBackup = !!localStorage.getItem(BACKUP_KEY);
+                return hasBackup && (
+                  <button onClick={undoLastRestore} className="w-full bg-slate-950 hover:bg-slate-850 border border-amber-700/40 text-amber-300 font-mono font-bold text-[11px] py-2.5 rounded-xl">
+                    ↩️ Annulla ultimo ripristino
+                  </button>
+                );
+              })()}
             </div>
 
             {profileMsg && <div className="text-[11px] font-mono text-emerald-300 bg-emerald-950/40 border border-emerald-900 rounded-xl p-2">{profileMsg}</div>}
+
+            {/* account */}
+            {firebaseEnabled && user && !user.isGuest && (
+              <button
+                onClick={() => showConfirm(
+                  "Uscire dall'account?",
+                  "I progressi vengono sincronizzati col cloud prima di uscire.",
+                  () => {
+                    saveCloudSave(user.uid).catch(() => { /* sync best-effort: non blocca il logout */ })
+                      .finally(() => { signOut().catch(() => { /* logout locale già avvenuto: best-effort */ }); });
+                  },
+                  { confirmLabel: "Esci", danger: true },
+                )}
+                className="w-full flex items-center justify-center gap-2 bg-slate-950 hover:bg-slate-850 border border-slate-800 text-slate-300 font-mono font-bold text-[11px] py-2.5 rounded-xl"
+              >
+                <LogOut className="w-3.5 h-3.5" /> Esci dall'account
+              </button>
+            )}
 
             <button onClick={resetAll} className="w-full text-[10px] font-mono text-rose-400 hover:text-rose-300 underline pt-1">Azzera tutti i progressi</button>
           </div>
@@ -3192,6 +3272,18 @@ export default function App() {
             </button>
           </div>
         </div>
+      )}
+
+      {dialog && (
+        <ConfirmDialog
+          title={dialog.title}
+          message={dialog.message}
+          confirmLabel={dialog.confirmLabel}
+          cancelLabel={dialog.cancelLabel}
+          danger={dialog.danger}
+          onConfirm={dialog.onConfirm}
+          onCancel={dialog.onCancel}
+        />
       )}
 
     </div>
