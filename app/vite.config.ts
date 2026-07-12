@@ -23,7 +23,9 @@ export default defineConfig(({ mode }) => ({
       // l'auto-reload quando esce una nuova versione: lo script iniettato di
       // default si limita a registrare, senza ricaricare la pagina.
       injectRegister: false,
-      includeAssets: ["favicon.svg", "apple-touch-icon.png", "cow-silhouette.svg", "photos/*.jpg"],
+      // photos/*.jpg e illustrations/*.png NON in includeAssets (S4 perf): stanno
+      // fuori dal precache, vedi globIgnores + runtimeCaching CacheFirst sotto.
+      includeAssets: ["favicon.svg", "apple-touch-icon.png", "cow-silhouette.svg"],
       manifest: {
         name: "Vatsamon — la Vatsadex delle Reines",
         short_name: "Vatsamon",
@@ -41,6 +43,10 @@ export default defineConfig(({ mode }) => ({
       },
       workbox: {
         globPatterns: ["**/*.{js,css,html,svg,png,jpg,woff2}"],
+        // Foto reali (35 file, ~4.3MB) e illustrazioni (5 file, ~470KB) fuori dal
+        // precache install-time (S4 perf, target < 2.5MB totali): stesso pattern
+        // già usato per /models/ssdlite/ — CacheFirst al primo uso runtime.
+        globIgnores: ["photos/**", "illustrations/**", "assets/detector-tfjs-*.js"],
         maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
         // skipWaiting NON forzato (default false): con registerType "prompt" il
         // nuovo SW deve restare "in attesa" finché main.tsx non gli manda
@@ -69,11 +75,59 @@ export default defineConfig(({ mode }) => ({
               expiration: { maxEntries: 8 },
             },
           },
+          {
+            // Foto reali delle bovine: stesso pattern del detector-model (S4 perf).
+            urlPattern: ({ url }) => url.pathname.includes("/photos/"),
+            handler: "CacheFirst",
+            options: {
+              cacheName: "cow-photos",
+              expiration: { maxEntries: 100, maxAgeSeconds: 60 * 60 * 24 * 30 },
+            },
+          },
+          {
+            // Illustrazioni di razza (Vatsadex): stesso pattern del detector-model.
+            urlPattern: ({ url }) => url.pathname.includes("/illustrations/"),
+            handler: "CacheFirst",
+            options: {
+              cacheName: "breed-illustrations",
+              expiration: { maxEntries: 30, maxAgeSeconds: 60 * 60 * 24 * 30 },
+            },
+          },
+          {
+            // Codice TF.js/coco-ssd (chunk "detector-tfjs-*", vedi manualChunks):
+            // stesso pattern del detector-model, cache-first al primo "Scatta la Reina".
+            urlPattern: ({ url }) => /\/assets\/detector-tfjs-.*\.js$/.test(url.pathname),
+            handler: "CacheFirst",
+            options: {
+              cacheName: "detector-tfjs",
+              expiration: { maxEntries: 4 },
+            },
+          },
         ],
       },
     }),
   ],
   resolve: {
     alias: { "@": path.resolve(__dirname, ".") },
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        // S4 perf: vendor pesanti in chunk separati, cachabili indipendentemente
+        // dal codice applicativo (che cambia molto più spesso di React/Leaflet/
+        // Firebase/Motion). Riduce anche il chunk principale del primo load.
+        manualChunks: {
+          "vendor-react": ["react", "react-dom"],
+          "vendor-leaflet": ["leaflet"],
+          "vendor-firebase": ["firebase/app", "firebase/auth", "firebase/firestore"],
+          "vendor-motion": ["motion"],
+          // TF.js + coco-ssd sono già dietro import() dinamico in lib/detector.ts
+          // (caricati solo al primo "Scatta la Reina"), ma senza un chunk-name
+          // stabile finiscono comunque nel precache PWA per via del globPatterns
+          // generico. Nome fisso qui sotto → escluso esplicitamente in globIgnores.
+          "detector-tfjs": ["@tensorflow/tfjs", "@tensorflow-models/coco-ssd"],
+        },
+      },
+    },
   },
 }));

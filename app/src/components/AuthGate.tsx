@@ -7,9 +7,8 @@
  * In "modalità locale" (Firebase non configurato) salta login/onboarding e
  * avvia direttamente il gioco con lo storage locale, come prima.
  */
-import { useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
-import App from "../App";
 import LoginScreen from "./LoginScreen";
 import Onboarding from "./Onboarding";
 import { useAuth } from "../lib/auth";
@@ -22,6 +21,10 @@ import {
   backupLocalSave,
   hasExistingProgress,
 } from "../lib/cloudSave";
+
+// Import lazy: il bundle di gioco (App.tsx + scene pesanti) non viene scaricato
+// finché login/onboarding non sono risolti (S4 perf).
+const App = lazy(() => import("../App"));
 
 const OWNER_KEY = "vatsamon_owner_uid";
 type Phase = "resolving" | "login" | "onboarding" | "ready";
@@ -139,7 +142,9 @@ export default function AuthGate() {
 
   return (
     <>
-      <App key={sessionUid.current} />
+      <Suspense fallback={<Splash />}>
+        <App key={sessionUid.current} />
+      </Suspense>
       <CloudSyncDaemon
         uid={user?.uid ?? "guest"}
         enabled={Boolean(firebaseEnabled && user && !user.isGuest)}

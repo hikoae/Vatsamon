@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { lazy, Suspense, useState, useEffect, useMemo, useRef } from 'react';
 import L from 'leaflet';
 import {
   Mountain,
@@ -30,21 +30,14 @@ import { VatsamonAvatar } from './components/VatsamonAvatar';
 import { CowVisual } from './components/CowVisual';
 import { TrailOverlay } from './components/TrailOverlay';
 import { VALDOSTAN_TRAILS } from './data/trails';
-import { QuizScreen } from './components/QuizScreen';
-import { RespectEncounter } from './components/RespectEncounter';
 import { RESPONSIBLE_QUESTIONS, ResponsibleQuestion } from './data/responsibleQuestions';
-import BattleScene from './components/BattleScene';
-import DungeonRun from './components/DungeonRun';
-import ValutazioneReina from './components/ValutazioneReina';
 import { MAP_BATTLES, MapBattle } from './data/mapBattles';
 import { DUNGEONS, Dungeon } from './data/dungeons';
 import { ArenaId } from './data/arenas';
 import { TREK_ROUTES } from './data/routes';
 import { Challenges } from './components/Challenges';
-import { SeasonView } from './components/SeasonView';
-import { StallaScreen } from './components/StallaScreen';
-import { VatsadexView } from './components/VatsadexView';
 import { ScattaView } from './components/ScattaView';
+import { ThrowGauge, CaptureRing, ThrowPowerBar } from './components/ThrowGauge';
 import { DailyPanel } from './components/DailyPanel';
 import { GpsExplorerPanel, type NearbyPlace } from './components/GpsExplorerPanel';
 import { RoutesView } from './components/RoutesView';
@@ -60,7 +53,7 @@ import { WILD_BREEDS, WILD_NAMES, ECO_TREK_TIPS, LORE_POOL, BALL_META, BALL_ORDE
 import { BASE_CATCH, estimateCatch, respectTone, catchDifficulty } from './lib/capture';
 import { SAC_ITEMS, BOTTEGA_EXTRA } from './data/sac';
 import { Trofeo, TROFEO_META } from './data/trofei';
-import EliminatoireView, { EsitoTappa } from './components/EliminatoireView';
+import type { EsitoTappa } from './components/EliminatoireView';
 import { tappe, tappaStato, STATO_LABEL, LS_ELIMINATOIRE, EliminatoireSave } from './data/eliminatoire';
 import { ArpPanel } from './components/ArpPanel';
 import { sbloccaParola, vociSbloccate, parolePatois, PATOIS_TRIGGERS, TOTALE_PAROLE } from './lib/patois';
@@ -71,6 +64,31 @@ import { MemeGuide } from './components/MemeGuide';
 import LeggendeView from './components/LeggendeView';
 import { ArpState, ARP_VUOTO, LS_ARP, ARP_KG_PER_CURA, ARP_GIORNI_PER_FONTINA } from './data/arp';
 import { SeasonEvent } from './data/season';
+
+// S4 perf: scene pesanti caricate on-demand (code-splitting). Restano eager solo
+// mappa/HUD/ScattaView, che servono al primo paint o hanno già il proprio
+// lazy-loading interno (rilevatore TF.js in lib/detector.ts).
+const BattleScene = lazy(() => import('./components/BattleScene'));
+const DungeonRun = lazy(() => import('./components/DungeonRun'));
+const EliminatoireView = lazy(() => import('./components/EliminatoireView'));
+const QuizScreen = lazy(() => import('./components/QuizScreen').then(m => ({ default: m.QuizScreen })));
+const SeasonView = lazy(() => import('./components/SeasonView').then(m => ({ default: m.SeasonView })));
+const StallaScreen = lazy(() => import('./components/StallaScreen').then(m => ({ default: m.StallaScreen })));
+const VatsadexView = lazy(() => import('./components/VatsadexView').then(m => ({ default: m.VatsadexView })));
+const ValutazioneReina = lazy(() => import('./components/ValutazioneReina'));
+const RespectEncounter = lazy(() => import('./components/RespectEncounter').then(m => ({ default: m.RespectEncounter })));
+
+/** Fallback Suspense uniforme per le scene lazy: spinner coerente col resto dell'app. */
+function SceneFallback() {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0b0820]/80 backdrop-blur-sm">
+      <div className="flex flex-col items-center gap-2 text-slate-300">
+        <div className="w-8 h-8 rounded-full border-2 border-slate-700 border-t-emerald-400 animate-spin" />
+        <span className="text-[11px] font-mono uppercase tracking-widest">Caricamento…</span>
+      </div>
+    </div>
+  );
+}
 
 // Indice delle Reines reali del bundle (per i codici di salvataggio compatti:
 // si salva l'id + le sole differenze, non l'intera scheda statica).
@@ -101,6 +119,121 @@ export const getSvgCoords = (lat: number, lng: number) => {
     y: Math.max(5, Math.min(95, y))
   };
 };
+
+const DISCOVERY_RADIUS = 1500; // metri: entro questo raggio una Reina viene "avvistata"
+
+// ---- Leaflet icon builders (S4 perf) ----
+// Estratti dall'effetto mappa cosi la ricreazione strutturale (lista entita)
+// e l'aggiornamento posizione-only (setIcon sui marker esistenti) producono
+// esattamente lo stesso HTML, senza duplicare le stringhe in due punti.
+
+function buildCaseraIcon(hp: { name: string }, cooldownActive: boolean): L.DivIcon {
+  return L.divIcon({
+    className: 'custom-leaflet-marker',
+    html: `<div class="flex flex-col items-center">
+             <div class="w-9 h-9 rounded-full border-2 border-white flex items-center justify-center shadow-md relative ${cooldownActive ? 'bg-slate-700 text-slate-400' : 'bg-blue-600 text-white animate-pulse'}" style="transform: translateY(-8px);">
+               <span class="text-base">🍼</span>
+               ${cooldownActive ? '' : '<span class="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-yellow-400 rounded-full border border-white animate-ping"></span>'}
+             </div>
+             <div class="px-1.5 py-0.5 rounded bg-[#211b3a]/95 border border-[#3a3460] text-[10px] text-white font-mono font-bold whitespace-nowrap shadow-sm" style="transform: translateY(-12px);">
+               ${hp.name.substring(0, 10)}...
+             </div>
+           </div>`,
+    iconSize: [40, 50],
+    iconAnchor: [20, 25]
+  });
+}
+
+function buildWildCowIcon(wc: { vatsa: Vatsamon }): L.DivIcon {
+  const isRealWild = !!wc.vatsa.realPhoto || wc.vatsa.isReal;
+  const emoji = wc.vatsa.breed.toLowerCase().includes('pezza') ? '🐮' : '🐄';
+  const ringCol = isRealWild ? 'border-emerald-400' : 'border-amber-500';
+  const photoStyle = wc.vatsa.realPhoto
+    ? `background-image:url('${wc.vatsa.realPhoto}');background-size:contain;background-repeat:no-repeat;background-position:center;background-color:#eef1f6;`
+    : '';
+  const inner = wc.vatsa.realPhoto ? '' : `<span class="text-xl animate-float">${emoji}</span>`;
+  const label = isRealWild ? `REALE · ${wc.vatsa.rarity}` : wc.vatsa.rarity;
+  const labelCls = isRealWild ? 'bg-emerald-900/90 border-emerald-700 text-emerald-200' : 'bg-[#211b3a] border-amber-550/40 text-yellow-300';
+
+  return L.divIcon({
+    className: 'custom-leaflet-marker',
+    html: `<div class="flex flex-col items-center">
+             <div class="w-11 h-11 rounded-full bg-[#211b3a] border-2 ${ringCol} flex items-center justify-center shadow-lg relative cursor-pointer hover:scale-110 transition-transform overflow-hidden" style="transform: translateY(-8px);${photoStyle}">
+               ${inner}
+               <span class="absolute -top-1 -right-1 bg-amber-500 text-[#0b0820] font-mono text-[9px] font-black px-1 rounded-full leading-tight">
+                 CP${wc.vatsa.cp}
+               </span>
+             </div>
+             <div class="px-1 py-0.2 rounded border text-[9px] font-mono font-bold whitespace-nowrap shadow-sm ${labelCls}" style="transform: translateY(-10px);">
+               ${label}
+             </div>
+           </div>`,
+    iconSize: [44, 54],
+    iconAnchor: [22, 27]
+  });
+}
+
+function buildRealCowIcon(rc: Vatsamon, isDiscovered: boolean, inRange: boolean): L.DivIcon {
+  if (isDiscovered) {
+    const ring = inRange ? 'border-emerald-400' : 'border-slate-500';
+    const photo = rc.realPhoto
+      ? `background-image:url('${rc.realPhoto}');background-size:contain;background-repeat:no-repeat;background-position:center;background-color:#eef1f6;`
+      : '';
+    const inner = rc.realPhoto ? '' : '<span class="text-xl">🐮</span>';
+    return L.divIcon({
+      className: 'custom-leaflet-marker cow-real-marker',
+      html: `<div class="flex flex-col items-center ${inRange ? '' : 'opacity-70'}">
+               <div class="w-11 h-11 rounded-full border-2 ${ring} bg-[#211b3a] flex items-center justify-center shadow-lg overflow-hidden relative" style="${photo}">
+                 ${inner}
+                 <span class="absolute -top-1 -right-1 bg-emerald-500 text-[#0b0820] font-mono text-[9px] font-black px-1 rounded-full">CP${rc.cp}</span>
+               </div>
+               <div class="px-1 rounded bg-emerald-900/90 border border-emerald-700 text-[9px] text-emerald-200 font-mono font-bold whitespace-nowrap mt-0.5">REALE · ${rc.rarity}</div>
+             </div>`,
+      iconSize: [44, 56], iconAnchor: [22, 28],
+    });
+  }
+  return L.divIcon({
+    className: 'custom-leaflet-marker cow-real-marker',
+    html: `<div class="flex flex-col items-center opacity-80">
+             <div class="w-10 h-10 rounded-full border-2 border-dashed border-slate-500 bg-[#211b3a]/80 flex items-center justify-center shadow-lg">
+               <span class="text-lg">❓</span>
+             </div>
+             <div class="px-1 rounded bg-slate-900/90 border border-slate-700 text-[9px] text-slate-300 font-mono font-bold whitespace-nowrap mt-0.5">REINA ?</div>
+           </div>`,
+    iconSize: [40, 52], iconAnchor: [20, 26],
+  });
+}
+
+function buildBattleIcon(mb: MapBattle, inRange: boolean, locked: boolean, distLabel: string): L.DivIcon {
+  const ring = locked ? '#64748b' : mb.accent;
+  return L.divIcon({
+    className: 'custom-leaflet-marker battle-marker',
+    html: `<div class="flex flex-col items-center ${inRange && !locked ? '' : 'opacity-75'}">
+             <div class="w-12 h-12 rounded-2xl border-2 flex items-center justify-center shadow-lg relative ${inRange && !locked ? 'animate-bounce' : ''}" style="border-color:${ring};background:#211b3a;transform:translateY(-8px);">
+               <span class="text-2xl">${locked ? '🔒' : mb.emoji}</span>
+               <span class="absolute -top-1 -right-1 text-[9px] font-mono font-black px-1 rounded-full" style="background:${ring};color:#0b0820;">${mb.kind === 'arena' ? 'BOSS' : 'VS'}</span>
+             </div>
+             <div class="px-1 rounded border text-[9px] font-mono font-bold whitespace-nowrap shadow-sm" style="background:#211b3a;border-color:${ring}55;color:${ring};transform:translateY(-10px);">${locked ? `🔒 Lv ${mb.reqLevel}` : (inRange ? '⚔️ SFIDA' : distLabel)}</div>
+           </div>`,
+    iconSize: [48, 60], iconAnchor: [24, 30],
+  });
+}
+
+function buildDungeonIcon(dg: Dungeon, inRange: boolean, locked: boolean, cleared: boolean, distLabel: string): L.DivIcon {
+  const ring = locked ? '#64748b' : dg.accent;
+  return L.divIcon({
+    className: 'custom-leaflet-marker dungeon-marker',
+    html: `<div class="flex flex-col items-center ${inRange && !locked ? '' : 'opacity-75'}">
+             <div class="w-14 h-14 rounded-2xl border-2 flex items-center justify-center shadow-xl relative ${inRange && !locked ? 'animate-pulse' : ''}" style="border-color:${ring};background:#1a1430;transform:translateY(-8px);">
+               <span class="text-3xl">${locked ? '🔒' : dg.emoji}</span>
+               <span class="absolute -top-1 -right-1 text-[9px] font-mono font-black px-1 rounded-full" style="background:${ring};color:#fff;">LEGA</span>
+               ${cleared ? '<span class="absolute -bottom-1 -right-1 text-[10px]">✅</span>' : ''}
+             </div>
+             <div class="px-1 rounded border text-[9px] font-mono font-bold whitespace-nowrap shadow-sm" style="background:#1a1430;border-color:${ring}66;color:${ring};transform:translateY(-10px);">${locked ? `🔒 Lv ${dg.reqLevel}` : (inRange ? '🏰 ENTRA' : distLabel)}</div>
+           </div>`,
+    iconSize: [56, 70], iconAnchor: [28, 35],
+  });
+}
 
 export default function App() {
   const { user, firebaseEnabled, signOut } = useAuth();
@@ -222,7 +355,11 @@ export default function App() {
     try { return JSON.parse(localStorage.getItem('vatsamon_discovered_cows') || '[]'); } catch { return []; }
   });
   useEffect(() => { localStorage.setItem('vatsamon_discovered_cows', JSON.stringify(discoveredCows)); }, [discoveredCows]);
-  const DISCOVERY_RADIUS = 1500; // metri: entro questo raggio una Reina viene "avvistata"
+  // "Latest ref" per l'effetto mappa (S4 perf): l'effetto posizione-only non ha
+  // discoveredCows tra le dipendenze (per non rifare il layer ad ogni tick), quindi
+  // legge sempre il valore corrente da qui invece che da una closure potenzialmente stale.
+  const discoveredCowsRef = useRef(discoveredCows);
+  discoveredCowsRef.current = discoveredCows;
   // Cambia percorso: riparte dalla prima tappa.
   const selectRoute = (id: string) => {
     playClickSfx();
@@ -325,7 +462,13 @@ export default function App() {
   // Sentiero reale selezionato (null = "Esplora libera").
   const [selectedTrailId, setSelectedTrailId] = useState<string | null>(null);
   const selectedTrail = VALDOSTAN_TRAILS.find(t => t.id === selectedTrailId) ?? null;
-  const leafletMarkersRef = useRef<L.Marker[]>([]);
+  // Marker categorizzati per id (S4 perf): permettono all'effetto posizione-only
+  // di aggiornare setLatLng/setIcon sui marker esistenti senza ricrearli.
+  const leafletCaseraMarkersRef = useRef<Map<string, L.Marker>>(new Map());
+  const leafletWildMarkersRef = useRef<Map<string, L.Marker>>(new Map());
+  const leafletRealCowMarkersRef = useRef<Map<string, L.Marker>>(new Map());
+  const leafletBattleMarkersRef = useRef<Map<string, L.Marker>>(new Map());
+  const leafletDungeonMarkersRef = useRef<Map<string, L.Marker>>(new Map());
   const leafletPlayerMarkerRef = useRef<L.Marker | null>(null);
   const leafletPolylineRef = useRef<L.Polyline | null>(null);
   const leafletRadiusRef = useRef<L.Circle | null>(null);
@@ -343,6 +486,11 @@ export default function App() {
   // Posizione effettiva del giocatore (GPS/demo se presente, altrimenti sentiero)
   const effLat = gpsPos ? gpsPos.lat : playerLat;
   const effLng = gpsPos ? gpsPos.lng : playerLng;
+  // "Latest ref" per l'effetto mappa (S4 perf): i click handler dei marker REALI
+  // restano vivi tra una ricreazione strutturale e l'altra, quindi leggono la
+  // posizione corrente da qui invece che da una closure catturata a creazione-marker.
+  const posRef = useRef({ lat: effLat, lng: effLng });
+  posRef.current = { lat: effLat, lng: effLng };
 
   const gpsRouteMatch = useMemo(
     () => gpsPos ? abbinaPosizioneAPercorso(gpsPos, activeTrail) : null,
@@ -405,6 +553,12 @@ export default function App() {
     }
     setActiveBattle(mb);
   };
+  // "Latest ref" (S4 perf): il click handler del marker battaglia, bound nell'effetto
+  // strutturale, deve sempre invocare la versione più recente di tryStartBattle
+  // (che chiude su trainer/vatsadex/effLat correnti), non quella catturata all'ultima
+  // ricreazione del layer marker.
+  const tryStartBattleRef = useRef(tryStartBattle);
+  tryStartBattleRef.current = tryStartBattle;
   // Il patois giocato: una parola si sblocca compiendola (feed + Profilo).
   const [, setPatoisTick] = useState(0); // ri-render del Profilo dopo uno sblocco
   const impara = (chiave: string) => {
@@ -611,6 +765,9 @@ export default function App() {
     }
     setActiveDungeon(d);
   };
+  // "Latest ref" (S4 perf): stesso motivo di tryStartBattleRef sopra, per il marker dungeon.
+  const tryStartDungeonRef = useRef(tryStartDungeon);
+  tryStartDungeonRef.current = tryStartDungeon;
   const handleDungeonResult = (won: boolean, cowId?: string, stats?: SpintaStats, squadra?: { cowId: string; stats: SpintaStats }[]) => {
     const d = activeDungeon;
     if (!d) return;
@@ -680,12 +837,17 @@ export default function App() {
   };
 
   // Synchronize dynamic Leaflet Map Layer drawing
+  // S4 perf: split in due effetti. Questo (strutturale) ricrea l'intero layer
+  // SOLO quando cambia la LISTA di entità (mapMode, wildCows, caseraCooldowns,
+  // vatsadex, activeRouteId) o si entra/esce dalla tab mappa — non ad ogni tick
+  // di posizione. L'effetto successivo (posizione-only) muove i marker esistenti.
   useEffect(() => {
     if (activeTab === 'map' && mapMode === 'real' && mapContainerRef.current) {
+      const { lat: curLat, lng: curLng } = posRef.current;
       if (!leafletMapRef.current) {
         // Center on current player position
         const initMap = L.map(mapContainerRef.current, {
-          center: [effLat, effLng],
+          center: [curLat, curLng],
           zoom: 13,
           zoomControl: true,
           attributionControl: false
@@ -703,16 +865,13 @@ export default function App() {
 
         leafletMapRef.current = initMap;
         setMapInstance(initMap);
-      } else {
-        // Pan dynamically on simulated steps
-        leafletMapRef.current.setView([effLat, effLng], leafletMapRef.current.getZoom(), { animate: true });
       }
 
       const map = leafletMapRef.current;
 
       // Raggio di cattura attorno al giocatore
       if (leafletRadiusRef.current) leafletRadiusRef.current.remove();
-      leafletRadiusRef.current = L.circle([effLat, effLng], {
+      leafletRadiusRef.current = L.circle([curLat, curLng], {
         radius: RAGGIO_CATTURA,
         color: '#10b981', fillColor: '#10b981', fillOpacity: 0.1, weight: 1.5,
         interactive: false,
@@ -731,32 +890,24 @@ export default function App() {
       }).addTo(map);
 
       // Clear previous overlay markers to avoid stack leaks
-      leafletMarkersRef.current.forEach(m => m.remove());
-      leafletMarkersRef.current = [];
+      leafletCaseraMarkersRef.current.forEach(m => m.remove());
+      leafletCaseraMarkersRef.current.clear();
+      leafletWildMarkersRef.current.forEach(m => m.remove());
+      leafletWildMarkersRef.current.clear();
+      leafletRealCowMarkersRef.current.forEach(m => m.remove());
+      leafletRealCowMarkersRef.current.clear();
+      leafletBattleMarkersRef.current.forEach(m => m.remove());
+      leafletBattleMarkersRef.current.clear();
+      leafletDungeonMarkersRef.current.forEach(m => m.remove());
+      leafletDungeonMarkersRef.current.clear();
 
       // Add Casera Checkpoints (PokéStops) — pascoli REALI
       REAL_CASERE.forEach(hp => {
-        const hpLat = hp.lat ?? playerLat;
-        const hpLng = hp.lng ?? playerLng;
+        const hpLat = hp.lat ?? curLat;
+        const hpLng = hp.lng ?? curLng;
         const cooldownActive = caseraCooldowns[hp.id] && caseraCooldowns[hp.id] > Date.now();
 
-        // Beautiful emoji HTML render
-        const caseraHtmlIcon = L.divIcon({
-          className: 'custom-leaflet-marker',
-          html: `<div class="flex flex-col items-center">
-                   <div class="w-9 h-9 rounded-full border-2 border-white flex items-center justify-center shadow-md relative ${cooldownActive ? 'bg-slate-700 text-slate-400' : 'bg-blue-600 text-white animate-pulse'}" style="transform: translateY(-8px);">
-                     <span class="text-base">🍼</span>
-                     ${cooldownActive ? '' : '<span class="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-yellow-400 rounded-full border border-white animate-ping"></span>'}
-                   </div>
-                   <div class="px-1.5 py-0.5 rounded bg-[#211b3a]/95 border border-[#3a3460] text-[10px] text-white font-mono font-bold whitespace-nowrap shadow-sm" style="transform: translateY(-12px);">
-                     ${hp.name.substring(0, 10)}...
-                   </div>
-                 </div>`,
-          iconSize: [40, 50],
-          iconAnchor: [20, 25]
-        });
-
-        const hpMarker = L.marker([hpLat, hpLng], { icon: caseraHtmlIcon })
+        const hpMarker = L.marker([hpLat, hpLng], { icon: buildCaseraIcon(hp, !!cooldownActive) })
           .addTo(map)
           .on('click', () => {
             playClickSfx();
@@ -765,48 +916,22 @@ export default function App() {
             setSpinRewards([]);
           });
 
-        leafletMarkersRef.current.push(hpMarker);
+        leafletCaseraMarkersRef.current.set(hp.id, hpMarker);
       });
 
       // Add Wild Cow Markers
       wildCows.forEach(wc => {
-        const wcLat = wc.lat ?? playerLat;
-        const wcLng = wc.lng ?? playerLng;
-        const isRealWild = !!wc.vatsa.realPhoto || wc.vatsa.isReal;
-        const emoji = wc.vatsa.breed.toLowerCase().includes('pezza') ? '🐮' : '🐄';
-        const ringCol = isRealWild ? 'border-emerald-400' : 'border-amber-500';
-        const photoStyle = wc.vatsa.realPhoto
-          ? `background-image:url('${wc.vatsa.realPhoto}');background-size:contain;background-repeat:no-repeat;background-position:center;background-color:#eef1f6;`
-          : '';
-        const inner = wc.vatsa.realPhoto ? '' : `<span class="text-xl animate-float">${emoji}</span>`;
-        const label = isRealWild ? `REALE · ${wc.vatsa.rarity}` : wc.vatsa.rarity;
-        const labelCls = isRealWild ? 'bg-emerald-900/90 border-emerald-700 text-emerald-200' : 'bg-[#211b3a] border-amber-550/40 text-yellow-300';
+        const wcLat = wc.lat ?? curLat;
+        const wcLng = wc.lng ?? curLng;
 
-        const cowHtmlIcon = L.divIcon({
-          className: 'custom-leaflet-marker',
-          html: `<div class="flex flex-col items-center">
-                   <div class="w-11 h-11 rounded-full bg-[#211b3a] border-2 ${ringCol} flex items-center justify-center shadow-lg relative cursor-pointer hover:scale-110 transition-transform overflow-hidden" style="transform: translateY(-8px);${photoStyle}">
-                     ${inner}
-                     <span class="absolute -top-1 -right-1 bg-amber-500 text-[#0b0820] font-mono text-[9px] font-black px-1 rounded-full leading-tight">
-                       CP${wc.vatsa.cp}
-                     </span>
-                   </div>
-                   <div class="px-1 py-0.2 rounded border text-[9px] font-mono font-bold whitespace-nowrap shadow-sm ${labelCls}" style="transform: translateY(-10px);">
-                     ${label}
-                   </div>
-                 </div>`,
-          iconSize: [44, 54],
-          iconAnchor: [22, 27]
-        });
-
-        const cowMarker = L.marker([wcLat, wcLng], { icon: cowHtmlIcon })
+        const wcMarker = L.marker([wcLat, wcLng], { icon: buildWildCowIcon(wc) })
           .addTo(map)
           .on('click', () => {
             playClickSfx();
             initiateCatchWild(wc);
           });
 
-        leafletMarkersRef.current.push(cowMarker);
+        leafletWildMarkersRef.current.set(wc.id, wcMarker);
       });
 
       // ===== Bovine REALI (Batailles) non ancora catturate, nei comuni veri =====
@@ -814,52 +939,21 @@ export default function App() {
       // (entro DISCOVERY_RADIUS): allora viene "avvistata" e resta rivelata.
       const capturedIds = new Set(vatsadex.map(c => c.id));
       const roamingIds = new Set(wildCows.map(w => w.vatsa.id));
-      const discSet = new Set(discoveredCows);
+      const discSet = new Set(discoveredCowsRef.current);
       const newlyFound: { id: string; name: string; comune?: string }[] = [];
       REAL_COWS.filter(rc => !capturedIds.has(rc.id) && !roamingIds.has(rc.id) && rc.lat != null && rc.lng != null).forEach(rc => {
-        const d = distanza({ lat: effLat, lng: effLng }, { lat: rc.lat!, lng: rc.lng! });
+        const d = distanza({ lat: curLat, lng: curLng }, { lat: rc.lat!, lng: rc.lng! });
         const inRange = d <= RAGGIO_CATTURA;
         const isDiscovered = discSet.has(rc.id) || d <= DISCOVERY_RADIUS;
         if (d <= DISCOVERY_RADIUS && !discSet.has(rc.id)) newlyFound.push({ id: rc.id, name: rc.name, comune: rc.comune });
 
-        let realIcon: L.DivIcon;
-        if (isDiscovered) {
-          const ring = inRange ? 'border-emerald-400' : 'border-slate-500';
-          const photo = rc.realPhoto
-            ? `background-image:url('${rc.realPhoto}');background-size:contain;background-repeat:no-repeat;background-position:center;background-color:#eef1f6;`
-            : '';
-          const inner = rc.realPhoto ? '' : '<span class="text-xl">🐮</span>';
-          realIcon = L.divIcon({
-            className: 'custom-leaflet-marker cow-real-marker',
-            html: `<div class="flex flex-col items-center ${inRange ? '' : 'opacity-70'}">
-                     <div class="w-11 h-11 rounded-full border-2 ${ring} bg-[#211b3a] flex items-center justify-center shadow-lg overflow-hidden relative" style="${photo}">
-                       ${inner}
-                       <span class="absolute -top-1 -right-1 bg-emerald-500 text-[#0b0820] font-mono text-[9px] font-black px-1 rounded-full">CP${rc.cp}</span>
-                     </div>
-                     <div class="px-1 rounded bg-emerald-900/90 border border-emerald-700 text-[9px] text-emerald-200 font-mono font-bold whitespace-nowrap mt-0.5">REALE · ${rc.rarity}</div>
-                   </div>`,
-            iconSize: [44, 56], iconAnchor: [22, 28],
-          });
-        } else {
-          // Marker "nebbia": presenza nota, identità ignota.
-          realIcon = L.divIcon({
-            className: 'custom-leaflet-marker cow-real-marker',
-            html: `<div class="flex flex-col items-center opacity-80">
-                     <div class="w-10 h-10 rounded-full border-2 border-dashed border-slate-500 bg-[#211b3a]/80 flex items-center justify-center shadow-lg">
-                       <span class="text-lg">❓</span>
-                     </div>
-                     <div class="px-1 rounded bg-slate-900/90 border border-slate-700 text-[9px] text-slate-300 font-mono font-bold whitespace-nowrap mt-0.5">REINA ?</div>
-                   </div>`,
-            iconSize: [40, 52], iconAnchor: [20, 26],
-          });
-        }
-
-        const m = L.marker([rc.lat!, rc.lng!], { icon: realIcon })
+        const m = L.marker([rc.lat!, rc.lng!], { icon: buildRealCowIcon(rc, isDiscovered, inRange) })
           .addTo(map)
           .on('click', () => {
             playClickSfx();
-            const dist = distanza({ lat: effLat, lng: effLng }, { lat: rc.lat!, lng: rc.lng! });
-            const known = new Set(discoveredCows).has(rc.id) || dist <= DISCOVERY_RADIUS;
+            const { lat: nowLat, lng: nowLng } = posRef.current;
+            const dist = distanza({ lat: nowLat, lng: nowLng }, { lat: rc.lat!, lng: rc.lng! });
+            const known = new Set(discoveredCowsRef.current).has(rc.id) || dist <= DISCOVERY_RADIUS;
             if (!known) {
               setTrekkingFeed(prev => [`🌫️ Una Reina misteriosa pascola qui (a ${fmtDist(dist)}). Avvicinati per scoprirla!`, ...prev.slice(0, 8)]);
               return;
@@ -870,7 +964,7 @@ export default function App() {
               setTrekkingFeed(prev => [`🧭 ${rc.name} (${rc.comune}) è a ${fmtDist(dist)}: cammina verso di lei!`, ...prev.slice(0, 8)]);
             }
           });
-        leafletMarkersRef.current.push(m);
+        leafletRealCowMarkersRef.current.set(rc.id, m);
       });
       // Registra le nuove Reines avvistate (persistito → sincronizzato sul cloud)
       if (newlyFound.length > 0) {
@@ -882,50 +976,27 @@ export default function App() {
 
       // ===== BATTAGLIE sulla mappa (Pastori + Boss-Arena) =====
       MAP_BATTLES.forEach(mb => {
-        const d = distanza({ lat: effLat, lng: effLng }, { lat: mb.lat, lng: mb.lng });
+        const d = distanza({ lat: curLat, lng: curLng }, { lat: mb.lat, lng: mb.lng });
         const inRange = d <= BATTLE_RANGE;
         const locked = trainer.level < mb.reqLevel;
-        const ring = locked ? '#64748b' : mb.accent;
-        const battleIcon = L.divIcon({
-          className: 'custom-leaflet-marker battle-marker',
-          html: `<div class="flex flex-col items-center ${inRange && !locked ? '' : 'opacity-75'}">
-                   <div class="w-12 h-12 rounded-2xl border-2 flex items-center justify-center shadow-lg relative ${inRange && !locked ? 'animate-bounce' : ''}" style="border-color:${ring};background:#211b3a;transform:translateY(-8px);">
-                     <span class="text-2xl">${locked ? '🔒' : mb.emoji}</span>
-                     <span class="absolute -top-1 -right-1 text-[9px] font-mono font-black px-1 rounded-full" style="background:${ring};color:#0b0820;">${mb.kind === 'arena' ? 'BOSS' : 'VS'}</span>
-                   </div>
-                   <div class="px-1 rounded border text-[9px] font-mono font-bold whitespace-nowrap shadow-sm" style="background:#211b3a;border-color:${ring}55;color:${ring};transform:translateY(-10px);">${locked ? `🔒 Lv ${mb.reqLevel}` : (inRange ? '⚔️ SFIDA' : `${fmtDist(d)}`)}</div>
-                 </div>`,
-          iconSize: [48, 60], iconAnchor: [24, 30],
-        });
-        const bm = L.marker([mb.lat, mb.lng], { icon: battleIcon })
+        const distLabel = inRange ? '⚔️ SFIDA' : fmtDist(d);
+        const bm = L.marker([mb.lat, mb.lng], { icon: buildBattleIcon(mb, inRange, locked, distLabel) })
           .addTo(map)
-          .on('click', () => tryStartBattle(mb));
-        leafletMarkersRef.current.push(bm);
+          .on('click', () => tryStartBattleRef.current(mb));
+        leafletBattleMarkersRef.current.set(mb.id, bm);
       });
 
       // ===== DUNGEON "Lega delle Reines" (castelli endgame) =====
       DUNGEONS.forEach(dg => {
-        const d = distanza({ lat: effLat, lng: effLng }, { lat: dg.lat, lng: dg.lng });
+        const d = distanza({ lat: curLat, lng: curLng }, { lat: dg.lat, lng: dg.lng });
         const inRange = d <= BATTLE_RANGE;
         const locked = trainer.level < dg.reqLevel;
         const cleared = dungeonsCleared.includes(dg.id);
-        const ring = locked ? '#64748b' : dg.accent;
-        const dgIcon = L.divIcon({
-          className: 'custom-leaflet-marker dungeon-marker',
-          html: `<div class="flex flex-col items-center ${inRange && !locked ? '' : 'opacity-75'}">
-                   <div class="w-14 h-14 rounded-2xl border-2 flex items-center justify-center shadow-xl relative ${inRange && !locked ? 'animate-pulse' : ''}" style="border-color:${ring};background:#1a1430;transform:translateY(-8px);">
-                     <span class="text-3xl">${locked ? '🔒' : dg.emoji}</span>
-                     <span class="absolute -top-1 -right-1 text-[9px] font-mono font-black px-1 rounded-full" style="background:${ring};color:#fff;">LEGA</span>
-                     ${cleared ? '<span class="absolute -bottom-1 -right-1 text-[10px]">✅</span>' : ''}
-                   </div>
-                   <div class="px-1 rounded border text-[9px] font-mono font-bold whitespace-nowrap shadow-sm" style="background:#1a1430;border-color:${ring}66;color:${ring};transform:translateY(-10px);">${locked ? `🔒 Lv ${dg.reqLevel}` : (inRange ? '🏰 ENTRA' : `${fmtDist(d)}`)}</div>
-                 </div>`,
-          iconSize: [56, 70], iconAnchor: [28, 35],
-        });
-        const dm = L.marker([dg.lat, dg.lng], { icon: dgIcon })
+        const distLabel = inRange ? '🏰 ENTRA' : fmtDist(d);
+        const dm = L.marker([dg.lat, dg.lng], { icon: buildDungeonIcon(dg, inRange, locked, cleared, distLabel) })
           .addTo(map)
-          .on('click', () => tryStartDungeon(dg));
-        leafletMarkersRef.current.push(dm);
+          .on('click', () => tryStartDungeonRef.current(dg));
+        leafletDungeonMarkersRef.current.set(dg.id, dm);
       });
 
       // Place or shift Player Marker
@@ -945,7 +1016,7 @@ export default function App() {
         iconAnchor: [22, 27]
       });
 
-      leafletPlayerMarkerRef.current = L.marker([effLat, effLng], { icon: playerHtmlIcon, interactive: false, zIndexOffset: -1000 })
+      leafletPlayerMarkerRef.current = L.marker([curLat, curLng], { icon: playerHtmlIcon, interactive: false, zIndexOffset: -1000 })
         .addTo(map);
 
       // Force layout recalculations dynamically
@@ -962,10 +1033,70 @@ export default function App() {
         leafletPlayerMarkerRef.current = null;
         leafletPolylineRef.current = null;
         leafletRadiusRef.current = null;
-        leafletMarkersRef.current = [];
+        leafletCaseraMarkersRef.current.clear();
+        leafletWildMarkersRef.current.clear();
+        leafletRealCowMarkersRef.current.clear();
+        leafletBattleMarkersRef.current.clear();
+        leafletDungeonMarkersRef.current.clear();
       }
     }
-  }, [activeTab, mapMode, effLat, effLng, wildCows, caseraCooldowns, vatsadex, activeRouteId]);
+  }, [activeTab, mapMode, wildCows, caseraCooldowns, vatsadex, activeRouteId]);
+
+  // S4 perf: effetto leggero eseguito ad ogni tick di posizione (GPS reale o
+  // passo simulato). NON ricrea marker: sposta la mappa/il player/il raggio di
+  // cattura con setLatLng e aggiorna solo l'icona dei marker la cui resa dipende
+  // dalla distanza (Reines reali in fog-of-war, battaglie, dungeon).
+  useEffect(() => {
+    if (activeTab !== 'map' || mapMode !== 'real' || !leafletMapRef.current) return;
+    const map = leafletMapRef.current;
+
+    map.setView([effLat, effLng], map.getZoom(), { animate: true });
+
+    if (leafletRadiusRef.current) leafletRadiusRef.current.setLatLng([effLat, effLng]);
+    if (leafletPlayerMarkerRef.current) leafletPlayerMarkerRef.current.setLatLng([effLat, effLng]);
+
+    // Reines reali: aggiorna solo l'icona (fog-of-war/inRange) in base alla nuova distanza.
+    const discSet = new Set(discoveredCowsRef.current);
+    const newlyFound: { id: string; name: string; comune?: string }[] = [];
+    leafletRealCowMarkersRef.current.forEach((marker, id) => {
+      const rc = REAL_BY_ID.get(id);
+      if (!rc || rc.lat == null || rc.lng == null) return;
+      const d = distanza({ lat: effLat, lng: effLng }, { lat: rc.lat, lng: rc.lng });
+      const inRange = d <= RAGGIO_CATTURA;
+      const isDiscovered = discSet.has(rc.id) || d <= DISCOVERY_RADIUS;
+      if (d <= DISCOVERY_RADIUS && !discSet.has(rc.id)) newlyFound.push({ id: rc.id, name: rc.name, comune: rc.comune });
+      marker.setIcon(buildRealCowIcon(rc, isDiscovered, inRange));
+    });
+    if (newlyFound.length > 0) {
+      setDiscoveredCows(prev => Array.from(new Set([...prev, ...newlyFound.map(n => n.id)])));
+      newlyFound.slice(0, 3).forEach(n =>
+        setTrekkingFeed(prev => [`🔭 Hai avvistato ${n.name}${n.comune ? ` (${n.comune})` : ''}!`, ...prev.slice(0, 8)]),
+      );
+    }
+
+    // Battaglie: aggiorna solo l'icona (inRange/distanza mostrata).
+    leafletBattleMarkersRef.current.forEach((marker, id) => {
+      const mb = MAP_BATTLES.find(b => b.id === id);
+      if (!mb) return;
+      const d = distanza({ lat: effLat, lng: effLng }, { lat: mb.lat, lng: mb.lng });
+      const inRange = d <= BATTLE_RANGE;
+      const locked = trainer.level < mb.reqLevel;
+      const distLabel = inRange ? '⚔️ SFIDA' : fmtDist(d);
+      marker.setIcon(buildBattleIcon(mb, inRange, locked, distLabel));
+    });
+
+    // Dungeon: aggiorna solo l'icona (inRange/distanza mostrata).
+    leafletDungeonMarkersRef.current.forEach((marker, id) => {
+      const dg = DUNGEONS.find(d => d.id === id);
+      if (!dg) return;
+      const d = distanza({ lat: effLat, lng: effLng }, { lat: dg.lat, lng: dg.lng });
+      const inRange = d <= BATTLE_RANGE;
+      const locked = trainer.level < dg.reqLevel;
+      const cleared = dungeonsCleared.includes(dg.id);
+      const distLabel = inRange ? '🏰 ENTRA' : fmtDist(d);
+      marker.setIcon(buildDungeonIcon(dg, inRange, locked, cleared, distLabel));
+    });
+  }, [activeTab, mapMode, effLat, effLng]);
 
   // GPS reale: attiva/disattiva il tracciamento della posizione vera
   const toggleGps = () => {
@@ -1114,10 +1245,12 @@ export default function App() {
   const [valutazione, setValutazione] = useState<number | null>(null);
   const [showValutazione, setShowValutazione] = useState(false);
   const [selectedBallId, setSelectedBallId] = useState<string>('item-bell-std');
-  const [targetRingScale, setTargetRingScale] = useState(1);
   const [hasFedApple, setHasFedApple] = useState(false);
-  const [throwSpeedGauge, setThrowSpeedGauge] = useState(40);
-  const [throwDirection, setThrowDirection] = useState<'up' | 'down'>('up');
+  // S4 perf: targetRingScale/throwSpeedGauge (tick 60fps/50ms) vivono ora dentro
+  // <ThrowGauge> (src/components/ThrowGauge.tsx), non più come stato di App —
+  // altrimenti ogni tick ri-eseguiva l'intero render di App durante il lancio.
+  // throwSpeedRef riceve l'ultimo valore per la lettura one-shot in executeThrow.
+  const throwSpeedRef = useRef(40);
   const [captureStep, setCaptureStep] = useState<'aiming' | 'flying' | 'wobbling' | 'secured' | 'escaped'>('aiming');
   const [captureLogMsg, setCaptureLogMsg] = useState('');
 
@@ -1434,41 +1567,6 @@ export default function App() {
     }
   }, []);
 
-  // Shrinking Capture Target Circle trigger loop
-  useEffect(() => {
-    let animationFrame: number;
-    const tickRing = () => {
-      setTargetRingScale(prev => {
-        const next = prev - 0.015;
-        return next < 0.35 ? 1.0 : next;
-      });
-      animationFrame = requestAnimationFrame(tickRing);
-    };
-    if (isCapturingMode) {
-      animationFrame = requestAnimationFrame(tickRing);
-    }
-    return () => cancelAnimationFrame(animationFrame);
-  }, [isCapturingMode]);
-
-  // Throw gauge power oscilator loop
-  useEffect(() => {
-    let inter: NodeJS.Timeout;
-    if (isCapturingMode && captureStep === 'aiming') {
-      inter = setInterval(() => {
-        setThrowSpeedGauge(prev => {
-          if (throwDirection === 'up') {
-            if (prev >= 98) { setThrowDirection('down'); return 98; }
-            return prev + 6;
-          } else {
-            if (prev <= 12) { setThrowDirection('up'); return 12; }
-            return prev - 6;
-          }
-        });
-      }, 50);
-    }
-    return () => clearInterval(inter);
-  }, [isCapturingMode, captureStep, throwDirection]);
-
   // Handle Level Up calculations
   const addTrainerXp = (amount: number) => {
     setTrainer(prev => {
@@ -1691,11 +1789,12 @@ export default function App() {
 
     setCaptureStep('flying');
     
-    // Assess throw precision
+    // Assess throw precision (letto da throwSpeedRef: S4 perf, vedi dichiarazione sopra)
+    const throwSpeedAtRelease = throwSpeedRef.current;
     let rating: 'EXCELLENT' | 'GREAT' | 'NICE' | 'MISS' = 'NICE';
-    if (throwSpeedGauge >= 75 && throwSpeedGauge <= 92) {
+    if (throwSpeedAtRelease >= 75 && throwSpeedAtRelease <= 92) {
       rating = 'EXCELLENT';
-    } else if (throwSpeedGauge >= 55 && throwSpeedGauge <= 95) {
+    } else if (throwSpeedAtRelease >= 55 && throwSpeedAtRelease <= 95) {
       rating = 'GREAT';
     }
 
@@ -2383,6 +2482,7 @@ export default function App() {
 
         {/* WILD CAPTURE / AR WILD ENCOUNTER SCREEN */}
         {isCapturingMode && encounterCow && (
+          <ThrowGauge isCapturingMode={isCapturingMode} captureStep={captureStep} speedRef={throwSpeedRef}>
           <div className="fixed inset-0 bg-slate-950/95 z-50 flex items-center justify-center p-3 sm:p-4 animate-scale-in overflow-y-auto" id="encounter-screen">
             <div className="encounter-flash" aria-hidden="true" />
             <div className="bg-gradient-to-b from-sky-950 via-emerald-950 to-slate-900 border-2 border-emerald-500/50 rounded-3xl max-w-lg w-full p-4 sm:p-5 flex flex-col gap-3 sm:gap-4 shadow-2xl relative max-h-[94dvh] overflow-y-auto overflow-x-hidden no-scrollbar my-auto">
@@ -2442,20 +2542,9 @@ export default function App() {
                     <CowVisual cow={encounterCow} className="w-36 h-36" />
                   </div>
 
-                  {/* Circular target shrinking selector HUD */}
+                  {/* Circular target shrinking selector HUD (S4 perf: tick isolato in ThrowGauge) */}
                   {captureStep === 'aiming' && (
-                    <div 
-                      className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border-4 flex items-center justify-center transition-all duration-75"
-                      style={{
-                        width: `${targetRingScale * 110}px`,
-                        height: `${targetRingScale * 110}px`,
-                        borderColor: hasFedApple ? '#10b981' : encounterCow.rarity === 'Leggendaria' ? '#ef4444' : '#f59e0b',
-                        boxShadow: `0 0 10px ${hasFedApple ? '#10b981' : '#f59e0b'}`
-                      }}
-                    >
-                      {/* Inner pulsing core point */}
-                      <div className="w-1.5 h-1.5 bg-white rounded-full animate-ping"></div>
-                    </div>
+                    <CaptureRing hasFedApple={hasFedApple} isLegendary={encounterCow.rarity === 'Leggendaria'} />
                   )}
 
                   {/* Golden schweiz bell capture wobbling representation */}
@@ -2527,21 +2616,8 @@ export default function App() {
                       <span className="text-[11px] font-mono font-black" style={{ color: diff.color }}>{pctLabel}</span>
                     </div>
 
-                    {/* Throw speed bar indicator */}
-                    <div className="space-y-1">
-                      <div className="flex justify-between text-[10px] font-mono text-slate-400">
-                        <span>Puntamento Forza del Lancio</span>
-                        <span className="font-bold text-amber-400">⚡ {throwSpeedGauge}%</span>
-                      </div>
-                      <div className="relative bg-slate-850 rounded-full h-3.5 overflow-hidden border border-slate-700/80">
-                        {/* Perfect capture range highlight zone */}
-                        <div className="absolute inset-y-0 left-[75%] right-[8%] bg-green-500/30 border-x border-green-400/40" title="Zona Perfetta" />
-                        <div
-                          className="bg-gradient-to-r from-emerald-500 to-amber-400 h-full rounded-full transition-all duration-75"
-                          style={{ width: `${throwSpeedGauge}%` }}
-                        />
-                      </div>
-                    </div>
+                    {/* Throw speed bar indicator (S4 perf: tick isolato in ThrowGauge) */}
+                    <ThrowPowerBar />
 
                     {/* Selettore del campanaccio: una tessera per potenza di richiamo */}
                     <div id="ball-selector" className="space-y-1">
@@ -2630,16 +2706,19 @@ export default function App() {
 
             </div>
           </div>
+          </ThrowGauge>
         )}
 
         {/* FASE 3 — Overlay Valutazione del Giudice (sopra l'incontro) */}
         {showValutazione && encounterCow && (
-          <ValutazioneReina
-            cow={encounterCow}
-            playClick={playClickSfx}
-            onClose={() => setShowValutazione(false)}
-            onDone={(acc) => { setValutazione(acc); setShowValutazione(false); }}
-          />
+          <Suspense fallback={<SceneFallback />}>
+            <ValutazioneReina
+              cow={encounterCow}
+              playClick={playClickSfx}
+              onClose={() => setShowValutazione(false)}
+              onDone={(acc) => { setValutazione(acc); setShowValutazione(false); }}
+            />
+          </Suspense>
         )}
 
         {/* VIEW 2: PERCORSI — pianificazione separata dall'esplorazione */}
@@ -2678,22 +2757,25 @@ export default function App() {
             onDesarpa={celebraDesarpa}
             playClick={playClickSfx}
           />
-          <StallaScreen
-            collection={vatsadex}
-            onBorn={(cow) => { setVatsadex(prev => [cow, ...prev]); impara('moudzon'); }}
-            onUpdateCow={(updated) => setVatsadex(prev => prev.map(c => c.id === updated.id ? updated : c))}
-            onReward={(coins, xp, fontinaN) => {
-              if (coins) setTrainer(prev => ({ ...prev, coins: prev.coins + coins }));
-              if (xp) addTrainerXp(xp);
-              if (fontinaN) guadagnaFontina(fontinaN, 'un moudzon di stalla è diventato Reina');
-            }}
-            playClick={playClickSfx}
-          />
+          <Suspense fallback={<SceneFallback />}>
+            <StallaScreen
+              collection={vatsadex}
+              onBorn={(cow) => { setVatsadex(prev => [cow, ...prev]); impara('moudzon'); }}
+              onUpdateCow={(updated) => setVatsadex(prev => prev.map(c => c.id === updated.id ? updated : c))}
+              onReward={(coins, xp, fontinaN) => {
+                if (coins) setTrainer(prev => ({ ...prev, coins: prev.coins + coins }));
+                if (xp) addTrainerXp(xp);
+                if (fontinaN) guadagnaFontina(fontinaN, 'un moudzon di stalla è diventato Reina');
+              }}
+              playClick={playClickSfx}
+            />
+          </Suspense>
           </div>
         )}
 
         {/* VIEW 4: DETAILS/VATSADEX SHEET LIST */}
         {activeTab === 'vatsadex' && (
+          <Suspense fallback={<SceneFallback />}>
           <VatsadexView
             collection={vatsadex}
             activeCombatantId={activeCombatantId}
@@ -2707,6 +2789,7 @@ export default function App() {
             playMoo={playMooSfx}
             playFanfare={playVictorySfx}
           />
+          </Suspense>
         )}
 
         {/* VIEW: STAGIONE (second screen ufficiale delle Batailles de Reines) */}
@@ -2791,13 +2874,15 @@ export default function App() {
             </div>
             <span className="text-slate-500 text-lg" aria-hidden="true">›</span>
           </button>
-          <SeasonView
-            onReward={(coins, xp) => {
-              setTrainer(prev => ({ ...prev, coins: prev.coins + coins }));
-              addTrainerXp(xp);
-              setTrekkingFeed(prev => [`🏆 Tabellone completato! Pronostico finale fatto (+${coins} 🪙 +${xp} XP)`, ...prev.slice(0, 8)]);
-            }}
-          />
+          <Suspense fallback={<SceneFallback />}>
+            <SeasonView
+              onReward={(coins, xp) => {
+                setTrainer(prev => ({ ...prev, coins: prev.coins + coins }));
+                addTrainerXp(xp);
+                setTrekkingFeed(prev => [`🏆 Tabellone completato! Pronostico finale fatto (+${coins} 🪙 +${xp} XP)`, ...prev.slice(0, 8)]);
+              }}
+            />
+          </Suspense>
           </div>
         )}
 
@@ -2810,19 +2895,21 @@ export default function App() {
               </h2>
               <p className="text-xs text-slate-400 mt-1">Metti alla prova il tuo rispetto per montagna, bovine e tradizioni. Ogni risposta giusta vale monete e XP!</p>
             </div>
-            <QuizScreen
-              bestScore={quizBest}
-              onFinish={(correct, totale) => {
-                const coinsWon = correct * 10;
-                setTrainer(prev => ({ ...prev, coins: prev.coins + coinsWon }));
-                addTrainerXp(correct * 30);
-                if (correct > quizBest) {
-                  setQuizBest(correct);
-                  localStorage.setItem('vatsamon_quiz_go', String(correct));
-                }
-                setTrekkingFeed(prev => [`🎓 Scuola d'Alpeggio: ${correct}/${totale} risposte giuste (+${coinsWon} 🪙)`, ...prev.slice(0, 8)]);
-              }}
-            />
+            <Suspense fallback={<SceneFallback />}>
+              <QuizScreen
+                bestScore={quizBest}
+                onFinish={(correct, totale) => {
+                  const coinsWon = correct * 10;
+                  setTrainer(prev => ({ ...prev, coins: prev.coins + coinsWon }));
+                  addTrainerXp(correct * 30);
+                  if (correct > quizBest) {
+                    setQuizBest(correct);
+                    localStorage.setItem('vatsamon_quiz_go', String(correct));
+                  }
+                  setTrekkingFeed(prev => [`🎓 Scuola d'Alpeggio: ${correct}/${totale} risposte giuste (+${coinsWon} 🪙)`, ...prev.slice(0, 8)]);
+                }}
+              />
+            </Suspense>
           </div>
         )}
 
@@ -2936,18 +3023,20 @@ export default function App() {
 
       {/* SCENA DI BATTAGLIA stile Pokémon (lanciata dai marker/pannello sulla mappa) */}
       {activeBattle && (
-        <BattleScene
-          battle={activeBattle}
-          playerCows={disponibili}
-          initialCowId={activeCombatantId}
-          trainerLevel={trainer.level}
-          respectScore={respectScore}
-          backpack={backpack}
-          onConsumeItem={(id) => setBackpack(prev => prev.map(it => it.id === id ? { ...it, quantity: Math.max(0, it.quantity - 1) } : it))}
-          onResult={handleBattleResult}
-          onClose={() => setActiveBattle(null)}
-          playClick={playClickSfx}
-        />
+        <Suspense fallback={<SceneFallback />}>
+          <BattleScene
+            battle={activeBattle}
+            playerCows={disponibili}
+            initialCowId={activeCombatantId}
+            trainerLevel={trainer.level}
+            respectScore={respectScore}
+            backpack={backpack}
+            onConsumeItem={(id) => setBackpack(prev => prev.map(it => it.id === id ? { ...it, quantity: Math.max(0, it.quantity - 1) } : it))}
+            onResult={handleBattleResult}
+            onClose={() => setActiveBattle(null)}
+            playClick={playClickSfx}
+          />
+        </Suspense>
       )}
 
       {/* L'ALBO DELLE LEGGENDE — sfide della memoria */}
@@ -2977,40 +3066,46 @@ export default function App() {
 
       {/* L'ÉLIMINATOIRE DU DIMANCHE — la tappa reale in gioco */}
       {activeTappa && (
-        <EliminatoireView
-          evento={activeTappa}
-          stato={tappaStato(activeTappa, oggiISO())}
-          playerCows={disponibili}
-          respectScore={respectScore}
-          backpack={backpack}
-          onConsumeItem={(id) => setBackpack(prev => prev.map(it => it.id === id ? { ...it, quantity: Math.max(0, it.quantity - 1) } : it))}
-          onFinish={handleTappaFinish}
-          onClose={() => setActiveTappa(null)}
-          playClick={playClickSfx}
-        />
+        <Suspense fallback={<SceneFallback />}>
+          <EliminatoireView
+            evento={activeTappa}
+            stato={tappaStato(activeTappa, oggiISO())}
+            playerCows={disponibili}
+            respectScore={respectScore}
+            backpack={backpack}
+            onConsumeItem={(id) => setBackpack(prev => prev.map(it => it.id === id ? { ...it, quantity: Math.max(0, it.quantity - 1) } : it))}
+            onFinish={handleTappaFinish}
+            onClose={() => setActiveTappa(null)}
+            playClick={playClickSfx}
+          />
+        </Suspense>
       )}
 
       {/* DUNGEON "Lega delle Reines" (gauntlet di 5 battaglie con squadra di 4) */}
       {activeDungeon && (
-        <DungeonRun
-          dungeon={activeDungeon}
-          playerCows={disponibili}
-          respectScore={respectScore}
-          backpack={backpack}
-          onConsumeItem={(id) => setBackpack(prev => prev.map(it => it.id === id ? { ...it, quantity: Math.max(0, it.quantity - 1) } : it))}
-          onResult={handleDungeonResult}
-          onClose={() => setActiveDungeon(null)}
-          playClick={playClickSfx}
-        />
+        <Suspense fallback={<SceneFallback />}>
+          <DungeonRun
+            dungeon={activeDungeon}
+            playerCows={disponibili}
+            respectScore={respectScore}
+            backpack={backpack}
+            onConsumeItem={(id) => setBackpack(prev => prev.map(it => it.id === id ? { ...it, quantity: Math.max(0, it.quantity - 1) } : it))}
+            onResult={handleDungeonResult}
+            onClose={() => setActiveDungeon(null)}
+            playClick={playClickSfx}
+          />
+        </Suspense>
       )}
 
       {/* FASE 4 — INCONTRO EDUCATIVO casuale (guardaparco/pastore con una domanda
           di esplorazione responsabile) */}
       {respectEncounter && (
-        <RespectEncounter
-          question={respectEncounter}
-          onResolved={resolveRespectEncounter}
-        />
+        <Suspense fallback={<SceneFallback />}>
+          <RespectEncounter
+            question={respectEncounter}
+            onResolved={resolveRespectEncounter}
+          />
+        </Suspense>
       )}
 
       {/* IL TUTORIAL DI MÉMÉ — beat giocati, bubble sopra la nav (non blocca l'input) */}
