@@ -55,6 +55,11 @@ export interface PvpChallenge {
   expiresAt: Timestamp; // < createdAt + 8gg
   matchId?: string;     // scritto solo alla transizione open -> accepted
   acceptorUid?: string; // scritto solo alla transizione open -> accepted (= chi accetta)
+  /** matchId della partita precedente, SOLO se questa sfida è una rivincita
+   *  (S10): il creator la stacca precompilata dal proprio fighter/moveset
+   *  congelati del match appena concluso. Copiato 1:1 su pvpMatches.rematchOf
+   *  all'accept (vedi matchBoundToChallenge in firestore.rules). */
+  rematchOf?: string;
 }
 
 /**
@@ -80,6 +85,14 @@ export interface PvpLastMove {
   azione: AzioneId;
   mossaId: string | null;
   log: string;
+  /** Telecronaca (S10, riuso `data/telecronaca.ts`): calcolata UNA SOLA
+   *  volta da chi gioca la mossa (unico lato con il TurnResult completo
+   *  dell'engine, RNG incluso) e persistita già scelta — mai ricalcolata da
+   *  chi riceve, altrimenti pescherebbe una battuta diversa dallo stesso
+   *  Math.random() non seedato. null = nessuna battuta per questo turno.
+   *  Opzionale (non `hasOnly`-vincolato dalle rules): i match creati prima
+   *  di S10 hanno `lastMove` senza questo campo, mai un `undefined` crash. */
+  commento?: string | null;
 }
 
 /** pvpMatches/{matchId} — partita live/per corrispondenza. Leggibile SOLO

@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState, useEffect, useMemo, useRef } from 'react';
+import { lazy, Suspense, useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import L from 'leaflet';
 import {
   Mountain,
@@ -15,6 +15,7 @@ import { Vatsamon, Hotspot, BackpackItem, Trainer, RarityType, WildCow } from '.
 import { normalizeSaveKey } from './lib/migrateSaveKeys';
 import { savePhoto } from './lib/photoStore';
 import { useAuth } from './lib/auth';
+import { listMyMatches, slotForUid, isPvpResultSeen } from './lib/pvp';
 import { backupLocalSave, restoreLocalBackup, saveCloudSave, BACKUP_KEY } from './lib/cloudSave';
 import { ConfirmDialog } from './components/ConfirmDialog';
 import { APP_VERSION, BRAND } from './config/brand';
@@ -372,6 +373,22 @@ export default function App() {
   // Partita PvP attiva (S9): overlay separato, aperto dall'hub "Sfide tra
   // Allevatori" dentro la Stalla — mai una nuova tab.
   const [activePvpMatchId, setActivePvpMatchId] = useState<string | null>(null);
+
+  // Badge PvP sulla tab Stalla (S10d): "tocca a me" + esiti non visti. SOLO
+  // one-shot (listMyMatches, getDocs) al mount post-login — MAI un listener,
+  // vedi lib/pvp.ts. Ricalcolato anche alla chiusura di una partita, così il
+  // badge scende subito dopo aver visto/giocato un esito.
+  const [pvpBadge, setPvpBadge] = useState(0);
+  const refreshPvpBadge = useCallback(async () => {
+    if (!firebaseEnabled || !user || user.isGuest) { setPvpBadge(0); return; }
+    try {
+      const rows = await listMyMatches(user.uid);
+      const toccaATe = rows.filter((m) => m.status === 'active' && slotForUid(m, user.uid) === m.turnOf).length;
+      const nonVisti = rows.filter((m) => m.status !== 'active' && !isPvpResultSeen(m.id)).length;
+      setPvpBadge(toccaATe + nonVisti);
+    } catch { /* badge non critico: silenzioso, resta al valore precedente */ }
+  }, [firebaseEnabled, user]);
+  useEffect(() => { refreshPvpBadge(); }, [refreshPvpBadge]);
   // Il tutorial di Mémé (beat giocati): pending solo per i NUOVI onboarding.
   const [tutorial, setTutorial] = useState<TutorialState>(() => tutorialState());
   const tutorialAttivo = tutorial.pending && !tutorial.done;
@@ -2442,10 +2459,15 @@ export default function App() {
           <button
             onClick={() => { playClickSfx(); setActiveTab('stalla'); }}
             aria-label="Stalla: allevamento e genealogia"
-            className={`flex flex-col items-center justify-center gap-0.5 min-h-[48px] py-1.5 rounded-xl transition-all ${activeTab === 'stalla' ? 'nav-active text-white' : 'text-slate-400 hover:bg-slate-900'}`}
+            className={`relative flex flex-col items-center justify-center gap-0.5 min-h-[48px] py-1.5 rounded-xl transition-all ${activeTab === 'stalla' ? 'nav-active text-white' : 'text-slate-400 hover:bg-slate-900'}`}
           >
             <Warehouse className="w-5 h-5" />
             <span>Stalla</span>
+            {pvpBadge > 0 && (
+              <span className="absolute top-0.5 right-1.5 bg-amber-500 text-[#0b0820] text-[9px] px-1.5 rounded-full font-black">
+                {pvpBadge > 9 ? '9+' : pvpBadge}
+              </span>
+            )}
           </button>
 
           <button
@@ -2492,7 +2514,7 @@ export default function App() {
         <Suspense fallback={<SceneFallback />}>
           <PvpBattleScene
             matchId={activePvpMatchId}
-            onClose={() => setActivePvpMatchId(null)}
+            onClose={() => { setActivePvpMatchId(null); refreshPvpBadge(); }}
             playClick={playClickSfx}
           />
         </Suspense>

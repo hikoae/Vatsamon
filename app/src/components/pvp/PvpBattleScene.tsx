@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "motion/react";
-import { X, Clock, Flag, AlertTriangle } from "lucide-react";
+import { X, Clock, Flag, AlertTriangle, Swords, Share2, Copy, Check, Loader2 } from "lucide-react";
 import { useAuth } from "../../lib/auth";
 import { CowVisual } from "../CowVisual";
 import { ConfirmDialog } from "../ConfirmDialog";
@@ -10,9 +10,12 @@ import { MossePanel } from "../battle/MossePanel";
 import { MossaInfoSheet } from "../battle/MossaInfoSheet";
 import {
   buildPvpView, subscribeMatch, submitMove, claimTimeout, abandonMatch,
+  createChallenge, cancelChallenge, fighterFromSnapshot,
+  isPvpResultSeen, markPvpResultSeen, recordPvpWin, readPvpWinsCount,
   PvpError, PvpNotYourTurnError, PvpPermissionDeniedError, PvpView,
 } from "../../lib/pvp";
 import { PvpMatch } from "../../lib/pvpTypes";
+import { savePendingChallengeCode, clearPendingChallengeCode } from "./PvpChallengeCreate";
 
 type MatchDoc = PvpMatch & { id: string };
 
@@ -58,6 +61,17 @@ export default function PvpBattleScene({ matchId, onClose, playClick }: {
   const [lunge, setLunge] = useState<"me" | "opp" | null>(null);
   const [shake, setShake] = useState(false);
   const lastTurnRef = useRef<number | null>(null);
+
+  // Rivincita (S10b): nuova challenge precompilata dal fighter/moveset
+  // congelati di QUESTA partita — nessuna riselezione, un tap e via.
+  const [rematchBusy, setRematchBusy] = useState(false);
+  const [rematchCode, setRematchCode] = useState<string | null>(null);
+  const [rematchCopied, setRematchCopied] = useState(false);
+
+  // Ricompense cosmetiche locali (S10e): contatore + flair "prima vittoria",
+  // MAI valute/XP — vedi lib/pvp.ts (isPvpResultSeen/recordPvpWin).
+  const [pvpWinsCount, setPvpWinsCount] = useState(() => readPvpWinsCount());
+  const [firstWinFlair, setFirstWinFlair] = useState(false);
 
   // Partita PvP live = attività critica (stesso principio di BattleScene):
   // il SW non deve ricaricare la pagina a metà transazione.
@@ -105,6 +119,20 @@ export default function PvpBattleScene({ matchId, onClose, playClick }: {
     try { return buildPvpView(match, uid); } catch { return null; }
   }, [match, uid]);
 
+  // Esito visto + vittoria locale (S10 d/e): SOLO la prima volta che questo
+  // match compare concluso (finished/abandoned) — guardia idempotente via
+  // isPvpResultSeen/markPvpResultSeen (localStorage), niente coins/XP.
+  useEffect(() => {
+    if (!match || match.status === "active" || !view) return;
+    if (isPvpResultSeen(match.id)) return;
+    markPvpResultSeen(match.id);
+    if (view.amWinner) {
+      const { count, firstWin } = recordPvpWin();
+      setPvpWinsCount(count);
+      if (firstWin) setFirstWinFlair(true);
+    }
+  }, [match, view]);
+
   const handleMove = async (mossa: Mossa) => {
     if (!uid || !view || !match || submitting || !view.isMyTurn || match.status !== "active") return;
     playClick(); setSubmitting(true);
@@ -133,6 +161,56 @@ export default function PvpBattleScene({ matchId, onClose, playClick }: {
     setConfirmAbandon(false);
     try { await abandonMatch(matchId, uid); }
     catch (err) { setBanner(err instanceof PvpError ? err.message : "Non sono riuscito ad abbandonare la partita."); }
+  };
+
+  /** Rivincita (S10b): crea una NUOVA sfida dal fighter/moveset congelati
+   *  di questa stessa partita (niente riselezione della Reina) e la marca
+   *  `rematchOf` questo matchId. Stesso meccanismo di "sfida in attesa"
+   *  dell'hub (savePendingChallengeCode): se l'utente naviga via, la
+   *  ritrova da lì. */
+  const doRematch = async () => {
+    if (!uid || !match || !view || rematchBusy) return;
+    playClick(); setRematchBusy(true);
+    try {
+      const newCode = await createChallenge({
+        creatorUid: uid,
+        creatorNickname: view.myNickname,
+        mode: match.mode,
+        turnDurationMs: match.turnDurationMs,
+        fighter: fighterFromSnapshot(view.myFighter),
+        moveset: match.moveset[view.mySlot],
+        rematchOf: matchId,
+      });
+      savePendingChallengeCode(newCode);
+      setRematchCode(newCode);
+    } catch (err) {
+      setBanner(err instanceof PvpError ? err.message : "Non sono riuscito a creare la rivincita.");
+    } finally {
+      setRematchBusy(false);
+    }
+  };
+
+  const canShareRematch = typeof navigator.share === "function";
+
+  const shareRematch = async () => {
+    if (!rematchCode) return;
+    const text = `Rivincita a Vatsamon GO! Codice: ${rematchCode}`;
+    if (canShareRematch) {
+      try { await navigator.share({ text }); return; } catch { /* annullato dall'utente */ }
+    }
+    try {
+      await navigator.clipboard.writeText(rematchCode);
+      setRematchCopied(true);
+      setTimeout(() => setRematchCopied(false), 1800);
+    } catch { setBanner("Copia non riuscita: seleziona il codice a mano."); }
+  };
+
+  const cancelRematch = async () => {
+    if (!rematchCode) { setRematchCode(null); return; }
+    playClick();
+    try { await cancelChallenge(rematchCode); } catch { /* già scaduta/accettata: chiudi comunque */ }
+    clearPendingChallengeCode();
+    setRematchCode(null);
   };
 
   const deadlineMs = match?.turnDeadline ? match.turnDeadline.toMillis() - now : null;
@@ -196,8 +274,11 @@ export default function PvpBattleScene({ matchId, onClose, playClick }: {
 
           <div className="bg-slate-950/85 backdrop-blur border-t border-slate-800 p-3 space-y-2">
             {match.lastMove && (
-              <div className="bg-slate-900/80 border border-slate-800 rounded-xl px-3 py-2 h-[38px] overflow-hidden">
-                <div className="text-[10px] font-mono leading-snug text-slate-200">❖ {match.lastMove.log}</div>
+              <div className="bg-slate-900/80 border border-slate-800 rounded-xl px-3 py-2 space-y-0.5">
+                <div className="text-[10px] font-mono leading-snug text-slate-200 line-clamp-2">❖ {match.lastMove.log}</div>
+                {match.lastMove.commento && (
+                  <div className="text-[9px] font-mono leading-snug text-amber-300/80 italic line-clamp-2">{match.lastMove.commento}</div>
+                )}
               </div>
             )}
 
@@ -209,12 +290,12 @@ export default function PvpBattleScene({ matchId, onClose, playClick }: {
 
                 <div className="flex gap-2">
                   {canClaim && (
-                    <button onClick={doClaimTimeout} className="flex-1 flex items-center justify-center gap-1.5 bg-rose-600 hover:bg-rose-500 text-white font-mono font-black text-[11px] py-2 rounded-xl">
-                      <Clock className="w-3.5 h-3.5" /> Reclama per timeout
+                    <button onClick={doClaimTimeout} className="flex-1 flex items-center justify-center gap-1.5 bg-rose-600 hover:bg-rose-500 text-white font-mono font-black text-[10px] leading-tight py-2 px-2 rounded-xl text-center">
+                      <Clock className="w-3.5 h-3.5 flex-shrink-0" /> L'avversario ha abbandonato — reclama la vittoria
                     </button>
                   )}
-                  <button onClick={() => setConfirmAbandon(true)} className="px-4 bg-slate-900 border border-slate-800 text-slate-300 font-mono font-bold text-xs py-2 rounded-xl flex items-center gap-1.5">
-                    <Flag className="w-3.5 h-3.5" /> Abbandona
+                  <button onClick={() => setConfirmAbandon(true)} className="px-4 bg-slate-900 border border-slate-800 text-slate-300 font-mono font-bold text-xs py-2 rounded-xl flex items-center gap-1.5 flex-shrink-0">
+                    <Flag className="w-3.5 h-3.5" /> Ritira la Reina
                   </button>
                 </div>
               </>
@@ -225,6 +306,16 @@ export default function PvpBattleScene({ matchId, onClose, playClick }: {
                 <div className={`text-lg font-mono font-black ${view.amWinner ? "text-emerald-600" : "text-rose-500"}`}>
                   {view.amWinner ? "🏆 Hai vinto la spinta!" : "😔 Hai perso questa spinta"}
                 </div>
+                {view.amWinner && (
+                  <div className="text-[10px] font-mono text-amber-300">
+                    🏅 {pvpWinsCount} {pvpWinsCount === 1 ? "vittoria" : "vittorie"} in Piazza
+                  </div>
+                )}
+                {firstWinFlair && (
+                  <div className="bg-amber-500/10 border border-amber-600/40 rounded-xl px-3 py-2 text-[10px] font-mono text-amber-300">
+                    🎖️ Flair sbloccato: «Prima vittoria in Piazza»
+                  </div>
+                )}
                 {match.status === "abandoned" && (
                   <div className="text-[10px] font-mono text-slate-500">
                     {match.forfeitedBy === uid ? "Ti sei ritirato." : `${view.oppNickname} si è ritirata.`}
@@ -233,6 +324,25 @@ export default function PvpBattleScene({ matchId, onClose, playClick }: {
                 {match.forfeitedBy && match.status === "finished" && (
                   <div className="text-[10px] font-mono text-slate-500">Chiusa per timeout.</div>
                 )}
+
+                {rematchCode ? (
+                  <div className="bg-slate-900 border border-slate-800 rounded-xl p-3 space-y-2 text-left">
+                    <div className="text-[9px] font-mono uppercase tracking-widest text-slate-500 text-center">Rivincita — il tuo codice</div>
+                    <div className="text-lg font-mono font-black text-amber-300 tracking-[0.25em] bg-slate-950 border border-slate-800 rounded-xl py-2 select-all text-center">{rematchCode}</div>
+                    <p className="text-[10px] text-slate-400 text-center">Mandalo a {view.oppNickname}. La trovi come sfida in attesa nella Stalla.</p>
+                    <div className="flex gap-2">
+                      <button onClick={shareRematch} className="flex-1 flex items-center justify-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-mono font-bold text-[10px] py-2 rounded-xl">
+                        {rematchCopied ? <><Check className="w-3.5 h-3.5" /> Copiato!</> : canShareRematch ? <><Share2 className="w-3.5 h-3.5" /> Condividi</> : <><Copy className="w-3.5 h-3.5" /> Copia</>}
+                      </button>
+                      <button onClick={cancelRematch} className="px-3 text-[10px] font-mono text-slate-500 hover:text-rose-300">Annulla</button>
+                    </div>
+                  </div>
+                ) : (
+                  <button onClick={doRematch} disabled={rematchBusy} className="w-full flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-400 text-[#0b0820] font-mono font-black text-xs py-2.5 rounded-xl disabled:opacity-50">
+                    {rematchBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Swords className="w-4 h-4" /> Rivincita</>}
+                  </button>
+                )}
+
                 <button onClick={() => { playClick(); onClose(); }} className="w-full nav-active text-white font-mono font-black text-xs py-2.5 rounded-xl">Torna alla mandria</button>
               </div>
             )}
@@ -244,9 +354,9 @@ export default function PvpBattleScene({ matchId, onClose, playClick }: {
 
       {confirmAbandon && (
         <ConfirmDialog
-          title="Abbandonare la partita?"
-          message="L'avversario vince per abbandono. Non si torna indietro."
-          confirmLabel="Abbandona"
+          title="Ritirare la Reina dalla spinta?"
+          message="L'avversario vince la spinta. Non si torna indietro."
+          confirmLabel="Ritira la Reina"
           danger
           onConfirm={doAbandon}
           onCancel={() => setConfirmAbandon(false)}

@@ -27,7 +27,10 @@ export function readPendingChallengeCode(): string | null {
 export function clearPendingChallengeCode() {
   try { localStorage.removeItem(PENDING_KEY); } catch { /* noop */ }
 }
-function savePendingChallengeCode(code: string) {
+/** Esportata anche per PvpBattleScene (bottone "Rivincita", S10): la sfida
+ *  di rivincita nasce lì, ma deve restare "trovabile" dall'hub come
+ *  qualunque sfida in attesa. */
+export function savePendingChallengeCode(code: string) {
   try { localStorage.setItem(PENDING_KEY, code); } catch { /* noop */ }
 }
 

@@ -3,7 +3,7 @@ import { LogIn, RefreshCw, Swords, Ticket, Loader2 } from "lucide-react";
 import { Vatsamon } from "../../types";
 import { useAuth } from "../../lib/auth";
 import {
-  getChallengePreview, listMyMatches, slotForUid, PvpError,
+  getChallengePreview, listMyMatches, slotForUid, gcStaleMatches, PvpError,
 } from "../../lib/pvp";
 import { PvpMatch } from "../../lib/pvpTypes";
 import { PvpChallengeCreate, readPendingChallengeCode, clearPendingChallengeCode } from "./PvpChallengeCreate";
@@ -46,6 +46,9 @@ export function PvpHub({ collection, onOpenMatch, playClick }: {
         Promise.resolve(readPendingChallengeCode()),
       ]);
       setMatches(rows);
+      // GC lazy (S10c): best-effort, silenzioso, mai atteso — un fallimento
+      // (rete, rules non ancora deployate) non deve rompere l'hub.
+      void gcStaleMatches(rows);
       if (code) {
         const c = await getChallengePreview(code).catch(() => null);
         if (c && c.status === "open") { setPendingCode(code); setPendingStatus("open"); }
