@@ -388,6 +388,53 @@ service cloud.firestore {
       }
     }
 
+    // ─── Risultati ufficiali di gara (S11) ──────────────────────────────────
+    //
+    // Prima di S11 i "vincitori" del Calendario erano SEMPRE fabbricati (un
+    // ordinamento delle Reines per stat interna `potenza`), mostrati in UI
+    // spacciati per dato di gara con badge "LIVE" — inaccettabile per chi
+    // segue le Batailles de Reines sul serio. `risultati/{eventId}` è la
+    // fonte del dato REALE: pubblica in lettura (anche anonimi, è uno sport
+    // seguito da appassionati che non necessariamente hanno un account), in
+    // scrittura solo per l'allowlist admin sotto.
+    //
+    // TODO G7: "__ADMIN_UID__" è un placeholder che non corrisponde a nessun
+    // uid Firebase reale — finché non viene sostituito con l'uid vero
+    // dell'operatore, QUESTA COLLECTION RESTA IN SOLA LETTURA PER TUTTI
+    // (nessuno può scrivere). Sostituirlo prima del deploy rules che
+    // accompagna la pubblicazione del form admin (app/src/lib/risultati.ts,
+    // stesso TODO su ADMIN_UIDS lato client).
+    function isRisultatiAdmin() {
+      return isSignedIn() && request.auth.uid in ["__ADMIN_UID__"];
+    }
+
+    // {nome, note?}: note opzionale (es. "vittoria a punti", cause di forfait…).
+    function validRisultatoCategoria(c) {
+      return c is map
+        && c.nome is string && c.nome.size() > 0 && c.nome.size() <= 60
+        && (!("note" in c) || (c.note is string && c.note.size() <= 200));
+    }
+
+    function validRisultatoDoc(d) {
+      return d is map
+        && validRisultatoCategoria(d.cat1)
+        && validRisultatoCategoria(d.cat2)
+        && validRisultatoCategoria(d.cat3)
+        && d.inseritoAt is timestamp;
+    }
+
+    match /risultati/{eventId} {
+      allow get: if true;
+      allow list: if true;
+
+      allow create, update: if isRisultatiAdmin() && validRisultatoDoc(request.resource.data);
+
+      // Mai una cancellazione: un risultato ufficiale pubblicato si corregge
+      // (create/update), non si toglie silenziosamente da sotto agli utenti
+      // che l'hanno già visto.
+      allow delete: if false;
+    }
+
     // Nessun catch-all: qualunque altra collection è deny-by-default.
   }
 }

@@ -3,9 +3,10 @@ import { motion, AnimatePresence } from "motion/react";
 import {
   Trophy, CalendarDays, Swords, MapPin, Heart, Check, Sparkles,
   ChevronRight, Star, Crown, Info, Medal, BookOpen, Scroll, Languages,
-  Newspaper, Clock, Megaphone, ExternalLink,
+  Newspaper, Clock, Megaphone, ExternalLink, ShieldCheck, BadgeCheck, FlaskConical,
 } from "lucide-react";
 import { CowVisual } from "./CowVisual";
+import { RisultatiAdmin } from "./RisultatiAdmin";
 import { Vatsamon } from "../types";
 import {
   CALENDAR, CATEGORIES, CategoriaId, SEASON_META, SeasonEvent,
@@ -16,6 +17,8 @@ import { CULTURA, GLOSSARIO, FONTI, STORIA } from "../data/bataillesContent";
 import { loadNews, NewsItem } from "../data/news";
 import { SPONSOR_SLOTS } from "../config/brand";
 import { useLang, tr, Lang } from "../i18n/hub";
+import { useAuth } from "../lib/auth";
+import { ADMIN_UIDS, getAllRisultati } from "../lib/risultati";
 
 /**
  * STAGIONE — il "second screen" ufficiale della stagione Batailles de Reines.
@@ -28,7 +31,7 @@ import { useLang, tr, Lang } from "../i18n/hub";
  * Nessun backend: i risultati live si aggiornano committando il JSON della stagione.
  */
 
-type SubTab = "notizie" | "calendario" | "albo" | "tabellone" | "segui" | "scopri";
+type SubTab = "notizie" | "calendario" | "albo" | "tabellone" | "segui" | "scopri" | "admin";
 
 const LS_PICKS = "vatsamon_pronostici";
 const LS_FOLLOW = "vatsamon_follow_reine";
@@ -59,12 +62,22 @@ export function SeasonView({ onReward }: { onReward?: (coins: number, xp: number
   const [picks, setPicks] = useState<Record<string, string>>(() => loadJSON(LS_PICKS, {}));
   const [followId, setFollowId] = useState<string | null>(() => localStorage.getItem(LS_FOLLOW));
   const [catSel, setCatSel] = useState<CategoriaId>("1");
+  const { user } = useAuth();
+  const isAdmin = Boolean(user && ADMIN_UIDS.includes(user.uid));
+  // Bump per forzare un re-render dopo il fetch bulk dei risultati reali
+  // (winnersFor legge la cache in memoria in modo sincrono, vedi lib/risultati.ts).
+  const [, bumpRisultati] = useState(0);
 
   useEffect(() => { localStorage.setItem(LS_PICKS, JSON.stringify(picks)); }, [picks]);
   useEffect(() => {
     if (followId) localStorage.setItem(LS_FOLLOW, followId);
     else localStorage.removeItem(LS_FOLLOW);
   }, [followId]);
+  useEffect(() => {
+    let alive = true;
+    getAllRisultati().then(() => { if (alive) bumpRisultati((v) => v + 1); });
+    return () => { alive = false; };
+  }, []);
 
   const todayISO = toISO(new Date());
 
@@ -117,8 +130,14 @@ export function SeasonView({ onReward }: { onReward?: (coins: number, xp: number
                 <button key={l} onClick={() => setLang(l)} className={`px-2 py-0.5 ${lang === l ? "bg-amber-500 text-[#0b0820]" : "text-slate-400"}`}>{l.toUpperCase()}</button>
               ))}
             </div>
+            {/* "LIVE" fu ritirato con S11: il badge affiancava vincitori in parte
+                fabbricati (potenza interna, mai un dato di gara) facendoli
+                leggere come risultati in tempo reale. Riusa lo stato calendario
+                già tradotto ("in corso" / "en cours") — vero indipendentemente
+                dal fatto che i singoli risultati siano ufficiali o simulati,
+                quello lo dice il badge per-vincitore in Calendario. */}
             <span className="flex items-center gap-1 bg-rose-600/20 border border-rose-500/40 text-rose-300 text-[9px] font-mono font-black px-2 py-0.5 rounded-full">
-              <span className="w-1.5 h-1.5 rounded-full bg-rose-400 animate-pulse" /> LIVE
+              <span className="w-1.5 h-1.5 rounded-full bg-rose-400 animate-pulse" /> {tr(lang, "st_inCorso").toUpperCase()}
             </span>
           </div>
         </div>
@@ -144,6 +163,9 @@ export function SeasonView({ onReward }: { onReward?: (coins: number, xp: number
           ["tabellone", tr(lang, "nav_tabellone"), Swords],
           ["segui", tr(lang, "nav_segui"), Heart],
           ["scopri", tr(lang, "nav_scopri"), BookOpen],
+          // Tab admin: appare SOLO per ADMIN_UIDS (lib/risultati.ts). Gating
+          // solo UI — l'autorità reale è firestore.rules.
+          ...(isAdmin ? [["admin", tr(lang, "nav_admin"), ShieldCheck] as [SubTab, string, typeof Trophy]] : []),
         ] as [SubTab, string, typeof Trophy][]).map(([id, label, Icon]) => (
           <button
             key={id}
@@ -178,6 +200,9 @@ export function SeasonView({ onReward }: { onReward?: (coins: number, xp: number
           {sub === "scopri" && <ScopriSection lang={lang} />}
           {sub === "segui" && (
             <FollowSection lang={lang} followCow={followCow} onFollow={setFollowId} onOpenBracket={(cat) => { setCatSel(cat); setSub("tabellone"); }} />
+          )}
+          {sub === "admin" && isAdmin && (
+            <RisultatiAdmin lang={lang} onSaved={() => bumpRisultati((v) => v + 1)} />
           )}
         </motion.div>
       </AnimatePresence>
@@ -270,7 +295,9 @@ function CalendarSection({ lang, nextEventId, todayISO, onGoPronostici }: {
 
                 {note && <p className="text-[10px] text-slate-500 leading-snug mt-1.5 italic">{note}</p>}
 
-                {/* vincitrici (eliminatorie disputate) */}
+                {/* vincitrici — UFFICIALE (risultato reale, Firestore) vs SIMULATO
+                    (nessun risultato reale pubblicato: calcolo per potenza interna,
+                    MAI mostrato senza questa etichetta — vedi data/season.ts winnersFor). */}
                 {hasWinners && (
                   <div className="mt-2 space-y-1">
                     {ev.categorie.map((c) => {
@@ -279,11 +306,27 @@ function CalendarSection({ lang, nextEventId, todayISO, onGoPronostici }: {
                       const cat = CATEGORIES.find((x) => x.id === c)!;
                       return (
                         <div key={c} className="flex items-center gap-2 bg-slate-900/70 rounded-lg px-2 py-1">
-                          <CowVisual cow={w} className="w-7 h-7" />
-                          <span className="text-[10px] font-mono text-slate-300 truncate">
+                          {w.cow ? (
+                            <CowVisual cow={w.cow} className="w-7 h-7" />
+                          ) : (
+                            <div className="w-7 h-7 rounded-lg bg-slate-800 flex items-center justify-center text-sm flex-shrink-0">🐮</div>
+                          )}
+                          <span className="text-[10px] font-mono text-slate-300 truncate flex items-center gap-1 flex-wrap">
                             <Trophy className="inline w-3 h-3 text-amber-400 mb-0.5 mr-0.5" />
-                            <b className="text-amber-200">{w.name}</b>
+                            <b className="text-amber-200">{w.nome}</b>
                             <span className="text-slate-500"> · {lang === "fr" ? cat.labelFr : cat.label}</span>
+                            <span
+                              className={`inline-flex items-center gap-0.5 text-[8px] font-mono font-black px-1.5 py-0.5 rounded-full border ${
+                                w.simulato
+                                  ? "text-slate-400 bg-slate-800/60 border-slate-700"
+                                  : "text-emerald-300 bg-emerald-500/15 border-emerald-600/40"
+                              }`}
+                            >
+                              {w.simulato
+                                ? <FlaskConical className="w-2.5 h-2.5" />
+                                : <BadgeCheck className="w-2.5 h-2.5" />}
+                              {w.simulato ? tr(lang, "res_simulato") : tr(lang, "res_ufficiale")}
+                            </span>
                           </span>
                         </div>
                       );

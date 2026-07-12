@@ -1,5 +1,6 @@
 import { Vatsamon } from "../types";
 import { REAL_COWS } from "./realCows";
+import { getCachedRisultato } from "../lib/risultati";
 
 /**
  * ============================================================================
@@ -184,8 +185,42 @@ for (const ev of CALENDAR) {
   WINNERS_BY_EVENT[ev.id] = winners;
 }
 
-export function winnersFor(eventId: string): Partial<Record<CategoriaId, Vatsamon>> {
-  return WINNERS_BY_EVENT[eventId] ?? {};
+/**
+ * Vincitrice di una categoria per un evento, com'è mostrata in UI. `simulato:
+ * true` = NESSUN risultato reale pubblicato per questo evento/categoria: è
+ * il vecchio calcolo per `potenza` interna, fabbricato, mai un dato di gara.
+ * `simulato: false` = risultato reale inserito dall'admin (S11) su Firestore
+ * `risultati/{eventId}`. `cow` è presente solo se il nome è stato riconosciuto
+ * tra le 73 REAL_COWS (match tollerante via `reinaByName`) — un nome libero
+ * digitato dall'admin resta valido anche senza foto/illustrazione.
+ */
+export interface WinnerEntry {
+  nome: string;
+  note?: string;
+  cow?: Vatsamon;
+  simulato: boolean;
+}
+
+const CAT_FIELD: Record<CategoriaId, "cat1" | "cat2" | "cat3"> = { "1": "cat1", "2": "cat2", "3": "cat3" };
+
+export function winnersFor(eventId: string): Partial<Record<CategoriaId, WinnerEntry>> {
+  const ev = CALENDAR.find((e) => e.id === eventId);
+  if (!ev) return {};
+  const real = getCachedRisultato(eventId);
+  const simulated = WINNERS_BY_EVENT[eventId] ?? {};
+  const out: Partial<Record<CategoriaId, WinnerEntry>> = {};
+  for (const cat of ev.categorie) {
+    const r = real?.[CAT_FIELD[cat]];
+    if (r && r.nome) {
+      out[cat] = { nome: r.nome, note: r.note, cow: reinaByName(r.nome), simulato: false };
+      continue;
+    }
+    const simCow = simulated[cat];
+    if (simCow) {
+      out[cat] = { nome: simCow.name, cow: simCow, simulato: true };
+    }
+  }
+  return out;
 }
 
 // ---------------------------------------------------------------------------
