@@ -18,14 +18,16 @@ export type PvpMatchStatus = "active" | "finished" | "abandoned";
 export type PvpPlayerSlot = "p1" | "p2";
 
 /** Istantanea congelata di un combattente al momento della sfida (sottoinsieme
- *  di Fighter, lib/battle.ts): solo i campi che la Spinta usa davvero. */
+ *  di Fighter, lib/battle.ts): solo i campi che la Spinta usa davvero.
+ *  atk/def/agi sono INT (battle.ts clampa con Math.round): le rules lo
+ *  richiedono per evitare mismatch di arrotondamento in fiatoMax. */
 export interface PvpFighterSnapshot {
   name: string;
   breed: string;
   level: number; // int, 1..60
-  atk: number;   // 5..105 — presa (leva di corna)
-  def: number;   // 5..105 — piccolo bonus di massa
-  agi: number;   // 5..105 — volontà/fiato
+  atk: number;   // int, 5..105 — presa (leva di corna)
+  def: number;   // int, 5..105 — piccolo bonus di massa
+  agi: number;   // int, 5..105 — volontà/fiato
   peso: number;  // kg reali, 300..850 — massa nella Spinta
 }
 
@@ -40,7 +42,8 @@ export interface PvpPlayerRef {
 }
 
 /** pvpChallenges/{code} — codice di invito. Lettura per-id "a capability"
- *  (chi conosce il codice legge), mai list. */
+ *  (chi conosce il codice legge), mai list. Il codice va generato con
+ *  entropia alta (S9): il codice È la capability. */
 export interface PvpChallenge {
   creatorUid: string;
   creatorNickname: string;
@@ -50,7 +53,8 @@ export interface PvpChallenge {
   moveset: PvpMoveset;
   status: PvpChallengeStatus;
   expiresAt: Timestamp; // < createdAt + 8gg
-  matchId?: string; // scritto solo alla transizione open -> accepted
+  matchId?: string;     // scritto solo alla transizione open -> accepted
+  acceptorUid?: string; // scritto solo alla transizione open -> accepted (= chi accetta)
 }
 
 /**
@@ -80,22 +84,31 @@ export interface PvpLastMove {
 
 /** pvpMatches/{matchId} — partita live/per corrispondenza. Leggibile SOLO
  *  dai due uid in `playerUids` (query sempre con
- *  where('playerUids','array-contains', uid)). */
+ *  where('playerUids','array-contains', uid)).
+ *
+ *  BINDING match↔challenge (rules): il match è creato SOLO dall'acceptor
+ *  della challenge, DOPO l'accept (due write sequenziali, NON in batch: il
+ *  get() delle rules legge l'ultimo stato commesso). Convenzione fissa:
+ *  p1 = creator della sfida (fighters.p1/moveset.p1 == quelli staked nella
+ *  challenge), p2 = acceptor. Lo stato iniziale deve essere quello di
+ *  initSpinta (fiato pieni, calma 80/80, turno 0, esito "corso"). */
 export interface PvpMatch {
   status: PvpMatchStatus;
-  mode: PvpMode;
+  mode: PvpMode; // == challenge.mode
+  challengeCode: string; // id della pvpChallenge da cui il match nasce (immutabile)
+  turnDurationMs: number; // == challenge.turnDurationMs (immutabile) — floor rules per turnDeadline
   players: { p1: PvpPlayerRef; p2: PvpPlayerRef };
   playerUids: [string, string]; // = [players.p1.uid, players.p2.uid]
   fighters: { p1: PvpFighterSnapshot; p2: PvpFighterSnapshot }; // immutabili post-create
   moveset: { p1: PvpMoveset; p2: PvpMoveset };                   // immutabili post-create
-  usiMosse: Record<string, number>; // specchia SpintaState.usiMosse (usi per spinta)
+  usiMosse: Record<string, number>; // specchia SpintaState.usiMosse (usi per spinta); {} al create
   state: PvpSpintaState;
   turnOf: PvpPlayerSlot;
   turnNumber: number; // == state.turno; avanza di 1 esatto per mossa accettata
-  turnDeadline: Timestamp;
-  lastMove?: PvpLastMove;
-  winnerUid?: string;
-  forfeitedBy?: string;
+  turnDeadline: Timestamp; // per ogni mossa: >= request.time + turnDurationMs/2 (tolleranza skew), <= +4gg
+  lastMove?: PvpLastMove;  // mai presente al create
+  winnerUid?: string;      // mai presente al create
+  forfeitedBy?: string;    // mai presente al create
   rematchOf?: string; // matchId della partita precedente, se rivincita
   createdAt: Timestamp;
   updatedAt: Timestamp;

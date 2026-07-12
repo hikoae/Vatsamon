@@ -42,6 +42,16 @@ npm install
 npm test
 ```
 
+Se la porta 8080 è occupata da un altro servizio locale: crea una copia di
+`firebase.json` con un'altra porta (es. 8787) e lancia con l'override:
+
+```bash
+npx firebase emulators:exec --only firestore --project vatsamon-rules-test \
+  --config ../../firebase.emutest.json "FIRESTORE_EMULATOR_PORT=8787 node --test rules.test.js"
+```
+
+(`rules.test.js` legge `FIRESTORE_EMULATOR_PORT`, default 8080.)
+
 `npm test` avvia `firebase emulators:exec`, che:
 1. fa partire il Firestore Emulator (porta 8080, come da `../../firebase.json`),
 2. carica `../../firestore.rules`,
