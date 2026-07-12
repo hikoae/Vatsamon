@@ -12,6 +12,7 @@ import {
   Approccio, APPROCCIO_LABEL,
 } from "../lib/spinta";
 import { SAC_ITEMS, MAX_VIGILIA, LIMATURA_TESTO } from "../data/sac";
+import { condizioneAttiva } from "../lib/condizione";
 import { MapBattle } from "../data/mapBattles";
 import { arenaBoss } from "../data/arenas";
 import { Mossa, mosseEquipaggiate, mosseAvversaria, eseguiMossa } from "../data/mosse";
@@ -122,7 +123,13 @@ export default function BattleScene({
       const primo = TUTORIAL_SCRIPT[0].intentoAvversaria;
       if (primo) forzaIntento(stRef.current, primo);
     }
-    setLog([`${battle.emoji} ${battle.name}: ${ps.name} affronta ${os.name}. Le corna si toccano…`]);
+    // S18: "In forma dopo la cura all'Arp" — riga d'intro se il nudge di
+    // condizione stagionale (lib/condizione.ts) è attivo per questa Reina.
+    const inForma = condizioneAttiva(playerCow.id);
+    setLog([
+      `${battle.emoji} ${battle.name}: ${ps.name} affronta ${os.name}. Le corna si toccano…`,
+      ...(inForma ? [`💪 ${ps.name} è in forma dopo la cura all'Arp.`] : []),
+    ]);
     setWinner(null); setShowBag(false);
     setPhase("fight"); rerender();
   };
