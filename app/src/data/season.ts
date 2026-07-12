@@ -1,6 +1,7 @@
 import { Vatsamon } from "../types";
 import { REAL_COWS } from "./realCows";
 import { getCachedRisultato } from "../lib/risultati";
+import { DESARPA_GIORNO } from "./arp";
 
 /**
  * ============================================================================
@@ -78,7 +79,7 @@ export const SEASON_META = {
   },
 };
 
-export type EventKind = "bataille" | "pausa";
+export type EventKind = "bataille" | "pausa" | "cerimonia";
 
 export interface SeasonEvent {
   id: string;
@@ -123,6 +124,16 @@ export const CALENDAR: SeasonEvent[] = [
   { id: "el-11", data: "2026-09-06", comune: "Aosta", luogo: "Area combattimenti", categorie: ["1", "2", "3"], kind: "bataille", fase: "autunno", disputata: false },
   { id: "el-12", data: "2026-09-13", comune: "Cogne", luogo: "Prato di Sant'Orso", categorie: ["1", "2", "3"], kind: "bataille", fase: "autunno", disputata: false },
   { id: "el-13", data: "2026-09-27", comune: "Courmayeur", luogo: "Mont-Blanc", categorie: ["1", "2", "3"], kind: "bataille", fase: "autunno", disputata: false },
+
+  // DÉSARPA (S14, dossier §10) — cerimonia della discesa dagli alpeggi, NON
+  // una tappa: nessuna categoria, nessun vincitore di gara. Entra nel
+  // CALENDAR (invece di vivere solo come costante in data/arp.ts) così
+  // partecipa alla stessa plumbing di countdown/vista calendario delle
+  // batailles, restando riconoscibile da `kind: "cerimonia"` ovunque il
+  // codice distingue esplicitamente le tappe con vincitori (eliminatoire.ts,
+  // RisultatiAdmin) da tutto il resto del CALENDAR.
+  { id: "desarpa", data: `${SEASON_META.anno}${DESARPA_GIORNO}`, comune: "Désarpa", luogo: "Cerimonia della discesa", categorie: [], kind: "cerimonia", note: "La cerimonia annuale della discesa dagli alpeggi: si incoronano le due Reines di mandria — la Reina di corne (più vittorie stagionali) e la Reine du lait (più produttiva all'alpe).", noteFr: "La cérémonie annuelle de la descente des alpages : on couronne les deux Reines de troupeau — la Reine de corne (la plus victorieuse de la saison) et la Reine du lait (la plus productive à l'alpage)." },
+
   { id: "el-14", data: "2026-10-04", comune: "Châtillon-Pontey", luogo: "Area combattimenti", categorie: ["1", "2", "3"], kind: "bataille", fase: "autunno-finale", disputata: false },
   { id: "el-15", data: "2026-10-11", comune: "Gressan", luogo: "Area combattimenti", categorie: ["1", "2", "3"], kind: "bataille", fase: "autunno-finale", disputata: false, note: "Ultima eliminatoria prima della finale.", noteFr: "Dernière éliminatoire avant la finale." },
 

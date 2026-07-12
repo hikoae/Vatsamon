@@ -48,7 +48,7 @@ import { WILD_BREEDS, WILD_NAMES, ECO_TREK_TIPS, LORE_POOL, BALL_META, DEFAULT_B
 import { BASE_CATCH, respectTone } from './lib/capture';
 import { Trofeo } from './data/trofei';
 import type { EsitoTappa } from './components/EliminatoireView';
-import { tappe, tappaStato, STATO_LABEL, LS_ELIMINATOIRE, EliminatoireSave } from './data/eliminatoire';
+import { tappe, tappaStato, STATO_LABEL, LS_ELIMINATOIRE, EliminatoireSave, tappaPronosticabile } from './data/eliminatoire';
 import { ArpPanel } from './components/ArpPanel';
 import { sbloccaParola, parolePatois, TOTALE_PAROLE } from './lib/patois';
 import { SpintaStats, valutaImprese, insegnaMosse, mosseDaLivello, sbloccaGlobale } from './lib/scuola';
@@ -56,8 +56,8 @@ import { TutorialState, tutorialState, saveTutorial, premioLezioneDaRitirare } f
 import { TUTORIAL_BATTLE } from './data/tutorialBattle';
 import { MemeGuide } from './components/MemeGuide';
 import LeggendeView from './components/LeggendeView';
-import { ArpState, ARP_VUOTO, LS_ARP, ARP_KG_PER_CURA, ARP_GIORNI_PER_FONTINA } from './data/arp';
-import { SeasonEvent } from './data/season';
+import { ArpState, ARP_VUOTO, LS_ARP, ARP_KG_PER_CURA, ARP_GIORNI_PER_FONTINA, desarpaDisponibile } from './data/arp';
+import { SeasonEvent, CALENDAR } from './data/season';
 
 // S4 perf: scene pesanti caricate on-demand (code-splitting). Restano eager solo
 // mappa/HUD/ScattaView, che servono al primo paint o hanno già il proprio
@@ -1225,6 +1225,28 @@ export default function App() {
   useEffect(() => { localStorage.setItem(LS_ARP, JSON.stringify(arpState)); }, [arpState]);
   // chi è all'arp non gareggia: la selezione per battaglie/tornei usa questa lista
   const disponibili = vatsadex.filter(c => !arpState.capi[c.id]);
+
+  // S14 — segnali "c'è qualcosa da controllare" per i badge di Stagione/Stalla
+  // e per la Badge API della PWA. Tutti derivati da dati già esistenti
+  // (CALENDAR statico, arpState) — zero stato nuovo, zero listener: si
+  // ricalcolano a ogni render, stesso principio di faseStato/gradoStato sopra.
+  const tappaOggi = CALENDAR.some(e => e.kind === 'bataille' && !e.finale && e.data === oggiISO());
+  const stagioneBadge = tappaOggi || tappaPronosticabile(oggiISO()) !== null;
+  const desarpaPronta = desarpaDisponibile(oggiISO(), arpState);
+
+  // Badge API (S14): pallino sull'icona PWA/home-screen quando c'è almeno un
+  // segnale attivo (tappa oggi/imminente, tocca-a-te PvP, o désarpa pronta).
+  // Feature-detect via optional chaining (Safari/desktop spesso non la
+  // supportano): mai un errore se assente. Clear all'apertura, poi reattivo
+  // sui segnali sopra — nessun listener/polling nuovo.
+  useEffect(() => {
+    navigator.clearAppBadge?.()?.catch(() => {});
+  }, []);
+  useEffect(() => {
+    const totale = pvpBadge + (stagioneBadge ? 1 : 0) + (desarpaPronta ? 1 : 0);
+    if (totale > 0) navigator.setAppBadge?.(totale)?.catch(() => {});
+    else navigator.clearAppBadge?.()?.catch(() => {});
+  }, [pvpBadge, stagioneBadge, desarpaPronta]);
   const [spinState, setSpinState] = useState<'idle' | 'spinning' | 'rewarded'>('idle');
   const [spinDeg, setSpinDeg] = useState(0);
   const [spinRewards, setSpinRewards] = useState<string[]>([]);
@@ -2180,6 +2202,7 @@ export default function App() {
             onStartBattle={tryStartBattle}
             onStartDungeon={tryStartDungeon}
             onOpenSeason={() => { playClickSfx(); setActiveTab('stagione'); }}
+            seasonBadge={stagioneBadge}
           />
         )}
 
@@ -2467,6 +2490,15 @@ export default function App() {
               <span className="absolute top-0.5 right-1.5 bg-amber-500 text-[#0b0820] text-[9px] px-1.5 rounded-full font-black">
                 {pvpBadge > 9 ? '9+' : pvpBadge}
               </span>
+            )}
+            {/* S14 — pallino Désarpa disponibile: angolo opposto al badge PvP
+                (numero) per non confondere i due segnali. */}
+            {desarpaPronta && (
+              <span
+                id="badge-desarpa-stalla"
+                className="absolute top-0.5 left-1.5 w-2 h-2 rounded-full bg-violet-400"
+                aria-label="Désarpa disponibile"
+              />
             )}
           </button>
 
