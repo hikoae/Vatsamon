@@ -50,6 +50,12 @@ export default function DungeonRun({
 
   const teamRef = useRef<Spintatore[]>([]);
   const oppsRef = useRef<Spintatore[]>([]);
+  // Mirror sincrono di activeIdx: la catena performTurn→opponentTurn→advanceOpponent/
+  // cowRetreats è async e le closure "p"/"o" restano legate al render in cui sono
+  // state create, quindi leggere activeIdx (state) dentro quella catena può tornare
+  // il valore PRE-switch. activeIdxRef è aggiornato in modo sincrono ad ogni
+  // setActiveIdx, così la catena legge sempre l'indice corretto.
+  const activeIdxRef = useRef(0);
   const fiatoRef = useRef<number[]>([]); // fiato per Reina della squadra (si trascina)
   const stRef = useRef<SpintaState>({ barra: 50, fiatoP: 0, fiatoO: 0, calma: 80, stanceP: null, stanceO: null, esito: "corso" });
   const persRef = useRef<Personalita[]>([]);
@@ -94,6 +100,7 @@ export default function DungeonRun({
     s0.fiatoP = fiatoRef.current[0];
     stRef.current = s0;
     campionaBarra(statsTeamRef.current[0], s0.barra); // l'ingaggio può già partire in svantaggio
+    activeIdxRef.current = 0;
     setActiveIdx(0); setOppIdx(0);
     setLog([`${dungeon.emoji} ${dungeon.league}: 5 spinte consecutive! Sfidante 1 — ${dungeon.opponents[0].name}`]);
     setShowBag(false); setShowSwitch(false);
@@ -101,16 +108,17 @@ export default function DungeonRun({
   };
 
   const performTurn = async (side: "p" | "o", mossaId: string) => {
-    const A = side === "p" ? teamRef.current[activeIdx] : oppsRef.current[oppIdx];
-    const B = side === "p" ? oppsRef.current[oppIdx] : teamRef.current[activeIdx];
+    const idx = activeIdxRef.current;
+    const A = side === "p" ? teamRef.current[idx] : oppsRef.current[oppIdx];
+    const B = side === "p" ? oppsRef.current[oppIdx] : teamRef.current[idx];
     setLunge(side); await wait(150);
     const r = eseguiMossa(side, mossaId, stRef.current, A, B);
     stRef.current = r.state;
-    fiatoRef.current[activeIdx] = r.state.fiatoP; // il fiato della Reina attiva si trascina
-    if (side === "p" && r.dettaglio) registraTurno(statsTeamRef.current[activeIdx], r.dettaglio.famiglia, r.state.barra, r.state.turno ?? 0);
-    campionaBarra(statsTeamRef.current[activeIdx], r.state.barra); // anche i cali causati dall'avversaria
+    fiatoRef.current[idx] = r.state.fiatoP; // il fiato della Reina attiva si trascina
+    if (side === "p" && r.dettaglio) registraTurno(statsTeamRef.current[idx], r.dettaglio.famiglia, r.state.barra, r.state.turno ?? 0);
+    campionaBarra(statsTeamRef.current[idx], r.state.barra); // anche i cali causati dall'avversaria
     pushLog(spiegaEsito(r) ?? r.log);
-    const cronaca = cronacaTurno(r, { p: teamRef.current[activeIdx].name, o: oppsRef.current[oppIdx].name });
+    const cronaca = cronacaTurno(r, { p: teamRef.current[idx].name, o: oppsRef.current[oppIdx].name });
     if (cronaca) pushLog(cronaca);
     rerender();
     setLunge(null);
@@ -121,8 +129,9 @@ export default function DungeonRun({
 
   // L'avversaria cede → prossimo sfidante (il fiato della tua Reina si trascina)
   const advanceOpponent = async () => {
+    const idx = activeIdxRef.current;
     if (oppIdx >= oppsRef.current.length - 1) {
-      const stats = statsTeamRef.current[activeIdx]; // la Reina che chiude
+      const stats = statsTeamRef.current[idx]; // la Reina che chiude
       stats.vittoriaPerFiato = stRef.current.fiatoO <= 0;
       // il giudizio può arrivare sull'azione avversaria: registraTurno non lo vede
       if ((stRef.current.turno ?? 0) >= MAX_TURNI) stats.giudizio = true;
@@ -130,14 +139,14 @@ export default function DungeonRun({
       const squadra = cowIdsRef.current
         .map((cowId, i) => ({ cowId, stats: statsTeamRef.current[i] }))
         .filter((m) => Object.values(m.stats.perFamiglia).some((n) => n > 0));
-      pushLog(cronacaEsito(true, false, { p: teamRef.current[activeIdx].name, o: oppsRef.current[oppIdx].name }));
-      setPhase("won"); onResult(true, cowIdsRef.current[activeIdx], stats, squadra); return;
+      pushLog(cronacaEsito(true, false, { p: teamRef.current[idx].name, o: oppsRef.current[oppIdx].name }));
+      setPhase("won"); onResult(true, cowIdsRef.current[idx], stats, squadra); return;
     }
     const next = oppIdx + 1;
-    const s = initSpinta(teamRef.current[activeIdx], oppsRef.current[next], { personalita: persRef.current[next], tellAccuracy });
-    s.fiatoP = fiatoRef.current[activeIdx]; // carry
+    const s = initSpinta(teamRef.current[idx], oppsRef.current[next], { personalita: persRef.current[next], tellAccuracy });
+    s.fiatoP = fiatoRef.current[idx]; // carry
     stRef.current = s;
-    campionaBarra(statsTeamRef.current[activeIdx], s.barra);
+    campionaBarra(statsTeamRef.current[idx], s.barra);
     setOppIdx(next);
     pushLog(`⬇️ ${dungeon.opponents[oppIdx].name} cede e si ritira! Sfidante ${next + 1}: ${dungeon.opponents[next].name}`);
     rerender();
@@ -146,17 +155,19 @@ export default function DungeonRun({
 
   // La tua Reina cede → entra la prossima viva (riparte la spinta sullo stesso sfidante)
   const cowRetreats = (): boolean => {
-    fiatoRef.current[activeIdx] = 0;
-    pushLog(`💨 ${teamRef.current[activeIdx].name} cede e si ritira.`);
+    const idx = activeIdxRef.current;
+    fiatoRef.current[idx] = 0;
+    pushLog(`💨 ${teamRef.current[idx].name} cede e si ritira.`);
     const nextAlive = fiatoRef.current.findIndex((f) => f > 0);
     if (nextAlive === -1) {
-      pushLog(cronacaEsito(false, false, { p: teamRef.current[activeIdx].name, o: oppsRef.current[oppIdx].name }));
+      pushLog(cronacaEsito(false, false, { p: teamRef.current[idx].name, o: oppsRef.current[oppIdx].name }));
       setPhase("lost"); onResult(false); return false;
     }
     const s = initSpinta(teamRef.current[nextAlive], oppsRef.current[oppIdx], { personalita: persRef.current[oppIdx], tellAccuracy });
     s.fiatoP = fiatoRef.current[nextAlive];
     stRef.current = s;
     campionaBarra(statsTeamRef.current[nextAlive], s.barra);
+    activeIdxRef.current = nextAlive;
     setActiveIdx(nextAlive);
     pushLog(`➡️ Scende in campo ${teamRef.current[nextAlive].name}!`);
     rerender();
@@ -164,7 +175,7 @@ export default function DungeonRun({
   };
 
   const opponentTurn = async () => {
-    const fam = pickAzioneAvversaria(stRef.current, oppsRef.current[oppIdx], teamRef.current[activeIdx]);
+    const fam = pickAzioneAvversaria(stRef.current, oppsRef.current[oppIdx], teamRef.current[activeIdxRef.current]);
     await performTurn("o", mosseOppsRef.current[oppIdx][fam].id);
     // la spinta può risolversi anche nel turno avversario (es. risoluzione a tempo)
     if (stRef.current.esito === "vinto") { await advanceOpponent(); setBusy(false); return; }
@@ -187,8 +198,9 @@ export default function DungeonRun({
     const eff = SAC_ITEMS[id]; const owned = backpack.find((b) => b.id === id);
     if (!eff || !owned || owned.quantity <= 0) return;
     playClick(); setBusy(true); setShowBag(false);
-    const s = stRef.current; const A = teamRef.current[activeIdx];
-    if (eff.fiato) { s.fiatoP = Math.min(A.fiatoMax, s.fiatoP + eff.fiato); fiatoRef.current[activeIdx] = s.fiatoP; }
+    const idx = activeIdxRef.current;
+    const s = stRef.current; const A = teamRef.current[idx];
+    if (eff.fiato) { s.fiatoP = Math.min(A.fiatoMax, s.fiatoP + eff.fiato); fiatoRef.current[idx] = s.fiatoP; }
     if (eff.calma) s.calma = Math.min(100, s.calma + eff.calma);
     if (eff.presa) A.presa = Math.min(110, A.presa + eff.presa);
     pushLog(`🎒 ${eff.nome}: ${eff.desc}`);
@@ -202,6 +214,7 @@ export default function DungeonRun({
     playClick(); setBusy(true); setShowSwitch(false);
     const s = stRef.current;
     s.fiatoP = fiatoRef.current[idx]; s.calma = 80;
+    activeIdxRef.current = idx;
     setActiveIdx(idx);
     pushLog(`🔄 Entra in campo ${teamRef.current[idx].name}!`);
     rerender();
