@@ -32,6 +32,8 @@ import { RoutesView } from './components/RoutesView';
 import { OverworldMapView } from './components/OverworldMapView';
 import { CaptureScreen } from './components/CaptureScreen';
 import { ProfileModal } from './components/ProfileModal';
+import { WhatsNewModal } from './components/WhatsNewModal';
+import { CHANGELOG } from './data/changelog';
 import { SceneFallback } from './components/SceneFallback';
 import { soundEngine } from './utils/audio';
 import { generateVatsamonClient } from './lib/generate';
@@ -1538,6 +1540,23 @@ export default function App() {
     );
   };
 
+  // NOVITÀ DI VERSIONE (S19): modale "cosa c'è di nuovo" al primo mount dopo
+  // login/onboarding (App monta solo a fase "ready", vedi AuthGate.tsx) — mai
+  // durante il tutorial di Mémé o una scena di combattimento (stesso guard
+  // già usato per il bubble del tutorial più sotto: !activeBattle &&
+  // !activeDungeon && !activeTappa). Una volta chiuso, la versione vista
+  // resta in localStorage per-device (mai in SAVE_KEYS: non è un dato di gioco).
+  const WHATS_NEW_SEEN_KEY = 'vatsamon_versione_vista';
+  const [showWhatsNew, setShowWhatsNew] = useState(false);
+  useEffect(() => {
+    if (tutorialAttivo || activeBattle || activeDungeon || activeTappa) return;
+    if (localStorage.getItem(WHATS_NEW_SEEN_KEY) === __APP_VERSION__) return;
+    if (!CHANGELOG.some(entry => entry.version === __APP_VERSION__)) return;
+    setShowWhatsNew(true);
+  }, [tutorialAttivo, activeBattle, activeDungeon, activeTappa]);
+  const closeWhatsNew = () => { localStorage.setItem(WHATS_NEW_SEEN_KEY, __APP_VERSION__); setShowWhatsNew(false); };
+  const handleShowWhatsNew = () => { playClickSfx(); setShowProfile(false); setShowWhatsNew(true); };
+
   // Pre-spawn some wild cows around the screen if none exist (senza duplicati)
   useEffect(() => {
     if (wildCows.length === 0) {
@@ -2583,8 +2602,12 @@ export default function App() {
           canLogout={canLogoutFromProfile}
           onLogout={handleLogoutClick}
           onResetAll={resetAll}
+          onShowWhatsNew={handleShowWhatsNew}
         />
       )}
+
+      {/* NOVITÀ DI VERSIONE (S19): auto al mount fuori tutorial/battaglia, o riaperta dal Profilo */}
+      {showWhatsNew && <WhatsNewModal onClose={closeWhatsNew} />}
 
       {/* FOOTER GENERAL LEGALS AND RESET ACCENTS */}
       <footer className="bg-slate-950 text-slate-500 text-[10px] text-center py-4 px-6 border-t border-slate-850 mt-12 gap-2 flex flex-col items-center relative z-10">

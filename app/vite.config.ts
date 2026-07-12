@@ -1,10 +1,19 @@
+import { readFileSync } from "node:fs";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
 import { defineConfig } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
 
+// Versione letta da package.json a build-time (fonte unica, no drift manuale):
+// iniettata come global __APP_VERSION__ (S19), usata dal sistema "Novità di
+// versione" per capire se il changelog ha una entry per il build corrente.
+const pkg = JSON.parse(readFileSync(new URL("./package.json", import.meta.url), "utf-8")) as { version: string };
+
 export default defineConfig(({ mode }) => ({
+  define: {
+    __APP_VERSION__: JSON.stringify(pkg.version),
+  },
   // Base = nome del repo GitHub (il sito Pages vive su hikoae.github.io/<repo>/).
   // Il progetto si chiama "vatsamon": rinominare anche il repo GitHub in
   // Settings → General → Repository name (GitHub reindirizza il vecchio nome).

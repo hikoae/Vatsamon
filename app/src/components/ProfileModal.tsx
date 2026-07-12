@@ -28,6 +28,8 @@ type Props = {
   canLogout: boolean;
   onLogout: () => void;
   onResetAll: () => void;
+  /** Riapre WhatsNewModal (S19) con la versione corrente + storico. */
+  onShowWhatsNew: () => void;
 };
 
 /** MODAL PROFILO — riepilogo, prestigio, patois, trofei, salvataggio/export-import/reset/logout. */
@@ -53,6 +55,7 @@ export function ProfileModal({
   canLogout,
   onLogout,
   onResetAll,
+  onShowWhatsNew,
 }: Props) {
   const hasBackup = !!localStorage.getItem(BACKUP_KEY);
 
@@ -200,7 +203,11 @@ export function ProfileModal({
           </button>
         )}
 
-        <button onClick={onResetAll} className="w-full text-[10px] font-mono text-rose-400 hover:text-rose-300 underline pt-1">Azzera tutti i progressi</button>
+        {/* FOOTER — novità di versione + azzeramento */}
+        <div className="flex flex-col items-center gap-1 pt-1">
+          <button onClick={onShowWhatsNew} id="show-whats-new" className="text-[10px] font-mono text-emerald-400 hover:text-emerald-300 underline">✨ Novità di versione</button>
+          <button onClick={onResetAll} className="text-[10px] font-mono text-rose-400 hover:text-rose-300 underline">Azzera tutti i progressi</button>
+        </div>
       </div>
     </div>
   );

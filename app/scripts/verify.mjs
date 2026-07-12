@@ -1,9 +1,15 @@
 import { chromium } from "playwright";
-import { mkdirSync } from "node:fs";
+import { mkdirSync, readFileSync } from "node:fs";
 
 const APP_URL = process.env.URL ?? "http://localhost:5173/";
 const OUT = "/tmp/vatsamon-shots";
 mkdirSync(OUT, { recursive: true });
+
+// S19: la versione corrente (letta da package.json, come vite.config.ts
+// define __APP_VERSION__) va pre-segnata come "già vista" nei contesti di
+// test — altrimenti il modale "Novità di versione" si apre da solo e il suo
+// backdrop full-screen blocca in silenzio tutti i click successivi.
+const APP_PKG_VERSION = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf-8")).version;
 
 // PNG 1x1 per simulare un upload allo scanner
 const PNG = Buffer.from(
@@ -40,9 +46,10 @@ page.on("pageerror", (e) => !isEnvNoise(e.message) && errors.push("PAGEERROR: " 
 
 // In modalità locale i nuovi utenti vedono l'onboarding: per testare il gioco
 // pre-segniamo lo storage come "onboardato" così App si carica direttamente.
-await page.addInitScript(() => {
+await page.addInitScript((version) => {
   localStorage.setItem("vatsamon_onboarded", JSON.stringify({ verify: true }));
-});
+  localStorage.setItem("vatsamon_versione_vista", version);
+}, APP_PKG_VERSION);
 
 await page.goto(APP_URL, { waitUntil: "networkidle" });
 await page.waitForTimeout(1500);
@@ -115,9 +122,10 @@ const farCtx = await browser.newContext({
   geolocation: { latitude: 45.5800, longitude: 7.3600 },
 });
 const farPage = await farCtx.newPage();
-await farPage.addInitScript(() => {
+await farPage.addInitScript((version) => {
   localStorage.setItem("vatsamon_onboarded", JSON.stringify({ verify: true }));
-});
+  localStorage.setItem("vatsamon_versione_vista", version);
+}, APP_PKG_VERSION);
 await farPage.goto(APP_URL, { waitUntil: "domcontentloaded" });
 await farPage.waitForTimeout(700);
 await farPage.locator("#gps-btn").click();
