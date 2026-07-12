@@ -8,7 +8,7 @@ import { beginCriticalActivity, endCriticalActivity } from "../lib/swUpdate";
 import { buildPlayerFighter, buildOpponentFighter, buildScaledBoss, Fighter } from "../lib/battle";
 import {
   Spintatore, SpintaState, AzioneId, PERSONALITA_LABEL, Personalita, personalitaFromLegacy,
-  spintatoreFromFighter, initSpinta, pickAzioneAvversaria, forzaIntento, MAX_TURNI,
+  spintatoreFromFighter, initSpinta, pickAzioneAvversaria, forzaIntento, MAX_TURNI, TERRAIN_LABEL,
 } from "../lib/spinta";
 import { SAC_ITEMS, MAX_VIGILIA, LIMATURA_TESTO } from "../data/sac";
 import { MapBattle } from "../data/mapBattles";
@@ -108,6 +108,7 @@ export default function BattleScene({
     stRef.current = initSpinta(ps, os, {
       personalita: isTutorial ? "paziente" : personalita,
       tellAccuracy: isTutorial ? 1 : tellAccuracy,
+      terrain: battle.arena?.terrain,
     });
     campionaBarra(statsRef.current, stRef.current.barra); // l'ingaggio può già partire in svantaggio
     if (isTutorial) {
@@ -124,7 +125,7 @@ export default function BattleScene({
     const A = side === "p" ? player! : opp!;
     const B = side === "p" ? opp! : player!;
     setLunge(side); await wait(160);
-    const r = eseguiMossa(side, mossaId, stRef.current, A, B);
+    const r = eseguiMossa(side, mossaId, stRef.current, A, B, battle.arena?.terrain);
     stRef.current = r.state;
     if (side === "p" && r.dettaglio) registraTurno(statsRef.current, r.dettaglio.famiglia, r.state.barra, r.state.turno ?? 0);
     campionaBarra(statsRef.current, r.state.barra); // anche i cali causati dall'avversaria
@@ -364,6 +365,9 @@ function IntroPanel({ battle, playerCows, cowId, setCowId, onStart, onClose, pla
         {battle.tutorial && <p className="text-[11px] text-rose-100 mt-2 bg-rose-950/40 border border-[#c8102e]/50 rounded-2xl p-3 max-w-xs leading-snug">{TUTORIAL_VIGILIA}</p>}
         <p className="text-[11px] font-mono mt-2 text-slate-300">È una <b className="text-emerald-700">spinta a corna limate</b>: vince chi fa cedere l'avversaria. Osserva i suoi movimenti e rispondi — conduci, non forzare.</p>
         <p className="text-[10px] font-mono mt-1 text-amber-600">Indole avversaria: <b>{PERSONALITA_LABEL[personalita].label}</b> — {PERSONALITA_LABEL[personalita].desc}</p>
+        {battle.arena?.terrain && (
+          <p className="text-[10px] font-mono mt-1 text-sky-300">Terreno: <b>{TERRAIN_LABEL[battle.arena.terrain].label}</b> — {TERRAIN_LABEL[battle.arena.terrain].hint}.</p>
+        )}
       </div>
       {locked ? (
         <div className="text-rose-500 font-mono font-bold text-sm">🔒 Richiede livello {battle.reqLevel}</div>
