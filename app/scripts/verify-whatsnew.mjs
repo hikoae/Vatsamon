@@ -1,9 +1,14 @@
 import { chromium } from "playwright";
-import { mkdirSync } from "node:fs";
+import { mkdirSync, readFileSync } from "node:fs";
 
 const APP_URL = process.env.URL ?? "http://localhost:5173/";
 const OUT = "/tmp/vatsamon-shots";
 mkdirSync(OUT, { recursive: true });
+
+// Versione attesa letta da package.json (stessa fonte di __APP_VERSION__ in
+// vite.config.ts e di verify.mjs) — mai hardcodata, così il check resta
+// valido a ogni release.
+const APP_PKG_VERSION = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf-8")).version;
 
 const problems = [];
 const note = (m) => console.log("  • " + m);
@@ -31,7 +36,7 @@ note(`1) prima apertura → modal visibile: ${modalVisible1}`);
 if (!modalVisible1) problems.push("modal NON appare alla prima apertura");
 await page.screenshot({ path: `${OUT}/whatsnew-1-auto-open.png` });
 
-const titoloCorrente = await page.locator("#whats-new-modal").locator("text=v1.4.0-dev").first().isVisible().catch(() => false);
+const titoloCorrente = await page.locator("#whats-new-modal").locator(`text=v${APP_PKG_VERSION}`).first().isVisible().catch(() => false);
 note(`   versione corrente mostrata: ${titoloCorrente}`);
 if (!titoloCorrente) problems.push("versione corrente non mostrata nel modal");
 
@@ -44,7 +49,7 @@ if (!closedAfterClick) problems.push("modal non si chiude col bottone Fatto");
 
 const seenValue = await page.evaluate(() => localStorage.getItem("vatsamon_versione_vista"));
 note(`   vatsamon_versione_vista in localStorage: ${seenValue}`);
-if (seenValue !== "1.4.0-dev") problems.push(`versione vista non salvata correttamente (letto: ${seenValue})`);
+if (seenValue !== APP_PKG_VERSION) problems.push(`versione vista non salvata correttamente (letto: ${seenValue})`);
 
 // 3) RELOAD → NON deve riapparire.
 await page.reload({ waitUntil: "networkidle" });

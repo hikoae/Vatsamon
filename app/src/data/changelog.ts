@@ -30,6 +30,42 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "1.6.0",
+    date: "2026-07-12",
+    highlights: [
+      {
+        emoji: "🤝",
+        titolo: "Sfide online tra allevatori",
+        descrizione: "Sfida un altro allevatore con un codice: partite live o per corrispondenza, una spinta a testa, con rivincita a fine incontro. Trovi tutto nella Piazza, dentro la Stalla.",
+      },
+      {
+        emoji: "🏆",
+        titolo: "Risultati veri delle tappe",
+        descrizione: "I vincitori del Calendario ora possono essere quelli reali delle Batailles: ogni nome porta il badge UFFICIALE o SIMULATO, così sai sempre cosa stai guardando.",
+      },
+      {
+        emoji: "🎟️",
+        titolo: "Schedina pronostici a ogni tappa",
+        descrizione: "Non solo la finale: prima di ogni eliminatoria puoi pronosticare la vincitrice di ogni categoria. Se il risultato ufficiale ti dà ragione, punti tifoso ed esperienza.",
+      },
+      {
+        emoji: "💗",
+        titolo: "La tua Reina del cuore",
+        descrizione: "Segui una Reina reale: storico della sua stagione, avviso quando gareggia e un premio se vince davvero la sua categoria.",
+      },
+      {
+        emoji: "⛰️",
+        titolo: "Duelli più tattici",
+        descrizione: "Ogni arena ha il suo terreno che cambia la spinta, in Arena scegli l'approccio d'ingaggio prima del duello, e la cura all'Arp mette la tua Reina in forma per la stagione.",
+      },
+      {
+        emoji: "⚡",
+        titolo: "App più veloce e leggera",
+        descrizione: "Avvio più rapido e aggiornamenti più piccoli. In più: queste Novità di versione a ogni aggiornamento e il bottone per uscire dall'account in sicurezza.",
+      },
+    ],
+  },
+  {
     version: "1.4.0-dev",
     date: "2026-07-12",
     highlights: [
