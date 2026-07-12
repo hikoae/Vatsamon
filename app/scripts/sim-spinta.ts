@@ -195,7 +195,7 @@ for (const appr of APPROCCI) {
   console.log(appr.padEnd(14) + riga.map((v) => v.toFixed(1).padEnd(12)).join("") + media2.toFixed(1));
 }
 
-let dominanti: Approccio[] = [];
+const dominanti: Approccio[] = [];
 for (const appr of APPROCCI) {
   const altri = APPROCCI.filter((a) => a !== appr);
   const batteTutti = INDOLI.every((indole) => altri.every((altro) => matriceApproccio[appr][indole] - matriceApproccio[altro][indole] > DOMINANZA_MARGINE));
