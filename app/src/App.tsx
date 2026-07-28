@@ -14,6 +14,7 @@ import {
 import { Vatsamon, Hotspot, BackpackItem, Trainer, RarityType, WildCow } from './types';
 import { normalizeSaveKey } from './lib/migrateSaveKeys';
 import { savePhoto } from './lib/photoStore';
+import { useScrollLock } from './lib/useScrollLock';
 import { useAuth } from './lib/auth';
 import { listMyMatches, slotForUid, isPvpResultSeen } from './lib/pvp';
 import { backupLocalSave, restoreLocalBackup, saveCloudSave, BACKUP_KEY } from './lib/cloudSave';
@@ -37,6 +38,7 @@ import { WhatsNewModal } from './components/WhatsNewModal';
 import { CHANGELOG } from './data/changelog';
 import { SceneFallback } from './components/SceneFallback';
 import { soundEngine } from './utils/audio';
+import { useLang } from './i18n/hub';
 import { generateVatsamonClient } from './lib/generate';
 import { REAL_COWS, REAL_CASERE } from './data/realCows';
 import { abbinaPosizioneAPercorso, direzioneVerso, distanza, fmtDist, RAGGIO_CATTURA } from './lib/geo';
@@ -76,6 +78,15 @@ const RespectEncounter = lazy(() => import('./components/RespectEncounter').then
 // si salva l'id + le sole differenze, non l'intera scheda statica).
 const REAL_BY_ID = new Map(REAL_COWS.map(c => [c.id, c]));
 const BAG_BY_ID = new Map(DEFAULT_BAG.map(i => [i.id, i]));
+
+// Traduzione FR delle etichette stato tappa (STATO_LABEL vive in
+// data/eliminatoire.ts, solo IT — mappa locale per bug M8 senza toccare
+// quel file, usata solo nella lista tappe della Stagione).
+const STATO_LABEL_FR: Record<'aperta' | 'memoriale' | 'futura', string> = {
+  aperta: 'OUVERTE',
+  memoriale: 'Mémorial',
+  futura: 'Au calendrier',
+};
 
 const GPS_ROUTE_TOLERANCE = 120;
 const GPS_CHECKPOINT_RANGE = 90;
@@ -219,6 +230,10 @@ function buildDungeonIcon(dg: Dungeon, inRange: boolean, locked: boolean, cleare
 
 export default function App() {
   const { user, firebaseEnabled, signOut } = useAuth();
+  // Lingua condivisa (store reattivo in i18n/hub.ts): il toggle IT/FR vive
+  // nella card SAISON di SeasonView, ma le bande di sezione della Stagione
+  // renderizzate qui devono seguirlo — vedi bug M8.
+  const [lang] = useLang();
 
   // ---- 1. PERSISTENT STATS ----
   const [vatsadex, setVatsadex] = useState<Vatsamon[]>(() => {
@@ -1600,6 +1615,84 @@ export default function App() {
   const closeWhatsNew = () => { localStorage.setItem(WHATS_NEW_SEEN_KEY, __APP_VERSION__); setShowWhatsNew(false); };
   const handleShowWhatsNew = () => { playClickSfx(); setShowProfile(false); setShowWhatsNew(true); };
 
+  // ---- L21: blocca lo scroll di fondo mentre il modale "Livello superato" è aperto ----
+  useScrollLock(!!levelUpAward);
+
+  // ---- M14: consapevolezza offline ----
+  // Banner leggero non bloccante: la mappa OSM reale e le catture dipendono dalla
+  // rete, quindi avvisiamo quando manca la connessione senza interrompere il gioco.
+  const [isOffline, setIsOffline] = useState(
+    () => typeof navigator !== 'undefined' && navigator.onLine === false,
+  );
+  useEffect(() => {
+    const goOnline = () => setIsOffline(false);
+    const goOffline = () => setIsOffline(true);
+    window.addEventListener('online', goOnline);
+    window.addEventListener('offline', goOffline);
+    return () => {
+      window.removeEventListener('online', goOnline);
+      window.removeEventListener('offline', goOffline);
+    };
+  }, []);
+
+  // ---- H3: il tasto INDIETRO (device/browser) chiude l'overlay in cima invece
+  // di distruggere l'app. Teniamo un contatore di "voci-guardia" nella history
+  // allineato al numero di layer chiudibili aperti; su popstate chiudiamo il
+  // layer più in alto. Onboarding/tutorial di Mémé e AuthGate NON vengono
+  // intercettati (restano fuori dallo stack). ----
+  const overlayDepthRef = useRef(0);   // # voci-guardia spinte in history
+  const ignorePopsRef = useRef(0);     // pop programmatici (history.go) da ignorare
+  const backClosersRef = useRef<Array<() => void>>([]);
+
+  // Ricostruito a ogni render: layer chiudibili col tasto Indietro, dal più in
+  // alto al più in basso. L'ordine determina cosa chiude un singolo "back".
+  const backClosers: Array<() => void> = [];
+  if (dialog) backClosers.push(() => (dialog.onCancel ? dialog.onCancel() : setDialog(null)));
+  if (levelUpAward) backClosers.push(() => setLevelUpAward(null));
+  if (showWhatsNew) backClosers.push(closeWhatsNew);
+  if (showProfile) backClosers.push(() => setShowProfile(false));
+  if (isCapturingMode) backClosers.push(() => { setIsCapturingMode(false); setEncounterCow(null); });
+  if (activePvpMatchId) backClosers.push(() => { setActivePvpMatchId(null); refreshPvpBadge(); });
+  if (activeBattle) backClosers.push(() => setActiveBattle(null));
+  if (activeDungeon) backClosers.push(() => setActiveDungeon(null));
+  if (activeTappa) backClosers.push(() => setActiveTappa(null));
+  if (showLeggende) backClosers.push(() => setShowLeggende(false));
+  if (activeTab !== 'map') backClosers.push(() => setActiveTab('map'));
+  backClosersRef.current = backClosers;
+  const backDepth = backClosers.length;
+
+  // Sincronizza le voci-guardia della history con la profondità corrente:
+  // apri un overlay → pushState; chiudilo con un bottone in-app → history.go(-1)
+  // (così un back futuro non resta appeso a una voce-guardia stantia).
+  useEffect(() => {
+    const target = backDepth;
+    const current = overlayDepthRef.current;
+    if (target > current) {
+      for (let i = current; i < target; i++) history.pushState({ vatsOverlay: i + 1 }, '');
+      overlayDepthRef.current = target;
+    } else if (target < current) {
+      const diff = current - target;
+      overlayDepthRef.current = target;
+      ignorePopsRef.current += diff;   // i popstate risultanti sono programmatici
+      history.go(-diff);
+    }
+  }, [backDepth]);
+
+  // Un solo listener popstate, legge i closer freschi dal ref.
+  useEffect(() => {
+    const onPop = () => {
+      if (ignorePopsRef.current > 0) { ignorePopsRef.current--; return; }
+      const closers = backClosersRef.current;
+      if (closers.length > 0) {
+        overlayDepthRef.current = Math.max(0, overlayDepthRef.current - 1);
+        closers[0]();   // chiude il layer in cima → re-render, depth già allineata
+      }
+      // altrimenti: nessun overlay aperto → back di default (già tornati indietro)
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
+
   // Pre-spawn some wild cows around the screen if none exist (senza duplicati)
   useEffect(() => {
     if (wildCows.length === 0) {
@@ -2008,6 +2101,13 @@ export default function App() {
   // viene archiviata in IndexedDB e l'avvistamento entra nel flusso di
   // avvicinamento col campanaccio come qualsiasi altra Reina.
   const handleSighting = async (photoDataUrl: string | null) => {
+    // Resetta lo stato di cattura CONDIVISO (identico a initiateCatchWild),
+    // altrimenti dalla 2ª "Scatta" in poi la UI resta bloccata sull'esito della
+    // cattura precedente e l'avvicinamento col campanaccio non riparte.
+    setCaptureStep('aiming');
+    setHasFedApple(false);
+    setSelectedBallId('item-bell-std');
+    setCaptureLogMsg('Pronto a lanciare il rintocco captatore!');
     const parsed = await generateVatsamonClient(null);
     const str = parsed.stats.strength;
     const def = parsed.stats.defense;
@@ -2038,6 +2138,19 @@ export default function App() {
 
       {/* Sfondo aurora animato (tema Pokémon moderno) */}
       <div className="aurora-bg" aria-hidden="true" />
+
+      {/* M14 — banner offline: sottile, non bloccante (pointer-events-none), avvisa
+          che mappa reale e catture possono non aggiornarsi senza rete */}
+      {isOffline && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="fixed top-0 inset-x-0 z-[70] pointer-events-none flex items-center justify-center gap-1.5 bg-amber-500/95 text-slate-950 text-[11px] font-mono font-bold py-1 px-3 text-center shadow-md"
+        >
+          <span aria-hidden="true">📴</span>
+          Sei offline — mappa reale e catture potrebbero non aggiornarsi
+        </div>
+      )}
 
       {/* CORNICE "TELEFONO": su desktop l'esperienza resta in una colonna centrata
           di larghezza massima mobile, con bordo/ombra ai lati; su mobile occupa
@@ -2268,16 +2381,16 @@ export default function App() {
             <div id="fase-banner" className="rounded-2xl border border-[#c8102e]/40 p-3 flex items-center gap-3" style={{ background: "linear-gradient(90deg,#1a1626,#241a2e)" }}>
               <span className="text-3xl flex-shrink-0">{faseStato.emoji}</span>
               <div className="min-w-0 flex-grow">
-                <div className="text-[10px] font-mono uppercase tracking-widest text-[#f6c873]">Fase · {faseStato.label}</div>
-                <div className="text-xs text-slate-900 leading-snug">{faseStato.nota}</div>
+                <div className="text-[10px] font-mono uppercase tracking-widest text-[#f6c873]">{lang === 'fr' ? 'Phase' : 'Fase'} · {lang === 'fr' ? faseStato.labelFr : faseStato.label}</div>
+                <div className="text-xs text-slate-900 leading-snug">{lang === 'fr' ? faseStato.notaFr : faseStato.nota}</div>
                 {faseStato.prossimo && (
-                  <div className="text-[10px] text-slate-800 mt-0.5">📍 Prossima: <b className="text-slate-900">{faseStato.prossimo.comune}</b> · {faseStato.prossimo.data}</div>
+                  <div className="text-[10px] text-slate-800 mt-0.5">📍 {lang === 'fr' ? 'Prochaine' : 'Prossima'}: <b className="text-slate-900">{faseStato.prossimo.comune}</b> · {faseStato.prossimo.data}</div>
                 )}
               </div>
               {faseStato.giorniAllaFinale >= 0 && (
                 <div className="text-center flex-shrink-0 bg-slate-950/60 rounded-xl px-2.5 py-1.5 border border-amber-700/40">
                   <div className="text-base font-mono font-black text-amber-300 leading-none">{faseStato.giorniAllaFinale}</div>
-                  <div className="text-[9px] font-mono uppercase text-slate-500">gg alla finale</div>
+                  <div className="text-[9px] font-mono uppercase text-slate-500">{lang === 'fr' ? 'j. avant la finale' : 'gg alla finale'}</div>
                 </div>
               )}
             </div>
@@ -2289,8 +2402,8 @@ export default function App() {
           >
             <GraduationCap className="w-6 h-6 text-emerald-400 flex-shrink-0" />
             <div className="min-w-0 flex-grow">
-              <div className="text-[12px] font-mono font-black text-emerald-300 uppercase">Scuola d'Alpeggio</div>
-              <div className="text-[10px] text-slate-400 truncate">Quiz su tradizioni, regole e rispetto{quizBest > 0 ? ` · record ${quizBest}` : ''}</div>
+              <div className="text-[12px] font-mono font-black text-emerald-300 uppercase">{lang === 'fr' ? "École d'Alpage" : "Scuola d'Alpeggio"}</div>
+              <div className="text-[10px] text-slate-400 truncate">{lang === 'fr' ? 'Quiz sur les traditions, les règles et le respect' : 'Quiz su tradizioni, regole e rispetto'}{quizBest > 0 ? ` · record ${quizBest}` : ''}</div>
             </div>
             <span className="text-slate-500 text-lg" aria-hidden="true">›</span>
           </button>
@@ -2298,9 +2411,11 @@ export default function App() {
           <div className="bg-slate-950 border border-rose-800/40 rounded-2xl p-3 space-y-2" id="tappe-list">
             <div className="flex items-center justify-between">
               <div className="text-[11px] font-mono font-black uppercase tracking-widest text-rose-400">📯 L'Éliminatoire du Dimanche</div>
-              <div className="text-[9px] font-mono text-slate-500">{Object.values(tappeSave).filter(r => r.vinta).length}/{tappe().length} vinte</div>
+              <div className="text-[9px] font-mono text-slate-500">{Object.values(tappeSave).filter(r => r.vinta).length}/{tappe().length} {lang === 'fr' ? 'gagnées' : 'vinte'}</div>
             </div>
-            <p className="text-[10px] text-slate-400 leading-snug">Ogni domenica del calendario vero si gioca: eliminazione diretta nella tua categoria alla pesa. Vinci il <b className="text-rose-300">mécro</b> della tappa; chi gioca la tappa mentre è aperta guadagna il timbro della domenica.</p>
+            <p className="text-[10px] text-slate-400 leading-snug">{lang === 'fr'
+              ? <>Chaque dimanche du calendrier réel, on joue : élimination directe dans votre catégorie à la pesée. Gagnez le <b className="text-rose-300">mécro</b> de l'étape ; qui joue l'étape pendant qu'elle est ouverte gagne le timbre du dimanche.</>
+              : <>Ogni domenica del calendario vero si gioca: eliminazione diretta nella tua categoria alla pesa. Vinci il <b className="text-rose-300">mécro</b> della tappa; chi gioca la tappa mentre è aperta guadagna il timbro della domenica.</>}</p>
             <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-1">
               {(() => {
                 const oggi = oggiISO();
@@ -2320,8 +2435,8 @@ export default function App() {
                     >
                       <div className="text-[10px] font-mono font-black text-slate-100 whitespace-nowrap">{rec?.vinta ? '🌹 ' : ''}{ev.finale ? '👑 ' : ''}{ev.comune}</div>
                       <div className="text-[10px] font-mono text-slate-500 whitespace-nowrap">
-                        {new Date(ev.data + 'T12:00:00').toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' })} ·{' '}
-                        <span className={STATO_LABEL[stato].tone}>{STATO_LABEL[stato].label}</span>{rec?.timbro ? ' · ✓ domenica' : ''}
+                        {new Date(ev.data + 'T12:00:00').toLocaleDateString(lang === 'fr' ? 'fr-FR' : 'it-IT', { day: '2-digit', month: '2-digit' })} ·{' '}
+                        <span className={STATO_LABEL[stato].tone}>{lang === 'fr' ? STATO_LABEL_FR[stato] : STATO_LABEL[stato].label}</span>{rec?.timbro ? ` · ✓ ${lang === 'fr' ? 'dimanche' : 'domenica'}` : ''}
                       </div>
                     </button>
                   );
@@ -2338,8 +2453,8 @@ export default function App() {
           >
             <span className="text-2xl" aria-hidden="true">🏛️</span>
             <div className="min-w-0 flex-grow">
-              <div className="text-[12px] font-mono font-black text-amber-300 uppercase">L'Albo delle Leggende</div>
-              <div className="text-[10px] text-slate-400 truncate">Sfida Falchetta, Sirène e Suisse — le campionesse vere ({leggendeBattute.length}/3)</div>
+              <div className="text-[12px] font-mono font-black text-amber-300 uppercase">{lang === 'fr' ? 'Le Palmarès des Légendes' : "L'Albo delle Leggende"}</div>
+              <div className="text-[10px] text-slate-400 truncate">{lang === 'fr' ? 'Défiez Falchetta, Sirène et Suisse — les vraies championnes' : 'Sfida Falchetta, Sirène e Suisse — le campionesse vere'} ({leggendeBattute.length}/3)</div>
             </div>
             <span className="text-slate-500 text-lg" aria-hidden="true">›</span>
           </button>

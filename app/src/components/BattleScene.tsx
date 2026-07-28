@@ -58,6 +58,19 @@ export default function BattleScene({
   const [lunge, setLunge] = useState<"p" | "o" | null>(null);
   const [shake, setShake] = useState(false);
   const [confirmRetire, setConfirmRetire] = useState(false);
+  // Altezza viewport reale: su iPhone corti (toolbar Safari, portrait-lock) l'arena
+  // deve restringersi invece di far accavallare le card dei combattenti (fix mobile-qa 2026-07-13).
+  const [vh, setVh] = useState<number>(() => (typeof window !== "undefined" ? window.innerHeight : 844));
+  useEffect(() => {
+    const onResize = () => setVh(window.innerHeight);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+  // Sotto questa soglia il layout "a diagonale" assoluto non ha fisicamente spazio
+  // per le due card senza accavallarsi (verificato: a 844 arena ok, a 700-667 overlap
+  // certo anche scalando le dimensioni). Sotto soglia si passa a uno stack verticale
+  // in normal flow (mai overlap per costruzione) con scroll di fallback.
+  const compactArena = vh < 845;
 
   // Una battaglia intera (intro→fight→end) è "attività critica": il SW non
   // deve ricaricare la pagina a metà spinta (vedi lib/swUpdate.ts).
@@ -254,24 +267,25 @@ export default function BattleScene({
           approccio={approccio} setApproccio={setApproccio} />
       )}
 
-      {phase !== "intro" && player && opp && (
-        <motion.div animate={shake ? { x: [0, -8, 7, -5, 0] } : {}} transition={{ duration: 0.35 }} className="relative flex-1 overflow-hidden">
+      {phase !== "intro" && player && opp && compactArena && (
+        // Viewport corto (<800px): stack verticale in normal flow — le card non
+        // possono MAI accavallarsi (a differenza del layout assoluto) e se il
+        // contenuto non entra tutto, l'area scrolla invece di clippare/sovrapporre.
+        <motion.div animate={shake ? { x: [0, -8, 7, -5, 0] } : {}} transition={{ duration: 0.35 }} className="relative flex-1 min-h-0 overflow-y-auto">
+          <div className="flex flex-col items-center gap-1 px-3 py-1">
+            <Combatant pos="top" s={opp} fiato={st.fiatoO} lunge={lunge === "o"} compact />
+            <SpintaBar playerName={player.name} oppName={opp.name} barraP={barraP} compact />
+            <Combatant pos="bottom" s={player} fiato={st.fiatoP} calma={st.calma} lunge={lunge === "p"} compact />
+          </div>
+        </motion.div>
+      )}
+
+      {phase !== "intro" && player && opp && !compactArena && (
+        // Layout originale "a diagonale" — invariato, per non regredire il look a ≥800px (844 confermato ok).
+        <motion.div animate={shake ? { x: [0, -8, 7, -5, 0] } : {}} transition={{ duration: 0.35 }} className="relative flex-1 min-h-0 overflow-hidden">
           <Combatant pos="top" s={opp} fiato={st.fiatoO} lunge={lunge === "o"} />
           <Combatant pos="bottom" s={player} fiato={st.fiatoP} calma={st.calma} lunge={lunge === "p"} />
-
-          {/* BARRA DI SPINTA (contesa) */}
-          <div className="absolute top-2 left-1/2 -translate-x-1/2 w-[78%] max-w-sm">
-            <div className="flex justify-between text-[10px] font-mono font-black mb-0.5">
-              <span className="text-emerald-600">{player.name}</span>
-              <span className="text-slate-700">SPINTA</span>
-              <span className="text-rose-500">{opp.name}</span>
-            </div>
-            <div className="relative h-4 rounded-full bg-rose-400/40 border border-slate-700 overflow-hidden shadow-inner">
-              <div className="absolute inset-y-0 left-0 bg-gradient-to-r from-emerald-500 to-emerald-400 transition-all duration-500" style={{ width: `${barraP}%` }} />
-              <div className="absolute inset-y-0 w-0.5 bg-slate-900/60" style={{ left: "50%" }} />
-              <div className="absolute inset-0 flex items-center justify-center text-[9px] font-mono font-black text-white drop-shadow">{barraP > 50 ? `+${barraP - 50}` : barraP < 50 ? `${barraP - 50}` : "·"}</div>
-            </div>
-          </div>
+          <SpintaBar playerName={player.name} oppName={opp.name} barraP={barraP} />
         </motion.div>
       )}
 
@@ -373,7 +387,7 @@ function IntroPanel({ battle, playerCows, cowId, setCowId, onStart, onClose, pla
     setLoadout(loadout.includes(id) ? loadout.filter((x) => x !== id) : loadout.length < MAX_VIGILIA ? [...loadout, id] : loadout);
   };
   return (
-    <div className="flex-1 flex flex-col items-center justify-center p-5 gap-4 text-center">
+    <div className="flex-1 min-h-0 overflow-y-auto flex flex-col items-center justify-start p-5 gap-4 text-center">
       <div className="text-6xl drop-shadow">{battle.emoji}</div>
       <div>
         <div className="text-base font-mono font-black text-slate-100">{battle.name}</div>
@@ -465,27 +479,58 @@ function IntroPanel({ battle, playerCows, cowId, setCowId, onStart, onClose, pla
   );
 }
 
-/** Un combattente sul campo: foto + targhetta Fiato (e Calma per il giocatore). */
-function Combatant({ pos, s, fiato, calma, lunge }: {
-  pos: "top" | "bottom"; s: Spintatore; fiato: number; calma?: number; lunge: boolean;
+/** Barra SPINTA (contesa): posizionamento assoluto (layout diagonale ≥800px) o
+ * inline (stack compatto <800px, fix mobile-qa 2026-07-13). */
+function SpintaBar({ playerName, oppName, barraP, compact }: {
+  playerName: string; oppName: string; barraP: number; compact?: boolean;
+}) {
+  return (
+    <div className={compact ? "w-full max-w-[220px]" : "absolute top-2 left-1/2 -translate-x-1/2 w-[78%] max-w-sm"}>
+      <div className={`flex justify-between text-[10px] font-mono font-black ${compact ? "" : "mb-0.5"}`}>
+        <span className="text-emerald-600">{playerName}</span>
+        <span className="text-slate-700">SPINTA</span>
+        <span className="text-rose-500">{oppName}</span>
+      </div>
+      <div className={`relative rounded-full bg-rose-400/40 border border-slate-700 overflow-hidden shadow-inner ${compact ? "h-2" : "h-4"}`}>
+        <div className="absolute inset-y-0 left-0 bg-gradient-to-r from-emerald-500 to-emerald-400 transition-all duration-500" style={{ width: `${barraP}%` }} />
+        <div className="absolute inset-y-0 w-0.5 bg-slate-900/60" style={{ left: "50%" }} />
+        <div className="absolute inset-0 flex items-center justify-center text-[9px] font-mono font-black text-white drop-shadow">{barraP > 50 ? `+${barraP - 50}` : barraP < 50 ? `${barraP - 50}` : "·"}</div>
+      </div>
+    </div>
+  );
+}
+
+/** Un combattente sul campo: foto + targhetta Fiato (e Calma per il giocatore).
+ * `compact`: stack verticale in normal flow (viewport <800px, mai overlap per
+ * costruzione) invece del posizionamento assoluto "a diagonale" (fix mobile-qa 2026-07-13). */
+function Combatant({ pos, s, fiato, calma, lunge, compact }: {
+  pos: "top" | "bottom"; s: Spintatore; fiato: number; calma?: number; lunge: boolean; compact?: boolean;
 }) {
   const top = pos === "top";
   const fiatoPct = Math.max(0, Math.min(100, Math.round((fiato / s.fiatoMax) * 100)));
   const lungeX = top ? -36 : 36, lungeY = top ? 36 : -36;
+  const imgCls = compact ? "w-11 h-11" : (top ? "w-24 h-24" : "w-28 h-28");
+  const cardPad = compact ? "px-2 py-0.5" : "px-2.5 py-1.5";
+  const cardMinW = compact ? 128 : 150;
+  const blobW = top ? 70 : 84;
+  const blobH = 10;
+  const wrapperCls = compact
+    ? "flex flex-col items-center gap-0"
+    : `absolute ${top ? "top-16" : "bottom-3"} ${top ? "right-3" : "left-3"} flex flex-col ${top ? "items-end" : "items-start"} gap-1`;
   return (
-    <div className={`absolute ${top ? "top-16" : "bottom-3"} ${top ? "right-3" : "left-3"} flex flex-col ${top ? "items-end" : "items-start"} gap-1`} style={{ width: "60%" }}>
-      <div className={`bg-slate-950/85 border border-slate-700 rounded-xl px-2.5 py-1.5 shadow-lg ${top ? "self-start" : "self-end"}`} style={{ minWidth: 150 }}>
+    <div className={wrapperCls} style={compact ? undefined : { width: "60%" }}>
+      <div className={`bg-slate-950/85 border border-slate-700 rounded-xl ${cardPad} shadow-lg ${compact ? "" : (top ? "self-start" : "self-end")}`} style={{ minWidth: cardMinW }}>
         <div className="flex items-center justify-between gap-2">
           <span className="text-[11px] font-mono font-black text-slate-100 truncate">{s.name}</span>
           <span className="text-[9px] font-mono text-slate-400">{s.breed}</span>
         </div>
-        <div className="text-[9px] font-mono text-slate-500 mt-0.5">FIATO</div>
+        <div className={`text-[9px] font-mono text-slate-500 ${compact ? "" : "mt-0.5"}`}>FIATO</div>
         <div className="h-2 rounded-full bg-slate-800 overflow-hidden border border-slate-700">
           <div className="h-full bg-sky-400 transition-all duration-400" style={{ width: `${fiatoPct}%` }} />
         </div>
         {calma !== undefined && (
           <>
-            <div className="text-[9px] font-mono text-slate-500 mt-0.5">CALMA</div>
+            <div className={`text-[9px] font-mono text-slate-500 ${compact ? "" : "mt-0.5"}`}>CALMA</div>
             <div className="h-1.5 rounded-full bg-slate-800 overflow-hidden">
               <div className="h-full transition-all duration-400" style={{ width: `${calma}%`, background: calma < 35 ? "#ef4444" : "#a78bfa" }} />
             </div>
@@ -494,9 +539,9 @@ function Combatant({ pos, s, fiato, calma, lunge }: {
       </div>
       <motion.div className="relative" animate={lunge ? { x: lungeX, y: lungeY } : { x: 0, y: 0 }} transition={{ duration: 0.16 }}>
         <div className={`rounded-2xl overflow-hidden border-2 shadow-2xl ${top ? "border-rose-400/60" : "border-emerald-400/70"}`}>
-          <CowVisual cow={s.visual} className={top ? "w-24 h-24" : "w-28 h-28"} />
+          <CowVisual cow={s.visual} className={imgCls} />
         </div>
-        <div className="mx-auto mt-1 rounded-[100%] bg-black/20 blur-[2px]" style={{ width: top ? 70 : 84, height: 10 }} />
+        {!compact && <div className="mx-auto mt-1 rounded-[100%] bg-black/20 blur-[2px]" style={{ width: blobW, height: blobH }} />}
       </motion.div>
     </div>
   );

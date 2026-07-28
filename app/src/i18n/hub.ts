@@ -5,7 +5,7 @@
  * (cultura, glossario, leggende, note eventi) portano le proprie traduzioni
  * nei rispettivi dati.
  */
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 
 export type Lang = "it" | "fr";
 
@@ -211,8 +211,29 @@ export function tr(lang: Lang, key: DictKey, vars?: Record<string, string>): str
   return s;
 }
 
+// Store reattivo condiviso: più componenti (App, SeasonView, ...) chiamano
+// useLang() e devono vedere LA STESSA lingua, re-renderizzando insieme
+// quando uno di loro cambia il toggle IT/FR.
+let currentLang: Lang = localStorage.getItem(LS_LANG) === "fr" ? "fr" : "it";
+const listeners = new Set<() => void>();
+
+function subscribe(fn: () => void): () => void {
+  listeners.add(fn);
+  return () => listeners.delete(fn);
+}
+
+function getSnapshot(): Lang {
+  return currentLang;
+}
+
+function setLangGlobal(l: Lang): void {
+  if (l === currentLang) return;
+  currentLang = l;
+  localStorage.setItem(LS_LANG, l);
+  for (const fn of listeners) fn();
+}
+
 export function useLang(): [Lang, (l: Lang) => void] {
-  const [lang, setLang] = useState<Lang>(() => (localStorage.getItem(LS_LANG) === "fr" ? "fr" : "it"));
-  useEffect(() => { localStorage.setItem(LS_LANG, lang); }, [lang]);
-  return [lang, setLang];
+  const lang = useSyncExternalStore(subscribe, getSnapshot);
+  return [lang, setLangGlobal];
 }

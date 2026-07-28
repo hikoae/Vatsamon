@@ -13,7 +13,10 @@ export function MemeGuide({ testo, labelAvanti, onAvanti, onSalta, playClick }: 
 }) {
   return (
     <div className="fixed inset-x-3 bottom-24 z-[45] max-w-md mx-auto animate-fade-in" id="meme-guide">
-      <div className="flex items-start gap-2.5 bg-slate-900/95 border-2 border-[#c8102e]/50 rounded-2xl p-3 shadow-2xl backdrop-blur">
+      <div
+        className="flex items-start gap-2.5 bg-slate-900/95 border-2 border-[#c8102e]/50 rounded-2xl p-3 shadow-2xl backdrop-blur overscroll-contain touch-none"
+        onTouchMove={(e) => e.stopPropagation()}
+      >
         <span className="text-3xl drop-shadow" aria-hidden="true">👵</span>
         <div className="flex-grow min-w-0">
           <div className="text-[9px] font-mono uppercase tracking-widest text-rose-400">Mémé di Nus</div>

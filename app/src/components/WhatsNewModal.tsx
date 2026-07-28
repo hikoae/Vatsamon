@@ -1,5 +1,6 @@
 import { motion } from "motion/react";
 import { Sparkles, X } from "lucide-react";
+import { useScrollLock } from "../lib/useScrollLock";
 import { CHANGELOG } from "../data/changelog";
 
 type Props = {
@@ -17,6 +18,7 @@ type Props = {
  * componente, stesso contenuto completo (versione corrente + storico).
  */
 export function WhatsNewModal({ onClose }: Props) {
+  useScrollLock(true);
   const [current, ...history] = CHANGELOG;
 
   return (
@@ -32,10 +34,10 @@ export function WhatsNewModal({ onClose }: Props) {
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.15 }}
-        className="bg-slate-900 border-2 border-emerald-500/40 rounded-3xl max-w-md w-full p-5 space-y-4 shadow-2xl max-h-[88dvh] overflow-y-auto no-scrollbar"
+        className="bg-slate-900 border-2 border-emerald-500/40 rounded-3xl max-w-md w-full px-5 pb-5 pt-0 space-y-4 shadow-2xl max-h-[88dvh] overflow-y-auto no-scrollbar"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between sticky top-0 z-10 bg-slate-900 -mx-5 px-5 pt-5 pb-3 rounded-t-3xl">
           <h3 id="whats-new-title" className="text-lg font-mono font-black text-emerald-400 flex items-center gap-2">
             <Sparkles className="w-5 h-5" aria-hidden="true" /> Novità
           </h3>

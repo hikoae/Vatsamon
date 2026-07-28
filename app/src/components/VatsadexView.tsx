@@ -5,6 +5,7 @@ import { CowVisual } from './CowVisual';
 import { CowCard } from './CowCard';
 import { MosseEditor } from './MosseEditor';
 import { REAL_TOTAL, SHOWCASE_BY_RARITY } from '../data/realCows';
+import { useScrollLock } from '../lib/useScrollLock';
 
 /**
  * VATSADEX — collezione / Libretto di Mandria (vista estratta dal monolite).
@@ -44,6 +45,18 @@ export function VatsadexView({
   const [selected, setSelected] = useState<Vatsamon | null>(null);
   const [search, setSearch] = useState('');
   const [rarityFilter, setRarityFilter] = useState<string>('All');
+
+  // Blocca lo scroll del body mentre la scheda è aperta (L14/L11).
+  useScrollLock(selected !== null);
+
+  // Collezione filtrata da ricerca + rarità: calcolata una volta per gestire
+  // sia la griglia sia l'empty-state (M6, niente più griglia vuota "muta").
+  const filtered = collection.filter((cow) => {
+    const q = search.toLowerCase();
+    const textMatch = cow.name.toLowerCase().includes(q) || cow.breed.toLowerCase().includes(q);
+    const rarityMatch = rarityFilter === 'All' || cow.rarity === rarityFilter;
+    return textMatch && rarityMatch;
+  });
 
   return (
     <>
@@ -155,18 +168,19 @@ export function VatsadexView({
           </div>
 
           {/* Grid cards collection display */}
-          {collection.length === 0 ? (
-            <div className="text-center py-10 bg-slate-900/10 border border-slate-850 rounded-2xl p-6">
-              <p className="text-slate-500 text-xs font-mono">Nessuna Reina corrisponde ai criteri di ricerca.</p>
+          {filtered.length === 0 ? (
+            <div className="text-center py-10 bg-slate-900/10 border border-slate-850 rounded-2xl p-6" id="collection-empty">
+              <p className="text-slate-500 text-xs font-mono">
+                {collection.length === 0
+                  ? 'Il tuo Libretto è ancora vuoto: cammina sulla mappa e cattura le Reines.'
+                  : search.trim()
+                    ? 'Nessun risultato per la ricerca.'
+                    : 'Nessuna Reina di questa rarità.'}
+              </p>
             </div>
           ) : (
             <div className="grid grid-cols-2 gap-3 bg-slate-950" id="collection-grid">
-              {collection
-                .filter(cow => {
-                  const textMatch = cow.name.toLowerCase().includes(search.toLowerCase()) || cow.breed.toLowerCase().includes(search.toLowerCase());
-                  const rarityMatch = rarityFilter === 'All' || cow.rarity === rarityFilter;
-                  return textMatch && rarityMatch;
-                })
+              {filtered
                 .map((cow) => {
                   const isActiveBuddy = cow.id === activeCombatantId;
                   const edgeColor =
@@ -215,15 +229,22 @@ export function VatsadexView({
 
       {/* DETAILS POPUP MODAL SCREEN FOR SINGLE SELECTED VATSAMON */}
       {selected && (
-        <div className="fixed inset-0 bg-slate-950/90 z-50 flex items-center justify-center p-4 backdrop-blur-xs animate-fade-in overflow-y-auto" id="details-modal">
-          <div className="bg-slate-900 border-2 border-slate-800 rounded-3xl max-w-md w-full p-5 text-center space-y-4 shadow-2xl relative my-auto">
+        <div className="fixed inset-0 bg-slate-950/90 z-50 flex items-center justify-center p-4 backdrop-blur-xs animate-fade-in" id="details-modal">
+          <div className="bg-slate-900 border-2 border-slate-800 rounded-3xl max-w-md w-full max-h-[90vh] flex flex-col shadow-2xl relative overflow-hidden">
 
-            <button
-              onClick={() => { playClick(); setSelected(null); }}
-              className="absolute top-3 right-3 z-20 text-slate-400 hover:text-slate-200 transition-colors p-1 bg-slate-950/60 rounded-full"
-            >
-              <X className="w-6 h-6" />
-            </button>
+            {/* Header sticky: la X di chiusura resta sempre raggiungibile (L12) */}
+            <div className="sticky top-0 z-20 flex justify-end p-3 bg-slate-900/95 backdrop-blur-sm border-b border-slate-850 rounded-t-3xl shrink-0">
+              <button
+                onClick={() => { playClick(); setSelected(null); }}
+                aria-label="Chiudi la scheda"
+                className="text-slate-400 hover:text-slate-200 transition-colors p-1 bg-slate-950/60 rounded-full"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            {/* Corpo scorrevole della scheda */}
+            <div className="overflow-y-auto px-5 pb-5 pt-1 text-center space-y-4">
 
             {/* Scheda "carta Pokémon" (componente dedicato) */}
             <CowCard cow={selected} />
@@ -279,6 +300,8 @@ export function VatsadexView({
               >
                 🌾 Libera
               </button>
+
+            </div>
 
             </div>
 

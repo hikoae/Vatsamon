@@ -144,13 +144,13 @@ export function OverworldMapView({
               <div className="flex items-center gap-1 bg-slate-900 border border-slate-800 p-1 rounded-xl">
                 <button
                   onClick={() => { playClickSfx(); setMapMode('real'); }}
-                  className={`font-mono text-[10px] font-bold px-2.5 py-1.5 rounded-lg transition-all ${mapMode === 'real' ? 'bg-emerald-500 text-[#0b0820] font-black' : 'text-slate-400 hover:bg-slate-850'}`}
+                  className={`font-mono text-[10px] font-bold px-2.5 py-1.5 rounded-lg transition-all inline-flex items-center justify-center min-h-[44px] ${mapMode === 'real' ? 'bg-emerald-500 text-[#0b0820] font-black' : 'text-slate-400 hover:bg-slate-850'}`}
                 >
                   Mappa OSM Reale
                 </button>
                 <button
                   onClick={() => { playClickSfx(); setMapMode('radar'); }}
-                  className={`font-mono text-[10px] font-bold px-2.5 py-1.5 rounded-lg transition-all ${mapMode === 'radar' ? 'bg-emerald-500 text-[#0b0820] font-black' : 'text-slate-400 hover:bg-slate-850'}`}
+                  className={`font-mono text-[10px] font-bold px-2.5 py-1.5 rounded-lg transition-all inline-flex items-center justify-center min-h-[44px] ${mapMode === 'radar' ? 'bg-emerald-500 text-[#0b0820] font-black' : 'text-slate-400 hover:bg-slate-850'}`}
                 >
                   Sguardo del Pastore
                 </button>
@@ -322,7 +322,7 @@ export function OverworldMapView({
           <div className="flex flex-wrap gap-2">
             <button
               onClick={() => { playClickSfx(); setSelectedTrailId(null); }}
-              className={`text-[10px] font-mono font-bold px-3 py-1.5 rounded-full border transition-all ${selectedTrailId === null ? 'bg-emerald-500 text-[#0b0820] border-emerald-400' : 'bg-slate-900 text-slate-300 border-slate-800 hover:bg-slate-850'}`}
+              className={`text-[10px] font-mono font-bold px-3 py-1.5 rounded-full border transition-all inline-flex items-center justify-center min-h-[44px] ${selectedTrailId === null ? 'bg-emerald-500 text-[#0b0820] border-emerald-400' : 'bg-slate-900 text-slate-300 border-slate-800 hover:bg-slate-850'}`}
             >
               🧭 Esplora libera
             </button>
@@ -330,7 +330,7 @@ export function OverworldMapView({
               <button
                 key={t.id}
                 onClick={() => { playClickSfx(); setMapMode('real'); setSelectedTrailId(t.id); }}
-                className={`text-[10px] font-mono font-bold px-3 py-1.5 rounded-full border transition-all ${selectedTrailId === t.id ? 'bg-amber-500 text-[#0b0820] border-amber-400' : 'bg-slate-900 text-amber-200 border-amber-700/40 hover:bg-slate-850'}`}
+                className={`text-[10px] font-mono font-bold px-3 py-1.5 rounded-full border transition-all inline-flex items-center justify-center min-h-[44px] ${selectedTrailId === t.id ? 'bg-amber-500 text-[#0b0820] border-amber-400' : 'bg-slate-900 text-amber-200 border-amber-700/40 hover:bg-slate-850'}`}
               >
                 {t.location}
               </button>
@@ -432,7 +432,8 @@ export function OverworldMapView({
 
             <button
               onClick={() => { playClickSfx(); setSelectedCasera(null); }}
-              className="absolute top-4 right-4 text-slate-400 hover:text-slate-200 transition-colors p-1"
+              aria-label="Chiudi"
+              className="absolute top-3 right-3 text-slate-400 hover:text-slate-200 transition-colors flex items-center justify-center min-h-[44px] min-w-[44px]"
             >
               <X className="w-6 h-6" />
             </button>
@@ -517,7 +518,7 @@ export function OverworldMapView({
                     data-buy={it.id}
                     onClick={() => buyBottega(it.id, it.prezzo, it.nome)}
                     disabled={coins < it.prezzo}
-                    className="flex-shrink-0 bg-amber-600 hover:bg-amber-500 disabled:opacity-40 text-[#0b0820] font-mono font-black text-[10px] px-2.5 py-1.5 rounded-lg min-h-[36px]"
+                    className="flex-shrink-0 inline-flex items-center justify-center bg-amber-600 hover:bg-amber-500 disabled:opacity-40 text-[#0b0820] font-mono font-black text-[10px] px-2.5 py-1.5 rounded-lg min-h-[36px]"
                   >
                     {it.prezzo} 🪙
                   </button>

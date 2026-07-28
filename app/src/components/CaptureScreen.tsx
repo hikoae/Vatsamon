@@ -6,6 +6,7 @@ import { ThrowGauge, CaptureRing, ThrowPowerBar } from './ThrowGauge';
 import { SceneFallback } from './SceneFallback';
 import { BALL_META, BALL_ORDER } from '../data/overworld';
 import { estimateCatch, catchDifficulty } from '../lib/capture';
+import { useScrollLock } from '../lib/useScrollLock';
 
 const ValutazioneReina = lazy(() => import('./ValutazioneReina'));
 
@@ -53,6 +54,10 @@ export function CaptureScreen({
   handleFeedApple,
   executeThrow,
 }: Props) {
+  // Overlay di cattura sopra la mappa: blocca lo scroll del body dietro mentre è aperto.
+  // (L'overlay Valutazione, quando montato, applica il proprio lock: il contatore gestisce lo stacking.)
+  useScrollLock(Boolean(isCapturingMode && encounterCow));
+
   return (
     <>
       {/* WILD CAPTURE / AR WILD ENCOUNTER SCREEN */}

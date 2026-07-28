@@ -19,6 +19,7 @@ import { SeasonEvent } from "../data/season";
 import { categoriaAllaPesa, etichettaPesa } from "../data/pesa";
 import { avversarieTappa, faseTappa, TappaStato, TURNI_TAPPA } from "../data/eliminatoire";
 import { idoneaAllaTappa } from "../lib/gravidanza";
+import { useScrollLock } from "../lib/useScrollLock";
 
 /**
  * L'ÉLIMINATOIRE DU DIMANCHE — la tappa reale si gioca: pesa (stadera della
@@ -86,6 +87,8 @@ export default function EliminatoireView({
   const [confirmRitiro, setConfirmRitiro] = useState(false);
   const [, force] = useState(0);
   const rerender = () => force((n) => n + 1);
+  // La tappa è un full-screen fixed inset-0: blocca lo scroll della mappa dietro.
+  useScrollLock(true);
   const st = stRef.current;
   const player = playerRef.current;
   const opp = oppsRef.current[turno];

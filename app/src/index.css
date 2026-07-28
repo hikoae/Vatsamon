@@ -417,3 +417,47 @@ h1, h2, .font-display {
 #vatsamon-go-app .text-purple-300,
 #vatsamon-go-app .text-purple-400 { color: #6a2aa6; }
 #vatsamon-go-app .text-yellow-400 { color: #705300; }
+
+/* ============================================================
+   TAP TARGET & CONTRASTO — QA mobile (2026-07-13)
+   Alza i controlli piccoli alla soglia di tocco comoda (44px) senza
+   gonfiare la UI compatta, e ripara il contrasto delle pillole rarità
+   sui marker della mappa reale.
+   ============================================================ */
+
+/* Zoom Leaflet (+/−): default 30×30 su touch, sotto la soglia. L'ID batte
+   la specificità di `.leaflet-touch .leaflet-bar a` (0,2,1). */
+#vatsamon-go-app .leaflet-bar a,
+#vatsamon-go-app .leaflet-control-zoom a {
+  width: 44px;
+  height: 44px;
+  line-height: 44px;
+  font-size: 20px;
+}
+
+/* Controlli già marcati a 36px (chip filtro rarità Vatsadex, X di chiusura
+   modali, bottoni acquisto bottega) → 44px. Tutte e 5 le occorrenze sono
+   tap target reali (verificato), quindi il bump è sicuro. */
+#vatsamon-go-app .min-h-\[36px\] { min-height: 44px; }
+#vatsamon-go-app .min-w-\[36px\] { min-width: 44px; }
+
+/* Le X di chiusura restano bersagli minuscoli anche dove non hanno un
+   min-size (alcune usano solo `p-1`). Aggancio semantico via aria-label:
+   area tocco 44×44 + icona centrata, per ogni "Chiudi …" dell'app. */
+#vatsamon-go-app button[aria-label^="Chiudi"] {
+  min-width: 44px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Pillole rarità sui marker della mappa reale ("REALE · Rara/Epica/…",
+   generate come divIcon Leaflet in App.tsx): erano testo verde scuro
+   (emerald-200) su fondo verde scuro (emerald-900/90) ≈ 1.2:1, illeggibili.
+   Quasi-bianco su verde pieno opaco → ~9:1 (WCAG AA ampiamente superato). */
+.custom-leaflet-marker .text-emerald-200 {
+  color: #f0fdf4 !important;
+  background-color: #064e3b !important;
+  border-color: #10b981 !important;
+}

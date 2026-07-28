@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Vatsamon } from "../types";
 import { CowVisual } from "./CowVisual";
+import { useScrollLock } from "../lib/useScrollLock";
 
 /**
  * "VALUTAZIONE DEL GIUDICE" — il giocatore fa il giudice di Bataille e valuta la
@@ -23,6 +24,8 @@ export default function ValutazioneReina({ cow, onDone, onClose, playClick }: {
 }) {
   const [step, setStep] = useState<Step>("intro");
   const [scores, setScores] = useState<{ stazza?: number; corna?: number; sguardo?: number }>({});
+  // Overlay a schermo intero sopra la mappa: blocca lo scroll del body dietro.
+  useScrollLock(true);
 
   // ---- 1. STAZZA: stadera oscillante, rilascia in zona target ----
   const [needle, setNeedle] = useState(0); // 0..100 oscillante
