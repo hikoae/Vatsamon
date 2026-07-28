@@ -97,6 +97,101 @@ export async function getRisultato(eventId: string): Promise<RisultatoEvento | n
   }
 }
 
+// ---------------------------------------------------------------------------
+//  Cache AUTO (G5) — pre-compilazione da app/public/risultati_cache.json,
+//  generata da scripts/build-risultati.mjs leggendo il tabellone pubblicato
+//  su amisdesreines.it. MAI un sostituto del dato confermato su Firestore
+//  (sopra): è solo un suggerimento per l'admin, marcato "non ufficiale" in
+//  UI finché non viene confermato con un tap in RisultatiAdmin.
+// ---------------------------------------------------------------------------
+
+export interface RisultatoAutoEvento {
+  cat1?: RisultatoCategoria;
+  cat2?: RisultatoCategoria;
+  cat3?: RisultatoCategoria;
+  confidence: string;
+  sourceUrl?: string;
+  fetchedAt?: string;
+}
+
+export interface RisultatiAutoPayload {
+  generatedAt: string;
+  results: Record<string, RisultatoAutoEvento>;
+  pressHints: Record<string, string[]>;
+}
+
+const EMPTY_AUTO: RisultatiAutoPayload = { generatedAt: "", results: {}, pressHints: {} };
+
+let autoCache: RisultatiAutoPayload | null = null;
+let autoInFlight: Promise<RisultatiAutoPayload> | null = null;
+
+/**
+ * Carica una tantum `/risultati_cache.json` (same-origin, no-store: è un
+ * file statico rigenerato dal workflow, mai da mettere in cache dal browser
+ * più a lungo di una sessione). Fallisce silenzioso come `getAllRisultati`:
+ * file assente/malformato/offline → cache vuota, mai un crash a valle.
+ */
+export async function getAllRisultatiAuto(): Promise<RisultatiAutoPayload> {
+  if (autoCache) return autoCache;
+  if (autoInFlight) return autoInFlight;
+  autoInFlight = (async () => {
+    try {
+      const res = await fetch("/risultati_cache.json", { cache: "no-store" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      autoCache = (await res.json()) as RisultatiAutoPayload;
+    } catch (err) {
+      console.warn("[risultati] fetch cache auto fallita", err);
+      autoCache = { ...EMPTY_AUTO };
+    } finally {
+      autoInFlight = null;
+    }
+    return autoCache as RisultatiAutoPayload;
+  })();
+  return autoInFlight;
+}
+
+/** Link agli articoli (AostaSera) che parlano probabilmente di questa tappa. */
+export function getPressHints(eventId: string): string[] {
+  return autoCache?.pressHints[eventId] ?? [];
+}
+
+/** Voce grezza della cache auto per un evento (uso: precompilazione form
+ * admin — RisultatiAdmin). A differenza di `getMergedRisultato` NON applica
+ * la priorità su Firestore: la usa solo chi deve sapere "cosa c'è in cache
+ * auto" indipendentemente da un eventuale dato già confermato. */
+export function getCachedRisultatoAuto(eventId: string): RisultatoAutoEvento | undefined {
+  return autoCache?.results[eventId];
+}
+
+export type RisultatoConfidence = "ufficiale" | "auto" | "simulato";
+
+export interface RisultatoMerged {
+  cat1?: RisultatoCategoria;
+  cat2?: RisultatoCategoria;
+  cat3?: RisultatoCategoria;
+  confidence: RisultatoConfidence;
+  sourceUrl?: string;
+}
+
+/**
+ * Merge con priorità Firestore(confermato) > cache auto(non confermato) >
+ * `undefined` (season.ts ricade sul calcolo simulato). Sincrono: legge le
+ * cache in memoria già scaldate da `getAllRisultati`/`getAllRisultatiAuto`
+ * (entrambe chiamate all'avvio di SeasonView), stesso pattern di
+ * `getCachedRisultato`.
+ */
+export function getMergedRisultato(eventId: string): RisultatoMerged | undefined {
+  const confirmed = getCachedRisultato(eventId);
+  if (confirmed) {
+    return { cat1: confirmed.cat1, cat2: confirmed.cat2, cat3: confirmed.cat3, confidence: "ufficiale" };
+  }
+  const auto = autoCache?.results[eventId];
+  if (auto && (auto.cat1 || auto.cat2 || auto.cat3)) {
+    return { cat1: auto.cat1, cat2: auto.cat2, cat3: auto.cat3, confidence: "auto", sourceUrl: auto.sourceUrl };
+  }
+  return undefined;
+}
+
 export type SetRisultatoResult = { ok: true } | { ok: false; error: string };
 
 /**

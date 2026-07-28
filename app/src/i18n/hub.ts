@@ -51,6 +51,7 @@ const DICT = {
     cal_schedinaTitle: "Pronostico di tappa",
     cal_disclaimer: "Risultati e tabellone aggiornabili in tempo reale durante l'evento — senza ripubblicare l'app.",
     res_ufficiale: "Ufficiale",
+    res_nonUfficiale: "Non ufficiale (auto)",
     res_simulato: "Simulato",
     // admin risultati
     adm_title: "Inserisci risultati ufficiali",
@@ -61,6 +62,8 @@ const DICT = {
     adm_salva: "Salva risultato",
     adm_errCampi: "Compila il nome della vincitrice per ogni categoria della tappa.",
     adm_ok: "Risultato salvato.",
+    adm_precompilato: "Precompilato da amisdesreines.it (non ufficiale) — verifica e conferma.",
+    adm_pressHints: "Articoli correlati",
     // albo
     albo_title: "Albo d'Oro",
     albo_sub: "Le Reines des Reines della Finale regionale, una per categoria.",
@@ -146,6 +149,7 @@ const DICT = {
     cal_schedinaTitle: "Pronostic d'étape",
     cal_disclaimer: "Résultats et tableau actualisables en temps réel pendant l'événement — sans republier l'application.",
     res_ufficiale: "Officiel",
+    res_nonUfficiale: "Non officiel (auto)",
     res_simulato: "Simulé",
     adm_title: "Saisir les résultats officiels",
     adm_sub: "Visible uniquement pour les comptes autorisés. Écrit sur Firestore, lu publiquement par tous.",
@@ -155,6 +159,8 @@ const DICT = {
     adm_salva: "Enregistrer le résultat",
     adm_errCampi: "Renseignez le nom de la gagnante pour chaque catégorie de l'étape.",
     adm_ok: "Résultat enregistré.",
+    adm_precompilato: "Pré-rempli depuis amisdesreines.it (non officiel) — vérifiez et confirmez.",
+    adm_pressHints: "Articles liés",
     albo_title: "Palmarès",
     albo_sub: "Les Reines des Reines de la Finale régionale, une par catégorie.",
     albo_finaleCN: "Finale Croix-Noire",

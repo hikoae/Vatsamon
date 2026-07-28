@@ -1,0 +1,50 @@
+name: Aggiorna risultati Batailles (G5)
+
+# Pre-compilazione automatica dei risultati eliminatorie/finale, letti dal
+# tabellone pubblicato su amisdesreines.it: genera app/public/risultati_cache.json
+# e committa solo se cambiato. Stesso pattern di news.yml (zero backend,
+# zero credenziali, commit condizionale).
+#
+# NB DST: i cron GitHub Actions sono sempre in UTC, senza aggiustamento
+# automatico per l'ora legale/solare italiana. "57 18 * * 0" = domenica
+# ~21:00 in CEST (UTC+2, ora legale, marzo-ottobre — la stagione gara è
+# tutta in questa finestra) ma ~20:00 in CET (UTC+1, ora solare). Idem
+# "7 8 * * 1" = lunedì ~10:15 CEST / ~09:07 CET. Se serve l'orario locale
+# esatto anche fuori stagione, aggiornare i due cron di un'ora ai cambi
+# d'ora (fine marzo / fine ottobre) — la sola stagione gara (fine
+# marzo-ottobre) è sempre in CEST, quindi l'impatto pratico è nullo.
+
+on:
+  schedule:
+    - cron: "57 18 * * 0" # domenica ~21:00 CEST — subito dopo le tappe della domenica
+    - cron: "7 8 * * 1"   # lunedì ~10:15 CEST — seconda finestra, copre pubblicazioni in ritardo
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: risultati
+  cancel-in-progress: true
+
+jobs:
+  build-risultati:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Genera risultati_cache.json
+        run: node app/scripts/build-risultati.mjs
+      - name: Commit se cambiato
+        run: |
+          if [ -n "$(git status --porcelain app/public/risultati_cache.json)" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add app/public/risultati_cache.json
+            git commit -m "chore(risultati): aggiorna cache risultati auto [skip ci]"
+            git push
+          else
+            echo "Nessun cambiamento nei risultati."
+          fi

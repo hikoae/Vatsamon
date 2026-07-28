@@ -23,7 +23,7 @@ import { loadNews, NewsItem } from "../data/news";
 import { SPONSOR_SLOTS } from "../config/brand";
 import { useLang, tr, Lang, DictKey } from "../i18n/hub";
 import { useAuth } from "../lib/auth";
-import { ADMIN_UIDS, getAllRisultati } from "../lib/risultati";
+import { ADMIN_UIDS, getAllRisultati, getAllRisultatiAuto, RisultatoConfidence } from "../lib/risultati";
 import { oggiISO } from "../lib/oggi";
 
 /**
@@ -160,7 +160,11 @@ export function SeasonView({ onReward }: {
   useEffect(() => { localStorage.setItem(LS_PRONOSTICI_TAPPA, JSON.stringify(tappaPicks)); }, [tappaPicks]);
   useEffect(() => {
     let alive = true;
-    getAllRisultati().then(() => { if (alive) bumpRisultati((v) => v + 1); });
+    // Priorità Firestore(confermato) > cache auto(G5, non confermata) — vedi
+    // lib/risultati.ts getMergedRisultato. Entrambe scaldano cache in memoria
+    // lette in modo sincrono da winnersFor (data/season.ts): un solo bump
+    // di re-render basta, qualunque delle due arrivi per prima o dopo.
+    Promise.all([getAllRisultati(), getAllRisultatiAuto()]).then(() => { if (alive) bumpRisultati((v) => v + 1); });
     return () => { alive = false; };
   }, []);
 
@@ -362,6 +366,16 @@ export function SeasonView({ onReward }: {
 //  CALENDARIO
 // ===========================================================================
 
+/** Badge per stato risultato (S11 + G5): ufficiale (Firestore, confermato) >
+ * auto (cache G5, pre-compilato dal sito ma MAI confermato) > simulato
+ * (nessun dato reale, calcolo per potenza interna). Vedi data/season.ts
+ * winnersFor per come si arriva a questi 3 stati. */
+const WINNER_BADGE: Record<RisultatoConfidence, { cls: string; icon: typeof BadgeCheck; key: DictKey }> = {
+  ufficiale: { cls: "text-emerald-300 bg-emerald-500/15 border-emerald-600/40", icon: BadgeCheck, key: "res_ufficiale" },
+  auto: { cls: "text-amber-300 bg-amber-500/15 border-amber-600/40", icon: Newspaper, key: "res_nonUfficiale" },
+  simulato: { cls: "text-slate-400 bg-slate-800/60 border-slate-700", icon: FlaskConical, key: "res_simulato" },
+};
+
 function statusOf(ev: SeasonEvent, todayISO: string, nextEventId: string | null, lang: Lang): {
   label: string; color: string; dot?: boolean;
 } {
@@ -456,15 +470,19 @@ function CalendarSection({ lang, nextEventId, todayISO, onGoPronostici, tappaInF
 
                 {note && <p className="text-[10px] text-slate-500 leading-snug mt-1.5 italic">{note}</p>}
 
-                {/* vincitrici — UFFICIALE (risultato reale, Firestore) vs SIMULATO
-                    (nessun risultato reale pubblicato: calcolo per potenza interna,
-                    MAI mostrato senza questa etichetta — vedi data/season.ts winnersFor). */}
+                {/* vincitrici — UFFICIALE (risultato reale, Firestore) vs NON
+                    UFFICIALE (auto, G5: pre-compilato dal sito ma mai
+                    confermato) vs SIMULATO (nessun risultato reale
+                    pubblicato: calcolo per potenza interna) — vedi
+                    data/season.ts winnersFor. */}
                 {hasWinners && (
                   <div className="mt-2 space-y-1">
                     {ev.categorie.map((c) => {
                       const w = winners[c];
                       if (!w) return null;
                       const cat = CATEGORIES.find((x) => x.id === c)!;
+                      const badge = WINNER_BADGE[w.confidence];
+                      const BadgeIcon = badge.icon;
                       return (
                         <div key={c} className="flex items-center gap-2 bg-slate-900/70 rounded-lg px-2 py-1">
                           {w.cow ? (
@@ -477,16 +495,10 @@ function CalendarSection({ lang, nextEventId, todayISO, onGoPronostici, tappaInF
                             <b className="text-amber-200">{w.nome}</b>
                             <span className="text-slate-500"> · {lang === "fr" ? cat.labelFr : cat.label}</span>
                             <span
-                              className={`inline-flex items-center gap-0.5 text-[8px] font-mono font-black px-1.5 py-0.5 rounded-full border ${
-                                w.simulato
-                                  ? "text-slate-400 bg-slate-800/60 border-slate-700"
-                                  : "text-emerald-300 bg-emerald-500/15 border-emerald-600/40"
-                              }`}
+                              className={`inline-flex items-center gap-0.5 text-[8px] font-mono font-black px-1.5 py-0.5 rounded-full border ${badge.cls}`}
                             >
-                              {w.simulato
-                                ? <FlaskConical className="w-2.5 h-2.5" />
-                                : <BadgeCheck className="w-2.5 h-2.5" />}
-                              {w.simulato ? tr(lang, "res_simulato") : tr(lang, "res_ufficiale")}
+                              <BadgeIcon className="w-2.5 h-2.5" />
+                              {tr(lang, badge.key)}
                             </span>
                           </span>
                         </div>
