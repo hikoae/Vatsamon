@@ -268,7 +268,7 @@ export default function BattleScene({
       )}
 
       {phase !== "intro" && player && opp && compactArena && (
-        // Viewport corto (<800px): stack verticale in normal flow — le card non
+        // Viewport corto (<845px): stack verticale in normal flow — le card non
         // possono MAI accavallarsi (a differenza del layout assoluto) e se il
         // contenuto non entra tutto, l'area scrolla invece di clippare/sovrapporre.
         <motion.div animate={shake ? { x: [0, -8, 7, -5, 0] } : {}} transition={{ duration: 0.35 }} className="relative flex-1 min-h-0 overflow-y-auto">
@@ -281,7 +281,7 @@ export default function BattleScene({
       )}
 
       {phase !== "intro" && player && opp && !compactArena && (
-        // Layout originale "a diagonale" — invariato, per non regredire il look a ≥800px (844 confermato ok).
+        // Layout originale "a diagonale" — invariato, per non regredire il look a ≥845px (844 è già stack compatto).
         <motion.div animate={shake ? { x: [0, -8, 7, -5, 0] } : {}} transition={{ duration: 0.35 }} className="relative flex-1 min-h-0 overflow-hidden">
           <Combatant pos="top" s={opp} fiato={st.fiatoO} lunge={lunge === "o"} />
           <Combatant pos="bottom" s={player} fiato={st.fiatoP} calma={st.calma} lunge={lunge === "p"} />
@@ -290,7 +290,9 @@ export default function BattleScene({
       )}
 
       {phase !== "intro" && player && (
-        <div className="bg-slate-950/85 backdrop-blur border-t border-slate-800 p-3 space-y-2">
+        // Idem: la pulsantiera è a filo schermo, la safe-area si somma a p-3 (0.75rem).
+        <div className="bg-slate-950/85 backdrop-blur border-t border-slate-800 p-3 space-y-2"
+          style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom))" }}>
           <div className="bg-slate-900/80 border border-slate-800 rounded-xl px-3 py-2 h-[50px] overflow-y-auto no-scrollbar">
             {log.length === 0 ? <p className="text-[10px] font-mono text-slate-500">Scegli come condurre la spinta…</p> :
               log.map((l, i) => <div key={i} className={`text-[10px] font-mono leading-snug ${i === 0 ? "text-slate-100" : "text-slate-500"}`}>❖ {l}</div>)}
@@ -387,7 +389,10 @@ function IntroPanel({ battle, playerCows, cowId, setCowId, onStart, onClose, pla
     setLoadout(loadout.includes(id) ? loadout.filter((x) => x !== id) : loadout.length < MAX_VIGILIA ? [...loadout, id] : loadout);
   };
   return (
-    <div className="flex-1 min-h-0 overflow-y-auto flex flex-col items-center justify-start p-5 gap-4 text-center">
+    // Safe-area sommata a p-5 (1.25rem): "Alla spinta!" è l'ultimo elemento
+    // scrollabile e senza compensazione finisce sotto l'home indicator.
+    <div className="flex-1 min-h-0 overflow-y-auto flex flex-col items-center justify-start p-5 gap-4 text-center"
+      style={{ paddingBottom: "calc(1.25rem + env(safe-area-inset-bottom))" }}>
       <div className="text-6xl drop-shadow">{battle.emoji}</div>
       <div>
         <div className="text-base font-mono font-black text-slate-100">{battle.name}</div>
@@ -479,8 +484,8 @@ function IntroPanel({ battle, playerCows, cowId, setCowId, onStart, onClose, pla
   );
 }
 
-/** Barra SPINTA (contesa): posizionamento assoluto (layout diagonale ≥800px) o
- * inline (stack compatto <800px, fix mobile-qa 2026-07-13). */
+/** Barra SPINTA (contesa): posizionamento assoluto (layout diagonale ≥845px) o
+ * inline (stack compatto <845px, fix mobile-qa 2026-07-13). */
 function SpintaBar({ playerName, oppName, barraP, compact }: {
   playerName: string; oppName: string; barraP: number; compact?: boolean;
 }) {
@@ -501,7 +506,7 @@ function SpintaBar({ playerName, oppName, barraP, compact }: {
 }
 
 /** Un combattente sul campo: foto + targhetta Fiato (e Calma per il giocatore).
- * `compact`: stack verticale in normal flow (viewport <800px, mai overlap per
+ * `compact`: stack verticale in normal flow (viewport <845px, mai overlap per
  * costruzione) invece del posizionamento assoluto "a diagonale" (fix mobile-qa 2026-07-13). */
 function Combatant({ pos, s, fiato, calma, lunge, compact }: {
   pos: "top" | "bottom"; s: Spintatore; fiato: number; calma?: number; lunge: boolean; compact?: boolean;

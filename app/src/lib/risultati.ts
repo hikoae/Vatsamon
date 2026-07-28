@@ -122,23 +122,33 @@ export interface RisultatiAutoPayload {
 
 const EMPTY_AUTO: RisultatiAutoPayload = { generatedAt: "", results: {}, pressHints: {} };
 
+const BASE = import.meta.env.BASE_URL;
+
 let autoCache: RisultatiAutoPayload | null = null;
 let autoInFlight: Promise<RisultatiAutoPayload> | null = null;
 
 /**
- * Carica una tantum `/risultati_cache.json` (same-origin, no-store: è un
+ * Carica una tantum `risultati_cache.json` (same-origin, no-store: è un
  * file statico rigenerato dal workflow, mai da mettere in cache dal browser
  * più a lungo di una sessione). Fallisce silenzioso come `getAllRisultati`:
  * file assente/malformato/offline → cache vuota, mai un crash a valle.
+ * Il payload viene normalizzato qui una volta sola: `results`/`pressHints`
+ * sono garantiti oggetti anche se lo scraper cambia forma, così i call-site
+ * a valle (getMergedRisultato, getPressHints) non possono esplodere.
  */
 export async function getAllRisultatiAuto(): Promise<RisultatiAutoPayload> {
   if (autoCache) return autoCache;
   if (autoInFlight) return autoInFlight;
   autoInFlight = (async () => {
     try {
-      const res = await fetch("/risultati_cache.json", { cache: "no-store" });
+      const res = await fetch(`${BASE}risultati_cache.json`, { cache: "no-store" });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      autoCache = (await res.json()) as RisultatiAutoPayload;
+      const raw = (await res.json()) as Partial<RisultatiAutoPayload> | null;
+      autoCache = {
+        generatedAt: raw?.generatedAt ?? "",
+        results: raw?.results ?? {},
+        pressHints: raw?.pressHints ?? {},
+      };
     } catch (err) {
       console.warn("[risultati] fetch cache auto fallita", err);
       autoCache = { ...EMPTY_AUTO };

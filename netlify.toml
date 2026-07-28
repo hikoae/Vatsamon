@@ -5,6 +5,13 @@
   base = "app"
   command = "npm run build -- --base=/"
   publish = "dist"
+  # Guardrail crediti build: salta il deploy se il commit tocca solo documentazione.
+  # Semantica Netlify INVERTITA: exit 0 = SALTA il build, exit != 0 = BUILDA.
+  # Fail-safe: ref mancante/irrisolvibile, git in errore o diff vuoto → builda.
+  # Gira dalla base "app": --no-relative e la pathspec ':/' forzano i path dalla radice
+  # del repo, così netlify.toml, .github/ e firestore.rules fanno partire il build.
+  # Su una riga sola: una eventuale troncatura a multiriga lascerebbe un exit 0 = SALTA.
+  ignore = '''[ -n "$CACHED_COMMIT_REF" ] && [ -n "$COMMIT_REF" ] && git cat-file -e "$CACHED_COMMIT_REF^{commit}" 2>/dev/null || exit 1; changed=$(git diff --name-only --no-relative "$CACHED_COMMIT_REF" "$COMMIT_REF" -- ':/') || exit 1; [ -n "$changed" ] || exit 1; printf '%s\n' "$changed" | grep -qvE '(\.md$|(^|/)docs/|(^|/)LICENSE(\.(md|txt))?$)' && exit 1; exit 0'''
 
 [build.environment]
   # Node 22 LTS: allineato all'ambiente di test/CI (Node 20 è in deprecazione).
