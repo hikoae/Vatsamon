@@ -3,6 +3,14 @@
   "fonte": "Aggregatore RSS (AostaSera, Gazzetta Matin) — solo titolo, estratto e link alla fonte.",
   "items": [
     {
+      "id": "aostasera-siccit-parlano-gli-allevatori-30-per-cento-in-me",
+      "titolo": "Siccità, parlano gli allevatori: 30 per cento in meno di fieno e demonticazione anticipata",
+      "fonte": "AostaSera",
+      "url": "https://aostasera.it/notizie/ambiente/siccita-il-78-dei-conduttori-dalpeggio-prevede-di-anticipare-la-demonticazione/",
+      "data": "2026-07-28",
+      "estratto": "Intervistati in occasione della presentazione del 69ème Concours Régional Batailles de Reines, gli Amis des Batailles de Reines commentano le conseguenze della "
+    },
+    {
       "id": "aostasera-stato-presentato-il-calendario-estivo-delle-bata",
       "titolo": "È stato presentato il calendario estivo delle Batailles de Reines",
       "fonte": "AostaSera",
