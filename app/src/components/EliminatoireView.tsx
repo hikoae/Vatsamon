@@ -228,7 +228,9 @@ export default function EliminatoireView({
     return (
       <div className="fixed inset-0 z-[70] flex flex-col bg-slate-950 text-slate-100" id="eliminatoire-scene">
         <div className="aurora-bg" />
-        <div className="flex items-center justify-between px-4 py-2 bg-slate-950/80 border-b border-slate-800">
+        {/* Barra a filo schermo: la safe-area si somma a py-2 (0.5rem), altrimenti "Chiudi" finisce sotto il notch. */}
+        <div className="flex items-center justify-between px-4 py-2 bg-slate-950/80 border-b border-slate-800"
+          style={{ paddingTop: "calc(0.5rem + env(safe-area-inset-top))" }}>
           <span className="text-xs font-mono font-black">📯 Éliminatoire · {evento.comune} · {dataIT}</span>
           <button onClick={() => { playClick(); onClose(); }} aria-label="Chiudi" className="bg-slate-900 rounded-full p-1.5 min-h-[36px] min-w-[36px]"><X size={16} /></button>
         </div>
@@ -298,7 +300,9 @@ export default function EliminatoireView({
             <div className="text-[9.5px] text-slate-400 leading-snug mt-0.5">{LIMATURA_TESTO}</div>
           </button>
         </div>
-        <div className="p-3 bg-slate-950/80 border-t border-slate-800 flex gap-2">
+        {/* Idem in basso: la safe-area si somma a p-3 (0.75rem), altrimenti i CTA stanno sull'home indicator. */}
+        <div className="p-3 bg-slate-950/80 border-t border-slate-800 flex gap-2"
+          style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom))" }}>
           <button onClick={() => { playClick(); onClose(); }} className="flex-1 bg-slate-900 border border-slate-800 text-slate-300 font-mono font-bold text-xs py-3 rounded-xl">Indietro</button>
           <button onClick={iscrivi} disabled={!cow || !limato || !idoneita.ok} id="tappa-start" className="flex-1 nav-active text-white font-mono font-black text-xs py-3 rounded-xl disabled:opacity-40 disabled:grayscale">Iscriviti e spingi! 📯</button>
         </div>
@@ -310,7 +314,8 @@ export default function EliminatoireView({
   return (
     <div className="fixed inset-0 z-[70] flex flex-col bg-slate-950 text-slate-100" id="eliminatoire-scene">
       <div className="absolute inset-0 -z-10" style={{ background: "linear-gradient(180deg,#fde68a22 0%,#e0f2fe 35%,#dcfce7 70%,#bbf7d0 100%)" }} />
-      <div className="flex items-center justify-between px-4 py-2 bg-slate-950/75 backdrop-blur border-b border-slate-800">
+      <div className="flex items-center justify-between px-4 py-2 bg-slate-950/75 backdrop-blur border-b border-slate-800"
+        style={{ paddingTop: "calc(0.5rem + env(safe-area-inset-top))" }}>
         <span className="text-xs font-mono font-black">📯 {evento.comune} · {TURNI_TAPPA[turno]} ({turno + 1}/3)</span>
         <button onClick={() => { playClick(); onClose(); }} aria-label="Chiudi" className="bg-slate-900/70 rounded-full p-1.5 min-h-[36px] min-w-[36px]"><X size={16} /></button>
       </div>
@@ -359,7 +364,8 @@ export default function EliminatoireView({
         </motion.div>
       )}
 
-      <div className="bg-slate-950/85 backdrop-blur border-t border-slate-800 p-3 space-y-2">
+      <div className="bg-slate-950/85 backdrop-blur border-t border-slate-800 p-3 space-y-2"
+        style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom))" }}>
         <div className="bg-slate-900/80 border border-slate-800 rounded-xl px-3 py-2 h-[50px] overflow-y-auto no-scrollbar">
           {log.map((l, i) => <div key={i} className={`text-[10px] font-mono leading-snug ${i === 0 ? "text-slate-100" : "text-slate-500"}`}>❖ {l}</div>)}
         </div>

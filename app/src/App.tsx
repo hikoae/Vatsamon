@@ -15,6 +15,7 @@ import { Vatsamon, Hotspot, BackpackItem, Trainer, RarityType, WildCow } from '.
 import { normalizeSaveKey } from './lib/migrateSaveKeys';
 import { savePhoto } from './lib/photoStore';
 import { useScrollLock } from './lib/useScrollLock';
+import { useBackClosers } from './lib/useBackCloser';
 import { useAuth } from './lib/auth';
 import { listMyMatches, slotForUid, isPvpResultSeen } from './lib/pvp';
 import { backupLocalSave, restoreLocalBackup, saveCloudSave, BACKUP_KEY } from './lib/cloudSave';
@@ -857,12 +858,17 @@ export default function App() {
           center: [curLat, curLng],
           zoom: 13,
           zoomControl: true,
-          attributionControl: false
+          attributionControl: true
         });
+        // Crediti OSM obbligatori (licenza ODbL + Tile Usage Policy). Lo mettiamo
+        // in basso a SINISTRA e senza prefisso "Leaflet": in basso a destra c'è
+        // già il nastro dei suggerimenti e si sovrapporrebbero.
+        initMap.attributionControl.setPosition('bottomleft').setPrefix(false);
 
         // Beautiful standard OSM map layer
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
           maxZoom: 19,
+          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
         }).addTo(initMap);
 
         // Demo: tocca la mappa per "camminare" (se non sei in GPS reale)
@@ -1643,6 +1649,9 @@ export default function App() {
   const overlayDepthRef = useRef(0);   // # voci-guardia spinte in history
   const ignorePopsRef = useRef(0);     // pop programmatici (history.go) da ignorare
   const backClosersRef = useRef<Array<() => void>>([]);
+  // Overlay che vivono dentro i figli (scheda del Vatsadex, Valutazione, scheda
+  // mossa): si registrano da soli, vedi lib/useBackCloser.ts.
+  const childBackClosers = useBackClosers();
 
   // Ricostruito a ogni render: layer chiudibili col tasto Indietro, dal più in
   // alto al più in basso. L'ordine determina cosa chiude un singolo "back".
@@ -1651,6 +1660,11 @@ export default function App() {
   if (levelUpAward) backClosers.push(() => setLevelUpAward(null));
   if (showWhatsNew) backClosers.push(closeWhatsNew);
   if (showProfile) backClosers.push(() => setShowProfile(false));
+  // Gli overlay dei figli stanno sopra il livello che li ospita (tab, cattura,
+  // battaglia) ma sotto i modali di sistema qui sopra — il ConfirmDialog è
+  // z-[95] e può aprirsi sopra la scheda del Libretto (es. "Risorse
+  // insufficienti"), quindi deve restare il primo a chiudersi.
+  backClosers.push(...childBackClosers);
   if (isCapturingMode) backClosers.push(() => { setIsCapturingMode(false); setEncounterCow(null); });
   if (activePvpMatchId) backClosers.push(() => { setActivePvpMatchId(null); refreshPvpBadge(); });
   if (activeBattle) backClosers.push(() => setActiveBattle(null));
@@ -2145,7 +2159,8 @@ export default function App() {
         <div
           role="status"
           aria-live="polite"
-          className="fixed top-0 inset-x-0 z-[70] pointer-events-none flex items-center justify-center gap-1.5 bg-amber-500/95 text-slate-950 text-[11px] font-mono font-bold py-1 px-3 text-center shadow-md"
+          className="fixed top-0 inset-x-0 z-[70] pointer-events-none flex items-center justify-center gap-1.5 bg-amber-500/95 text-slate-100 text-[11px] font-mono font-bold py-1 px-3 text-center shadow-md"
+          style={{ paddingTop: 'calc(0.25rem + env(safe-area-inset-top))' }}
         >
           <span aria-hidden="true">📴</span>
           Sei offline — mappa reale e catture potrebbero non aggiornarsi
@@ -2155,7 +2170,11 @@ export default function App() {
       {/* CORNICE "TELEFONO": su desktop l'esperienza resta in una colonna centrata
           di larghezza massima mobile, con bordo/ombra ai lati; su mobile occupa
           tutto lo schermo senza cornice. */}
-      <div className="phone-frame w-full max-w-md min-h-screen flex flex-col relative bg-slate-950/0 lg:shadow-2xl lg:border-x lg:border-slate-800/60 pb-24">
+      {/* Lo spazio in fondo deve stare al passo con la nav fissa, che con la
+          safe-area cresce dello stesso inset: 6rem = altezza nav senza notch +
+          aria, poi + env() o gli ultimi pixel scrollabili finiscono sotto la nav. */}
+      <div className="phone-frame w-full max-w-md min-h-screen flex flex-col relative bg-slate-950/0 lg:shadow-2xl lg:border-x lg:border-slate-800/60"
+        style={{ paddingBottom: 'calc(6rem + env(safe-area-inset-bottom))' }}>
 
       {/* 🎒 HUD ALLEVATORE — 1 riga compatta + barra XP sottile (sticky, safe-area) 🎒 */}
       <div className="sticky top-0 z-40" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
@@ -2591,7 +2610,10 @@ export default function App() {
             >
               <Camera className="w-6 h-6" />
             </span>
-            <span className={activeTab === 'scanner' ? 'text-white' : 'text-slate-400'}>Scatta</span>
+            {/* A11y: qui NON c'è la pillola .nav-active delle altre 4 tab — l'etichetta
+                sta sul fondo nav chiaro (slate-950), quindi da attiva usa l'inchiostro
+                primario (slate-100), non il bianco (che dava 1,10:1). */}
+            <span className={activeTab === 'scanner' ? 'text-slate-100' : 'text-slate-400'}>Scatta</span>
           </button>
 
           <button

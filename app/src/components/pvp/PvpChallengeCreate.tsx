@@ -122,8 +122,15 @@ export function PvpChallengeCreate({
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-950/90 z-[90] flex items-end sm:items-center justify-center p-4 backdrop-blur-xs" onClick={onClose}>
-      <div className="bg-slate-900 border-2 border-slate-700 rounded-3xl max-w-sm w-full p-5 shadow-2xl space-y-4 max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+    // Su mobile è un bottom-sheet (items-end): la safe-area si somma a p-4 (1rem),
+    // altrimenti "Annulla la sfida" finisce sull'home indicator. L'inset si paga
+    // QUI e basta: essendo items-end è questo padding a sollevare la scheda, e lo
+    // spazio che resta (100dvh - 1rem - 1rem - inset) contiene già 85vh — toglierlo
+    // anche dalla max-height mangerebbe altri 34px di contenuto senza motivo.
+    <div className="fixed inset-0 bg-slate-950/90 z-[90] flex items-end sm:items-center justify-center p-4 backdrop-blur-xs"
+      style={{ paddingBottom: "calc(1rem + env(safe-area-inset-bottom))" }} onClick={onClose}>
+      <div className="bg-slate-900 border-2 border-slate-700 rounded-3xl max-w-sm w-full p-5 shadow-2xl space-y-4 max-h-[85vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between">
           <div className="text-sm font-mono font-black text-slate-100">⚔️ Nuova sfida tra Allevatori</div>
           <button onClick={() => { playClick(); onClose(); }} className="text-slate-400 p-1"><X size={16} /></button>

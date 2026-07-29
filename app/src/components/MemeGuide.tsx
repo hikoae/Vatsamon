@@ -12,7 +12,11 @@ export function MemeGuide({ testo, labelAvanti, onAvanti, onSalta, playClick }: 
   playClick: () => void;
 }) {
   return (
-    <div className="fixed inset-x-3 bottom-24 z-[45] max-w-md mx-auto animate-fade-in" id="meme-guide">
+    // La bottom-nav sotto cresce di `env(safe-area-inset-bottom)` (App.tsx): senza
+    // sommarlo qui, su iPhone col notch la bubble scende sulla nav e il bottone
+    // "Scatta" rialzato copre "Salta la lezione". Stesso pattern di UpdateReadyToast.
+    <div className="fixed inset-x-3 bottom-24 z-[45] max-w-md mx-auto animate-fade-in" id="meme-guide"
+      style={{ bottom: "calc(6rem + env(safe-area-inset-bottom))" }}>
       <div
         className="flex items-start gap-2.5 bg-slate-900/95 border-2 border-[#c8102e]/50 rounded-2xl p-3 shadow-2xl backdrop-blur overscroll-contain touch-none"
         onTouchMove={(e) => e.stopPropagation()}

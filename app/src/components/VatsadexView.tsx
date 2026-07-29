@@ -6,6 +6,7 @@ import { CowCard } from './CowCard';
 import { MosseEditor } from './MosseEditor';
 import { REAL_TOTAL, SHOWCASE_BY_RARITY } from '../data/realCows';
 import { useScrollLock } from '../lib/useScrollLock';
+import { useBackCloser } from '../lib/useBackCloser';
 
 /**
  * VATSADEX — collezione / Libretto di Mandria (vista estratta dal monolite).
@@ -48,6 +49,8 @@ export function VatsadexView({
 
   // Blocca lo scroll del body mentre la scheda è aperta (L14/L11).
   useScrollLock(selected !== null);
+  // Il tasto Indietro chiude la scheda, non il tab del Libretto sotto (H3).
+  useBackCloser(selected !== null, () => setSelected(null));
 
   // Collezione filtrata da ricerca + rarità: calcolata una volta per gestire
   // sia la griglia sia l'empty-state (M6, niente più griglia vuota "muta").
@@ -124,10 +127,12 @@ export function VatsadexView({
                 <button
                   key={cow.id}
                   onClick={() => { playClick(); setSelected(cow); }}
-                  className={`relative bg-gradient-to-b to-slate-950 border-2 ${tone} rounded-2xl p-2 flex flex-col items-center gap-1.5 transition-transform hover:-translate-y-1 overflow-hidden`}
+                  className={`relative bg-gradient-to-b to-slate-950 border-2 ${tone} rounded-2xl px-1 py-2 flex flex-col items-center gap-1.5 transition-transform hover:-translate-y-1 overflow-hidden`}
                 >
                   <div className="holo-sheen absolute inset-0 pointer-events-none opacity-50 rounded-2xl" />
-                  <span className={`relative text-[10px] font-mono font-black uppercase tracking-widest ${txt}`}>{cow.rarity}</span>
+                  {/* "Leggendaria" è l'etichetta più lunga e la carta è 1/3 di viewport: senza
+                      max-w-full il testo esce dalla carta (overflow-hidden) e viene tagliato. */}
+                  <span className={`relative text-[9px] font-mono font-black uppercase text-center break-words max-w-full ${txt}`}>{cow.rarity}</span>
                   <CowVisual cow={cow} className="relative w-16 h-16" />
                   <span className="relative text-[10px] font-mono font-black text-slate-100 truncate max-w-full">{cow.name}</span>
                   <span className="relative text-[10px] font-mono text-amber-300">Potenza {cow.cp}</span>

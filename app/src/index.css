@@ -1,4 +1,7 @@
-@import url('https://unpkg.com/leaflet@1.9.4/dist/leaflet.css');
+/* CSS di Leaflet dal pacchetto npm (leaflet 1.9.4, già dipendenza): impacchettato
+   nel bundle da Vite. Prima era un @import da CDN unpkg, render-blocking per OGNI
+   pagina — il primo paint dipendeva da un host terzo, non solo sulla mappa. */
+@import "leaflet/dist/leaflet.css";
 @import "tailwindcss";
 
 @theme {

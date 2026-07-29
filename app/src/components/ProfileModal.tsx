@@ -63,10 +63,10 @@ export function ProfileModal({
 
   return (
     <div className="fixed inset-0 bg-slate-950/95 z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto" id="profile-modal" onClick={onClose}>
-      <div className="bg-slate-900 border-2 border-emerald-500/40 rounded-3xl max-w-md w-full px-5 pb-5 pt-0 space-y-4 shadow-2xl my-auto max-h-[94dvh] overflow-y-auto no-scrollbar" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-slate-900 border-2 border-emerald-500/40 rounded-3xl max-w-md w-full px-5 pb-5 pt-0 space-y-4 shadow-2xl my-auto overflow-y-auto no-scrollbar" style={{ maxHeight: 'calc(94dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom))' }} onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between sticky top-0 z-10 bg-slate-900 -mx-5 px-5 pt-5 pb-3 rounded-t-3xl">
           <h3 className="text-lg font-mono font-black text-emerald-400 flex items-center gap-2">👨‍🌾 Profilo & Salvataggio</h3>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-200 p-1"><X className="w-5 h-5" /></button>
+          <button onClick={onClose} aria-label="Chiudi il profilo" className="text-slate-400 hover:text-slate-200 p-1"><X className="w-5 h-5" /></button>
         </div>
 
         {/* riepilogo */}

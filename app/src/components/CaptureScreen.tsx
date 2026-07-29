@@ -65,11 +65,12 @@ export function CaptureScreen({
         <ThrowGauge isCapturingMode={isCapturingMode} captureStep={captureStep} speedRef={throwSpeedRef}>
         <div className="fixed inset-0 bg-slate-950/95 z-50 flex items-center justify-center p-3 sm:p-4 animate-scale-in overflow-y-auto" id="encounter-screen">
           <div className="encounter-flash" aria-hidden="true" />
-          <div className="bg-gradient-to-b from-sky-950 via-emerald-950 to-slate-900 border-2 border-emerald-500/50 rounded-3xl max-w-lg w-full p-4 sm:p-5 flex flex-col gap-3 sm:gap-4 shadow-2xl relative max-h-[94dvh] overflow-y-auto overflow-x-hidden no-scrollbar my-auto">
+          <div className="bg-gradient-to-b from-sky-950 via-emerald-950 to-slate-900 border-2 border-emerald-500/50 rounded-3xl max-w-lg w-full p-4 sm:p-5 flex flex-col gap-3 sm:gap-4 shadow-2xl relative overflow-y-auto overflow-x-hidden no-scrollbar my-auto" style={{ maxHeight: 'calc(94dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom))' }}>
 
             {/* Back out button */}
             <button
               onClick={() => { playClickSfx(); setIsCapturingMode(false); setEncounterCow(null); }}
+              aria-label="Chiudi l'incontro e fuggi al sentiero"
               className="absolute top-4 left-4 z-20 bg-slate-950/70 text-slate-300 py-1.5 px-3 rounded-xl hover:text-slate-100 transition-colors flex items-center gap-1 cursor-pointer text-xs font-bold"
             >
               <X className="w-4 h-4" />
@@ -77,7 +78,7 @@ export function CaptureScreen({
             </button>
 
             {/* Stat HUD Top Card */}
-            <div className="bg-slate-950/80 border border-slate-850 p-3 rounded-2xl z-10 flex items-center justify-between gap-4 mt-6">
+            <div className="bg-slate-950/80 border border-slate-850 p-3 rounded-2xl z-10 flex items-center justify-between gap-4 mt-12">
               <div>
                 <h3 className="font-mono font-black text-amber-400 tracking-tight flex items-center gap-1.5 text-base">
                   {encounterCow.name}

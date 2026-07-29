@@ -31,8 +31,11 @@ export function ConfirmDialog({
 }: ConfirmDialogProps) {
   const hasCancel = !!onCancel;
   return (
+    // Su mobile è un bottom-sheet (items-end): la safe-area si somma a p-4 (1rem),
+    // altrimenti i bottoni di scelta finiscono sull'home indicator.
     <div
       className="fixed inset-0 bg-slate-950/90 z-[95] flex items-end sm:items-center justify-center p-4 backdrop-blur-xs"
+      style={{ paddingBottom: "calc(1rem + env(safe-area-inset-bottom))" }}
       onClick={() => { (onCancel ?? onConfirm)(); }}
       role="alertdialog"
       aria-modal="true"

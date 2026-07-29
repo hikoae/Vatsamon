@@ -10,7 +10,7 @@
  *  - lettura pubblica (anche utenti non autenticati) — vedi firestore.rules;
  *  - scrittura riservata a chi ha `uid` in `ADMIN_UIDS` (gating qui è solo
  *    UI: l'unica autorità reale sono le Firestore rules, che replicano lo
- *    stesso allowlist lato server con un placeholder da sostituire — TODO G7).
+ *    stesso allowlist lato server con gli uid reali — G7 chiuso).
  *
  * Nessun risultato pubblicato per un evento → data/season.ts ricade sul
  * calcolo simulato di prima, ma SEMPRE marcato `simulato: true` per la UI.
@@ -31,11 +31,11 @@ export interface RisultatoEvento {
 }
 
 /**
- * G7 — TODO: sostituire con l'/gli uid Firebase reali dell'operatore prima
- * che il form admin sia raggiungibile in produzione. Vuoto = il form resta
+ * G7 (chiuso): uid Firebase reali dell'operatore. Vuoto = il form resta
  * invisibile a chiunque, indipendentemente da chi è loggato. Difesa in
  * profondità: questo è solo gating UI, l'autorità reale resta
- * firestore.rules (placeholder "__ADMIN_UID__" lì, stesso TODO).
+ * firestore.rules — `isRisultatiAdmin()` lì ha la stessa allowlist: se
+ * cambia qui, va cambiata anche là.
  */
 export const ADMIN_UIDS: string[] = ["6f8lhVEeX2OI3jZZYGK7jMvEa1L2"];
 

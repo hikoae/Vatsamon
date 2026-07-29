@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Vatsamon } from "../types";
 import { CowVisual } from "./CowVisual";
 import { useScrollLock } from "../lib/useScrollLock";
+import { useBackCloser } from "../lib/useBackCloser";
 
 /**
  * "VALUTAZIONE DEL GIUDICE" — il giocatore fa il giudice di Bataille e valuta la
@@ -26,6 +27,8 @@ export default function ValutazioneReina({ cow, onDone, onClose, playClick }: {
   const [scores, setScores] = useState<{ stazza?: number; corna?: number; sguardo?: number }>({});
   // Overlay a schermo intero sopra la mappa: blocca lo scroll del body dietro.
   useScrollLock(true);
+  // Il tasto Indietro salta la valutazione, non chiude la CaptureScreen sotto (H3).
+  useBackCloser(true, onClose);
 
   // ---- 1. STAZZA: stadera oscillante, rilascia in zona target ----
   const [needle, setNeedle] = useState(0); // 0..100 oscillante
@@ -124,11 +127,11 @@ export default function ValutazioneReina({ cow, onDone, onClose, playClick }: {
     : { t: "VALUTAZIONE INCERTA", c: "#94a3b8" };
 
   return (
-    <div className="fixed inset-0 z-[75] flex flex-col bg-slate-950/95 text-slate-100 p-4" id="valutazione-scene">
+    <div className="fixed inset-0 z-[75] flex flex-col bg-slate-950/95 text-slate-100 p-4" id="valutazione-scene" style={{ paddingTop: 'calc(1rem + env(safe-area-inset-top))', paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))' }}>
       <div className="max-w-md mx-auto w-full flex flex-col h-full">
         <div className="flex items-center justify-between mb-2">
           <span className="text-xs font-mono font-black text-amber-400">⚖️ Valutazione del Giudice</span>
-          <button onClick={() => { playClick(); onClose(); }} className="text-slate-400 text-xs font-bold">Salta ✕</button>
+          <button onClick={() => { playClick(); onClose(); }} aria-label="Chiudi e salta la valutazione" className="text-slate-400 text-xs font-bold">Salta ✕</button>
         </div>
 
         <div className="flex items-center gap-3 bg-slate-900/70 border border-slate-800 rounded-2xl p-2.5 mb-3">

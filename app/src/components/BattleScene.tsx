@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { motion } from "motion/react";
 import { Backpack, X } from "lucide-react";
 import { Vatsamon, BackpackItem } from "../types";
@@ -25,6 +25,23 @@ import { MossaInfoSheet } from "./battle/MossaInfoSheet";
 
 type Phase = "intro" | "fight" | "end";
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/** Somma delle fasce di safe-area verticali, letta dal browser con un elemento
+ * sonda. E' un input STABILE — dipende dal device, non dal layout scelto — quindi
+ * non innesca anelli di retroazione (misurare l'arena, invece, sì). Runtime senza
+ * `env()`: la dichiarazione cade, la sonda misura 0 e si torna al comportamento
+ * storico basato sul solo `window.innerHeight`. */
+function insetVerticali(): number {
+  if (typeof document === "undefined" || !document.body) return 0;
+  const sonda = document.createElement("div");
+  sonda.style.cssText = "position:fixed;top:0;left:0;width:0;height:0;visibility:hidden;pointer-events:none;"
+    + "padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)";
+  document.body.appendChild(sonda);
+  const cs = getComputedStyle(sonda);
+  const tot = (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0);
+  sonda.remove();
+  return tot;
+}
 
 export default function BattleScene({
   battle, playerCows, initialCowId, trainerLevel, respectScore, backpack, onConsumeItem, onResult, onClose, playClick,
@@ -58,19 +75,61 @@ export default function BattleScene({
   const [lunge, setLunge] = useState<"p" | "o" | null>(null);
   const [shake, setShake] = useState(false);
   const [confirmRetire, setConfirmRetire] = useState(false);
-  // Altezza viewport reale: su iPhone corti (toolbar Safari, portrait-lock) l'arena
-  // deve restringersi invece di far accavallare le card dei combattenti (fix mobile-qa 2026-07-13).
-  const [vh, setVh] = useState<number>(() => (typeof window !== "undefined" ? window.innerHeight : 844));
-  useEffect(() => {
-    const onResize = () => setVh(window.innerHeight);
-    window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
+  // Spazio verticale REALMENTE disponibile per l'arena: su iPhone corti (toolbar
+  // Safari, portrait-lock) l'arena deve restringersi invece di far accavallare le
+  // card dei combattenti (fix mobile-qa 2026-07-13). `window.innerHeight` da solo
+  // non basta: INCLUDE le fasce di safe-area, che pero' se le mangiano testata
+  // (paddingTop) e pulsantiera (paddingBottom) — col notch la testata passa da 61 a
+  // 120px. Decidere sul numero grezzo sceglieva la diagonale proprio dove l'arena si
+  // stringe di piu' (fix notch 2026-07-29).
+  const [spazioUtile, setSpazioUtile] = useState<number>(() => (typeof window !== "undefined" ? window.innerHeight : 844));
+  useLayoutEffect(() => {
+    const misura = () => setSpazioUtile(window.innerHeight - insetVerticali());
+    misura(); // prima del paint: nessuno sfarfallio diagonale→compatto all'apertura
+    window.addEventListener("resize", misura); // rotazione e toolbar cambiano le fasce
+    return () => window.removeEventListener("resize", misura);
   }, []);
   // Sotto questa soglia il layout "a diagonale" assoluto non ha fisicamente spazio
-  // per le due card senza accavallarsi (verificato: a 844 arena ok, a 700-667 overlap
-  // certo anche scalando le dimensioni). Sotto soglia si passa a uno stack verticale
-  // in normal flow (mai overlap per costruzione) con scroll di fallback.
-  const compactArena = vh < 845;
+  // per le due card senza accavallarsi. Soglia misurata nella nuova unita' (Chromium
+  // + WebKit, fasce 59/34, bataille di Mémé = pulsantiera piu' alta, campionando a
+  // meta' turno): le targhette si toccano a spazio utile ~825, a 845 restano ~20px di
+  // margine. 845 e' anche il valore che, a fasce nulle, lascia invariati i device
+  // senza notch. Sotto soglia si passa a uno stack verticale in normal flow (mai
+  // overlap per costruzione) con scroll di fallback.
+  const compactArena = spazioUtile < 845;
+  // Lo stack compatto ha taglia fissa dentro un'arena elastica: sotto 845px avanzavano
+  // fino a ~190px vuoti in fondo. Misuriamo l'avanzo reale — che dipende anche dalla
+  // safe-area del device — e lo diamo alle figure, tra un minimo (= taglia storica) e
+  // un massimo. Banda morta ampia: le battute di Mémé cambiano altezza a ogni turno e
+  // non devono far respirare le Reine.
+  const arenaRef = useRef<HTMLDivElement | null>(null);
+  const stackRef = useRef<HTMLDivElement | null>(null);
+  const [figura, setFigura] = useState(48);
+  // La fase va riletta DENTRO la callback, non solo alla registrazione: su WebKit
+  // una notifica del ResizeObserver arriva PRIMA del cleanup dell'effect (passivo,
+  // post-paint) e le figure scattavano 104→128 sulla schermata finale. Il ref si
+  // aggiorna in render, quindi è già "end" quando l'arena cresce.
+  const phaseRef = useRef(phase);
+  phaseRef.current = phase;
+  useEffect(() => {
+    const arena = arenaRef.current, stack = stackRef.current;
+    if (!compactArena || phase !== "fight" || !arena || !stack) return;
+    const adatta = () => {
+      if (phaseRef.current !== "fight") return;
+      const avanzo = (arena.getBoundingClientRect().height - stack.getBoundingClientRect().height) / 2;
+      if (avanzo > -2 && avanzo < 12) return;
+      setFigura((f) => Math.max(48, Math.min(128, Math.floor(f + avanzo))));
+    };
+    // Senza guardia, un runtime privo di ResizeObserver (o col getter che lancia)
+    // fa risalire l'eccezione a React e sostituisce l'app con l'error boundary:
+    // qui degradiamo come dichiarato sopra — niente refit, figura alla taglia iniziale.
+    let RO: typeof ResizeObserver | undefined;
+    try { RO = ResizeObserver; } catch { /* getter che lancia */ }
+    if (typeof RO !== "function") return;
+    const ro = new RO(adatta);
+    ro.observe(arena); ro.observe(stack);
+    return () => ro.disconnect();
+  }, [compactArena, phase]);
 
   // Una battaglia intera (intro→fight→end) è "attività critica": il SW non
   // deve ricaricare la pagina a metà spinta (vedi lib/swUpdate.ts).
@@ -256,9 +315,13 @@ export default function BattleScene({
       <div className="absolute inset-0 -z-10" style={{ background: "linear-gradient(180deg,#bae6fd 0%,#e0f2fe 30%,#dcfce7 62%,#bbf7d0 100%)" }} />
       <div className="absolute inset-x-0 bottom-0 -z-10 h-[42%]" style={{ background: "radial-gradient(120% 80% at 50% 100%, #86efac 0%, #4ade80 55%, #16a34a 100%)" }} />
 
-      <div className="flex items-center justify-between px-4 py-2 bg-slate-950/70 backdrop-blur border-b border-slate-800">
+      {/* Barra a filo schermo: la safe-area si somma a py-2 (0.5rem), altrimenti su
+          iPhone col notch titolo e X finiscono dentro la fascia (tap non affidabile). */}
+      <div className="flex items-center justify-between px-4 py-2 bg-slate-950/70 backdrop-blur border-b border-slate-800"
+        style={{ paddingTop: "calc(0.5rem + env(safe-area-inset-top))" }}>
         <span className="text-xs font-mono font-black text-slate-100">{battle.emoji} {battle.name} · La Spinta</span>
-        <button onClick={() => { playClick(); onClose(); }} className="text-slate-300 bg-slate-900/70 rounded-full p-1.5"><X size={16} /></button>
+        {/* aria-label con prefisso "Chiudi": è anche l'aggancio del tap target 44px (index.css). */}
+        <button onClick={() => { playClick(); onClose(); }} aria-label="Chiudi la battaglia e torna alla mappa" className="text-slate-300 bg-slate-900/70 rounded-full p-1.5"><X size={16} /></button>
       </div>
 
       {phase === "intro" && (
@@ -268,20 +331,21 @@ export default function BattleScene({
       )}
 
       {phase !== "intro" && player && opp && compactArena && (
-        // Viewport corto (<845px): stack verticale in normal flow — le card non
+        // Spazio utile corto (<845px, fasce di safe-area già scalate): stack
+        // verticale in normal flow — le card non
         // possono MAI accavallarsi (a differenza del layout assoluto) e se il
         // contenuto non entra tutto, l'area scrolla invece di clippare/sovrapporre.
-        <motion.div animate={shake ? { x: [0, -8, 7, -5, 0] } : {}} transition={{ duration: 0.35 }} className="relative flex-1 min-h-0 overflow-y-auto">
-          <div className="flex flex-col items-center gap-1 px-3 py-1">
-            <Combatant pos="top" s={opp} fiato={st.fiatoO} lunge={lunge === "o"} compact />
+        <motion.div ref={arenaRef} animate={shake ? { x: [0, -8, 7, -5, 0] } : {}} transition={{ duration: 0.35 }} className="relative flex-1 min-h-0 overflow-y-auto">
+          <div ref={stackRef} className="flex flex-col items-center gap-1 px-3 py-1">
+            <Combatant pos="top" s={opp} fiato={st.fiatoO} lunge={lunge === "o"} compact figura={figura} />
             <SpintaBar playerName={player.name} oppName={opp.name} barraP={barraP} compact />
-            <Combatant pos="bottom" s={player} fiato={st.fiatoP} calma={st.calma} lunge={lunge === "p"} compact />
+            <Combatant pos="bottom" s={player} fiato={st.fiatoP} calma={st.calma} lunge={lunge === "p"} compact figura={figura} />
           </div>
         </motion.div>
       )}
 
       {phase !== "intro" && player && opp && !compactArena && (
-        // Layout originale "a diagonale" — invariato, per non regredire il look a ≥845px (844 è già stack compatto).
+        // Layout originale "a diagonale" — invariato, per non regredire il look con ≥845px di spazio utile (844 è già stack compatto).
         <motion.div animate={shake ? { x: [0, -8, 7, -5, 0] } : {}} transition={{ duration: 0.35 }} className="relative flex-1 min-h-0 overflow-hidden">
           <Combatant pos="top" s={opp} fiato={st.fiatoO} lunge={lunge === "o"} />
           <Combatant pos="bottom" s={player} fiato={st.fiatoP} calma={st.calma} lunge={lunge === "p"} />
@@ -484,8 +548,8 @@ function IntroPanel({ battle, playerCows, cowId, setCowId, onStart, onClose, pla
   );
 }
 
-/** Barra SPINTA (contesa): posizionamento assoluto (layout diagonale ≥845px) o
- * inline (stack compatto <845px, fix mobile-qa 2026-07-13). */
+/** Barra SPINTA (contesa): posizionamento assoluto (layout diagonale, spazio utile
+ * ≥845px) o inline (stack compatto <845px, fix mobile-qa 2026-07-13). */
 function SpintaBar({ playerName, oppName, barraP, compact }: {
   playerName: string; oppName: string; barraP: number; compact?: boolean;
 }) {
@@ -506,15 +570,15 @@ function SpintaBar({ playerName, oppName, barraP, compact }: {
 }
 
 /** Un combattente sul campo: foto + targhetta Fiato (e Calma per il giocatore).
- * `compact`: stack verticale in normal flow (viewport <845px, mai overlap per
+ * `compact`: stack verticale in normal flow (spazio utile <845px, mai overlap per
  * costruzione) invece del posizionamento assoluto "a diagonale" (fix mobile-qa 2026-07-13). */
-function Combatant({ pos, s, fiato, calma, lunge, compact }: {
-  pos: "top" | "bottom"; s: Spintatore; fiato: number; calma?: number; lunge: boolean; compact?: boolean;
+function Combatant({ pos, s, fiato, calma, lunge, compact, figura }: {
+  pos: "top" | "bottom"; s: Spintatore; fiato: number; calma?: number; lunge: boolean; compact?: boolean; figura?: number;
 }) {
   const top = pos === "top";
   const fiatoPct = Math.max(0, Math.min(100, Math.round((fiato / s.fiatoMax) * 100)));
   const lungeX = top ? -36 : 36, lungeY = top ? 36 : -36;
-  const imgCls = compact ? "w-11 h-11" : (top ? "w-24 h-24" : "w-28 h-28");
+  const imgCls = compact ? "w-full h-full" : (top ? "w-24 h-24" : "w-28 h-28");
   const cardPad = compact ? "px-2 py-0.5" : "px-2.5 py-1.5";
   const cardMinW = compact ? 128 : 150;
   const blobW = top ? 70 : 84;
@@ -543,7 +607,8 @@ function Combatant({ pos, s, fiato, calma, lunge, compact }: {
         )}
       </div>
       <motion.div className="relative" animate={lunge ? { x: lungeX, y: lungeY } : { x: 0, y: 0 }} transition={{ duration: 0.16 }}>
-        <div className={`rounded-2xl overflow-hidden border-2 shadow-2xl ${top ? "border-rose-400/60" : "border-emerald-400/70"}`}>
+        <div className={`rounded-2xl overflow-hidden border-2 shadow-2xl ${top ? "border-rose-400/60" : "border-emerald-400/70"}`}
+          style={compact ? { width: figura, height: figura } : undefined}>
           <CowVisual cow={s.visual} className={imgCls} />
         </div>
         {!compact && <div className="mx-auto mt-1 rounded-[100%] bg-black/20 blur-[2px]" style={{ width: blobW, height: blobH }} />}
