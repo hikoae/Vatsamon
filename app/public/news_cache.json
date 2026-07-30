@@ -3,6 +3,14 @@
   "fonte": "Aggregatore RSS (AostaSera, Gazzetta Matin) — solo titolo, estratto e link alla fonte.",
   "items": [
     {
+      "id": "gazzetta-matin-batailles-riparte-l-8217-estate-delle-regine",
+      "titolo": "Batailles: riparte l&#8217;estate delle Regine",
+      "fonte": "Gazzetta Matin",
+      "url": "https://www.gazzettamatin.com/2026/07/30/batailles-riparte-lestate-delle-regine/",
+      "data": "2026-07-30",
+      "estratto": ""
+    },
+    {
       "id": "aostasera-siccit-parlano-gli-allevatori-30-per-cento-in-me",
       "titolo": "Siccità, parlano gli allevatori: 30 per cento in meno di fieno e demonticazione anticipata",
       "fonte": "AostaSera",
