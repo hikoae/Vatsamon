@@ -42,12 +42,16 @@ export function StallaScreen({ collection, onBorn, onUpdateCow, onReward, onOpen
   }, [pregs]);
 
   const natiInStalla = collection.filter((c) => c.bornInStalla);
+  // le tue Reines adulte: la mandria che vedi in cima alla schermata. Restano
+  // in elenco anche quando sono gravide (con lo stato addosso), altrimenti
+  // sparirebbero dalla stalla proprio mentre ci stanno lavorando.
+  const reines = collection.filter((c) =>
+    (c.stats4 || c.geneticStats4 || c.isReal) &&
+    (!c.bornInStalla || (c.stage ?? "reina") === "reina"));
+  const gravida = (c: Vatsamon) => pregs.some((p) => p.motherId === c.id);
   // madri ammesse: capi con statistiche reali, ADULTI (un moudzon non può
   // essere madre) e non già gravidi
-  const madri = collection.filter((c) =>
-    (c.stats4 || c.geneticStats4 || c.isReal) &&
-    (!c.bornInStalla || (c.stage ?? "reina") === "reina") &&
-    !pregs.some((p) => p.motherId === c.id));
+  const madri = reines.filter((c) => !gravida(c));
   const mother = collection.find((c) => c.id === motherId) ?? null;
   const toro: Toro = TORI.find((t) => t.id === toroId) ?? TORI[0];
 
@@ -123,48 +127,107 @@ export function StallaScreen({ collection, onBorn, onUpdateCow, onReward, onOpen
     ["conduci", "🐄", "Conduci"],
   ];
 
+  // Perché la CTA è spenta: uno stato disabilitato deve dire cosa manca, non
+  // limitarsi a sbiadire. null = la monta si può avviare.
+  const motivoMonta = mother ? null
+    : reines.length === 0 ? "Serve una Reina adulta: catturane una o fai crescere un moudzon."
+    : madri.length === 0 ? "Tutte le tue Reines sono già gravide: aspetta una nascita."
+    : "Scegli qui sopra la Reina che farà da madre.";
+
   return (
     <div className="max-w-2xl mx-auto space-y-4" id="stalla-view">
-      {/* HEADER */}
-      <div className="bg-gradient-to-br from-amber-950/40 to-slate-950 border border-amber-800/40 rounded-3xl p-5">
-        <h2 className="text-lg font-mono font-black text-amber-300 uppercase tracking-wide flex items-center gap-2">🐮 Stalla</h2>
-        <p className="text-[11px] text-slate-400 leading-snug mt-1">
-          Allevamento e genealogia: dalla <b className="text-amber-200">monta</b> con un toro alla{" "}
-          <b className="text-amber-200">nascita</b> del moudzon, che eredita la linea di sangue, fino alla{" "}
-          <b className="text-amber-200">crescita</b> in Reina. Tutto con la cura quotidiana.
-        </p>
-      </div>
+      {/* LE TUE REINES — in cima, prima di ogni spiegazione: foto grande,
+          statistiche e l'azione che apre il loop (scegliere la madre). Il
+          testo che introduceva la schermata è finito nel "Come funziona"
+          richiudibile qui sotto: chi sa già cosa fare non lo incontra. */}
+      <div className="bg-gradient-to-br from-amber-950/40 to-slate-950 border border-amber-800/40 rounded-3xl p-4 space-y-3" id="stalla-mandria">
+        <div className="flex items-baseline justify-between gap-2">
+          <h2 className="h-section text-slate-100">🐮 Stalla</h2>
+          <span className="t-meta text-slate-500">{reines.length} {reines.length === 1 ? "Reina" : "Reines"}</span>
+        </div>
 
-      {/* SFIDE TRA ALLEVATORI (PvP live a turni, S9) — sezione, non una tab
-          nuova: hub di creazione/join/lista partite, gated su login reale
-          (niente sfide online in modalità locale/ospite). */}
-      <PvpHub collection={collection} onOpenMatch={onOpenPvpMatch} playClick={playClick} />
+        <div>
+          <div className="t-meta text-slate-500 mb-1.5">1 · Scegli la madre</div>
+          {reines.length === 0 ? (
+            <p className="is-empty t-body">Nessuna Reina adulta: cattura o fatti affidare una Reina per iniziare l'allevamento.</p>
+          ) : (
+            <div className="grid grid-cols-1 gap-2 max-h-[26rem] overflow-y-auto no-scrollbar" id="stalla-reines">
+              {reines.map((c) => {
+                const attesa = gravida(c);
+                const scelta = motherId === c.id;
+                const s = stats4Of(c);
+                return (
+                  <button
+                    key={c.id}
+                    data-mother={c.id}
+                    disabled={attesa}
+                    aria-pressed={scelta}
+                    onClick={() => { playClick(); setMotherId(c.id); }}
+                    className={`is-disabled block w-full text-left p-2 rounded-2xl border transition-all ${scelta ? "chip-active-soft" : "border-slate-850 bg-slate-900"}`}
+                  >
+                    {/* box 16:9 + cover: è il rapporto delle foto e delle
+                        illustrazioni, quindi la Reina riempie il riquadro
+                        invece di galleggiare in una cornice (vedi CowVisual). */}
+                    <CowVisual cow={c} fit="cover" className="w-full aspect-[16/9]" />
+                    <div className="flex items-baseline justify-between gap-2 mt-2">
+                      <span className="h-card truncate">{c.name}</span>
+                      <span className={`t-meta flex-shrink-0 ${scelta || attesa ? "" : "text-slate-500"}`}>{attesa ? "In attesa" : scelta ? "✓ Scelta" : "Scegli"}</span>
+                    </div>
+                    <div className="grid grid-cols-4 gap-1.5 mt-1.5">
+                      {([["Stazza", s.stazza], ["Corna", s.corna], ["Testa", s.testa], ["Grinta", s.grinta]] as [string, number][]).map(([l, v]) => (
+                        <div key={l} className="rounded-lg border border-slate-850 bg-slate-950/70 py-1 text-center">
+                          <div className="t-meta text-slate-500">{l}</div>
+                          <div className="h-card tabular-nums">{v}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* la spiegazione della schermata sta DOPO l'azione e chiusa: chi sa
+            già cosa fare non ci sbatte contro. */}
+        <details className="rounded-xl border border-slate-800 bg-slate-900/60 px-3 py-2" id="stalla-come-funziona">
+          <summary className="t-meta text-slate-400 cursor-pointer">Come funziona</summary>
+          <p className="t-body text-slate-300 mt-1.5">
+            Allevamento e genealogia: dalla <b className="text-slate-100">monta</b> con un toro alla{" "}
+            <b className="text-slate-100">nascita</b> del moudzon, che eredita la linea di sangue, fino alla{" "}
+            <b className="text-slate-100">crescita</b> in Reina. Tutto con la cura quotidiana.
+          </p>
+        </details>
+      </div>
 
       {/* GRAVIDANZE IN CORSO (una per madre): requisito per i tornei ufficiali */}
       {pregs.map((preg) => (
         <div key={preg.id} className="bg-slate-950 border border-slate-850 rounded-3xl p-4 space-y-3" id="stalla-pregnancy" data-preg={preg.motherId}>
           <div className="flex items-center justify-between gap-2">
-            <span className="text-[9px] font-mono uppercase tracking-widest text-rose-400 flex items-center gap-1"><Heart className="w-3 h-3 fill-rose-400" /> Gravidanza in corso</span>
-            <span className="text-[9px] font-mono text-amber-300" data-mesi={preg.motherId}>≈ {mesiGravidanza(preg).toFixed(1)} mesi / 9</span>
+            {/* era `text-rose-400`, che nella palette invertita resta il rosa
+                chiaro di Tailwind: 1,9:1 su carta. `text-primary-strong` è il
+                rosso-testo sicuro su ogni superficie (contratto UI). */}
+            <span className="t-meta text-primary-strong flex items-center gap-1"><Heart className="w-3 h-3 fill-current" /> Gravidanza in corso</span>
+            <span className="t-meta text-slate-500" data-mesi={preg.motherId}>≈ {mesiGravidanza(preg).toFixed(1)} mesi / 9</span>
           </div>
-          <div className="text-sm font-mono font-black text-slate-100">
-            {preg.motherName} <span className="text-slate-500">×</span> {preg.fatherName} <span className="text-[10px] text-slate-500">({preg.fatherRazza})</span>
+          <div className="h-card text-slate-100">
+            {preg.motherName} <span className="text-slate-500">×</span> {preg.fatherName} <span className="t-meta text-slate-500">({preg.fatherRazza})</span>
           </div>
 
           <div>
-            <div className="flex justify-between text-[10px] font-mono text-slate-400"><span>Gestazione</span><span className="text-amber-300 font-bold">{Math.round(preg.progress)}%</span></div>
+            <div className="flex justify-between t-body text-slate-400"><span>Gestazione</span><span className="h-card text-slate-100 tabular-nums">{Math.round(preg.progress)}%</span></div>
             <div className="bg-slate-900 border border-slate-800 rounded-full h-2.5 overflow-hidden mt-1">
-              <motion.div className="bg-gradient-to-r from-amber-500 to-yellow-400 h-full" animate={{ width: `${preg.progress}%` }} transition={{ duration: 0.4 }} />
+              <motion.div className="bg-primary h-full" animate={{ width: `${preg.progress}%` }} transition={{ duration: 0.4 }} />
             </div>
           </div>
           <div>
-            <div className="flex justify-between text-[10px] font-mono text-slate-400"><span>Benessere della madre</span><span className="text-emerald-300 font-bold">{Math.round(preg.benessere)}%</span></div>
+            <div className="flex justify-between t-body text-slate-400"><span>Benessere della madre</span><span className="h-card tone-positive tabular-nums">{Math.round(preg.benessere)}%</span></div>
             <div className="bg-slate-900 border border-slate-800 rounded-full h-1.5 overflow-hidden mt-1">
-              <div className="bg-emerald-500 h-full transition-all" style={{ width: `${preg.benessere}%` }} />
+              <div className="bg-positive h-full transition-all" style={{ width: `${preg.benessere}%` }} />
             </div>
           </div>
 
-          <p className="text-[10px] font-mono text-slate-500">📋 Regolamento: alle tappe ufficiali si iscrivono bovine gravide — ≥3 mesi (estive), ≥4 (autunnali).</p>
+          <p className="t-body text-slate-400">📋 Regolamento: alle tappe ufficiali si iscrivono bovine gravide — ≥3 mesi (estive), ≥4 (autunnali).</p>
 
           {preg.progress < 100 ? (
             <div className="grid grid-cols-3 gap-2">
@@ -176,7 +239,7 @@ export function StallaScreen({ collection, onBorn, onUpdateCow, onReward, onOpen
                     data-care={id}
                     disabled={cd > 0}
                     onClick={() => care(preg.id, id)}
-                    className={`flex flex-col items-center gap-0.5 py-2.5 rounded-xl border font-mono font-black text-[10px] transition-all ${cd > 0 ? "border-slate-850 bg-slate-900/50 text-slate-600" : "border-amber-700/50 bg-amber-500/10 text-amber-200 hover:bg-amber-500/20"}`}
+                    className="is-disabled flex flex-col items-center gap-0.5 py-2.5 rounded-xl border border-slate-700 bg-slate-855 text-slate-100 h-card transition-all hover:bg-slate-850"
                   >
                     <span className="text-lg">{emoji}</span>
                     {cd > 0 ? `${(cd / 1000).toFixed(1)}s` : label}
@@ -189,113 +252,103 @@ export function StallaScreen({ collection, onBorn, onUpdateCow, onReward, onOpen
               initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
               data-born
               onClick={() => nascita(preg.id)}
-              className="w-full bg-amber-500 hover:bg-amber-400 text-[#0b0820] font-mono font-black text-sm py-3 rounded-xl flex items-center justify-center gap-1.5 border-b-4 border-amber-700"
+              className="btn-primary w-full h-card py-3 rounded-xl flex items-center justify-center gap-1.5 border-b-4"
             >
               <Sparkles className="w-4 h-4" /> È nata! Fai venire al mondo il moudzon
             </motion.button>
           )}
 
-          <button onClick={() => { playClick(); setPregs((prev) => prev.filter((x) => x.id !== preg.id)); }} className="w-full text-[9px] font-mono text-slate-600 hover:text-rose-300 pt-1">Annulla la monta</button>
+          <button onClick={() => { playClick(); setPregs((prev) => prev.filter((x) => x.id !== preg.id)); }} className="w-full t-meta text-slate-500 hover:text-primary-strong pt-1">Annulla la monta</button>
         </div>
       ))}
 
-      {(
-        /* PROGRAMMA UNA MONTA */
-        <div className="bg-slate-950 border border-slate-850 rounded-3xl p-4 space-y-3" id="stalla-monta">
-          <div className="text-[11px] font-mono font-black uppercase tracking-widest text-slate-300">Programma una monta</div>
+      {/* PROGRAMMA UNA MONTA — la madre si sceglie nella card in cima, qui
+          resta il seguito del passo (toro, anteprima, avvio). */}
+      <div className="bg-slate-950 border border-slate-850 rounded-3xl p-4 space-y-3" id="stalla-monta">
+        <div className="h-card text-slate-200">Programma una monta</div>
 
-          {/* selezione madre */}
-          <div>
-            <div className="text-[9px] font-mono uppercase text-slate-500 mb-1">1 · Scegli la madre</div>
-            {madri.length === 0 ? (
-              <p className="text-[10px] font-mono text-slate-500">Nessuna Reina disponibile: cattura o fatti affidare una Reina per iniziare l'allevamento.</p>
-            ) : (
-              <div className="grid grid-cols-3 gap-1.5 max-h-44 overflow-y-auto no-scrollbar">
-                {madri.map((c) => (
-                  <button
-                    key={c.id}
-                    data-mother={c.id}
-                    onClick={() => { playClick(); setMotherId(c.id); }}
-                    className={`flex flex-col items-center gap-0.5 p-1.5 rounded-xl border transition-all ${motherId === c.id ? "border-amber-500 bg-amber-500/15" : "border-slate-850 bg-slate-900 hover:border-amber-600/50"}`}
-                  >
-                    <CowVisual cow={c} className="w-9 h-9" />
-                    <span className="text-[10px] font-mono font-bold text-slate-300 truncate w-full text-center">{c.name}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+        {/* madre scelta (riepilogo) */}
+        <div className="flex items-center justify-between gap-2">
+          <span className="t-meta text-slate-500">Madre</span>
+          {mother
+            ? <span className="chip-active-soft border rounded-full px-2.5 py-0.5 h-card" data-madre-scelta>{mother.name}</span>
+            : <span className="t-body text-slate-400">nessuna — scegli qui sopra</span>}
+        </div>
 
-          {/* selezione toro */}
-          <div>
-            <div className="text-[9px] font-mono uppercase text-slate-500 mb-1">2 · Scegli il toro di monta</div>
-            <div className="space-y-1.5">
-              {TORI.map((t) => (
-                <button
-                  key={t.id}
-                  data-toro={t.id}
-                  onClick={() => { playClick(); setToroId(t.id); }}
-                  className={`w-full flex items-center gap-2 p-2 rounded-xl border text-left transition-all ${toroId === t.id ? "border-amber-500 bg-amber-500/10" : "border-slate-850 bg-slate-900 hover:border-amber-600/40"}`}
-                >
-                  <span className="text-xl">🐂</span>
-                  <div className="min-w-0 flex-grow">
-                    <div className="text-[11px] font-mono font-black text-slate-200">{t.nome} <span className="text-[9px] text-slate-500">· {t.razza}</span></div>
-                    <div className="text-[10px] font-mono text-slate-500 truncate">{t.descr}</div>
-                  </div>
-                  {toroId === t.id && <Check className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* anteprima genetica */}
-          <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-2.5">
-            <div className="text-[9px] font-mono uppercase text-slate-500 mb-1">Anteprima del vitello {mother ? `(${previewRazza})` : ""}</div>
-            <div className="grid grid-cols-4 gap-1.5 text-center">
-              {([["Stazza", preview.stazza], ["Corna", preview.corna], ["Testa", preview.testa], ["Grinta", preview.grinta]] as [string, number][]).map(([l, v]) => (
-                <div key={l} className="bg-slate-950 rounded-lg border border-slate-850 py-1">
-                  <div className="text-[9.5px] font-mono uppercase text-slate-500">{l}</div>
-                  <div className="text-[12px] font-mono font-black text-amber-300 tabular-nums">{mother ? v : "—"}</div>
+        {/* selezione toro */}
+        <div>
+          <div className="t-meta text-slate-500 mb-1">2 · Scegli il toro di monta</div>
+          <div className="space-y-1.5">
+            {TORI.map((t) => (
+              <button
+                key={t.id}
+                data-toro={t.id}
+                aria-pressed={toroId === t.id}
+                onClick={() => { playClick(); setToroId(t.id); }}
+                className={`w-full flex items-center gap-2 p-2 rounded-xl border text-left transition-all ${toroId === t.id ? "chip-active-soft" : "chip-idle"}`}
+              >
+                <span className="text-xl">🐂</span>
+                <div className="min-w-0 flex-grow">
+                  <div className="h-card">{t.nome} <span className="t-meta text-slate-500">· {t.razza}</span></div>
+                  <div className="t-body truncate">{t.descr}</div>
                 </div>
-              ))}
-            </div>
+                {toroId === t.id && <Check className="w-3.5 h-3.5 flex-shrink-0" />}
+              </button>
+            ))}
           </div>
+        </div>
 
+        {/* anteprima genetica */}
+        <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-2.5">
+          <div className="t-meta text-slate-500 mb-1">Anteprima del vitello {mother ? `(${previewRazza})` : ""}</div>
+          <div className="grid grid-cols-4 gap-1.5 text-center">
+            {([["Stazza", preview.stazza], ["Corna", preview.corna], ["Testa", preview.testa], ["Grinta", preview.grinta]] as [string, number][]).map(([l, v]) => (
+              <div key={l} className="bg-slate-950 rounded-lg border border-slate-850 py-1">
+                <div className="t-meta text-slate-500">{l}</div>
+                <div className="h-card text-slate-100 tabular-nums">{mother ? v : "—"}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div>
           <button
             disabled={!mother}
             data-avvia-monta
+            aria-describedby={motivoMonta ? "stalla-monta-motivo" : undefined}
             onClick={avviaMonta}
-            className={`w-full font-mono font-black text-sm py-3 rounded-xl flex items-center justify-center gap-1.5 ${mother ? "bg-amber-500 hover:bg-amber-400 text-[#0b0820] border-b-4 border-amber-700" : "bg-slate-900 text-slate-600 border border-slate-850"}`}
+            className={`is-disabled w-full h-card py-3 rounded-xl flex items-center justify-center gap-1.5 ${mother ? "btn-primary border-b-4" : ""}`}
           >
             Avvia la monta <ChevronRight className="w-4 h-4" />
           </button>
+          {motivoMonta && <p className="t-body text-slate-400 text-center mt-1.5" id="stalla-monta-motivo">{motivoMonta}</p>}
         </div>
-      )}
+      </div>
 
       {/* NATI IN STALLA */}
       {natiInStalla.length > 0 && (
         <div className="bg-slate-950 border border-slate-850 rounded-3xl p-4 space-y-2">
-          <div className="text-[11px] font-mono font-black uppercase tracking-widest text-slate-300">I tuoi nati in stalla ({natiInStalla.length})</div>
+          <div className="h-card text-slate-200">I tuoi nati in stalla ({natiInStalla.length})</div>
           {natiInStalla.map((c) => {
             const stage = c.stage ?? stageForAge(c.ageMonths ?? 0);
             const isReina = stage === "reina";
             const cd = now - (growCd[c.id] ?? 0) < GROW_COOLDOWN_MS;
             return (
               <div key={c.id} className="flex items-center gap-2.5 bg-slate-900/60 rounded-xl p-2 border border-slate-850">
-                <CowVisual cow={c} className="w-11 h-11 flex-shrink-0" />
+                <CowVisual cow={c} fit="cover" className="w-16 aspect-[16/9] flex-shrink-0" />
                 <div className="min-w-0 flex-grow">
-                  <div className="text-[11px] font-mono font-black text-slate-200 truncate">{c.name} <span className="text-[10px] text-slate-500">G{c.generation ?? 1}</span></div>
-                  <div className="text-[10px] font-mono text-amber-400">{STAGE_LABEL[stage]} · {c.peso_kg ?? 42} kg</div>
-                  {c.lineTrait && <div className="text-[10px] font-mono text-slate-500 truncate italic">{c.lineTrait}</div>}
+                  <div className="h-card text-slate-200 truncate">{c.name} <span className="t-meta text-slate-500">G{c.generation ?? 1}</span></div>
+                  <div className="t-body text-slate-400">{STAGE_LABEL[stage]} · {c.peso_kg ?? 42} kg</div>
+                  {c.lineTrait && <div className="t-body text-slate-500 truncate italic">{c.lineTrait}</div>}
                 </div>
                 {isReina ? (
-                  <span className="text-[10px] font-mono font-black text-emerald-400 px-2">✓ adulta</span>
+                  <span className="t-meta tone-positive px-2">✓ adulta</span>
                 ) : (
                   <button
                     data-grow={c.id}
                     disabled={cd}
                     onClick={() => cresci(c)}
-                    className={`text-[9px] font-mono font-black px-3 py-2 rounded-lg border ${cd ? "border-slate-850 bg-slate-900/50 text-slate-600" : "border-emerald-700/50 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20"}`}
+                    className="is-disabled t-meta px-2.5 py-2 rounded-lg border border-slate-700 bg-slate-855 text-slate-100 hover:bg-slate-850"
                   >
                     {cd ? "…" : "Cresci"}
                   </button>
@@ -306,6 +359,13 @@ export function StallaScreen({ collection, onBorn, onUpdateCow, onReward, onOpen
         </div>
       )}
 
+      {/* SFIDE TRA ALLEVATORI (PvP live a turni, S9) — sezione, non una tab
+          nuova: hub di creazione/join/lista partite, gated su login reale
+          (niente sfide online in modalità locale/ospite). Sta DOPO il loop
+          della stalla: da ospite è solo un cartello, e prima occupava lo
+          spazio buono sopra le azioni. */}
+      <PvpHub collection={collection} onOpenMatch={onOpenPvpMatch} playClick={playClick} />
+
       {/* REVEAL NASCITA */}
       <AnimatePresence>
         {justBorn && (
@@ -315,20 +375,20 @@ export function StallaScreen({ collection, onBorn, onUpdateCow, onReward, onOpen
               initial={{ scale: 0.8, y: 20 }} animate={{ scale: 1, y: 0 }}
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="text-[9px] font-mono uppercase tracking-widest text-amber-400 flex items-center justify-center gap-1"><Sparkles className="w-3 h-3" /> È nata in stalla</div>
-              <CowVisual cow={justBorn} className="w-28 h-28 mx-auto" />
-              <div className="text-xl font-mono font-black text-amber-200">{justBorn.name}</div>
-              <div className="text-[11px] font-mono text-slate-400">Moudzon · {justBorn.breed} · G{justBorn.generation}</div>
-              <div className="bg-slate-950/60 rounded-xl p-2 text-[10px] font-mono text-slate-300 leading-snug">{justBorn.lore}</div>
+              <div className="t-meta text-slate-500 flex items-center justify-center gap-1"><Sparkles className="w-3 h-3" /> È nata in stalla</div>
+              <CowVisual cow={justBorn} fit="cover" className="w-52 aspect-[16/9] mx-auto" />
+              <div className="h-section text-slate-100">{justBorn.name}</div>
+              <div className="t-body text-slate-400">Moudzon · {justBorn.breed} · G{justBorn.generation}</div>
+              <div className="bg-slate-950/60 rounded-xl p-2 t-body text-slate-300">{justBorn.lore}</div>
               <div className="grid grid-cols-4 gap-1.5">
                 {([["Stazza", justBorn.geneticStats4?.stazza], ["Corna", justBorn.geneticStats4?.corna], ["Testa", justBorn.geneticStats4?.testa], ["Grinta", justBorn.geneticStats4?.grinta]] as [string, number][]).map(([l, v]) => (
                   <div key={l} className="bg-slate-950 rounded-lg border border-slate-850 py-1">
-                    <div className="text-[9px] font-mono uppercase text-slate-500">{l}</div>
-                    <div className="text-[11px] font-mono font-black text-amber-300 tabular-nums">{v}</div>
+                    <div className="t-meta text-slate-500">{l}</div>
+                    <div className="h-card text-slate-100 tabular-nums">{v}</div>
                   </div>
                 ))}
               </div>
-              <button onClick={() => setJustBorn(null)} className="w-full bg-amber-500 hover:bg-amber-400 text-[#0b0820] font-mono font-black text-xs py-2.5 rounded-xl flex items-center justify-center gap-1"><Check className="w-4 h-4" /> Aggiungi al Libretto di Mandria</button>
+              <button onClick={() => setJustBorn(null)} className="btn-primary w-full h-card py-2.5 rounded-xl flex items-center justify-center gap-1 border-b-4"><Check className="w-4 h-4" /> Aggiungi al Libretto di Mandria</button>
             </motion.div>
           </motion.div>
         )}

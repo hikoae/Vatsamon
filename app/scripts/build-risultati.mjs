@@ -77,9 +77,13 @@ function parseCalendarEvents() {
     if (!/\bkind:\s*"bataille"/.test(line)) continue;
     const id = line.match(/\bid:\s*"([^"]+)"/)?.[1];
     const data = line.match(/\bdata:\s*"([^"]+)"/)?.[1];
+    // Data "come pubblicata dalla fonte", presente solo sulle tappe spostate
+    // dopo che il sito aveva già pubblicato il post (vedi `dataFonte` in
+    // season.ts). `\bdata:` non la intercetta: dopo "data" c'è una "F".
+    const dataFonte = line.match(/\bdataFonte:\s*"([^"]+)"/)?.[1];
     const comune = line.match(/\bcomune:\s*"([^"]+)"/)?.[1];
     const finale = /\bfinale:\s*true\b/.test(line);
-    if (id && data && comune) events.push({ id, data, comune, finale });
+    if (id && data && comune) events.push({ id, data, dataFonte, comune, finale });
   }
   return events;
 }
@@ -94,24 +98,42 @@ async function fetchJson(url) {
  * è calcolato dalla data (es. Saint-Marcel 2026-04-06 è lunedì di Pasquetta —
  * il calcolo lo scopre da solo, senza bisogno di un caso speciale). Provo sia
  * il giorno con zero iniziale (formato usato dal sito per la stagione 2026,
- * es. "06-aprile") sia senza, per compatibilità con stagioni precedenti. */
+ * es. "06-aprile") sia senza, per compatibilità con stagioni precedenti. Le
+ * date provate sono quelle di `datesOf` (la vera più, se c'è, quella con cui
+ * la fonte ha pubblicato la tappa prima di uno spostamento). */
 function slugCandidates(ev) {
-  const [y, mo, d] = ev.data.split("-").map(Number);
-  const dow = new Date(Date.UTC(y, mo - 1, d)).getUTCDay();
-  const giorno = GIORNI[dow];
-  const mese = MESI[mo - 1];
-  const dayPad = String(d).padStart(2, "0");
-  if (ev.finale) {
-    return [...new Set([
-      `finale-regionale-${giorno}-${dayPad}-${mese}-${y}`,
-      `finale-regionale-${giorno}-${d}-${mese}-${y}`,
-    ])];
-  }
-  const comune = slugify(ev.comune);
-  return [...new Set([
-    `eliminatoria-di-${comune}-${giorno}-${dayPad}-${mese}-${y}`,
-    `eliminatoria-di-${comune}-${giorno}-${d}-${mese}-${y}`,
-  ])];
+  return [...new Set(datesOf(ev).flatMap((iso) => {
+    const [y, mo, d] = iso.split("-").map(Number);
+    const dow = new Date(Date.UTC(y, mo - 1, d)).getUTCDay();
+    const giorno = GIORNI[dow];
+    const mese = MESI[mo - 1];
+    const dayPad = String(d).padStart(2, "0");
+    if (ev.finale) {
+      return [
+        `finale-regionale-${giorno}-${dayPad}-${mese}-${y}`,
+        `finale-regionale-${giorno}-${d}-${mese}-${y}`,
+      ];
+    }
+    const comune = slugify(ev.comune);
+    return [
+      `eliminatoria-di-${comune}-${giorno}-${dayPad}-${mese}-${y}`,
+      `eliminatoria-di-${comune}-${giorno}-${d}-${mese}-${y}`,
+    ];
+  }))];
+}
+
+/**
+ * Le date con cui una tappa può comparire sulla fonte: quella vera (`data`) e,
+ * per le tappe spostate dopo che il sito aveva già pubblicato il post, anche
+ * quella vecchia (`dataFonte`, vedi il commento del campo in season.ts —
+ * caso reale 2026: Courmayeur anticipata dal 27/09 al 20/09, post rimasto al
+ * 27/09). Serve sia agli slug sia al match sul titolo nella search di
+ * fallback: senza, una tappa spostata smetterebbe di essere trovata e non
+ * raccoglierebbe mai risultati. La data vera va per prima: se un giorno il
+ * sito si allinea, il post corretto vince su quello vecchio rimasto online.
+ */
+function datesOf(ev) {
+  return [...new Set([ev.data, ...(ev.dataFonte ? [ev.dataFonte] : [])])];
 }
 
 function parseDateFromText(text) {
@@ -142,7 +164,8 @@ async function findGaraPost(ev) {
     const token = slugify(ev.comune).split("-")[0];
     const json = await fetchJson(`${WP_BASE}?search=${encodeURIComponent(token)}&per_page=10`);
     if (Array.isArray(json)) {
-      const match = json.find((p) => parseDateFromText(strip(p.title?.rendered ?? "")) === ev.data);
+      const dates = datesOf(ev);
+      const match = json.find((p) => dates.includes(parseDateFromText(strip(p.title?.rendered ?? ""))));
       if (match) return { post: match, method: `search:${token}` };
     }
   } catch (err) {

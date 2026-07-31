@@ -69,6 +69,46 @@
   --color-amber-550: #e08a0a;
   --color-amber-450: #d9920a;
 
+  /* ===== RUOLI COLORE — un solo significato per colore (2026-07-31) =====
+     Prima lo stato "attivo/selezionato" aveva sei trattamenti diversi:
+     rosso nella tab-bar e nell'onboarding, verde nel toggle "Mappa OSM
+     Reale" e nelle conferme, ambra nelle sub-tab della Stagione. Da qui
+     in avanti la regola è una sola:
+
+       primary  (rosso #c8102e) = interattivo primario E stato attivo
+                                  (nav, FAB, filtri, selezione, CTA)
+       positive (verde)         = SOLO semantica positiva
+                                  (conferma, completato, "reale/ufficiale")
+       reward   (ambra)         = SOLO valuta e ricompensa
+
+     Ogni token qui sotto genera le utility Tailwind corrispondenti
+     (bg-primary, text-primary, border-primary, ring-primary, …). Per gli
+     usi ricorrenti ci sono classi pronte in fondo al file (§ CONTRATTO
+     UI CONDIVISO): .btn-primary, .chip-active, .tone-positive, …
+
+     I rapporti di contrasto sotto sono misurati sulle superfici davvero
+     usate dall'app: slate-950 #f5f3fb → slate-800 #d2cce6 (quest'ultima
+     è la più scura delle chiare, 45 usi come `bg-`). */
+  --color-primary: #c8102e;        /* = red-650. Come FONDO sempre ok (bianco sopra
+                                      = 5,9:1). Come TESTO solo su slate-950/900
+                                      (5,3 / 4,9): più in basso scende a 3,8 → in
+                                      quei casi usare `text-primary-strong`. */
+  --color-primary-hover: #e11d3a;
+  --color-primary-strong: #9b0f23; /* premuto, bordo inferiore, e rosso-TESTO
+                                      sicuro ovunque (peggior caso 5,4:1) */
+  --color-primary-ink: #ffffff;    /* testo su fondo primario: 5,9:1 */
+  --color-primary-soft: #ffe1e4;   /* = red-950, fondo selezione tenue */
+
+  --color-positive: #05603a;       /* verde testo, sicuro su ogni superficie
+                                      (6,97 su slate-950 … 4,93 su slate-800) */
+  --color-positive-ink: #ffffff;   /* testo su fondo positive: 7,7:1 */
+  --color-positive-soft: #e1f6ec;  /* = emerald-950 */
+
+  --color-reward: #7a4700;         /* ambra come TESTO (valuta): 7,00 … 4,95 */
+  --color-reward-strong: #e08a0a;  /* ambra come FONDO (= amber-550) */
+  --color-reward-ink: #211b3a;     /* inchiostro su fondo ambra: 6,1:1 */
+  --color-reward-soft: #fcf1da;    /* = amber-950 */
+
   /* ===== CONTRASTO: nel tema invertito gli shade chiari -100/-200/-300 dei
      colori d'accento servono da TESTO su superfici CHIARE, quindi vanno SCURITI
      (i default Tailwind sarebbero pastello e illeggibili). ===== */
@@ -348,7 +388,11 @@ nav.sticky {
 button:active { transform: scale(0.94) translateY(1px); }
 .nav-active { transform: translateY(-2px); }
 
-/* Bottoni-azione primari (CTA piene) con leggero gradiente vivo e lucentezza. */
+/* Bottoni-azione primari (CTA piene) con leggero gradiente vivo e lucentezza.
+   DEPRECATA dal 2026-07-31: è ambra, e l'ambra ora vuol dire solo "valuta e
+   ricompensa" (vedi § RUOLI COLORE). Per una CTA principale usare
+   `.btn-primary`. Nessun componente la usa: resta solo per non rompere
+   eventuali riferimenti esterni. */
 .btn-cta {
   background-image: linear-gradient(160deg, #e08a0a 0%, #d97706 100%);
   box-shadow: 0 8px 18px -6px rgba(217, 119, 6, 0.5), inset 0 1px 0 rgba(255,255,255,0.35);
@@ -392,6 +436,46 @@ h1, h2, .font-display {
    desktop; i dettagli non devono quindi diventare microscopici quando il
    viewport supera i breakpoint Tailwind. I valori qui sotto riguardano
    solo micro-label e testi di supporto, non titoli o indicatori di mappa.
+
+   ⚠️ LEGGERE PRIMA DI FIDARSI DI UN COMPONENTE ⚠️
+   Le regole di questa sezione e della successiva sono prefissate da
+   `#vatsamon-go-app`: hanno un ID, quindi battono per specificità QUALUNQUE
+   classe — utility Tailwind e classi del contratto UI in fondo al file.
+   (L'unica cosa che le batte è un `!important`: la variante `text-[10px]!`
+   di Tailwind, oggi mai usata nel codebase.) Conseguenza pratica:
+   **quello che un componente dichiara NON è quello che si vede**. Dentro
+   l'app un `text-[10px]` rende 12px e un `text-emerald-400` è verde scuro.
+   Le utility intercettate qui sotto sono, in ordine:
+
+     dichiarato                     reso davvero   dove
+     text-[9px]                     11px           questa sezione
+     text-[9.5px]                   11px           questa sezione
+     text-[10px]                    12px           questa sezione
+     text-[10.5px]                  12px           questa sezione
+     text-emerald-400               #087a55        § contrasto (sotto)
+     text-emerald-500               #066b49        § contrasto
+     text-emerald-300/600/700       #05603a        § contrasto
+     text-green-400                 #05603a        § contrasto
+     text-amber-200/300/400/500     #7a4700        § contrasto
+     text-amber-550/600/700         #7a4700        § contrasto
+     text-orange-300/400/500        #8f3a00        § contrasto
+     text-sky-200/300/400           #176b9c        § contrasto
+     text-blue-300/400/600          #245aa5        § contrasto
+     text-purple-300/400/600        #6a2aa6        § contrasto
+     text-yellow-400                #705300        § contrasto
+     text-fuchsia-300               #8a1a86        § contrasto
+     text-rose-300/400/500          #a8123f        § contrasto
+     text-red-400                   #a8123f        § contrasto
+     min-h-[36px]                   44px           § TAP TARGET
+     min-w-[36px]                   44px           § TAP TARGET
+
+   Vale anche per le VARIANTI CON OPACITÀ: `text-amber-500/90` rende #7a4700
+   come `text-amber-500`. Non vale invece per le varianti di STATO
+   (`hover:text-rose-300` resta il rosa del @theme, solo al passaggio).
+
+   NB: `text-[8px]`, `text-[11px]`, `text-[12px]`, `text-[13px]` NON sono
+   intercettati e valgono davvero quello che dicono.
+   Per verificare una misura: `getComputedStyle(el)` a runtime, mai il JSX.
    ============================================================ */
 #vatsamon-go-app [class~="text-[9px]"],
 #vatsamon-go-app [class~="text-[9.5px]"] {
@@ -407,19 +491,160 @@ h1, h2, .font-display {
 
 /* Le tonalità decorative originarie non superavano WCAG AA su carta/lavanda.
    Si scuriscono solo quando sono usate come testo: i colori di sfondo dei CTA
-   restano invariati. */
-#vatsamon-go-app .text-emerald-400 { color: #087a55; }
-#vatsamon-go-app .text-emerald-500 { color: #066b49; }
-#vatsamon-go-app .text-amber-300,
-#vatsamon-go-app .text-amber-400,
-#vatsamon-go-app .text-amber-500 { color: #7a4700; }
-#vatsamon-go-app .text-sky-300,
-#vatsamon-go-app .text-sky-400 { color: #176b9c; }
-#vatsamon-go-app .text-blue-300,
-#vatsamon-go-app .text-blue-400 { color: #245aa5; }
-#vatsamon-go-app .text-purple-300,
-#vatsamon-go-app .text-purple-400 { color: #6a2aa6; }
-#vatsamon-go-app .text-yellow-400 { color: #705300; }
+   restano invariati.
+
+   ── PERCHÉ DUE SELETTORI PER OGNI TONALITÀ (2026-07-31) ───────────────────
+   Un selettore di classe secco (`.text-amber-500`) NON intercetta le varianti
+   con opacità: per `text-amber-500/90` Tailwind emette un token di classe
+   COMPLETO di suffisso (`text-amber-500\/90`), che è un ALTRO token — quindi
+   `.text-amber-500` non lo vede e il colore grezzo arriva a schermo. È così
+   che il suggerimento tattico della mossa in battaglia (MossePanel.tsx,
+   `text-amber-500/90`) stava a 2,08:1: il cuore del gioco, illeggibile.
+
+   Da qui in avanti ogni tonalità usa la coppia «token che INIZIA per»:
+
+       [class^="text-X"]     → il token è il primo della lista
+       [class*=" text-X"]    → il token è preceduto da uno spazio
+
+   Prende `text-X` e `text-X/NN`, e di proposito NON prende le varianti di
+   stato (`hover:text-rose-300`, `placeholder:text-slate-400`): quelle devono
+   restare condizionali, un `[class*="text-X"]` secco le accenderebbe sempre
+   cancellando il colore di riposo. Nell'app ci sono 5 `hover:text-<colore>-`
+   su famiglie toccate qui (rose-300 ×3, rose-500, sky-300): tutte partono da
+   `text-slate-500`, e restano un cambio-al-passaggio.
+
+   Gli shade sono SEMPRE scritti a tre cifre, così non si creano incroci di
+   sottostringa fra tonalità della stessa famiglia: `text-amber-50` dentro
+   `text-amber-500`, o `text-amber-500` dentro `text-amber-550` (che nell'app
+   esiste davvero). Verificato a runtime: ogni regola colpisce solo i propri
+   elementi. Le famiglie lasciate fuori sono elencate in fondo alla sezione.
+
+   Tutte le tinte nuove reggono ≥4,5:1 su OGNI superficie chiara del tema,
+   inclusa la più scura (slate-800 #d2cce6, 45 usi come `bg-`). */
+
+/* --- verde: `positive`, cioè "è andata bene / è reale-ufficiale" -----------
+   emerald-400/-500 restano le tinte già in produzione. Gli shade scoperti
+   (300 = 3,32:1, 600 = 2,43:1, 700 = 3,45:1 su slate-800) e l'unico
+   `text-green-400` (1,15:1 — "Rifornimento Sbloccato con Successo") vanno
+   sul verde del contratto: 6,97:1 su slate-950 … 4,93:1 su slate-800. */
+#vatsamon-go-app [class^="text-emerald-400"],
+#vatsamon-go-app [class*=" text-emerald-400"] { color: #087a55; }
+#vatsamon-go-app [class^="text-emerald-500"],
+#vatsamon-go-app [class*=" text-emerald-500"] { color: #066b49; }
+#vatsamon-go-app [class^="text-emerald-300"],
+#vatsamon-go-app [class*=" text-emerald-300"],
+#vatsamon-go-app [class^="text-emerald-600"],
+#vatsamon-go-app [class*=" text-emerald-600"],
+#vatsamon-go-app [class^="text-emerald-700"],
+#vatsamon-go-app [class*=" text-emerald-700"],
+#vatsamon-go-app [class^="text-green-400"],
+#vatsamon-go-app [class*=" text-green-400"] { color: var(--color-positive); }
+
+/* --- ambra: `reward`, cioè valuta e ricompensa ----------------------------
+   Oltre a 300/400/500 finivano scoperti: -200 (4,15:1), -550 (1,73:1, la
+   scintilla del radar "Vatsamon vicini"), -600 (2,06:1, la Potenza e la
+   pillola vittorie della carta) e -700 con opacità (3,24:1, la nota sulle
+   soglie di peso). Un solo bruno per tutta la famiglia: 7,00 … 4,95:1.
+   NB `text-amber-100` NON è qui: vive solo sui cartellini scuri della mappa
+   (`bg-[#211b3a]`), dove serve chiaro. */
+#vatsamon-go-app [class^="text-amber-200"],
+#vatsamon-go-app [class*=" text-amber-200"],
+#vatsamon-go-app [class^="text-amber-300"],
+#vatsamon-go-app [class*=" text-amber-300"],
+#vatsamon-go-app [class^="text-amber-400"],
+#vatsamon-go-app [class*=" text-amber-400"],
+#vatsamon-go-app [class^="text-amber-500"],
+#vatsamon-go-app [class*=" text-amber-500"],
+#vatsamon-go-app [class^="text-amber-550"],
+#vatsamon-go-app [class*=" text-amber-550"],
+#vatsamon-go-app [class^="text-amber-600"],
+#vatsamon-go-app [class*=" text-amber-600"],
+#vatsamon-go-app [class^="text-amber-700"],
+#vatsamon-go-app [class*=" text-amber-700"] { color: #7a4700; }
+
+/* --- azzurro/blu/viola: accenti informativi e rarità ----------------------
+   Aggiunti allo stesso tono di famiglia gli shade rimasti fuori: sky-200
+   (1,21:1, il testo dell'approccio d'ingaggio SELEZIONATO in battaglia),
+   blue-600 e purple-600 (3,38 e 3,57:1, le etichette "RARA" ed "EPICA"
+   della carta bovina). */
+#vatsamon-go-app [class^="text-sky-200"],
+#vatsamon-go-app [class*=" text-sky-200"],
+#vatsamon-go-app [class^="text-sky-300"],
+#vatsamon-go-app [class*=" text-sky-300"],
+#vatsamon-go-app [class^="text-sky-400"],
+#vatsamon-go-app [class*=" text-sky-400"] { color: #176b9c; }
+#vatsamon-go-app [class^="text-blue-300"],
+#vatsamon-go-app [class*=" text-blue-300"],
+#vatsamon-go-app [class^="text-blue-400"],
+#vatsamon-go-app [class*=" text-blue-400"],
+#vatsamon-go-app [class^="text-blue-600"],
+#vatsamon-go-app [class*=" text-blue-600"] { color: #245aa5; }
+#vatsamon-go-app [class^="text-purple-300"],
+#vatsamon-go-app [class*=" text-purple-300"],
+#vatsamon-go-app [class^="text-purple-400"],
+#vatsamon-go-app [class*=" text-purple-400"],
+#vatsamon-go-app [class^="text-purple-600"],
+#vatsamon-go-app [class*=" text-purple-600"] { color: #6a2aa6; }
+#vatsamon-go-app [class^="text-yellow-400"],
+#vatsamon-go-app [class*=" text-yellow-400"] { color: #705300; }
+
+/* --- magenta: la rarità "Leggendaria" delle mosse -------------------------
+   `text-fuchsia-300` (#f4a8ff) era a 1,14:1 su slate-800: l'etichetta più
+   preziosa del gioco, invisibile. Magenta profondo, tenuto distinto dal
+   viola delle carte (#6a2aa6): 7,42 … 5,26:1. */
+#vatsamon-go-app [class^="text-fuchsia-300"],
+#vatsamon-go-app [class*=" text-fuchsia-300"] { color: #8a1a86; }
+
+/* --- arancio: la fiamma dello streak --------------------------------------
+   Gli shade Tailwind di serie (orange-400 #ff8904) finivano su lavanda/pesca
+   chiara a 1,87:1 — la pillola dello streak nel Giro di Stalla era di fatto
+   invisibile, e con l'opacità (`text-orange-300/80`) scendeva a 1,26:1.
+   Arancio bruciato che regge ovunque (6,89 … 4,88:1), tenuto distinto dal
+   bruno dell'ambra perché qui non è "valuta" ma la fiamma dello streak. */
+#vatsamon-go-app [class^="text-orange-300"],
+#vatsamon-go-app [class*=" text-orange-300"],
+#vatsamon-go-app [class^="text-orange-400"],
+#vatsamon-go-app [class*=" text-orange-400"],
+#vatsamon-go-app [class^="text-orange-500"],
+#vatsamon-go-app [class*=" text-orange-500"] { color: #8f3a00; }
+
+/* --- rosso: errore e allarme, NON "selezionato" ---------------------------
+   La lacuna più larga rimasta: `text-rose-400` (#ff637e, 1,84:1 su slate-800)
+   in 10 file — l'errore di ErrorBoundary e del PvP, il "Difficile" del quiz,
+   il "COMBATTI" dei percorsi, la forza e i fiori rossi della carta, la Mémé
+   di Nus, l'Éliminatoire della domenica, il "Attenta a:" delle mosse. Con
+   loro rose-300 (3,91:1), rose-500 (3,17:1) e l'unico `text-red-400`
+   (1,86:1, "Si è spezzato lo scontro!").
+   Restano ROSSI, come chiede il ruolo semantico: è un rosso d'errore, non
+   inchiostro neutro. Tinta unica 6,76 … 4,79:1, più fredda del rosso
+   valdostano primario (#c8102e) e più chiara del suo `primary-strong`
+   (#9b0f23), così "sbagliato" non si confonde con "premi qui".
+   rose-200 (#99162f) e rose-100 (#7a1228) sono già a 5,39 e 6,95:1 dal
+   @theme: non li tocchiamo. */
+#vatsamon-go-app [class^="text-rose-300"],
+#vatsamon-go-app [class*=" text-rose-300"],
+#vatsamon-go-app [class^="text-rose-400"],
+#vatsamon-go-app [class*=" text-rose-400"],
+#vatsamon-go-app [class^="text-rose-500"],
+#vatsamon-go-app [class*=" text-rose-500"],
+#vatsamon-go-app [class^="text-red-400"],
+#vatsamon-go-app [class*=" text-red-400"] { color: #a8123f; }
+
+/* --- LASCIATE FUORI DI PROPOSITO (censite a runtime, 2026-07-31) ----------
+   · text-amber-100, text-yellow-300 → esistono solo dentro i cartellini
+     `divIcon` della mappa, su fondo #211b3a: lì servono CHIARE. Scurirle
+     le renderebbe illeggibili (sono dentro #vatsamon-go-app, la regola le
+     prenderebbe). Stesso motivo per cui `text-emerald-200` sui marker ha
+     già la sua eccezione con `!important` più sotto.
+   · text-emerald-100/-200, text-rose-100/-200, text-blue-200 → il @theme le
+     ha già scurite e stanno fra 4,48 e 9,82:1 ovunque. Toccarle darebbe un
+     contrasto UGUALE o PEGGIORE (blue-200 #27599f è 4,48, il tono di
+     famiglia #245aa5 sarebbe 4,39).
+   · la scala slate → è invertita di proposito (§ PALETTE in cima).
+   · le varianti di stato `hover:` / `placeholder:` → vedi sopra.
+   · emerald-400 (3,44:1) e sky-300/-400 (3,74:1) su slate-800 restano sotto
+     AA per il testo normale: sono tinte GIÀ in produzione da mesi, cambiarle
+     ridipingerebbe 34+15 occorrenze. Segnalate, non toccate in questo giro. */
 
 /* ============================================================
    TAP TARGET & CONTRASTO — QA mobile (2026-07-13)
@@ -464,3 +689,263 @@ h1, h2, .font-display {
   background-color: #064e3b !important;
   border-color: #10b981 !important;
 }
+
+/* ============================================================
+   CONTRATTO UI CONDIVISO (2026-07-31)
+   Classi globali riusabili per: colore-ruolo, stato attivo, stato
+   disabilitato, stato vuoto e scala tipografica.
+
+   COME SI COMPORTANO
+   - Stanno FUORI da ogni @layer, quindi vincono sulle utility Tailwind:
+     quando applichi una di queste classi, togli dall'elemento l'utility
+     equivalente (es. con `.h-section` un `text-lg` accanto non ha più
+     effetto — è voluto, la scala deve essere una sola).
+   - Impostano SOLO pittura (colore, fondo, bordo, ombra) e metrica del
+     testo: mai padding, larghezza o posizione. Si possono quindi
+     aggiungere a un elemento esistente senza spostare il layout.
+     Uniche eccezioni dichiarate: `.is-empty` (è un blocco, non una
+     verniciatura) e il bordo tratteggiato di `.is-disabled` (1px).
+   - Non impostano il `border-width`: vanno abbinate alla `border` /
+     `border-b-4` che l'elemento già ha, altrimenti il colore del bordo
+     non si vede.
+   ============================================================ */
+
+/* --- 1. INTERATTIVO PRIMARIO E STATO ATTIVO (rosso #c8102e) ---------
+   .btn-primary       CTA principale della schermata (una per vista)
+   .chip-active       chip / filtro / sub-tab / segmented SELEZIONATO
+   .chip-active-soft  stessa cosa in versione tenue, dove il pieno pesa
+   .chip-idle         la controparte NON selezionata dello stesso gruppo
+   La pillola della tab-bar in basso resta `.nav-active` (già rossa).
+   Per il rosso usato come solo TESTO o icona (senza fondo) non c'è una
+   classe: usa l'utility `text-primary-strong`, che regge su qualsiasi
+   superficie (`text-primary` sbiadisce da slate-855 in giù). */
+.btn-primary {
+  background-color: var(--color-primary);
+  background-image: linear-gradient(160deg, var(--color-primary-hover) 0%, var(--color-primary) 55%, var(--color-primary-strong) 100%);
+  color: var(--color-primary-ink);
+  border-color: var(--color-primary-strong);
+  box-shadow: 0 8px 18px -6px rgba(200, 16, 46, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.28);
+}
+.btn-primary:hover { filter: brightness(1.06); }
+
+.chip-active {
+  background-color: var(--color-primary);
+  background-image: none;
+  color: var(--color-primary-ink);
+  border-color: var(--color-primary-strong);
+  box-shadow: 0 4px 12px -6px rgba(200, 16, 46, 0.55);
+}
+.chip-active-soft {
+  background-color: var(--color-primary-soft);
+  color: var(--color-primary-strong);
+  border-color: var(--color-primary);
+}
+.chip-idle {
+  background-color: transparent;
+  color: var(--color-slate-400);
+  border-color: transparent;
+}
+.chip-idle:hover {
+  background-color: var(--color-slate-850);
+  color: var(--color-slate-200);
+}
+
+/* --- 2. SEMANTICA POSITIVA (verde) ---------------------------------
+   Solo per "è andata bene / è completo / è reale-ufficiale". MAI per
+   dire "selezionato": quello è compito del rosso primario.
+   .tone-positive  testo e icone
+   .chip-positive  pillola/badge tenue con lo stesso significato
+   Il secondo selettore con l'ID serve a battere le correzioni di
+   contrasto `#vatsamon-go-app .text-emerald-*` più sopra. */
+.tone-positive,
+#vatsamon-go-app .tone-positive { color: var(--color-positive); }
+.chip-positive,
+#vatsamon-go-app .chip-positive {
+  background-color: var(--color-positive-soft);
+  color: var(--color-positive);
+  border-color: var(--color-positive);
+}
+
+/* --- 3. VALUTA E RICOMPENSA (ambra) --------------------------------
+   Solo per monete, premi, bottino. MAI per "selezionato".
+   .tone-reward  testo e icone (importi, contatori)
+   .chip-reward  pillola/badge di ricompensa */
+.tone-reward,
+#vatsamon-go-app .tone-reward { color: var(--color-reward); }
+.chip-reward,
+#vatsamon-go-app .chip-reward {
+  background-color: var(--color-reward-soft);
+  color: var(--color-reward);
+  border-color: var(--color-reward-strong);
+}
+
+/* --- 4. STATO DISABILITATO -----------------------------------------
+   Finora "disabilitato" era reso con la sola opacità: la CTA "Avvia la
+   monta" finiva a 2,3:1 e sembrava una decorazione, non un bottone in
+   attesa. Qui diventa uno stato vero: fondo pieno, testo leggibile
+   (slate-400 su slate-855 = 5,7:1), cornice tratteggiata, icona spenta
+   insieme al testo.
+   USO: metti `.is-disabled` sempre, in modo statico, accanto a
+   `disabled={…}`. Si accende da sola solo quando l'elemento è davvero
+   disabilitato (`:disabled`, `aria-disabled="true"`, `data-disabled="true"`),
+   quindi non può restare accesa per sbaglio.
+   Togli le `disabled:opacity-*` / `disabled:grayscale`: qui l'opacità
+   torna a 1 e l'attenuazione la danno colori veri, non la trasparenza. */
+:is(.is-disabled:disabled, .is-disabled[aria-disabled="true"], .is-disabled[data-disabled="true"]),
+#vatsamon-go-app :is(.is-disabled:disabled, .is-disabled[aria-disabled="true"], .is-disabled[data-disabled="true"]) {
+  background-color: var(--color-slate-855);
+  background-image: none;
+  color: var(--color-slate-400);
+  border-width: 1px;
+  border-style: dashed;
+  border-color: var(--color-slate-700);
+  box-shadow: none;
+  opacity: 1;
+  filter: none;
+  cursor: not-allowed;
+}
+:is(.is-disabled:disabled, .is-disabled[aria-disabled="true"], .is-disabled[data-disabled="true"]) svg,
+#vatsamon-go-app :is(.is-disabled:disabled, .is-disabled[aria-disabled="true"], .is-disabled[data-disabled="true"]) svg {
+  color: inherit;
+  opacity: 0.8;
+}
+
+/* --- 5. STATO VUOTO -------------------------------------------------
+   Placeholder riconoscibile per liste e slot senza contenuto, così
+   "vuoto" non si confonde con "rotto" né con "disabilitato". È un
+   blocco: imposta anche padding e altezza minima.
+   USO: sul contenitore che sostituisce la lista, con dentro una riga di
+   testo (e volendo un'icona). */
+.is-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  min-height: 5.5rem;
+  padding: 1rem;
+  border-radius: 1rem;
+  border: 1px dashed var(--color-slate-700);
+  background-color: var(--color-slate-900);
+  color: var(--color-slate-400);
+  text-align: center;
+}
+.is-empty svg { color: var(--color-slate-500); }
+
+/* --- 6. SCALA TIPOGRAFICA UNICA ------------------------------------
+   Prima il titolo di sezione era 18px su alcune schermate e 20px su
+   altre, e convivevano due sistemi (Fraunces display e mono maiuscolo).
+   Da qui in avanti quattro gradini, uno solo per ruolo:
+     .h-section  20px Fraunces 700          → titolo di schermata/sezione
+     .h-card     14px Inter 800             → titolo di card/blocco
+     .t-body     12px Inter 400             → testo corrente
+     .t-meta     11px Inter 700 MAIUSCOLO   → micro-etichette, dati di servizio
+   (`.t-body`/`.t-meta` sono i gradini "body" e "meta": il prefisso evita
+   una classe globale chiamata `.body`.)
+   Non impostano il colore: quello resta scelta del componente.
+   ATTENZIONE (verificato a runtime): le regole di leggibilità qui sopra
+   (`#vatsamon-go-app [class~="text-[10px]"]`) hanno un ID e quindi battono
+   queste classi — un elemento con `text-[10px] t-meta` resta a 12px. Quando
+   applichi la scala, TOGLI le `text-[9px]` / `text-[10px]` dall'elemento. */
+.h-section {
+  font-family: var(--font-display);
+  font-size: 1.25rem;   /* 20px */
+  line-height: 1.2;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+.h-card {
+  font-family: var(--font-sans);
+  font-size: 0.875rem;  /* 14px */
+  line-height: 1.25;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+.t-body {
+  font-family: var(--font-sans);
+  font-size: 0.75rem;   /* 12px */
+  line-height: 1.45;
+  font-weight: 400;
+}
+.t-meta {
+  font-family: var(--font-sans);
+  font-size: 0.6875rem; /* 11px */
+  line-height: 1.35;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+/* --- 7. MAPPA LEAFLET: dentro il tema, non sopra --------------------
+   Il sottoalbero della mappa arrivava con il suo font ("Helvetica
+   Neue"/Arial) e con i controlli di zoom di serie — un corpo estraneo in
+   mezzo all'app. Queste regole stanno DOPO `@import "leaflet/…"` in cima
+   al file, quindi vincono a parità di specificità.
+   NB: le dimensioni dei bottoni di zoom (44px) restano quelle fissate
+   più sopra nella sezione TAP TARGET; qui si tocca solo l'aspetto. */
+.leaflet-container { font-family: inherit; }
+/* Leaflet usa la scorciatoia `font:` su questi tre, che riporta di forza
+   il font-family: vanno riagganciati uno per uno. */
+.leaflet-control-zoom-in,
+.leaflet-control-zoom-out,
+.leaflet-container a.leaflet-popup-close-button { font-family: inherit; }
+
+#vatsamon-go-app .leaflet-bar,
+#vatsamon-go-app .leaflet-control-zoom {
+  border: 1px solid var(--color-slate-700);
+  border-radius: 0.875rem;
+  overflow: hidden;
+  background-clip: padding-box;
+  box-shadow: 0 8px 20px -12px rgba(36, 24, 64, 0.45);
+}
+#vatsamon-go-app .leaflet-bar a,
+#vatsamon-go-app .leaflet-control-zoom a {
+  background-color: color-mix(in srgb, var(--color-slate-950) 90%, transparent);
+  color: var(--color-slate-200);
+  border-bottom-color: var(--color-slate-800);
+  font-weight: 700;
+}
+#vatsamon-go-app .leaflet-bar a:hover,
+#vatsamon-go-app .leaflet-bar a:focus {
+  background-color: var(--color-slate-900);
+  color: var(--color-primary);
+}
+#vatsamon-go-app .leaflet-bar a.leaflet-disabled {
+  background-color: var(--color-slate-855);
+  color: var(--color-slate-500);
+}
+/* Gli angoli tondi li dà il contenitore (overflow: hidden): i 2px di
+   Leaflet sui bottoni estremi darebbero un doppio raggio. */
+#vatsamon-go-app .leaflet-bar a:first-child,
+#vatsamon-go-app .leaflet-bar a:last-child { border-radius: 0; }
+
+/* I crediti OSM sono obbligatori (ODbL): fondo quasi pieno e testo secondario,
+   non attenuato, perché restino leggibili anche sopra una tile scura.
+   Leaflet li appoggia a filo del bordo inferiore della mappa (`.leaflet-container
+   .leaflet-control-attribution { margin: 0 }`), e lì la bottom-nav fissa e OPACA
+   se li mangiava per intero: sulla tab Alpeggio a schermo fermo il credito
+   stava a 824px con la nav che parte a 752px, quindi zero pixel visibili —
+   una violazione di licenza, non un dettaglio estetico.
+   Lo alziamo dell'altezza della banda della nav (64px di contenuto + la
+   safe-area che le si somma sotto). Il margine è statico: la nav è fissa al
+   viewport mentre il credito è ancorato alla mappa, quindi agli scroll in cui
+   la mappa non tocca il fondo dello schermo il credito resta sollevato sopra
+   il nastro dei suggerimenti (`bottom-8`) invece che a filo — sempre dentro la
+   mappa, mai sotto la barra. Nessun controllo coperto: lo zoom sta in alto a
+   sinistra. */
+#vatsamon-go-app .leaflet-control-attribution {
+  background-color: color-mix(in srgb, var(--color-slate-950) 92%, transparent);
+  color: var(--color-slate-300);
+  border-radius: 0.5rem;
+  padding: 1px 6px;
+  margin-bottom: calc(64px + env(safe-area-inset-bottom));
+}
+#vatsamon-go-app .leaflet-control-attribution a { color: var(--color-slate-200); }
+
+#vatsamon-go-app .leaflet-popup-content-wrapper,
+#vatsamon-go-app .leaflet-popup-tip {
+  background-color: var(--color-slate-950);
+  color: var(--color-slate-200);
+  box-shadow: 0 12px 32px -18px rgba(36, 24, 64, 0.5);
+}
+#vatsamon-go-app .leaflet-popup-content-wrapper { border-radius: 0.875rem; }

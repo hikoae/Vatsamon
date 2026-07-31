@@ -26,6 +26,13 @@ import { MossaInfoSheet } from "./battle/MossaInfoSheet";
 type Phase = "intro" | "fight" | "end";
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+/** Telecronaca: interlinea in px interi e altezza del box a righe intere, così il
+ * taglio non cade mai a metà glifo. 18 = padding verticale (py-2) + i due bordi. */
+const LOG_RIGA = 16;
+const LOG_BORDI = 18;
+/** Sfumatura sull'ultimo 20%: dichiara che sotto c'è dell'altro senza scrollbar. */
+const LOG_SFUMA = "linear-gradient(180deg, #000 0%, #000 80%, transparent 100%)";
+
 /** Somma delle fasce di safe-area verticali, letta dal browser con un elemento
  * sonda. E' un input STABILE — dipende dal device, non dal layout scelto — quindi
  * non innesca anelli di retroazione (misurare l'arena, invece, sì). Runtime senza
@@ -97,6 +104,25 @@ export default function BattleScene({
   // senza notch. Sotto soglia si passa a uno stack verticale in normal flow (mai
   // overlap per costruzione) con scroll di fallback.
   const compactArena = spazioUtile < 845;
+  // SECONDA soglia, NUOVA e indipendente dalla prima (fix iPhone SE 2026-07-31).
+  // Sotto questa soglia nemmeno lo stack compatto entra: a 375×667 con le fasce
+  // l'arena resta alta 76px contro 248px di contenuto (172px nascosti) e
+  // finiscono fuori schermo la targhetta del giocatore, la sua foto e — la cosa
+  // grave — la barra SPINTA, cioè l'unico indicatore di chi sta vincendo. Qui la
+  // scena COLLASSA invece di scrollare: targhette su UNA riga (nome + FIATO
+  // inline, CALMA come pallino) e barra SPINTA pinnata fuori dall'area
+  // scrollabile.
+  // 700 era troppo bassa e lasciava scoperta la banda 700-730 (fix 2026-07-31,
+  // secondo giro): lì lo stack compatto sfora l'arena e il taglio cade proprio
+  // sulla foto del GIOCATORE — a spazio utile 702 restano nascosti 27px, di cui
+  // 23,5 dei suoi 48px di foto (misurato su bataille di Mémé, il caso peggiore:
+  // pulsantiera più alta). Il contenuto rientra tutto da 729 in su (identico su
+  // Chromium e WebKit a 390/393px di larghezza); 735 aggiunge il margine per le
+  // battute di Mémé più lunghe e per il riquadro del tell che va e viene.
+  // Nessun device reale peggiora: iPhone 12/13 mini (375×812 col notch ≈ 719-728)
+  // entra qui — ed è proprio il caso che si rompeva — mentre un iPhone 14 con le
+  // fasce (751) resta allo stack normale, che a quella taglia funziona.
+  const ultraCompact = spazioUtile < 735;
   // Lo stack compatto ha taglia fissa dentro un'arena elastica: sotto 845px avanzavano
   // fino a ~190px vuoti in fondo. Misuriamo l'avanzo reale — che dipende anche dalla
   // safe-area del device — e lo diamo alle figure, tra un minimo (= taglia storica) e
@@ -105,6 +131,12 @@ export default function BattleScene({
   const arenaRef = useRef<HTMLDivElement | null>(null);
   const stackRef = useRef<HTMLDivElement | null>(null);
   const [figura, setFigura] = useState(48);
+  // Nello stack ultra-compatto la figura sta IN RIGA con la targhetta: il minimo
+  // storico (48) non entrerebbe mai, quindi il pavimento si abbassa. Il tetto
+  // invece si alza in fase `end`, dove il pannello è quasi vuoto e la Reina deve
+  // riempire lo spazio invece di lasciare un terzo di schermo bianco.
+  const figuraMin = ultraCompact ? 22 : 48;
+  const figuraMax = phase === "end" ? (ultraCompact ? 108 : 168) : 128;
   // La fase va riletta DENTRO la callback, non solo alla registrazione: su WebKit
   // una notifica del ResizeObserver arriva PRIMA del cleanup dell'effect (passivo,
   // post-paint) e le figure scattavano 104→128 sulla schermata finale. Il ref si
@@ -118,7 +150,7 @@ export default function BattleScene({
       if (phaseRef.current !== "fight") return;
       const avanzo = (arena.getBoundingClientRect().height - stack.getBoundingClientRect().height) / 2;
       if (avanzo > -2 && avanzo < 12) return;
-      setFigura((f) => Math.max(48, Math.min(128, Math.floor(f + avanzo))));
+      setFigura((f) => Math.max(figuraMin, Math.min(figuraMax, Math.floor(f + avanzo))));
     };
     // Senza guardia, un runtime privo di ResizeObserver (o col getter che lancia)
     // fa risalire l'eccezione a React e sostituisce l'app con l'error boundary:
@@ -129,7 +161,23 @@ export default function BattleScene({
     const ro = new RO(adatta);
     ro.observe(arena); ro.observe(stack);
     return () => ro.disconnect();
-  }, [compactArena, phase]);
+  }, [compactArena, phase, figuraMin, figuraMax]);
+
+  // Alla vittoria il pannello si svuota e l'arena raddoppia (misurato: 295→535px),
+  // ma le figure restavano alla taglia del combattimento — anzi si rimpicciolivano
+  // (54px contro 62px) proprio quando lo spazio raddoppiava. Il refit continuo NON
+  // va riacceso in fase `end`: la guardia `phaseRef.current !== "fight"` sopra
+  // esiste per fermare un pop delle Reine su WebKit. Qui si fa UN SOLO passaggio,
+  // in layout effect (prima del paint, niente scatto visibile) e solo per
+  // CRESCERE: le dipendenze non cambiano dopo il setFigura, quindi non si ripete.
+  useLayoutEffect(() => {
+    if (!compactArena || phase !== "end") return;
+    const arena = arenaRef.current, stack = stackRef.current;
+    if (!arena || !stack) return;
+    const avanzo = (arena.getBoundingClientRect().height - stack.getBoundingClientRect().height) / 2;
+    if (avanzo < 2) return;
+    setFigura((f) => Math.max(figuraMin, Math.min(figuraMax, Math.floor(f + avanzo))));
+  }, [compactArena, phase, figuraMin, figuraMax]);
 
   // Una battaglia intera (intro→fight→end) è "attività critica": il SW non
   // deve ricaricare la pagina a metà spinta (vedi lib/swUpdate.ts).
@@ -313,7 +361,17 @@ export default function BattleScene({
   return (
     <div className="fixed inset-0 z-[70] flex flex-col bg-slate-950 text-slate-100" id="battle-scene">
       <div className="absolute inset-0 -z-10" style={{ background: "linear-gradient(180deg,#bae6fd 0%,#e0f2fe 30%,#dcfce7 62%,#bbf7d0 100%)" }} />
-      <div className="absolute inset-x-0 bottom-0 -z-10 h-[42%]" style={{ background: "radial-gradient(120% 80% at 50% 100%, #86efac 0%, #4ade80 55%, #16a34a 100%)" }} />
+      {/* Il prato partiva già a #16a34a pieno sul BORDO SUPERIORE del box e contro il
+          gradiente di pagina faceva una cucitura netta di un pixel (misurata:
+          rgb(221,251,234) → rgb(22,163,74)). Due correzioni: una maschera sfuma gli
+          80px in cima al box — è la transizione che mancava — e il verde più cupo
+          scende a #22c55e, così il testo secondario che ci finisce sopra torna
+          sopra il 4,5:1 (era 2,26:1). */}
+      <div className="absolute inset-x-0 bottom-0 -z-10 h-[42%]" style={{
+        background: "radial-gradient(120% 80% at 50% 100%, #86efac 0%, #4ade80 55%, #22c55e 100%)",
+        maskImage: "linear-gradient(180deg, transparent 0px, #000 80px)",
+        WebkitMaskImage: "linear-gradient(180deg, transparent 0px, #000 80px)",
+      }} />
 
       {/* Barra a filo schermo: la safe-area si somma a py-2 (0.5rem), altrimenti su
           iPhone col notch titolo e X finiscono dentro la fascia (tap non affidabile). */}
@@ -330,7 +388,27 @@ export default function BattleScene({
           approccio={approccio} setApproccio={setApproccio} />
       )}
 
-      {phase !== "intro" && player && opp && compactArena && (
+      {phase !== "intro" && player && opp && ultraCompact && (
+        // Spazio utile sotto ~700px (iPhone SE): la scena COLLASSA invece di
+        // scrollare. La barra SPINTA sta FUORI dall'area scrollabile — non deve
+        // mai poter uscire dallo schermo, è l'unico indicatore di chi sta
+        // vincendo — e le targhette stanno su una riga sola. Lo scroll sotto
+        // resta solo come rete di sicurezza (runtime senza ResizeObserver: niente
+        // refit, quindi il contenuto potrebbe eccedere di poco).
+        <motion.div animate={shake ? { x: [0, -8, 7, -5, 0] } : {}} transition={{ duration: 0.35 }} className="relative flex-1 min-h-0 flex flex-col gap-0.5 px-3 py-0.5">
+          <div className="shrink-0 flex justify-center">
+            <SpintaBar playerName={player.name} oppName={opp.name} barraP={barraP} compact pinned />
+          </div>
+          <div ref={arenaRef} className="flex-1 min-h-0 overflow-y-auto">
+            <div ref={stackRef} className="flex flex-col gap-0.5">
+              <Combatant pos="top" s={opp} fiato={st.fiatoO} lunge={lunge === "o"} compact ultra figura={figura} />
+              <Combatant pos="bottom" s={player} fiato={st.fiatoP} calma={st.calma} lunge={lunge === "p"} compact ultra figura={figura} />
+            </div>
+          </div>
+        </motion.div>
+      )}
+
+      {phase !== "intro" && player && opp && compactArena && !ultraCompact && (
         // Spazio utile corto (<845px, fasce di safe-area già scalate): stack
         // verticale in normal flow — le card non
         // possono MAI accavallarsi (a differenza del layout assoluto) e se il
@@ -355,11 +433,21 @@ export default function BattleScene({
 
       {phase !== "intro" && player && (
         // Idem: la pulsantiera è a filo schermo, la safe-area si somma a p-3 (0.75rem).
-        <div className="bg-slate-950/85 backdrop-blur border-t border-slate-800 p-3 space-y-2"
-          style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom))" }}>
-          <div className="bg-slate-900/80 border border-slate-800 rounded-xl px-3 py-2 h-[50px] overflow-y-auto no-scrollbar">
-            {log.length === 0 ? <p className="text-[10px] font-mono text-slate-500">Scegli come condurre la spinta…</p> :
-              log.map((l, i) => <div key={i} className={`text-[10px] font-mono leading-snug ${i === 0 ? "text-slate-100" : "text-slate-500"}`}>❖ {l}</div>)}
+        <div className={`bg-slate-950/85 backdrop-blur border-t border-slate-800 ${ultraCompact ? "p-2 space-y-1.5" : "p-3 space-y-2"}`}
+          style={{ paddingBottom: `calc(${ultraCompact ? "0.5rem" : "0.75rem"} + env(safe-area-inset-bottom))` }}>
+          {/* Telecronaca ad altezza in RIGHE INTERE. Prima era `h-[50px]` con
+              interlinea 1,4 su 12px (16,8px): entravano 1,90 righe e il taglio
+              cadeva in mezzo all'altezza-x delle lettere — sembrava un bug di
+              rendering. L'interlinea si fissa inline perché le regole di
+              leggibilità di index.css hanno un ID e batterebbero `leading-*`.
+              2 righe durante la spinta, 6 alla fine: lì il pannello si svuota e
+              la cronaca ci sta tutta invece di lasciare schermo vuoto. */}
+          <div className="bg-slate-900/80 border border-slate-800 rounded-xl px-3 py-2 overflow-hidden"
+            style={{ height: `${LOG_RIGA * (phase === "end" ? 6 : 2) + LOG_BORDI}px` }}>
+            <div className="h-full overflow-y-auto no-scrollbar" style={{ maskImage: LOG_SFUMA, WebkitMaskImage: LOG_SFUMA }}>
+              {log.length === 0 ? <p className="text-[10px] font-mono text-slate-500" style={{ lineHeight: `${LOG_RIGA}px` }}>Scegli come condurre la spinta…</p> :
+                log.map((l, i) => <div key={i} style={{ lineHeight: `${LOG_RIGA}px` }} className={`text-[10px] font-mono ${i === 0 ? "text-slate-100" : "text-slate-500"}`}>❖ {l}</div>)}
+            </div>
           </div>
 
           {phase === "fight" && !showBag && (
@@ -413,7 +501,11 @@ export default function BattleScene({
 
           {phase === "end" && (
             <div className="text-center space-y-2 py-1">
-              <div className={`text-lg font-mono font-black ${winner === "player" ? "text-emerald-600" : "text-rose-500"}`}>
+              {/* Verdetto: più grande (la schermata finale aveva ~32% di vuoto) e su
+                  token d'inchiostro — `text-emerald-600`/`text-rose-500` scendevano
+                  sotto AA sul pannello chiaro. Restano `font-mono font-black`: è
+                  l'aggancio di scripts/verify.mjs per la fine battaglia. */}
+              <div className={`text-xl font-mono font-black ${winner === "player" ? "tone-positive" : "text-primary-strong"}`}>
                 {winner === "player" ? "🏆 La rivale cede e si ritira!" : "😔 La tua Reina si ritira"}
               </div>
               <button onClick={() => { playClick(); onClose(); }} className="w-full nav-active text-white font-mono font-black text-xs py-2.5 rounded-xl">Torna alla mappa</button>
@@ -464,7 +556,12 @@ function IntroPanel({ battle, playerCows, cowId, setCowId, onStart, onClose, pla
         {battle.pastore && <p className="text-[11px] text-slate-200 italic mt-2 bg-slate-900/60 border border-slate-800 rounded-2xl p-3 max-w-xs">"{battle.pastore.dialogueIntro}"</p>}
         {battle.tutorial && <p className="text-[11px] text-rose-100 mt-2 bg-rose-950/40 border border-[#c8102e]/50 rounded-2xl p-3 max-w-xs leading-snug">{TUTORIAL_VIGILIA}</p>}
         <p className="text-[11px] font-mono mt-2 text-slate-300">È una <b className="text-emerald-700">spinta a corna limate</b>: vince chi fa cedere l'avversaria. Osserva i suoi movimenti e rispondi — conduci, non forzare.</p>
-        <p className="text-[10px] font-mono mt-1 text-amber-600">Indole avversaria: <b>{PERSONALITA_LABEL[personalita].label}</b> — {PERSONALITA_LABEL[personalita].desc}</p>
+        {/* Stessa famiglia di difetto della limatura qui sotto: `text-amber-600`
+            non è nemmeno intercettato dal blocco di correzione contrasto di
+            index.css (copre 300/400/500) e misurava 2,88:1 dai pixel sul verde
+            del prato. È una riga informativa, quindi inchiostro: `text-slate-200`
+            misura 6,2:1 nel punto peggiore del gradiente. */}
+        <p className="text-[10px] font-mono mt-1 text-slate-200">Indole avversaria: <b>{PERSONALITA_LABEL[personalita].label}</b> — {PERSONALITA_LABEL[personalita].desc}</p>
         {battle.arena?.terrain && (
           <p className="text-[10px] font-mono mt-1 text-sky-300">Terreno: <b>{TERRAIN_LABEL[battle.arena.terrain].label}</b> — {TERRAIN_LABEL[battle.arena.terrain].hint}.</p>
         )}
@@ -474,7 +571,7 @@ function IntroPanel({ battle, playerCows, cowId, setCowId, onStart, onClose, pla
       ) : (
         <>
           <div className="w-full max-w-sm">
-            <div className="text-[10px] font-mono text-slate-400 mb-1">Scegli la tua Reina:</div>
+            <div className="text-[10px] font-mono text-slate-200 mb-1">Scegli la tua Reina:</div>
             <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
               {playerCows.map((c) => (
                 <button key={c.id} onClick={() => { playClick(); setCowId(c.id); }}
@@ -488,9 +585,9 @@ function IntroPanel({ battle, playerCows, cowId, setCowId, onStart, onClose, pla
           </div>
           {/* LO SAC DU BERGER: scegli fino a 3 scorte da portare */}
           <div className="w-full max-w-sm" id="vigilia-sac">
-            <div className="text-[10px] font-mono text-slate-400 mb-1">Lo Sac du Berger — porta fino a {MAX_VIGILIA} scorte:</div>
+            <div className="text-[10px] font-mono text-slate-200 mb-1">Lo Sac du Berger — porta fino a {MAX_VIGILIA} scorte:</div>
             {sacDisponibili.length === 0 ? (
-              <p className="text-[10px] text-slate-500">Nessuna scorta: rifornisciti alla Bottega della Casera.</p>
+              <p className="text-[10px] text-slate-300">Nessuna scorta: rifornisciti alla Bottega della Casera.</p>
             ) : (
               <div className="flex gap-1.5 flex-wrap justify-center">
                 {sacDisponibili.map((b) => {
@@ -510,7 +607,7 @@ function IntroPanel({ battle, playerCows, cowId, setCowId, onStart, onClose, pla
           {/* APPROCCIO D'INGAGGIO (S17) — scelta tattica, solo in Arena */}
           {showApproccio && (
             <div className="w-full max-w-sm" id="vigilia-approccio">
-              <div className="text-[10px] font-mono text-slate-400 mb-1">Approccio all'ingaggio:</div>
+              <div className="text-[10px] font-mono text-slate-200 mb-1">Approccio all'ingaggio:</div>
               <div className="flex gap-1.5 justify-center">
                 {(Object.keys(APPROCCIO_LABEL) as Approccio[]).map((a) => {
                   const sel = approccio === a;
@@ -522,7 +619,7 @@ function IntroPanel({ battle, playerCows, cowId, setCowId, onStart, onClose, pla
                   );
                 })}
               </div>
-              <div className="text-[9px] text-slate-500 mt-1 leading-snug">{APPROCCIO_LABEL[approccio].desc}</div>
+              <div className="text-[9px] text-slate-300 mt-1 leading-snug">{APPROCCIO_LABEL[approccio].desc}</div>
             </div>
           )}
 
@@ -530,12 +627,23 @@ function IntroPanel({ battle, playerCows, cowId, setCowId, onStart, onClose, pla
           <button
             id="rito-limatura"
             onClick={() => { if (!limato) { playClick(); setLimato(true); } }}
-            className={`w-full max-w-sm rounded-xl border-2 p-2.5 text-left transition-all ${limato ? "border-emerald-500 bg-emerald-950/40" : "border-amber-600/60 bg-amber-500/10 animate-pulse"}`}
+            className={`relative w-full max-w-sm rounded-xl border-2 p-2.5 text-left transition-all ${limato ? "border-emerald-500 bg-emerald-950/40" : "border-amber-600/60 bg-amber-500/10"}`}
           >
-            <div className={`text-[11px] font-mono font-black ${limato ? "text-emerald-500" : "text-amber-400"}`}>
+            {/* Il richiamo pulsa su una velatura DIETRO il testo, non più
+                sull'intero bottone: `animate-pulse` porta l'opacità a 0.5 e con
+                essa anche tutte le scritte, e a metà ciclo su quel verde NESSUN
+                colore può arrivare a 4,5:1 (il tetto è 3,35:1 pure a testo nero).
+                Misurato dai pixel prima: 2,31:1 nel punto basso del ciclo. */}
+            {!limato && <span aria-hidden="true" className="absolute inset-0 rounded-xl bg-amber-500/10 animate-pulse" />}
+            {/* `text-emerald-500` (#066b49) sopra il prato misurava 4,25:1 dai pixel:
+                sotto AA. `tone-positive` è il token del contratto per "completato".
+                Sul lato "da fare" l'ambra è fuori ruolo (nel contratto è la valuta)
+                e comunque non regge: #7a4700 sul verde del prato misura 4,38:1,
+                sotto la soglia. Inchiostro, che tiene su prato e su carta. */}
+            <div className={`relative text-[11px] font-mono font-black ${limato ? "tone-positive" : "text-slate-100"}`}>
               {limato ? "✓ Corna limate — si può spingere" : "🪒 Lima le corna (rito obbligatorio)"}
             </div>
-            <div className="text-[9.5px] text-slate-400 leading-snug mt-0.5">{LIMATURA_TESTO}</div>
+            <div className="relative text-[9.5px] text-slate-200 leading-snug mt-0.5">{LIMATURA_TESTO}</div>
           </button>
 
           <div className="flex gap-2 w-full max-w-sm">
@@ -549,21 +657,35 @@ function IntroPanel({ battle, playerCows, cowId, setCowId, onStart, onClose, pla
 }
 
 /** Barra SPINTA (contesa): posizionamento assoluto (layout diagonale, spazio utile
- * ≥845px) o inline (stack compatto <845px, fix mobile-qa 2026-07-13). */
-function SpintaBar({ playerName, oppName, barraP, compact }: {
-  playerName: string; oppName: string; barraP: number; compact?: boolean;
+ * ≥845px), inline (stack compatto <845px, fix mobile-qa 2026-07-13) oppure pinnata
+ * in cima all'arena fuori dallo scroll (stack ultra-compatto <700px). */
+function SpintaBar({ playerName, oppName, barraP, compact, pinned }: {
+  playerName: string; oppName: string; barraP: number; compact?: boolean; pinned?: boolean;
 }) {
+  const vantaggio = barraP - 50;
   return (
-    <div className={compact ? "w-full max-w-[220px]" : "absolute top-2 left-1/2 -translate-x-1/2 w-[78%] max-w-sm"}>
-      <div className={`flex justify-between text-[10px] font-mono font-black ${compact ? "" : "mb-0.5"}`}>
-        <span className="text-emerald-600">{playerName}</span>
-        <span className="text-slate-700">SPINTA</span>
-        <span className="text-rose-500">{oppName}</span>
+    <div className={compact ? (pinned ? "w-full max-w-sm" : "w-full max-w-[220px]") : "absolute top-2 left-1/2 -translate-x-1/2 w-[78%] max-w-sm"}>
+      {/* `text-slate-700` è il token dei BORDI (#bcb4da): come testo sul fondo
+          chiaro dell'arena valeva 1,56:1, la scritta meno leggibile dello schermo
+          proprio sulla meccanica centrale. Inchiostro per l'etichetta, e i due
+          nomi passano a token di testo sicuri (erano 3,43:1 e 4,49:1).
+          Il vantaggio numerico esce dalla barra: dentro era bianco su bianco
+          quando la contesa stava sotto il 50%, e copriva la tacca di metà. */}
+      <div className={`flex justify-between items-baseline gap-2 text-[10px] font-mono font-black ${compact ? "" : "mb-0.5"}`}>
+        <span className="tone-positive truncate">{playerName}</span>
+        <span className="shrink-0 text-slate-200">
+          SPINTA <span className={vantaggio > 0 ? "tone-positive" : vantaggio < 0 ? "text-primary-strong" : "text-slate-400"}>
+            {vantaggio > 0 ? `+${vantaggio}` : vantaggio < 0 ? `${vantaggio}` : "·"}
+          </span>
+        </span>
+        <span className="text-primary-strong truncate text-right">{oppName}</span>
       </div>
-      <div className={`relative rounded-full bg-rose-400/40 border border-slate-700 overflow-hidden shadow-inner ${compact ? "h-2" : "h-4"}`}>
+      <div className={`relative rounded-full bg-rose-400/40 border border-slate-700 overflow-hidden shadow-inner ${compact && !pinned ? "h-2" : compact ? "h-3" : "h-4"}`}>
         <div className="absolute inset-y-0 left-0 bg-gradient-to-r from-emerald-500 to-emerald-400 transition-all duration-500" style={{ width: `${barraP}%` }} />
-        <div className="absolute inset-y-0 w-0.5 bg-slate-900/60" style={{ left: "50%" }} />
-        <div className="absolute inset-0 flex items-center justify-center text-[9px] font-mono font-black text-white drop-shadow">{barraP > 50 ? `+${barraP - 50}` : barraP < 50 ? `${barraP - 50}` : "·"}</div>
+        {/* Tacca di metà: era `bg-slate-900/60`, cioè un token CHIARO al 60%, e
+            spariva sia sotto il riempimento verde sia sul fondo chiaro. Bianca con
+            un anello scuro si legge su entrambi, ed è l'ultimo elemento dipinto. */}
+        <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-0.5 bg-white/90 shadow-[0_0_0_1px_rgba(18,14,38,0.55)]" />
       </div>
     </div>
   );
@@ -572,13 +694,67 @@ function SpintaBar({ playerName, oppName, barraP, compact }: {
 /** Un combattente sul campo: foto + targhetta Fiato (e Calma per il giocatore).
  * `compact`: stack verticale in normal flow (spazio utile <845px, mai overlap per
  * costruzione) invece del posizionamento assoluto "a diagonale" (fix mobile-qa 2026-07-13). */
-function Combatant({ pos, s, fiato, calma, lunge, compact, figura }: {
-  pos: "top" | "bottom"; s: Spintatore; fiato: number; calma?: number; lunge: boolean; compact?: boolean; figura?: number;
+function Combatant({ pos, s, fiato, calma, lunge, compact, ultra, figura }: {
+  pos: "top" | "bottom"; s: Spintatore; fiato: number; calma?: number; lunge: boolean; compact?: boolean; ultra?: boolean; figura?: number;
 }) {
   const top = pos === "top";
   const fiatoPct = Math.max(0, Math.min(100, Math.round((fiato / s.fiatoMax) * 100)));
-  const lungeX = top ? -36 : 36, lungeY = top ? 36 : -36;
-  const imgCls = compact ? "w-full h-full" : (top ? "w-24 h-24" : "w-28 h-28");
+  // Ampiezza della stoccata. Era ±36 e mangiava il margine reale fra i box
+  // dipinti (32,8px in verticale, 32,0px in orizzontale sui viewport stretti):
+  // al culmine la figura dell'avversaria entrava di 3,2px nella targhetta del
+  // giocatore. ±30 lascia il margine positivo su tutte le taglie misurate e lo
+  // scarto resta ampio quanto la figura stessa: il gesto non si spegne.
+  const lungeX = top ? -30 : 30, lungeY = top ? 30 : -30;
+  if (ultra) {
+    // Riga sola: foto + nome + FIATO inline + CALMA come pallino (col valore
+    // accanto, che un pallino da solo non dice quanto). Il riquadro della foto
+    // ha lo stesso rapporto della sorgente (16:9, vedi "FORMA DEL BOX" in
+    // CowVisual) e `fit="cover"`: era 3:2 con il ritaglio di default, cioè
+    // ancora letterbox. `aspectRatio` invece di un'altezza fissa perché il tetto
+    // del 45% può stringere la larghezza: con il rapporto imposto dal CSS il
+    // ritaglio resta verticale (solo la cornice beige stampata nelle foto) e non
+    // può mai mangiare la testa dell'animale di lato.
+    // `data-fighter`/`data-paint` marcano i box DIPINTI: sono quelli da
+    // confrontare nei test anti-sovrapposizione (i wrapper del layout diagonale
+    // sono larghi il 60% e si intersecano per costruzione).
+    const lato = figura ?? 48;
+    return (
+      <div data-fighter={pos} className="w-full flex items-center gap-2">
+        <motion.div data-paint="figura"
+          className={`shrink-0 rounded-xl overflow-hidden border-2 shadow-lg ${top ? "border-rose-400/60" : "border-emerald-400/70"}`}
+          style={{ width: Math.round((lato * 16) / 9), aspectRatio: "16 / 9", maxWidth: "45%" }}
+          animate={lunge ? { x: top ? -10 : 10 } : { x: 0 }} transition={{ duration: 0.16 }}>
+          <CowVisual cow={s.visual} fit="cover" className="w-full h-full" />
+        </motion.div>
+        <div data-paint="card" className="flex-1 min-w-0 flex items-center gap-2 bg-slate-950/85 border border-slate-700 rounded-xl px-2 py-0.5 shadow-lg">
+          <span className="text-[11px] font-mono font-black text-slate-100 truncate">{s.name}</span>
+          <span className="text-[9px] font-mono text-slate-400 shrink-0">FIATO</span>
+          <div className="flex-1 min-w-[36px] h-2 rounded-full bg-slate-800 overflow-hidden border border-slate-700">
+            <div className="h-full bg-sky-400 transition-all duration-400" style={{ width: `${fiatoPct}%` }} />
+          </div>
+          {calma !== undefined && (
+            <span className="shrink-0 flex items-center gap-1" title={`Calma ${Math.round(calma)}%`}>
+              <span aria-hidden="true" className="block w-2.5 h-2.5 rounded-full border border-slate-700"
+                style={{ background: calma < 35 ? "#ef4444" : "#a78bfa" }} />
+              <span className="sr-only">Calma</span>
+              <span className="text-[9px] font-mono text-slate-300">{Math.round(calma)}</span>
+            </span>
+          )}
+        </div>
+      </div>
+    );
+  }
+  // Box con lo stesso rapporto della sorgente (16:9) + `fit="cover"`: il
+  // contratto di CowVisual, che era già applicato a Vatsadex/CowCard/Stalla ma
+  // non qui — proprio dove le Reines sono più grandi.
+  // Nel ramo diagonale si tiene la LARGHEZZA storica (96/112px) e si abbassa
+  // l'altezza: la Reina resta grande esattamente com'era (dentro il quadrato
+  // rendeva 96×54 e 112×63, cioè il 56% del riquadro) ma sparisce il letterbox.
+  // Crescere in larghezza invece che calare in altezza NON si può: le due card
+  // stanno in wrapper assoluti larghi il 60%, ancorati agli angoli opposti, e a
+  // 390px un box 16:9 alto 96px sarebbe largo 199 — misurato, le due figure si
+  // intersecano (e la figura in alto entra nella targhetta del giocatore).
+  const imgCls = compact ? "w-full h-full" : (top ? "w-24 aspect-[16/9]" : "w-28 aspect-[16/9]");
   const cardPad = compact ? "px-2 py-0.5" : "px-2.5 py-1.5";
   const cardMinW = compact ? 128 : 150;
   const blobW = top ? 70 : 84;
@@ -587,8 +763,8 @@ function Combatant({ pos, s, fiato, calma, lunge, compact, figura }: {
     ? "flex flex-col items-center gap-0"
     : `absolute ${top ? "top-16" : "bottom-3"} ${top ? "right-3" : "left-3"} flex flex-col ${top ? "items-end" : "items-start"} gap-1`;
   return (
-    <div className={wrapperCls} style={compact ? undefined : { width: "60%" }}>
-      <div className={`bg-slate-950/85 border border-slate-700 rounded-xl ${cardPad} shadow-lg ${compact ? "" : (top ? "self-start" : "self-end")}`} style={{ minWidth: cardMinW }}>
+    <div data-fighter={pos} className={wrapperCls} style={compact ? undefined : { width: "60%" }}>
+      <div data-paint="card" className={`bg-slate-950/85 border border-slate-700 rounded-xl ${cardPad} shadow-lg ${compact ? "" : (top ? "self-start" : "self-end")}`} style={{ minWidth: cardMinW }}>
         <div className="flex items-center justify-between gap-2">
           <span className="text-[11px] font-mono font-black text-slate-100 truncate">{s.name}</span>
           <span className="text-[9px] font-mono text-slate-400">{s.breed}</span>
@@ -607,9 +783,9 @@ function Combatant({ pos, s, fiato, calma, lunge, compact, figura }: {
         )}
       </div>
       <motion.div className="relative" animate={lunge ? { x: lungeX, y: lungeY } : { x: 0, y: 0 }} transition={{ duration: 0.16 }}>
-        <div className={`rounded-2xl overflow-hidden border-2 shadow-2xl ${top ? "border-rose-400/60" : "border-emerald-400/70"}`}
-          style={compact ? { width: figura, height: figura } : undefined}>
-          <CowVisual cow={s.visual} className={imgCls} />
+        <div data-paint="figura" className={`rounded-2xl overflow-hidden border-2 shadow-2xl ${top ? "border-rose-400/60" : "border-emerald-400/70"}`}
+          style={compact ? { width: Math.round(((figura ?? 48) * 16) / 9), aspectRatio: "16 / 9", maxWidth: "100%" } : undefined}>
+          <CowVisual cow={s.visual} fit="cover" className={imgCls} />
         </div>
         {!compact && <div className="mx-auto mt-1 rounded-[100%] bg-black/20 blur-[2px]" style={{ width: blobW, height: blobH }} />}
       </motion.div>

@@ -26,6 +26,7 @@ import { RESPONSIBLE_QUESTIONS, ResponsibleQuestion } from './data/responsibleQu
 import { MAP_BATTLES, MapBattle } from './data/mapBattles';
 import { DUNGEONS, Dungeon } from './data/dungeons';
 import { ArenaId } from './data/arenas';
+import { AVATARS } from './data/starters';
 import { TREK_ROUTES } from './data/routes';
 import { Challenges } from './components/Challenges';
 import { ScattaView } from './components/ScattaView';
@@ -121,7 +122,13 @@ const DISCOVERY_RADIUS = 1500; // metri: entro questo raggio una Reina viene "av
 // e l'aggiornamento posizione-only (setIcon sui marker esistenti) producono
 // esattamente lo stesso HTML, senza duplicare le stringhe in due punti.
 
-function buildCaseraIcon(hp: { name: string }, cooldownActive: boolean): L.DivIcon {
+// Affollamento (S15): le targhette sotto i marker erano il vero ingombro. Il
+// riquadro dichiarato a Leaflet è 40-48px, ma il testo lo sfonda e arriva a
+// 86px: misurato a 393x852, con nove marker in campo si accavallavano fino a
+// sei coppie. Qui si tiene la stessa scelta già fatta sul radar "Sguardo del
+// Pastore": pallino + badge compatto nell'angolo, e la scritta lunga solo dove
+// serve davvero. Il nome per esteso arriva toccando, nella scheda della casera.
+function buildCaseraIcon(cooldownActive: boolean): L.DivIcon {
   return L.divIcon({
     className: 'custom-leaflet-marker',
     html: `<div class="flex flex-col items-center">
@@ -129,12 +136,13 @@ function buildCaseraIcon(hp: { name: string }, cooldownActive: boolean): L.DivIc
                <span class="text-base">🍼</span>
                ${cooldownActive ? '' : '<span class="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-yellow-400 rounded-full border border-white animate-ping"></span>'}
              </div>
-             <div class="px-1.5 py-0.5 rounded bg-[#211b3a]/95 border border-[#3a3460] text-[10px] text-white font-mono font-bold whitespace-nowrap shadow-sm" style="transform: translateY(-12px);">
-               ${hp.name.substring(0, 10)}...
-             </div>
            </div>`,
-    iconSize: [40, 50],
-    iconAnchor: [20, 25]
+    // 44 di larghezza e non 40: il riquadro dichiarato a Leaflet È il bersaglio
+    // di tocco, e a 40 stava sotto la soglia comoda (misurato 40×50). Il disegno
+    // non cambia — il contenuto è centrato e l'ancora resta a metà larghezza —
+    // cambiano solo 2px di presa per lato.
+    iconSize: [44, 50],
+    iconAnchor: [22, 25]
   });
 }
 
@@ -146,7 +154,9 @@ function buildWildCowIcon(wc: { vatsa: Vatsamon }): L.DivIcon {
     ? `background-image:url('${wc.vatsa.realPhoto}');background-size:contain;background-repeat:no-repeat;background-position:center;background-color:#eef1f6;`
     : '';
   const inner = wc.vatsa.realPhoto ? '' : `<span class="text-xl animate-float">${emoji}</span>`;
-  const label = isRealWild ? `REALE · ${wc.vatsa.rarity}` : wc.vatsa.rarity;
+  // Solo la rarità: il prefisso "REALE · " portava la targhetta a 78px contro i
+  // 44px del marker, e diceva quello che dice già l'anello verde qui sopra.
+  const label = wc.vatsa.rarity;
   const labelCls = isRealWild ? 'bg-emerald-900/90 border-emerald-700 text-emerald-200' : 'bg-[#211b3a] border-amber-550/40 text-yellow-300';
 
   return L.divIcon({
@@ -181,25 +191,53 @@ function buildRealCowIcon(rc: Vatsamon, isDiscovered: boolean, inRange: boolean)
                  ${inner}
                  <span class="absolute -top-1 -right-1 bg-emerald-500 text-[#0b0820] font-mono text-[9px] font-black px-1 rounded-full">CP${rc.cp}</span>
                </div>
-               <div class="px-1 rounded bg-emerald-900/90 border border-emerald-700 text-[9px] text-emerald-200 font-mono font-bold whitespace-nowrap mt-0.5">REALE · ${rc.rarity}</div>
+               ${inRange ? `<div class="px-1 rounded bg-emerald-900/90 border border-emerald-700 text-[9px] text-emerald-200 font-mono font-bold whitespace-nowrap mt-0.5">REALE · ${rc.rarity}</div>` : ''}
              </div>`,
       iconSize: [44, 56], iconAnchor: [22, 28],
     });
   }
+  // Non ancora avvistata: il cerchio tratteggiato col punto interrogativo dice
+  // già "Reina sconosciuta", la targhetta ripeteva la stessa cosa in 52px.
   return L.divIcon({
     className: 'custom-leaflet-marker cow-real-marker',
     html: `<div class="flex flex-col items-center opacity-80">
              <div class="w-10 h-10 rounded-full border-2 border-dashed border-slate-500 bg-[#211b3a]/80 flex items-center justify-center shadow-lg">
                <span class="text-lg">❓</span>
              </div>
-             <div class="px-1 rounded bg-slate-900/90 border border-slate-700 text-[9px] text-slate-300 font-mono font-bold whitespace-nowrap mt-0.5">REINA ?</div>
            </div>`,
-    iconSize: [40, 52], iconAnchor: [20, 26],
+    // Come la casera: 44 di larghezza per stare sopra la soglia di tocco, stesso
+    // disegno (cerchio da 40 centrato) e stessa ancora a metà larghezza.
+    iconSize: [44, 52], iconAnchor: [22, 26],
   });
 }
 
+// Alcune battaglie stanno sulle STESSE coordinate reali (la palestra
+// dell'Herbetet è all'alpeggio del Pastore di Valnontey, quella di Pré de Bar
+// all'alpeggio del suo Pastore): sulla mappa il secondo marker finiva esattamente
+// sotto il primo — invisibile e non toccabile, misurato 50x75px di copertura
+// totale. Il punto vero NON si tocca: si sposta di qualche pixel il solo
+// DISEGNO, in ventaglio orizzontale centrato sulla coordinata, così restano
+// entrambe attaccate al loro punto e si vedono entrambe. Deterministico: stesso
+// dato, stesso scarto, quindi la creazione e il refresh dell'icona coincidono.
+const BATTLE_FAN: Map<string, number> = (() => {
+  const perPunto = new Map<string, string[]>();
+  for (const b of MAP_BATTLES) {
+    const k = `${b.lat},${b.lng}`;
+    perPunto.set(k, [...(perPunto.get(k) ?? []), b.id]);
+  }
+  const out = new Map<string, number>();
+  for (const ids of perPunto.values()) {
+    if (ids.length < 2) continue;
+    // 56px di passo: l'icona con la sua targhetta è larga 50px misurati, quindi
+    // due marker restano staccati di 6px e ognuno resta a 3px dal punto vero.
+    ids.forEach((id, i) => out.set(id, (i - (ids.length - 1) / 2) * 56));
+  }
+  return out;
+})();
+
 function buildBattleIcon(mb: MapBattle, inRange: boolean, locked: boolean, distLabel: string): L.DivIcon {
   const ring = locked ? '#64748b' : mb.accent;
+  const fanX = BATTLE_FAN.get(mb.id) ?? 0;
   return L.divIcon({
     className: 'custom-leaflet-marker battle-marker',
     html: `<div class="flex flex-col items-center ${inRange && !locked ? '' : 'opacity-75'}">
@@ -209,7 +247,8 @@ function buildBattleIcon(mb: MapBattle, inRange: boolean, locked: boolean, distL
              </div>
              <div class="px-1 rounded border text-[9px] font-mono font-bold whitespace-nowrap shadow-sm" style="background:#211b3a;border-color:${ring}55;color:${ring};transform:translateY(-10px);">${locked ? `🔒 Lv ${mb.reqLevel}` : (inRange ? '⚔️ SFIDA' : distLabel)}</div>
            </div>`,
-    iconSize: [48, 60], iconAnchor: [24, 30],
+    // iconAnchor spostato = icona disegnata di lato, coordinata invariata.
+    iconSize: [48, 60], iconAnchor: [24 - fanX, 30],
   });
 }
 
@@ -311,6 +350,24 @@ export default function App() {
   const faseStato = faseCorrente(oggiISO());
   const fontina = trainer.fontina ?? 0;
   const pedigreeStars = trainer.pedigreeStars ?? 0;
+
+  // ---- Identità scelta nell'onboarding (nome + avatar) ----
+  // Finora l'HUD mostrava sempre il marchio del gioco e un contadino fisso:
+  // metà delle domande del primo avvio non produceva nessun effetto visibile.
+  // L'avatar si legge una volta sola (la chiave la scrive Onboarding.finish()
+  // e non cambia in sessione); il fallback resta il 👨‍🌾 di prima, che è anche
+  // l'avatar "pastore" del listino.
+  const avatarEmoji = useMemo(() => {
+    try {
+      const salvato = JSON.parse(localStorage.getItem('vatsamon_onboarded') || 'null') as { avatarId?: string } | null;
+      return AVATARS.find(a => a.id === salvato?.avatarId)?.emoji ?? '👨‍🌾';
+    } catch { return '👨‍🌾'; }
+  }, []);
+  // Nome vuoto o di soli spazi → si torna al nome del gioco. Il troncamento dei
+  // nomi lunghi è in CSS (`truncate` sul div), il nome per esteso resta nel
+  // tooltip: l'input dell'onboarding accetta al massimo 16 caratteri.
+  const nomeGiocatore = (trainer.name ?? '').trim();
+  const etichettaIdentita = (nomeGiocatore || BRAND.gameName).toUpperCase();
   // Accredita Forme di Fontina (valuta di prestigio) con un avviso nel feed.
   const guadagnaFontina = (n: number, motivo: string) => {
     if (n <= 0) return;
@@ -920,7 +977,7 @@ export default function App() {
         const hpLng = hp.lng ?? curLng;
         const cooldownActive = caseraCooldowns[hp.id] && caseraCooldowns[hp.id] > Date.now();
 
-        const hpMarker = L.marker([hpLat, hpLng], { icon: buildCaseraIcon(hp, !!cooldownActive) })
+        const hpMarker = L.marker([hpLat, hpLng], { icon: buildCaseraIcon(!!cooldownActive) })
           .addTo(map)
           .on('click', () => {
             playClickSfx();
@@ -1029,7 +1086,11 @@ export default function App() {
         iconAnchor: [22, 27]
       });
 
-      leafletPlayerMarkerRef.current = L.marker([curLat, curLng], { icon: playerHtmlIcon, interactive: false, zIndexOffset: -1000 })
+      // zIndexOffset alto: "dove sono io" è la prima cosa che si cerca su una
+      // mappa, e con -1000 finiva sotto ogni altro marker (misurato: 48x60px di
+      // avatar coperti dal marker BOSS). Non è cliccabile (interactive: false),
+      // quindi stare sopra non ruba tocchi a nessuno.
+      leafletPlayerMarkerRef.current = L.marker([curLat, curLng], { icon: playerHtmlIcon, interactive: false, zIndexOffset: 1000 })
         .addTo(map);
 
       // Force layout recalculations dynamically
@@ -1184,7 +1245,7 @@ export default function App() {
       return;
     }
     if (!gpsRouteMatch || gpsRouteMatch.distanceM > GPS_ROUTE_TOLERANCE || gpsCheckpointDistance > GPS_CHECKPOINT_RANGE) {
-      setTrekkingFeed(prev => ['🧭 Sei a ' + fmtDist(gpsCheckpointDistance) + ' dal checkpoint: resta sul sentiero e avvicìnati con calma.', ...prev.slice(0, 8)]);
+      setTrekkingFeed(prev => ['🧭 Sei a ' + fmtDist(gpsCheckpointDistance) + ' dal checkpoint: resta sul sentiero e avvicinati con calma.', ...prev.slice(0, 8)]);
       return;
     }
     if (checkpointClaimed) return;
@@ -1305,14 +1366,28 @@ export default function App() {
 
 
   // ---- 4. OVERWORLD PROCEDURAL GENERATOR ----
-  const spawnWildCowAtRandom = (customLat?: number, customLng?: number, exclude?: Set<string>): WildCow => {
+  const spawnWildCowAtRandom = (customLat?: number, customLng?: number, exclude?: Set<string>, occupati?: { lat?: number; lng?: number }[]): WildCow => {
     // Posizione roaming vicino al giocatore
     const originLat = customLat !== undefined ? customLat : playerLat;
     const originLng = customLng !== undefined ? customLng : playerLng;
-    const latOff = (Math.random() - 0.5) * 0.024;
-    const lngOff = (Math.random() - 0.5) * 0.036;
-    const cLat = originLat + latOff;
-    const cLng = originLng + lngOff;
+    // Due selvatiche nate sullo stesso punto diventano un marker solo: quella
+    // sotto non si vede e non si può toccare. La posizione è generata, non è un
+    // dato reale, quindi si può ritirare finché non sta larga dalle altre (e
+    // dal giocatore, che sta al centro dell'area di spawn). SPAWN_MIN_GAP è la
+    // distanza sotto la quale due marker si accavallano alla scala della mappa
+    // (~13 m/px a zoom 13 → 800 m ≈ 60px, un marker abbondante).
+    const SPAWN_MIN_GAP = 800;
+    const daEvitare: { lat: number; lng: number }[] = [
+      { lat: originLat, lng: originLng },
+      ...(occupati ?? []).filter((p): p is { lat: number; lng: number } => p.lat != null && p.lng != null),
+    ];
+    let cLat = originLat;
+    let cLng = originLng;
+    for (let tentativo = 0; tentativo < 8; tentativo++) {
+      cLat = originLat + (Math.random() - 0.5) * 0.024;
+      cLng = originLng + (Math.random() - 0.5) * 0.036;
+      if (!daEvitare.some(p => distanza({ lat: cLat, lng: cLng }, p) < SPAWN_MIN_GAP)) break;
+    }
     const svg = getSvgCoords(cLat, cLng);
 
     // 🐄 80%: una VERA Reina non ancora catturata (così le reali dominano sulle inventate).
@@ -1612,14 +1687,52 @@ export default function App() {
   // resta in localStorage per-device (mai in SAVE_KEYS: non è un dato di gioco).
   const WHATS_NEW_SEEN_KEY = 'vatsamon_versione_vista';
   const [showWhatsNew, setShowWhatsNew] = useState(false);
+  // Chi installa oggi non ha un "prima" da confrontare: vede il BENVENUTO.
+  // Chi aggiorna vede le NOVITÀ.
+  //
+  // Il discriminante NON può essere il livello. La modale è gated su
+  // `!tutorialAttivo`, quindi arriva solo a lezione di Mémé finita o saltata, e
+  // vincere la bataille-lezione dà 100 XP su 100 di soglia (vedi
+  // handleBattleResult → addTrainerXp(100) e Onboarding.finish → xpToNextLevel:
+  // 100): chi COMPLETA il tutorial è già al livello 2 e col vecchio test
+  // riceveva il changelog — l'elenco di "cosa è cambiato" a chi non ha mai
+  // visto un "prima". Il benvenuto lo vedeva solo chi saltava la lezione,
+  // esattamente al contrario. Verificato eseguendo entrambi i percorsi.
+  //
+  // Nemmeno "nessuna versione mai vista" basta da solo: `vatsamon_versione_vista`
+  // nasce con la 1.6.0, quindi al lancio anche chi aggiorna arriva senza chiave.
+  // Serve in più che il salvataggio sia ancora quello che l'onboarding ha creato,
+  // misurato su marcatori che il tutorial NON tocca (regala XP, monete e un
+  // Genepy — mai catture né cammino):
+  //   1. `vatsamon_onboarded` scritto da Onboarding.finish(), riconoscibile dal
+  //      `starterId`. AuthGate.markOnboarded() scrive invece
+  //      {grandfathered|from-cloud|migrated: true} per i salvataggi preesistenti,
+  //      migrati o idratati dal cloud: quelli sono utenti VECCHI per definizione;
+  //   2. in collezione c'è ancora la sola Reina iniziale;
+  //   3. non è stato percorso un metro.
+  // Il valore è congelato al primo mount, prima che si possa giocare: catturare
+  // durante il tutorial non deve declassare un nuovo arrivato. Ogni lettura
+  // illeggibile ricade su "utente vecchio" → novità, che è l'errore innocuo.
+  const [eAppenaArrivato] = useState(() => {
+    if (localStorage.getItem(WHATS_NEW_SEEN_KEY) !== null) return false;
+    let onboarded: { starterId?: string } | null = null;
+    try { onboarded = JSON.parse(localStorage.getItem('vatsamon_onboarded') || 'null'); } catch { /* salvataggio illeggibile → trattato come vecchio */ }
+    return !!onboarded?.starterId && vatsadex.length <= 1 && !trainer.kmTraveled;
+  });
+  const [whatsNewVariant, setWhatsNewVariant] = useState<'novita' | 'benvenuto'>('novita');
   useEffect(() => {
     if (tutorialAttivo || activeBattle || activeDungeon || activeTappa) return;
     if (localStorage.getItem(WHATS_NEW_SEEN_KEY) === __APP_VERSION__) return;
     if (!CHANGELOG.some(entry => entry.version === __APP_VERSION__)) return;
+    setWhatsNewVariant(eAppenaArrivato ? 'benvenuto' : 'novita');
     setShowWhatsNew(true);
-  }, [tutorialAttivo, activeBattle, activeDungeon, activeTappa]);
+  }, [tutorialAttivo, activeBattle, activeDungeon, activeTappa, eAppenaArrivato]);
+  // Chiudendo si segna la versione come vista, in entrambe le varianti: la
+  // modale non deve ricomparire al reload.
   const closeWhatsNew = () => { localStorage.setItem(WHATS_NEW_SEEN_KEY, __APP_VERSION__); setShowWhatsNew(false); };
-  const handleShowWhatsNew = () => { playClickSfx(); setShowProfile(false); setShowWhatsNew(true); };
+  // Riapertura dal Profilo: è una richiesta esplicita di "cosa è cambiato",
+  // quindi sempre le novità, mai il benvenuto.
+  const handleShowWhatsNew = () => { playClickSfx(); setShowProfile(false); setWhatsNewVariant('novita'); setShowWhatsNew(true); };
 
   // ---- L21: blocca lo scroll di fondo mentre il modale "Livello superato" è aperto ----
   useScrollLock(!!levelUpAward);
@@ -1653,6 +1766,13 @@ export default function App() {
   // mossa): si registrano da soli, vedi lib/useBackCloser.ts.
   const childBackClosers = useBackClosers();
 
+  // Stagione e Scuola d'Alpeggio non hanno una voce propria nella barra in
+  // basso: alla Stagione si arriva dal bottone dentro Percorsi, alla Scuola
+  // dalla Stagione. Senza questa riga, con la Stagione aperta la barra restava
+  // TUTTA spenta e non si capiva più dove si era. ("Premi" non è qui: ha già il
+  // suo chip acceso nell'HUD in alto.)
+  const navTab = activeTab === 'stagione' || activeTab === 'quiz' ? 'routes' : activeTab;
+
   // Ricostruito a ogni render: layer chiudibili col tasto Indietro, dal più in
   // alto al più in basso. L'ordine determina cosa chiude un singolo "back".
   const backClosers: Array<() => void> = [];
@@ -1671,6 +1791,16 @@ export default function App() {
   if (activeDungeon) backClosers.push(() => setActiveDungeon(null));
   if (activeTappa) backClosers.push(() => setActiveTappa(null));
   if (showLeggende) backClosers.push(() => setShowLeggende(false));
+  // Uscita dalle viste senza voce propria: si risale la stessa catena della
+  // pillola accesa, un gradino per volta — Scuola → Stagione → Percorsi →
+  // Alpeggio. Ci passa anche la freccia "Indietro" dentro la Stagione, che
+  // chiama history.back(): un solo meccanismo, non due.
+  // Serve UNA voce per gradino, non una sola che salta in fondo: la lunghezza
+  // di backClosers è anche il numero di voci-guardia in history, quindi un
+  // closer che scende di due livelli lascia il conto sfasato e il back
+  // successivo esce dall'app (verificato: si finiva su about:blank).
+  if (activeTab === 'quiz') backClosers.push(() => setActiveTab('stagione'));
+  if (activeTab === 'quiz' || activeTab === 'stagione') backClosers.push(() => setActiveTab('routes'));
   if (activeTab !== 'map') backClosers.push(() => setActiveTab('map'));
   backClosersRef.current = backClosers;
   const backDepth = backClosers.length;
@@ -1687,7 +1817,12 @@ export default function App() {
     } else if (target < current) {
       const diff = current - target;
       overlayDepthRef.current = target;
-      ignorePopsRef.current += diff;   // i popstate risultanti sono programmatici
+      // history.go(-n) produce UN SOLO popstate, non n (verificato su Chromium e
+      // WebKit): sommando `diff` restava un credito di pop da ignorare e il back
+      // successivo dell'utente veniva mangiato in silenzio. Si vedeva chiudendo
+      // due livelli in un colpo solo — es. dalla Scuola d'Alpeggio a un'altra
+      // voce della barra in basso.
+      ignorePopsRef.current += 1;      // il pop risultante è programmatico
       history.go(-diff);
     }
   }, [backDepth]);
@@ -1713,7 +1848,9 @@ export default function App() {
       const ex = new Set<string>();
       const arr: WildCow[] = [];
       for (let i = 0; i < 4; i++) {
-        const w = spawnWildCowAtRandom(playerLat, playerLng, ex);
+        // `arr` = quelle già nate in questo giro: servono le loro posizioni,
+        // non solo gli id, per non farle nascere una sopra l'altra
+        const w = spawnWildCowAtRandom(playerLat, playerLng, ex, arr);
         ex.add(w.vatsa.id);
         arr.push(w);
       }
@@ -1793,7 +1930,7 @@ export default function App() {
 
     // Spawn another wild Vatsamon nearby
     if (Math.random() > 0.3) {
-      setWildCows(prev => [...prev.slice(-3), spawnWildCowAtRandom(nextLat, nextLng, new Set(prev.map(w => w.vatsa.id)))]); // max 4 roaming, niente doppioni
+      setWildCows(prev => [...prev.slice(-3), spawnWildCowAtRandom(nextLat, nextLng, new Set(prev.map(w => w.vatsa.id)), prev.slice(-3))]); // max 4 roaming, niente doppioni e niente marker uno sull'altro
     }
 
     // Update the live feed list
@@ -2147,25 +2284,17 @@ export default function App() {
     setIsCapturingMode(true); // → approccio col campanaccio
   };
 
+  // `overflow-x-clip` e non `-hidden` sul contenitore radice: `hidden` lo rende
+  // il contenitore di scorrimento più vicino, e l'HUD `sticky` più sotto finiva
+  // per "attaccarsi" a un box che non scorre mai — cioè scorreva via insieme al
+  // contenuto. `clip` taglia allo stesso modo ma non crea uno scrollport,
+  // quindi lo sticky torna a funzionare. Misurato: anche senza clip la pagina
+  // non va in overflow orizzontale.
   return (
-    <div className="min-h-screen bg-gradient-to-br from-violet-100 via-rose-50 to-sky-100 font-sans text-slate-100 antialiased selection:bg-emerald-500 selection:text-white relative overflow-x-hidden flex justify-center" id="vatsamon-go-app">
+    <div className="min-h-screen bg-gradient-to-br from-violet-100 via-rose-50 to-sky-100 font-sans text-slate-100 antialiased selection:bg-emerald-500 selection:text-white relative overflow-x-clip flex justify-center" id="vatsamon-go-app">
 
       {/* Sfondo aurora animato (tema Pokémon moderno) */}
       <div className="aurora-bg" aria-hidden="true" />
-
-      {/* M14 — banner offline: sottile, non bloccante (pointer-events-none), avvisa
-          che mappa reale e catture possono non aggiornarsi senza rete */}
-      {isOffline && (
-        <div
-          role="status"
-          aria-live="polite"
-          className="fixed top-0 inset-x-0 z-[70] pointer-events-none flex items-center justify-center gap-1.5 bg-amber-500/95 text-slate-100 text-[11px] font-mono font-bold py-1 px-3 text-center shadow-md"
-          style={{ paddingTop: 'calc(0.25rem + env(safe-area-inset-top))' }}
-        >
-          <span aria-hidden="true">📴</span>
-          Sei offline — mappa reale e catture potrebbero non aggiornarsi
-        </div>
-      )}
 
       {/* CORNICE "TELEFONO": su desktop l'esperienza resta in una colonna centrata
           di larghezza massima mobile, con bordo/ombra ai lati; su mobile occupa
@@ -2177,7 +2306,29 @@ export default function App() {
         style={{ paddingBottom: 'calc(6rem + env(safe-area-inset-bottom))' }}>
 
       {/* 🎒 HUD ALLEVATORE — 1 riga compatta + barra XP sottile (sticky, safe-area) 🎒 */}
-      <div className="sticky top-0 z-40" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+      {/* Il fondo sta sul WRAPPER e non solo sull'<header>: così anche la fascia
+          della safe-area ha una superficie, e sotto l'orologio di sistema non
+          passa mai il contenuto che scorre. È OPACO e non semi-trasparente +
+          backdrop-blur per lo stesso motivo della nav in basso: su WebKit il
+          blur non viene applicato e dalla fascia si rileggeva il contenuto.
+          Qui l'opaco non costa nulla — la fascia confina con l'header, che è
+          già `bg-slate-950` pieno, quindi non si vede alcuna cucitura. */}
+      <div className="sticky top-0 z-40 bg-slate-950" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+      {/* M14 — banner offline: sottile, non bloccante (pointer-events-none), avvisa
+          che mappa reale e catture possono non aggiornarsi senza rete. Sta DENTRO
+          il wrapper sticky e NEL FLUSSO: da `fixed top-0` partiva dalla stessa y
+          dell'header e sommava la stessa safe-area, quindi gli copriva la prima
+          riga (avatar mozzato, nome tranciato). */}
+      {isOffline && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="pointer-events-none flex items-center justify-center gap-1.5 bg-amber-500 text-slate-100 text-[11px] font-mono font-bold py-1 px-3 text-center shadow-md"
+        >
+          <span aria-hidden="true">📴</span>
+          Sei offline — mappa reale e catture potrebbero non aggiornarsi
+        </div>
+      )}
       <header className="bg-slate-950 shadow-md" id="trainer-hud">
         {/* accento bandiera valdostana: nero | rosso */}
         <div className="h-1.5 w-full" style={{ background: "linear-gradient(90deg,#1a1626 0 50%, #c8102e 50% 100%)" }} aria-hidden="true" />
@@ -2189,15 +2340,15 @@ export default function App() {
             className="flex items-center gap-2 min-w-0 text-left rounded-xl px-1 py-1 hover:bg-slate-900 transition-colors"
           >
             <div className="relative flex-shrink-0">
-              <div className="w-10 h-10 rounded-full border-2 border-[#c8102e] bg-slate-850 flex items-center justify-center overflow-hidden shadow-inner">
-                <span className="text-xl">👨‍🌾</span>
+              <div className="w-10 h-10 rounded-full border-2 border-primary bg-slate-850 flex items-center justify-center overflow-hidden shadow-inner">
+                <span className="text-xl">{avatarEmoji}</span>
               </div>
-              <div className="absolute -bottom-1 -right-1 bg-[#c8102e] text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow border border-white/30">
+              <div className="absolute -bottom-1 -right-1 bg-primary text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow border border-white/30">
                 {trainer.level}
               </div>
             </div>
             <div className="min-w-0">
-              <div className="font-mono font-black text-[13px] tracking-wide title-gradient leading-tight">{BRAND.gameName.toUpperCase()}</div>
+              <div className="font-mono font-black text-[13px] tracking-wide title-gradient leading-tight truncate" title={nomeGiocatore || BRAND.gameName}>{etichettaIdentita}</div>
               <div className="text-[9.5px] font-mono text-slate-400 truncate max-w-[110px]" title={gradoStato.grado.perk}>
                 <span className="text-amber-400 font-bold">{gradoStato.grado.emoji} {gradoStato.grado.nome}</span>
                 {pedigreeStars > 0 && <span className="text-amber-300"> {'★'.repeat(Math.min(pedigreeStars, 5))}</span>}
@@ -2206,31 +2357,44 @@ export default function App() {
           </button>
 
           {/* chip risorse + premi + audio */}
+          {/* Colori: i numeri usano i ruoli di index.css, non più gli hex scelti
+              quando il fondo era scuro (misurati sul chip: Fontina #e0b15e =
+              1,80:1, Rispetto #eab308 = 1,59:1, Denari #a86409 = 3,88:1, tutti
+              sotto la soglia). Denari e Fontina sono valuta → `tone-reward`.
+              Il Rispetto non è valuta: verde solo quando è davvero buono
+              (semantica positiva), altrimenti inchiostro; la sfumatura di
+              respectTone() resta sul bordo, che è decorativo. */}
+          {/* Altezze: i due BOTTONI (Premi, audio) misuravano 40×40, sotto la
+              soglia di tocco — ora 44×44. Le tre targhette di risorsa non sono
+              toccabili e potrebbero restare a 40, ma nella stessa fila
+              risulterebbero due riquadri più bassi accanto a due più alti: la
+              riga è già alta 44 per via dei bottoni, quindi portarle a 44 le
+              riallinea senza costare un pixel di header. */}
           <div className="flex items-center gap-1 flex-shrink-0">
-            <div className="bg-slate-900 border border-amber-700/40 rounded-xl px-1.5 py-1 min-h-[40px] flex flex-col items-center justify-center min-w-[42px]" title="Denari d'Alpeggio">
+            <div className="bg-slate-900 border border-amber-700/40 rounded-xl px-1.5 py-1 min-h-[44px] flex flex-col items-center justify-center min-w-[42px]" title="Denari d'Alpeggio">
               <span className="text-[11px] leading-none">🪙</span>
-              <span className="text-[10.5px] font-mono font-extrabold text-amber-300 leading-tight tabular-nums">{trainer.coins}</span>
+              <span className="text-[10.5px] font-mono font-extrabold tone-reward leading-tight tabular-nums">{trainer.coins}</span>
             </div>
-            <div className="bg-slate-900 border rounded-xl px-1.5 py-1 min-h-[40px] flex flex-col items-center justify-center min-w-[38px]" style={{ borderColor: VALUTE.fontina.colore + "66" }} id="fontina-hud" title="Forme di Fontina — valuta di prestigio">
+            <div className="bg-slate-900 border rounded-xl px-1.5 py-1 min-h-[44px] flex flex-col items-center justify-center min-w-[38px]" style={{ borderColor: VALUTE.fontina.colore + "66" }} id="fontina-hud" title="Forme di Fontina — valuta di prestigio">
               <span className="text-[11px] leading-none">🧀</span>
-              <span className="text-[10.5px] font-mono font-extrabold leading-tight tabular-nums" style={{ color: VALUTE.fontina.colore }}>{fontina}</span>
+              <span className="text-[10.5px] font-mono font-extrabold tone-reward leading-tight tabular-nums">{fontina}</span>
             </div>
-            <div className="bg-slate-900 border rounded-xl px-1.5 py-1 min-h-[40px] flex flex-col items-center justify-center min-w-[38px]" style={{ borderColor: respectTone(respectScore).color + "66" }} id="respect-hud" title={`Rispetto: ${respectTone(respectScore).label} (${respectScore}/100)`}>
+            <div className="bg-slate-900 border rounded-xl px-1.5 py-1 min-h-[44px] flex flex-col items-center justify-center min-w-[38px]" style={{ borderColor: respectTone(respectScore).color + "66" }} id="respect-hud" title={`Rispetto: ${respectTone(respectScore).label} (${respectScore}/100)`}>
               <span className="text-[11px] leading-none">🌿</span>
-              <span className="text-[10.5px] font-mono font-extrabold leading-tight tabular-nums" style={{ color: respectTone(respectScore).color }}>{respectScore}</span>
+              <span className={`text-[10.5px] font-mono font-extrabold leading-tight tabular-nums ${respectScore >= 60 ? 'tone-positive' : 'text-slate-200'}`}>{respectScore}</span>
             </div>
             <button
               id="premi-chip"
               aria-label="Giro di Stalla: premi e missioni del giorno"
               onClick={() => { playClickSfx(); setActiveTab('premi'); }}
-              className={`rounded-xl px-2 min-h-[40px] min-w-[40px] flex items-center justify-center border transition-colors ${activeTab === 'premi' ? 'nav-active text-white border-transparent' : 'bg-slate-900 border-slate-800 text-amber-300 hover:bg-slate-800'}`}
+              className={`rounded-xl px-2 min-h-[44px] min-w-[44px] flex items-center justify-center border transition-colors ${activeTab === 'premi' ? 'chip-active' : 'bg-slate-900 border-slate-800 tone-reward hover:bg-slate-800'}`}
             >
               <Gift className="w-[18px] h-[18px]" />
             </button>
             <button
               aria-label={soundEnabled ? 'Disattiva audio' : 'Attiva audio'}
               onClick={() => { playClickSfx(); setSoundEnabled(!soundEnabled); }}
-              className="rounded-xl px-2 min-h-[40px] min-w-[40px] flex items-center justify-center bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300"
+              className="rounded-xl px-2 min-h-[44px] min-w-[44px] flex items-center justify-center bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300"
             >
               {soundEnabled ? <Volume2 className="w-[18px] h-[18px] text-emerald-400" /> : <VolumeX className="w-[18px] h-[18px] text-slate-500" />}
             </button>
@@ -2396,6 +2560,40 @@ export default function App() {
         {/* VIEW: STAGIONE (second screen ufficiale delle Batailles de Reines) */}
         {activeTab === 'stagione' && (
           <div className="space-y-3">
+            {/* La Stagione VERA per prima. Prima stava in fondo, dopo quattro
+                card di gioco: chi toccava "Stagione" atterrava su scorciatoie
+                (quiz, tappe, leggende) e la stagione cominciava a 627px, cioè
+                sotto la piega. Scelto lo SPOSTAMENTO invece dello scroll
+                automatico: lo scroll lascia comunque mezzo schermo di roba sopra
+                la testa, e chi risale col dito ritrova le scorciatoie prima del
+                titolo. Con l'ordine giusto la vista si apre dove deve e la
+                freccia "Indietro" è la prima cosa che si vede. */}
+            <Suspense fallback={<SceneFallback />}>
+              <SeasonView
+                onReward={(coins, xp, kind, trofeoReale) => {
+                  setTrainer(prev => ({ ...prev, coins: prev.coins + coins }));
+                  addTrainerXp(xp);
+                  if (kind === 'reale' && trofeoReale) {
+                    // S13 — ponte gioco↔realtà: la Reina seguita ha vinto DAVVERO
+                    // la sua categoria (risultato ufficiale, mai simulato).
+                    setTrofei(prev => [{
+                      id: `trofeo-${trofeoReale.eventId}-mecro-reale`,
+                      tipo: 'mecro-reale',
+                      comune: trofeoReale.comune,
+                      data: trofeoReale.data,
+                      categoria: trofeoReale.categoria,
+                      reinaNome: trofeoReale.reinaNome,
+                    }, ...prev]);
+                  }
+                  const msg = kind === 'reale'
+                    ? `📰 ${trofeoReale?.reinaNome ?? 'La Reina che segui'} ha vinto DAVVERO a ${trofeoReale?.comune ?? '—'}! Mécro reale in bacheca (+${coins} 🪙 +${xp} XP)`
+                    : kind === 'tappa'
+                      ? `🔮 Pronostico di tappa azzeccato! (+${coins} 🪙 +${xp} XP)`
+                      : `🏆 Tabellone completato! Pronostico finale fatto (+${coins} 🪙 +${xp} XP)`;
+                  setTrekkingFeed(prev => [msg, ...prev.slice(0, 8)]);
+                }}
+              />
+            </Suspense>
             {/* Banda FASE CORRENTE — motore di fase della stagione reale */}
             <div id="fase-banner" className="rounded-2xl border border-[#c8102e]/40 p-3 flex items-center gap-3" style={{ background: "linear-gradient(90deg,#1a1626,#241a2e)" }}>
               <span className="text-3xl flex-shrink-0">{faseStato.emoji}</span>
@@ -2448,8 +2646,17 @@ export default function App() {
                       data-tappa={ev.id}
                       disabled={chiusa || vatsadex.length === 0}
                       onClick={() => { playClickSfx(); setActiveTappa(ev); }}
+                      // La tappa APERTA è quella su cui si può agire adesso, in
+                      // una fila di chip dove le altre sono spente: è uno stato
+                      // "attivo", e nel contratto colore l'attivo è il rosso
+                      // primario — il verde vuol dire solo "è andata bene / è
+                      // ufficiale". Era rimasto l'ultimo verde-come-selezione di
+                      // questo file. `.chip-active-soft` e non `.chip-active`
+                      // perché il chip porta due righe di testo che sul pieno
+                      // cremisi non si leggerebbero (ed è la stessa versione
+                      // tenue già usata dalle scelte dell'onboarding).
                       className={`flex-shrink-0 rounded-xl border-2 px-2.5 py-1.5 text-left min-h-[52px] ${
-                        stato === 'aperta' ? 'border-emerald-500 bg-emerald-950/40' :
+                        stato === 'aperta' ? 'chip-active-soft' :
                         stato === 'memoriale' ? 'border-slate-700 bg-slate-900/70' : 'border-slate-850 bg-slate-900/40 opacity-60'}`}
                     >
                       <div className="text-[10px] font-mono font-black text-slate-100 whitespace-nowrap">{rec?.vinta ? '🌹 ' : ''}{ev.finale ? '👑 ' : ''}{ev.comune}</div>
@@ -2477,32 +2684,6 @@ export default function App() {
             </div>
             <span className="text-slate-500 text-lg" aria-hidden="true">›</span>
           </button>
-          <Suspense fallback={<SceneFallback />}>
-            <SeasonView
-              onReward={(coins, xp, kind, trofeoReale) => {
-                setTrainer(prev => ({ ...prev, coins: prev.coins + coins }));
-                addTrainerXp(xp);
-                if (kind === 'reale' && trofeoReale) {
-                  // S13 — ponte gioco↔realtà: la Reina seguita ha vinto DAVVERO
-                  // la sua categoria (risultato ufficiale, mai simulato).
-                  setTrofei(prev => [{
-                    id: `trofeo-${trofeoReale.eventId}-mecro-reale`,
-                    tipo: 'mecro-reale',
-                    comune: trofeoReale.comune,
-                    data: trofeoReale.data,
-                    categoria: trofeoReale.categoria,
-                    reinaNome: trofeoReale.reinaNome,
-                  }, ...prev]);
-                }
-                const msg = kind === 'reale'
-                  ? `📰 ${trofeoReale?.reinaNome ?? 'La Reina che segui'} ha vinto DAVVERO a ${trofeoReale?.comune ?? '—'}! Mécro reale in bacheca (+${coins} 🪙 +${xp} XP)`
-                  : kind === 'tappa'
-                    ? `🔮 Pronostico di tappa azzeccato! (+${coins} 🪙 +${xp} XP)`
-                    : `🏆 Tabellone completato! Pronostico finale fatto (+${coins} 🪙 +${xp} XP)`;
-                setTrekkingFeed(prev => [msg, ...prev.slice(0, 8)]);
-              }}
-            />
-          </Suspense>
           </div>
         )}
 
@@ -2575,16 +2756,19 @@ export default function App() {
       </main>
 
       {/* 🧭 NAV PRINCIPALE IN BASSO — 5 destinazioni, zona pollice, safe-area 🧭 */}
+      {/* Fondo OPACO e niente backdrop-blur: su WebKit il blur non veniva
+          applicato e restava solo il 95% di opacità, così attraverso la barra
+          si leggeva il contenuto sottostante. */}
       <nav
         id="bottom-nav"
-        className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md z-40 bg-slate-950/95 backdrop-blur border-t border-slate-850 shadow-[0_-4px_16px_rgba(0,0,0,0.25)]"
+        className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md z-40 bg-slate-950 border-t border-slate-850 shadow-[0_-4px_16px_rgba(0,0,0,0.25)]"
         style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
       >
         <div className="grid grid-cols-5 items-end gap-1 px-2 pt-1.5 pb-1.5 text-[11px] font-extrabold">
           <button
             onClick={() => { playClickSfx(); setActiveTab('map'); }}
             aria-label="Alpeggio: mappa ed esplorazione"
-            className={`flex flex-col items-center justify-center gap-0.5 min-h-[48px] py-1.5 rounded-xl transition-all ${activeTab === 'map' ? 'nav-active text-white' : 'text-slate-400 hover:bg-slate-900'}`}
+            className={`flex flex-col items-center justify-center gap-0.5 min-h-[48px] py-1.5 rounded-xl transition-all ${navTab === 'map' ? 'nav-active text-white' : 'text-slate-400 hover:bg-slate-900'}`}
           >
             <Mountain className="w-5 h-5" />
             <span>Alpeggio</span>
@@ -2593,33 +2777,48 @@ export default function App() {
           <button
             onClick={() => { playClickSfx(); setActiveTab('routes'); }}
             aria-label="Percorsi: cammini, sfide e stagione"
-            className={`flex flex-col items-center justify-center gap-0.5 min-h-[48px] py-1.5 rounded-xl transition-all ${activeTab === 'routes' ? 'nav-active text-white' : 'text-slate-400 hover:bg-slate-900'}`}
+            className={`flex flex-col items-center justify-center gap-0.5 min-h-[48px] py-1.5 rounded-xl transition-all ${navTab === 'routes' ? 'nav-active text-white' : 'text-slate-400 hover:bg-slate-900'}`}
           >
             <Compass className="w-5 h-5" />
             <span>Percorsi</span>
           </button>
 
           {/* bottone centrale rialzato: Scatta la Reina */}
+          {/* La `pb-1.5` riallinea l'etichetta alle altre quattro: le sorelle
+              hanno `py-1.5`, questo bottone no, e con la griglia `items-end`
+              "Scatta" cadeva ~6px più in basso — leggeva come disallineamento,
+              non come scelta. */}
           <button
             onClick={() => { playClickSfx(); setActiveTab('scanner'); }}
             aria-label="Scatta la Reina: fotocamera"
-            className="flex flex-col items-center justify-end gap-0.5 group"
+            className="flex flex-col items-center justify-end gap-0.5 pb-1.5 group"
           >
+            {/* Da acceso usa `.nav-active`, cioè lo STESSO trattamento "attivo"
+                delle altre quattro tab: questa è la quinta voce della barra in
+                basso, e il contratto assegna proprio a `.nav-active` la barra in
+                basso. Prima aveva un `bg-gradient-to-br` tutto suo — il terzo
+                modo di dire "acceso" in questo file, dopo `.nav-active` e
+                `.chip-active` del chip Premi. `.nav-active` dipinge solo fondo,
+                ombra e pop: bordo (`border-slate-950`, che stacca il cerchio dal
+                fondo della barra) e `text-white` restano quelli di prima. Il
+                feedback al tocco continua a darlo `button:active` sul bottone
+                padre, come per le altre tab. */}
             <span
-              className={`-mt-7 w-14 h-14 rounded-full flex items-center justify-center border-4 border-slate-950 shadow-lg transition-transform group-active:scale-95 ${activeTab === 'scanner' ? 'bg-gradient-to-br from-[#c8102e] to-amber-500 text-white' : 'bg-[#c8102e] text-white group-hover:brightness-110'}`}
+              className={`-mt-7 w-14 h-14 rounded-full flex items-center justify-center border-4 border-slate-950 shadow-lg transition-transform text-white bg-primary ${navTab === 'scanner' ? 'nav-active' : 'group-hover:brightness-110'}`}
             >
               <Camera className="w-6 h-6" />
             </span>
             {/* A11y: qui NON c'è la pillola .nav-active delle altre 4 tab — l'etichetta
-                sta sul fondo nav chiaro (slate-950), quindi da attiva usa l'inchiostro
-                primario (slate-100), non il bianco (che dava 1,10:1). */}
-            <span className={activeTab === 'scanner' ? 'text-slate-100' : 'text-slate-400'}>Scatta</span>
+                sta sul fondo nav chiaro (slate-950), quindi da attiva usa il rosso
+                primario come TESTO (`text-primary-strong`, 7,7:1), che è anche il
+                colore di "attivo" delle altre tab. Il bianco dava 1,10:1. */}
+            <span className={navTab === 'scanner' ? 'text-primary-strong' : 'text-slate-400'}>Scatta</span>
           </button>
 
           <button
             onClick={() => { playClickSfx(); setActiveTab('stalla'); }}
             aria-label="Stalla: allevamento e genealogia"
-            className={`relative flex flex-col items-center justify-center gap-0.5 min-h-[48px] py-1.5 rounded-xl transition-all ${activeTab === 'stalla' ? 'nav-active text-white' : 'text-slate-400 hover:bg-slate-900'}`}
+            className={`relative flex flex-col items-center justify-center gap-0.5 min-h-[48px] py-1.5 rounded-xl transition-all ${navTab === 'stalla' ? 'nav-active text-white' : 'text-slate-400 hover:bg-slate-900'}`}
           >
             <Warehouse className="w-5 h-5" />
             <span>Stalla</span>
@@ -2642,7 +2841,7 @@ export default function App() {
           <button
             onClick={() => { playClickSfx(); setActiveTab('vatsadex'); }}
             aria-label="Libretto di Mandria: la tua collezione"
-            className={`relative flex flex-col items-center justify-center gap-0.5 min-h-[48px] py-1.5 rounded-xl transition-all ${activeTab === 'vatsadex' ? 'nav-active text-white' : 'text-slate-400 hover:bg-slate-900'}`}
+            className={`relative flex flex-col items-center justify-center gap-0.5 min-h-[48px] py-1.5 rounded-xl transition-all ${navTab === 'vatsadex' ? 'nav-active text-white' : 'text-slate-400 hover:bg-slate-900'}`}
           >
             <BookOpen className="w-5 h-5" />
             <span>Libretto</span>
@@ -2833,25 +3032,33 @@ export default function App() {
       )}
 
       {/* NOVITÀ DI VERSIONE (S19): auto al mount fuori tutorial/battaglia, o riaperta dal Profilo */}
-      {showWhatsNew && <WhatsNewModal onClose={closeWhatsNew} />}
+      {showWhatsNew && <WhatsNewModal onClose={closeWhatsNew} variant={whatsNewVariant} />}
 
       {/* FOOTER GENERAL LEGALS AND RESET ACCENTS */}
       <footer className="bg-slate-950 text-slate-500 text-[10px] text-center py-4 px-6 border-t border-slate-850 mt-12 gap-2 flex flex-col items-center relative z-10">
         <p>© 2026 {BRAND.gameName} — il gioco delle Batailles de Reines · Vallée d'Aoste.</p>
         <p className="flex items-center gap-1.5 text-slate-400 font-mono font-bold">
           <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ background: "linear-gradient(90deg,#1a1626 0 50%, #c8102e 50% 100%)" }} aria-hidden="true" />
-          versione <span className="text-amber-400">v{APP_VERSION}</span>
+          <span className="tone-reward">v{APP_VERSION}</span>
         </p>
-        <div className="flex gap-4">
-          <button
-            onClick={resetAll}
-            className="text-[9px] text-slate-500 hover:text-rose-500 underline decoration-dotted underline-offset-2 cursor-pointer transition-colors"
-          >
-            Cancella memoria locale (Reset)
-          </button>
-          <span>•</span>
-          <span>Campanacci del latte & Bataille de Reines®</span>
-        </div>
+        {/* Righe separate e centrate: prima stavano su una sola riga in flex, e
+            "Cancella memoria locale (Reset)" andava a capo su due righe
+            allineate a sinistra lasciando un bullet orfano in mezzo.
+            Il reset è già dietro una conferma esplicita (resetAll → showConfirm,
+            "Azzerare tutti i progressi?", bottone rosso "Azzera tutto" — sempre
+            in piedi, verificato a runtime dopo questo intervento). */}
+        <p>Campanacci del latte &amp; Bataille de Reines®</p>
+        {/* Area di tocco 44px: è l'azione che azzera i progressi e misurava
+            168×15 (il testo nudo). Cresce solo il bersaglio — `inline-flex` +
+            `min-h`/`px` — non la grafica: sottolineato punteggiato, corpo e
+            colore restano quelli. Il `-my-1.5` riassorbe i 29px in più dentro
+            il `gap-2` del footer, così le righe di chiusura non si allontanano. */}
+        <button
+          onClick={resetAll}
+          className="-my-1.5 inline-flex items-center justify-center min-h-[44px] px-4 text-[9px] text-slate-500 hover:text-rose-500 underline decoration-dotted underline-offset-2 cursor-pointer transition-colors"
+        >
+          Cancella memoria locale (Reset)
+        </button>
       </footer>
 
       </div>{/* /phone-frame */}
@@ -2881,7 +3088,9 @@ export default function App() {
                 setBackpack(prev => prev.map(item => item.id === 'item-bell-giga' ? { ...item, quantity: item.quantity + 5 } : item));
                 setLevelUpAward(null);
               }}
-              className="w-full bg-emerald-500 hover:bg-emerald-400 text-[#0b0820] font-mono font-bold text-xs py-2.5 rounded-xl border-b-4 border-emerald-700 cursor-pointer"
+              // 293×40 misurati: unico bottone della modale e sotto la soglia
+              // di tocco. `min-h-[44px]` senza toccare colore né corpo.
+              className="w-full bg-emerald-500 hover:bg-emerald-400 text-[#0b0820] font-mono font-bold text-xs min-h-[44px] py-2.5 rounded-xl border-b-4 border-emerald-700 cursor-pointer"
             >
               RITIRA RICOMPENSE!
             </button>
