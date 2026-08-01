@@ -18,6 +18,7 @@ import { useScrollLock } from './lib/useScrollLock';
 import { useBackClosers } from './lib/useBackCloser';
 import { useAuth } from './lib/auth';
 import { listMyMatches, slotForUid, isPvpResultSeen } from './lib/pvp';
+import { PvpEntry, PvpHubSheet, type PvpStato } from './components/pvp/PvpHub';
 import { backupLocalSave, restoreLocalBackup, saveCloudSave, BACKUP_KEY } from './lib/cloudSave';
 import { ConfirmDialog } from './components/ConfirmDialog';
 import { APP_VERSION, BRAND } from './config/brand';
@@ -443,22 +444,31 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<'map' | 'routes' | 'stagione' | 'scanner' | 'stalla' | 'vatsadex' | 'quiz' | 'premi'>('map');
   // Battaglia attiva (scena stile Pokémon lanciata dalla mappa).
   const [activeBattle, setActiveBattle] = useState<MapBattle | null>(null);
-  // Partita PvP attiva (S9): overlay separato, aperto dall'hub "Sfide tra
-  // Allevatori" dentro la Stalla — mai una nuova tab.
+  // Partita PvP attiva (S9): overlay separato, aperto dal foglio "Sfide tra
+  // Allevatori" — mai una nuova tab.
   const [activePvpMatchId, setActivePvpMatchId] = useState<string | null>(null);
+  // Foglio "Sfide tra Allevatori": si apre dall'ingresso in prima pagina
+  // (Alpeggio) e dal rimando nella Stalla. Overlay, non una sesta voce di nav.
+  const [showPvpHub, setShowPvpHub] = useState(false);
 
   // Badge PvP sulla tab Stalla (S10d): "tocca a me" + esiti non visti. SOLO
   // one-shot (listMyMatches, getDocs) al mount post-login — MAI un listener,
   // vedi lib/pvp.ts. Ricalcolato anche alla chiusura di una partita, così il
   // badge scende subito dopo aver visto/giocato un esito.
+  // Dalla stessa lettura esce anche `pvpStato`, che alimenta la riga in prima
+  // pagina: `null` significa «non lo so» (nessun account, o lettura fallita) e
+  // la riga lo dice, invece di mostrare uno zero inventato.
   const [pvpBadge, setPvpBadge] = useState(0);
+  const [pvpStato, setPvpStato] = useState<PvpStato | null>(null);
   const refreshPvpBadge = useCallback(async () => {
-    if (!firebaseEnabled || !user || user.isGuest) { setPvpBadge(0); return; }
+    if (!firebaseEnabled || !user || user.isGuest) { setPvpBadge(0); setPvpStato(null); return; }
     try {
       const rows = await listMyMatches(user.uid);
+      const attive = rows.filter((m) => m.status === 'active').length;
       const toccaATe = rows.filter((m) => m.status === 'active' && slotForUid(m, user.uid) === m.turnOf).length;
       const nonVisti = rows.filter((m) => m.status !== 'active' && !isPvpResultSeen(m.id)).length;
       setPvpBadge(toccaATe + nonVisti);
+      setPvpStato({ attive, toccaATe, esitiNonVisti: nonVisti });
     } catch { /* badge non critico: silenzioso, resta al valore precedente */ }
   }, [firebaseEnabled, user]);
   useEffect(() => { refreshPvpBadge(); }, [refreshPvpBadge]);
@@ -1281,6 +1291,28 @@ export default function App() {
     return () => window.removeEventListener('resize', onResize);
   }, []);
 
+  // …e quando a cambiare è il RIQUADRO invece della finestra. L'altezza della
+  // mappa reale ora è adattiva (`clamp(... dvh ...)` in OverworldMapView), quindi
+  // si muove anche senza un `resize`: su iOS la barra di Safari che si ritira
+  // cambia `dvh`, e la riga PvP sopra la mappa può comparire o sparire. Se
+  // Leaflet non lo sa, resta convinto della misura vecchia e disegna le tile
+  // tagliate. Un `ResizeObserver` sul contenitore copre tutti e tre i casi.
+  // Una sola invalidateSize per frame: l'osservatore spara a ogni pixel.
+  useEffect(() => {
+    const el = mapContainerRef.current;
+    if (!el || activeTab !== 'map' || mapMode !== 'real') return;
+    let pending = 0;
+    const ro = new ResizeObserver(() => {
+      if (pending) return;
+      pending = requestAnimationFrame(() => {
+        pending = 0;
+        if (leafletMapRef.current) leafletMapRef.current.invalidateSize();
+      });
+    });
+    ro.observe(el);
+    return () => { ro.disconnect(); if (pending) cancelAnimationFrame(pending); };
+  }, [activeTab, mapMode]);
+
   // PokeStop: Casere d'Alpeggio active interactions
   const [selectedCasera, setSelectedCasera] = useState<Hotspot | null>(null);
   // Bacheca dei trofei reali (mécro/sonnaille/collare) vinti nelle tappe ufficiali
@@ -1785,6 +1817,11 @@ export default function App() {
   // z-[95] e può aprirsi sopra la scheda del Libretto (es. "Risorse
   // insufficienti"), quindi deve restare il primo a chiudersi.
   backClosers.push(...childBackClosers);
+  // Il foglio delle sfide sta sopra le tab e sopra la scena PvP (z-[80] contro
+  // z-[70]): si chiude prima di loro. La conferma "chiudo l'accesso di prova"
+  // che vive dentro il foglio si registra da sé via useBackCloser, quindi è
+  // già passata sopra a questa voce con `childBackClosers`.
+  if (showPvpHub) backClosers.push(() => { setShowPvpHub(false); refreshPvpBadge(); });
   if (isCapturingMode) backClosers.push(() => { setIsCapturingMode(false); setEncounterCow(null); });
   if (activePvpMatchId) backClosers.push(() => { setActivePvpMatchId(null); refreshPvpBadge(); });
   if (activeBattle) backClosers.push(() => setActiveBattle(null));
@@ -2411,7 +2448,21 @@ export default function App() {
       {/* 🗺️ ACTIVE VIEW DISPLAY 🗺️ */}
       <main className="flex-grow p-4 max-w-4xl w-full mx-auto" id="app-viewport">
         <div key={activeTab} className="view-in">
-        
+
+        {/* SFIDE TRA ALLEVATORI — ingresso in PRIMA PAGINA (Alpeggio).
+            Era in fondo alla Stalla, dopo tre sezioni di allevamento: la
+            funzione di punta della 1.6.0 non la trovava nessuno. Sta qui, sopra
+            la mappa, ma come RIGA (70px misurati, 52 sugli schermi corti; mai di
+            più: la riga sotto il titolo è tagliata a due) e non come card: costa
+            82px alla mappa, che resta il cuore della schermata. Dice lo stato
+            ("è il tuo turno") invece di essere un bottone muto, e da ospite
+            spiega perché non è disponibile offrendo l'azione che la sblocca.
+            In una build senza cloud PvpEntry non rende NULLA (il PvP non esiste
+            in quella copia): la mappa si prende quegli 82px. */}
+        {activeTab === 'map' && (
+          <PvpEntry stato={pvpStato} onOpen={() => setShowPvpHub(true)} playClick={playClickSfx} />
+        )}
+
         {/* VIEW 1: INTERACTIVE MAP OVERWORLD (S7: estratta in OverworldMapView) */}
         <OverworldMapView
           isActiveTab={activeTab === 'map'}
@@ -2531,7 +2582,7 @@ export default function App() {
                 if (xp) addTrainerXp(xp);
                 if (fontinaN) guadagnaFontina(fontinaN, 'un moudzon di stalla è diventato Reina');
               }}
-              onOpenPvpMatch={(matchId) => setActivePvpMatchId(matchId)}
+              onOpenPvp={() => setShowPvpHub(true)}
               playClick={playClickSfx}
             />
           </Suspense>
@@ -2875,9 +2926,23 @@ export default function App() {
         </Suspense>
       )}
 
-      {/* SCENA PvP live a turni (S9) — aperta dall'hub "Sfide tra Allevatori"
-          nella Stalla. La partita vive su Firestore: chiudere la scena non
-          la abbandona (il forfeit esplicito passa dal bottone dentro). */}
+      {/* FOGLIO "SFIDE TRA ALLEVATORI" — il pannello completo (crea / entra con
+          codice / partite in corso). Vive qui e non dentro una tab, così si
+          apre uguale dall'Alpeggio e dalla Stalla. Aprire una partita lo
+          chiude: PvpBattleScene è z-[70] e resterebbe sotto questo foglio. */}
+      {showPvpHub && (
+        <PvpHubSheet
+          collection={vatsadex}
+          onOpenMatch={(matchId) => { setShowPvpHub(false); setActivePvpMatchId(matchId); }}
+          onClose={() => { setShowPvpHub(false); refreshPvpBadge(); }}
+          onStato={(s) => setPvpStato((prev) => ({ ...s, esitiNonVisti: prev?.esitiNonVisti ?? 0 }))}
+          playClick={playClickSfx}
+        />
+      )}
+
+      {/* SCENA PvP live a turni (S9) — aperta dal foglio "Sfide tra Allevatori".
+          La partita vive su Firestore: chiudere la scena non la abbandona
+          (il forfeit esplicito passa dal bottone dentro). */}
       {activePvpMatchId && (
         <Suspense fallback={<SceneFallback />}>
           <PvpBattleScene

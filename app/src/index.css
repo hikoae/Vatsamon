@@ -949,3 +949,114 @@ h1, h2, .font-display {
   box-shadow: 0 12px 32px -18px rgba(36, 24, 64, 0.5);
 }
 #vatsamon-go-app .leaflet-popup-content-wrapper { border-radius: 0.875rem; }
+
+/* ============================================================
+   8. IL TUTORIAL DI MÉMÉ — bolla e riflettore (2026-08)
+   Nasce dal collaudo su iPhone: «mentre indica i pulsanti sarebbe utile
+   evidenziarli». Le classi le usa `components/MemeGuide.tsx`; i bersagli
+   stanno in `lib/tutorial.ts`.
+   ============================================================ */
+
+/* --- 8a. LA BOLLA ---------------------------------------------------
+   Prima era `bg-slate-900/95` + `backdrop-blur`: sopra la mappa reale il
+   5% di trasparenza bastava a far affiorare tile e cartellini proprio
+   sotto le righe di testo. Qui il fondo è PIENO — sotto non passa niente
+   — e il blur sparisce perché non ha più nulla da sfocare. */
+.meme-bubble {
+  background-color: var(--color-slate-900);
+  border: 2px solid var(--color-primary);
+  border-radius: 1rem;
+  box-shadow:
+    0 20px 44px -20px rgba(18, 14, 38, 0.6),
+    0 6px 14px -8px rgba(18, 14, 38, 0.4);
+  animation: meme-bubble-in 0.24s ease-out;
+}
+
+/* Narrazione lunga: UNICA eccezione dichiarata alla scala tipografica del
+   §6. `.t-body` (12px) è tarato sul testo di supporto dentro una card; qui
+   si tratta di cinque righe di prosa lette una volta sola da chi apre
+   l'app per la prima volta, sopra una mappa piena di dettaglio. 13px con
+   interlinea 1,5 è il gradino di lettura: non ne serve un secondo altrove,
+   quindi resta una regola locale e non un quinto gradino del contratto. */
+.meme-testo {
+  font-family: var(--font-sans);
+  font-size: 0.8125rem; /* 13px */
+  line-height: 1.5;
+  font-weight: 400;
+}
+
+/* «Salta la lezione» è l'unica via d'uscita del tutorial e misurava
+   78×15px: sotto la soglia di tocco per un controllo che non si può
+   sbagliare. L'area sale a 44px in altezza senza gonfiare il testo. */
+.meme-salta {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding-inline: 0.5rem;
+}
+
+@keyframes meme-bubble-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* --- 8b. IL RIFLETTORE ----------------------------------------------
+   Un solo elemento. L'ultima ombra ha raggio 9999px: essendo un'ombra
+   ESTERNA viene ritagliata via da sotto il border-box, quindi vela tutta
+   la schermata e lascia scoperto esattamente il rettangolo del bersaglio,
+   angoli tondi compresi. Le ombre precedenti sono l'anello, e si dipingono
+   sopra il velo perché in un `box-shadow` la prima della lista sta davanti.
+
+   `pointer-events: none` NON è una rifinitura: è il contratto di questa
+   feature. Il velo copre anche il bersaglio, quindi se intercettasse i tap
+   il tutorial diventerebbe una trappola — indicherebbe un bottone e poi ne
+   impedirebbe la pressione.
+
+   L'anello alterna bianco e rosso primario perché il rosso da solo NON basta:
+   misurato sui pixel, #c8102e sulla superficie velata sta a 1,03:1 — cioè
+   invisibile. Sono i due fili bianchi a portare la leggibilità (5,5:1 verso il
+   velo), il rosso ci sta in mezzo come colore-ruolo. */
+.meme-spot {
+  position: fixed;
+  z-index: 44;
+  pointer-events: none;
+  border-radius: 0.9rem;
+  box-shadow:
+    0 0 0 2px rgba(255, 255, 255, 0.92),
+    0 0 0 5px var(--color-primary),
+    0 0 0 7px rgba(255, 255, 255, 0.85),
+    0 0 26px 10px rgba(200, 16, 46, 0.35),
+    0 0 0 9999px rgba(18, 14, 38, 0.62);
+  animation: meme-spot-in 0.26s ease-out;
+}
+
+/* Il battito è di sola OPACITÀ, non di scala: un `transform` tarato su un
+   bottone piccolo diventa smisurato su una griglia grande, e viceversa. */
+.meme-spot-ping {
+  position: absolute;
+  inset: -9px;
+  border-radius: 1.2rem;
+  border: 2px solid var(--color-primary);
+  box-shadow: 0 0 12px rgba(200, 16, 46, 0.7);
+  pointer-events: none;
+  animation: meme-spot-ping 1.9s ease-in-out infinite;
+}
+
+@keyframes meme-spot-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes meme-spot-ping {
+  0%, 100% { opacity: 0.12; }
+  50% { opacity: 0.9; }
+}
+
+/* Chi chiede meno movimento continua a vedere DOVE guardare: l'anello
+   resta, fermo. Sta dopo il blocco `prefers-reduced-motion` generale in
+   cima al file, quindi a pari specificità vince questo. */
+@media (prefers-reduced-motion: reduce) {
+  .meme-bubble { animation: none; }
+  .meme-spot { animation: none; }
+  .meme-spot-ping { animation: none; opacity: 0.75; }
+}

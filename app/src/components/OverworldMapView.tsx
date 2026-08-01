@@ -276,8 +276,30 @@ export function OverworldMapView({
 
           {/* Conditional Map View Frame */}
           {mapMode === 'real' ? (
-            /* GEOGRAPHIC INTERACTIVE REAL MAP VIEW */
-            <div className="relative w-full h-[460px] bg-slate-900 border-2 border-emerald-500/20 rounded-2xl overflow-hidden shadow-inner group z-0">
+            /* GEOGRAPHIC INTERACTIVE REAL MAP VIEW.
+               ALTEZZA ADATTIVA (era `h-[460px]` secchi). Su iPhone SE (375x667)
+               con le fasce, sopra il riquadro ci sono 448px fra fascia alta,
+               intestazione, riga PvP e cappello della scheda: con 460px fissi il
+               CENTRO della mappa cadeva a 678px, cioè 110px SOTTO la barra in
+               basso — e il centro è dove Leaflet tiene il giocatore e le Reines
+               vicine. Risultato: 119px di mappa utili, zero mucche, 2 marker
+               raggiungibili su 5. Accorciare il riquadro non sposta il suo
+               bordo alto, ma tira su il centro: è quello che rimette in pagina
+               giocatore e mucche.
+               La formula ha pendenza > 1 apposta: lo spazio speso sopra la mappa
+               è quasi costante fra un telefono e l'altro, mentre quello
+               disponibile cresce con lo schermo. Da 839px di viewport in su
+               satura a 460 — quindi 844, 852 e 932 restano IDENTICI a prima, con
+               e senza fasce — e stringe solo quando lo schermo è davvero corto
+               (667 → ~219px, mai sotto i 200 del minimo).
+               `h-[460px]` resta come fondo: se un browser non conosce `dvh`
+               scarta la regola in stile e si ricade sull'altezza di prima.
+               Leaflet va avvisato quando il riquadro cambia misura: l'osservatore
+               sta in App.tsx accanto al `resize` della finestra. */
+            <div
+              className="relative w-full h-[460px] bg-slate-900 border-2 border-emerald-500/20 rounded-2xl overflow-hidden shadow-inner group z-0"
+              style={{ height: 'clamp(200px, calc(140dvh - 715px), 460px)' }}
+            >
               <div ref={mapContainerRef} className="w-full h-full" id="real-gps-map" />
 
               {/* Overlay HUD status regarding current trekking location.
@@ -308,16 +330,28 @@ export function OverworldMapView({
               {/* Leaflet Tip Ribbon overlay. Stesso z-[660] dell'HUD (con z-35 era
                   sepolto sotto le tile). Centrato e sollevato a bottom-8: in basso a
                   sinistra c'è il credito OpenStreetMap, obbligatorio per la licenza
-                  ODbL, e da destra questo nastro gli finiva sopra. */}
-              <div className="absolute bottom-8 left-1/2 -translate-x-1/2 max-w-[calc(100%-1.25rem)] bg-slate-950/80 border border-slate-850 rounded-full py-0.5 px-3 text-[10px] text-slate-400 font-mono tracking-tight text-center whitespace-nowrap overflow-hidden text-ellipsis backdrop-blur-xs z-[660]">
+                  ODbL, e da destra questo nastro gli finiva sopra.
+                  `pointer-events-none` come l'HUD qui sopra: è un cartello, non un
+                  comando, e stava mangiando i tocchi dei marker che gli finivano
+                  sotto. Su una mappa alta 460px era una striscia in fondo; con
+                  l'altezza adattiva, su iPhone SE copre una fetta molto più grande
+                  del riquadro — misurato: marker raggiungibili 5,4 → 3,8 a 375x667
+                  senza fasce, tornati a 5,4 una volta reso trasparente al tocco. */}
+              <div className="absolute bottom-8 left-1/2 -translate-x-1/2 max-w-[calc(100%-1.25rem)] bg-slate-950/80 border border-slate-850 rounded-full py-0.5 px-3 text-[10px] text-slate-400 font-mono tracking-tight text-center whitespace-nowrap overflow-hidden text-ellipsis backdrop-blur-xs pointer-events-none z-[660]">
                 🧀 Tocca i campanacci per interagire
               </div>
             </div>
           ) : (
             /* RADAR MAP INTERACTIVE SVG VISUAL FALLBACK.
-               Altezza fissa uguale alla mappa reale (h-[460px], era aspect-[16/10]
-               ≈ 209px): il doppio di spazio verticale per i nodi e nessun salto di
-               layout quando si passa da una vista all'altra. */
+               Altezza fissa 460px (era aspect-[16/10] ≈ 209px): il doppio di
+               spazio verticale per i nodi.
+               Qui NON si applica l'altezza adattiva della mappa reale: le
+               posizioni dei nodi le calcola `spreadRadarNodes` su una cornice di
+               `RADAR_H = 460` px, ed è una simulazione tarata su quel numero
+               (48 giri, zero sovrapposizioni su 361 posizioni di spawn). Con una
+               cornice più bassa i nodi finirebbero fuori o uno sull'altro, quindi
+               il radar tiene i suoi 460 e si scorre. È una vista secondaria, in
+               cui si entra apposta; l'Alpeggio su cui si atterra è la mappa reale. */
             <div className="relative w-full h-[460px] bg-gradient-to-b from-slate-900 to-emerald-950/60 rounded-3xl border-2 border-emerald-500/20 overflow-hidden shadow-inner group" id="radar-map">
 
               {/* Geodesic radar sonar pinging ring */}

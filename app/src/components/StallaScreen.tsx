@@ -1,9 +1,8 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Sparkles, ChevronRight, Check, Heart } from "lucide-react";
+import { Sparkles, ChevronRight, Check, Heart, Swords } from "lucide-react";
 import { CowVisual } from "./CowVisual";
 import { Vatsamon } from "../types";
-import { PvpHub } from "./pvp/PvpHub";
 import {
   TORI, Toro, Pregnancy, Stats4, stats4Of, predictStats, inheritRazza, birthCalf, growCow,
   STAGE_LABEL, stageForAge, CARE_COOLDOWN_MS, CARE_PROGRESS, CARE_BENESSERE, GROW_COOLDOWN_MS, GROW_MONTHS,
@@ -17,14 +16,14 @@ import { gravidanzeCorrenti, LS_PREG, mesiGravidanza } from "../lib/gravidanza";
  * Loop: scegli MADRE + TORO → MONTA → GRAVIDANZA (cura quotidiana) → NASCITA del
  * moudzon (eredita le 4 stat reali) → CRESCITA a stadi. Tutto statico/localStorage.
  */
-export function StallaScreen({ collection, onBorn, onUpdateCow, onReward, onOpenPvpMatch, playClick }: {
+export function StallaScreen({ collection, onBorn, onUpdateCow, onReward, onOpenPvp, playClick }: {
   collection: Vatsamon[];
   onBorn: (cow: Vatsamon) => void;
   onUpdateCow: (cow: Vatsamon) => void;
   /** fontina: Forme di Fontina di prestigio (es. moudzon che diventa Reina). */
   onReward: (coins: number, xp: number, fontina?: number) => void;
-  /** Apre la scena PvpBattleScene (overlay a livello App, come BattleScene). */
-  onOpenPvpMatch: (matchId: string) => void;
+  /** Apre il foglio "Sfide tra Allevatori" (overlay a livello App). */
+  onOpenPvp: () => void;
   playClick: () => void;
 }) {
   // più gravidanze in parallelo (una per madre): requisito per i tornei ufficiali
@@ -359,12 +358,25 @@ export function StallaScreen({ collection, onBorn, onUpdateCow, onReward, onOpen
         </div>
       )}
 
-      {/* SFIDE TRA ALLEVATORI (PvP live a turni, S9) — sezione, non una tab
-          nuova: hub di creazione/join/lista partite, gated su login reale
-          (niente sfide online in modalità locale/ospite). Sta DOPO il loop
-          della stalla: da ospite è solo un cartello, e prima occupava lo
-          spazio buono sopra le azioni. */}
-      <PvpHub collection={collection} onOpenMatch={onOpenPvpMatch} playClick={playClick} />
+      {/* SFIDE TRA ALLEVATORI — solo un RIMANDO, non più l'hub.
+          L'hub completo stava qui, in fondo a tre sezioni di allevamento, ed
+          era di fatto invisibile: adesso l'ingresso è la prima riga
+          dell'Alpeggio (PvpEntry) e il pannello è un foglio a livello App.
+          La riga resta perché la Stalla è dove guardi la mandria prima di una
+          sfida, e chi aveva imparato che il PvP «sta nella Stalla» deve
+          ritrovare la strada — ma con il peso di un rimando: nessuno stato,
+          nessun elenco, nessuna CTA piena. Un solo posto ha il peso pieno. */}
+      <button
+        onClick={() => { playClick(); onOpenPvp(); }}
+        id="pvp-stalla-pointer"
+        className="w-full flex items-center gap-2.5 px-3 py-3 rounded-2xl border border-dashed border-slate-700 text-left min-h-[44px]"
+      >
+        <Swords className="w-4 h-4 text-slate-500 flex-shrink-0" aria-hidden="true" />
+        <span className="t-body text-slate-400 flex-grow leading-snug">
+          Le <span className="text-slate-200 font-bold">Sfide tra Allevatori</span> sono in prima pagina, sull'Alpeggio.
+        </span>
+        <ChevronRight className="w-4 h-4 text-slate-500 flex-shrink-0" aria-hidden="true" />
+      </button>
 
       {/* REVEAL NASCITA */}
       <AnimatePresence>
