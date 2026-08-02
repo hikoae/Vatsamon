@@ -3,6 +3,14 @@
   "fonte": "Aggregatore RSS (AostaSera, Gazzetta Matin) — solo titolo, estratto e link alla fonte.",
   "items": [
     {
+      "id": "aostasera-lionne-braqueun-e-reinon-vincenti-a-vertosan",
+      "titolo": "Lionne, Braqueun e Reinon vincenti a Vertosan",
+      "fonte": "AostaSera",
+      "url": "https://aostasera.it/notizie/societa/lionne-braqueun-e-reinon-vincenti-a-vertosan/",
+      "data": "2026-08-02",
+      "estratto": "Batailles, il circuito dei combats è ripartito per la sua stagione estiva: successi per Enzo Marcoz, Nadir Jordan e i fratelli Grimod. Domenica prossima l’appun"
+    },
+    {
       "id": "gazzetta-matin-batailles-riparte-l-8217-estate-delle-regine",
       "titolo": "Batailles: riparte l&#8217;estate delle Regine",
       "fonte": "Gazzetta Matin",
