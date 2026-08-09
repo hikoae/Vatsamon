@@ -3,6 +3,14 @@
   "fonte": "Aggregatore RSS (AostaSera, Gazzetta Matin) — solo titolo, estratto e link alla fonte.",
   "items": [
     {
+      "id": "gazzetta-matin-batailles-de-reines-tiky-alouette-e-amoureuse-re",
+      "titolo": "Batailles de Reines: Tiky, Alouette e Amoureuse regine a Breuil-Cervinia",
+      "fonte": "Gazzetta Matin",
+      "url": "https://www.gazzettamatin.com/2026/08/09/batailles-de-reines-tiky-alouette-e-amoureuse-regine-valtournche/",
+      "data": "2026-08-09",
+      "estratto": ""
+    },
+    {
       "id": "aostasera-lionne-braqueun-e-reinon-vincenti-a-vertosan",
       "titolo": "Lionne, Braqueun e Reinon vincenti a Vertosan",
       "fonte": "AostaSera",
