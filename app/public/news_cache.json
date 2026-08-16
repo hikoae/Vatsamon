@@ -3,20 +3,20 @@
   "fonte": "Aggregatore RSS (AostaSera, Gazzetta Matin) — solo titolo, estratto e link alla fonte.",
   "items": [
     {
+      "id": "aostasera-ardita-monella-e-m-lodie-le-reines-incoronate-a-",
+      "titolo": "Ardita, Monella e Mélodie le reines incoronate a Champillon",
+      "fonte": "AostaSera",
+      "url": "https://aostasera.it/notizie/societa/ardita-monella-e-melodie-le-reines-incoronate-a-champillon/",
+      "data": "2026-08-16",
+      "estratto": "Nell’appuntamento di oggi con le Batailles de Reines, nel comune di Doues, sono scese nell’arena cinquantasei bovine. Grande partecipazione di pubblico e consue"
+    },
+    {
       "id": "aostasera-lionne-braqueun-e-reinon-vincenti-a-vertosan",
       "titolo": "Lionne, Braqueun e Reinon vincenti a Vertosan",
       "fonte": "AostaSera",
       "url": "https://aostasera.it/notizie/societa/lionne-braqueun-e-reinon-vincenti-a-vertosan/",
       "data": "2026-08-02",
       "estratto": "Batailles, il circuito dei combats è ripartito per la sua stagione estiva: successi per Enzo Marcoz, Nadir Jordan e i fratelli Grimod. Domenica prossima l’appun"
-    },
-    {
-      "id": "gazzetta-matin-batailles-riparte-l-8217-estate-delle-regine",
-      "titolo": "Batailles: riparte l&#8217;estate delle Regine",
-      "fonte": "Gazzetta Matin",
-      "url": "https://www.gazzettamatin.com/2026/07/30/batailles-riparte-lestate-delle-regine/",
-      "data": "2026-07-30",
-      "estratto": ""
     },
     {
       "id": "aostasera-stato-presentato-il-calendario-estivo-delle-bata",
