@@ -3,14 +3,6 @@
   "fonte": "Aggregatore RSS (AostaSera, Gazzetta Matin) — solo titolo, estratto e link alla fonte.",
   "items": [
     {
-      "id": "gazzetta-matin-batailles-de-reines-ardita-monella-e-melodie-reg",
-      "titolo": "Batailles de Reines: Ardita, Monella e Melodie regine a Champillon",
-      "fonte": "Gazzetta Matin",
-      "url": "https://www.gazzettamatin.com/2026/08/16/batailles-ardita-monella-e-melodie-regine-doues/",
-      "data": "2026-08-16",
-      "estratto": ""
-    },
-    {
       "id": "aostasera-ardita-monella-e-m-lodie-le-reines-incoronate-a-",
       "titolo": "Ardita, Monella e Mélodie le reines incoronate a Champillon",
       "fonte": "AostaSera",
