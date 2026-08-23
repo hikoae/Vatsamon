@@ -3,20 +3,12 @@
   "fonte": "Aggregatore RSS (AostaSera, Gazzetta Matin) — solo titolo, estratto e link alla fonte.",
   "items": [
     {
-      "id": "aostasera-ardita-monella-e-m-lodie-le-reines-incoronate-a-",
-      "titolo": "Ardita, Monella e Mélodie le reines incoronate a Champillon",
-      "fonte": "AostaSera",
-      "url": "https://aostasera.it/notizie/societa/ardita-monella-e-melodie-le-reines-incoronate-a-champillon/",
-      "data": "2026-08-16",
-      "estratto": "Nell’appuntamento di oggi con le Batailles de Reines, nel comune di Doues, sono scese nell’arena cinquantasei bovine. Grande partecipazione di pubblico e consue"
-    },
-    {
-      "id": "aostasera-lionne-braqueun-e-reinon-vincenti-a-vertosan",
-      "titolo": "Lionne, Braqueun e Reinon vincenti a Vertosan",
-      "fonte": "AostaSera",
-      "url": "https://aostasera.it/notizie/societa/lionne-braqueun-e-reinon-vincenti-a-vertosan/",
-      "data": "2026-08-02",
-      "estratto": "Batailles, il circuito dei combats è ripartito per la sua stagione estiva: successi per Enzo Marcoz, Nadir Jordan e i fratelli Grimod. Domenica prossima l’appun"
+      "id": "gazzetta-matin-batailles-de-reines-tiki-natty-e-merci-regine-a-",
+      "titolo": "Batailles de Reines: Tiki, Natty e Merci regine a Ayas di fronte a 3 mila spettatori",
+      "fonte": "Gazzetta Matin",
+      "url": "https://www.gazzettamatin.com/2026/08/23/batailles-de-reines-tiki-natty-e-merci-regine-ayas-di-fronte-un-pubblico-delle-grandi-occasioni/",
+      "data": "2026-08-23",
+      "estratto": ""
     },
     {
       "id": "gazzetta-matin-batailles-riparte-l-8217-estate-delle-regine",
