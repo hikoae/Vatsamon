@@ -3,6 +3,14 @@
   "fonte": "Aggregatore RSS (AostaSera, Gazzetta Matin) — solo titolo, estratto e link alla fonte.",
   "items": [
     {
+      "id": "gazzetta-matin-batailles-de-reines-ad-arnad-vincono-mamba-jardi",
+      "titolo": "Batailles de Reines: ad Arnad vincono Mamba, Jardin e Biarritz",
+      "fonte": "Gazzetta Matin",
+      "url": "https://www.gazzettamatin.com/2026/08/30/batailles-de-reines-ad-arnad-vincono-mamba-jardin-e-biarritz/",
+      "data": "2026-08-30",
+      "estratto": ""
+    },
+    {
       "id": "aostasera-ayas-applaude-le-sue-reines-trionfano-tiki-natty",
       "titolo": "Ayas applaude le sue Reines: trionfano Tiki, Natty e Merci",
       "fonte": "AostaSera",
