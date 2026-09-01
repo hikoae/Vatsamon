@@ -3,12 +3,20 @@
   "fonte": "Aggregatore RSS (AostaSera, Gazzetta Matin) — solo titolo, estratto e link alla fonte.",
   "items": [
     {
-      "id": "gazzetta-matin-batailles-de-reines-ad-arnad-vincono-mamba-jardi",
-      "titolo": "Batailles de Reines: ad Arnad vincono Mamba, Jardin e Biarritz",
-      "fonte": "Gazzetta Matin",
-      "url": "https://www.gazzettamatin.com/2026/08/30/batailles-de-reines-ad-arnad-vincono-mamba-jardin-e-biarritz/",
-      "data": "2026-08-30",
-      "estratto": ""
+      "id": "aostasera-ayas-applaude-le-sue-reines-trionfano-tiki-natty",
+      "titolo": "Ayas applaude le sue Reines: trionfano Tiki, Natty e Merci",
+      "fonte": "AostaSera",
+      "url": "https://aostasera.it/notizie/societa/ayas-applaude-le-sue-reines-trionfano-tiki-natty-e-merci/",
+      "data": "2026-08-23",
+      "estratto": "A Periasc sono accorse quasi 3.000 persone, tra appassionati e turisti, per assistere alla sfida che ha visto protagoniste 91 Reines.\nContinua la lettura di Aya"
+    },
+    {
+      "id": "aostasera-ardita-monella-e-m-lodie-le-reines-incoronate-a-",
+      "titolo": "Ardita, Monella e Mélodie le reines incoronate a Champillon",
+      "fonte": "AostaSera",
+      "url": "https://aostasera.it/notizie/societa/ardita-monella-e-melodie-le-reines-incoronate-a-champillon/",
+      "data": "2026-08-16",
+      "estratto": "Nell’appuntamento di oggi con le Batailles de Reines, nel comune di Doues, sono scese nell’arena cinquantasei bovine. Grande partecipazione di pubblico e consue"
     }
   ]
 }
