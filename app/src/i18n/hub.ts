@@ -5,7 +5,7 @@
  * (cultura, glossario, leggende, note eventi) portano le proprie traduzioni
  * nei rispettivi dati.
  */
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 
 export type Lang = "it" | "fr";
 
@@ -17,6 +17,7 @@ const DICT = {
     title: "Stagione",
     headerSub: "Batailles de Reines · segui le eliminatorie reali, fai i tuoi pronostici e accompagna la tua Reina fino alla finale di {date}.",
     puntiTifoso: "Punti Tifoso",
+    hdr_indietro: "Indietro",
     // nav
     nav_notizie: "Notizie",
     nav_calendario: "Calendario",
@@ -51,7 +52,13 @@ const DICT = {
     cal_schedinaTitle: "Pronostico di tappa",
     cal_disclaimer: "Risultati e tabellone aggiornabili in tempo reale durante l'evento — senza ripubblicare l'app.",
     res_ufficiale: "Ufficiale",
+    res_nonUfficiale: "Non ufficiale (auto)",
     res_simulato: "Simulato",
+    // provenienza dei risultati — riga in chiaro, una per tappa (vedi
+    // PROVENIENZA in SeasonView): dice da dove arrivano quelle vincitrici.
+    prov_ufficiale: "Risultati ufficiali confermati.",
+    prov_auto: "Risultati dal sito ufficiale, non ancora confermati.",
+    prov_simulato: "Risultati simulati: nessun dato reale pubblicato.",
     // admin risultati
     adm_title: "Inserisci risultati ufficiali",
     adm_sub: "Visibile solo agli account autorizzati. Scrive su Firestore, letto pubblicamente da tutti.",
@@ -61,13 +68,18 @@ const DICT = {
     adm_salva: "Salva risultato",
     adm_errCampi: "Compila il nome della vincitrice per ogni categoria della tappa.",
     adm_ok: "Risultato salvato.",
+    adm_precompilato: "Precompilato da amisdesreines.it (non ufficiale) — verifica e conferma.",
+    adm_pressHints: "Articoli correlati",
     // albo
     albo_title: "Albo d'Oro",
     albo_sub: "Le Reines des Reines della Finale regionale, una per categoria.",
     albo_finaleCN: "Finale Croix-Noire",
     albo_note: "Dati storici verificati da cronache locali. 2020 non disputato come finale ufficiale (Combat événement Covid).",
     // tabellone
-    br_intro: "Finale regionale · {cat} ({peso}) · tocca la Reina che pensi vincerà ogni scontro.",
+    // `{peso}` arriva da CATEGORIES[].peso (data/season.ts) e porta GIÀ le sue
+    // parentesi ("pesi massimi (≥ 571–631 kg)"): racchiuderlo di nuovo dava
+    // "((…))" a schermo. Separatore · come nel resto dell'hub.
+    br_intro: "Finale regionale · {cat} · {peso} · tocca la Reina che pensi vincerà ogni scontro.",
     br_champion: "La tua Reina campionessa",
     br_reine: "Reine 2026",
     br_nodata: "Dati tabellone non disponibili per questa categoria.",
@@ -78,6 +90,8 @@ const DICT = {
     fol_comune: "Comune",
     fol_allevatore: "Allevatore",
     fol_potenza: "Potenza",
+    fol_peso: "Peso",
+    fol_pesoStimato: "* peso stimato",
     fol_cammino: "Il suo cammino",
     fol_seed: "È tra le teste di serie della finale di {cat}. Apri il tabellone per pronosticare il suo percorso fino al titolo.",
     fol_qual: "Punta a qualificarsi per la finale di {cat} alla Croix-Noire del {date}.",
@@ -115,6 +129,7 @@ const DICT = {
     title: "Saison",
     headerSub: "Batailles de Reines · suivez les éliminatoires, faites vos pronostics et accompagnez votre Reine jusqu'à la finale du {date}.",
     puntiTifoso: "Points Supporter",
+    hdr_indietro: "Retour",
     nav_notizie: "Actualités",
     nav_calendario: "Calendrier",
     nav_albo: "Palmarès",
@@ -146,7 +161,11 @@ const DICT = {
     cal_schedinaTitle: "Pronostic d'étape",
     cal_disclaimer: "Résultats et tableau actualisables en temps réel pendant l'événement — sans republier l'application.",
     res_ufficiale: "Officiel",
+    res_nonUfficiale: "Non officiel (auto)",
     res_simulato: "Simulé",
+    prov_ufficiale: "Résultats officiels confirmés.",
+    prov_auto: "Résultats du site officiel, pas encore confirmés.",
+    prov_simulato: "Résultats simulés : aucune donnée réelle publiée.",
     adm_title: "Saisir les résultats officiels",
     adm_sub: "Visible uniquement pour les comptes autorisés. Écrit sur Firestore, lu publiquement par tous.",
     adm_tappa: "Étape",
@@ -155,11 +174,13 @@ const DICT = {
     adm_salva: "Enregistrer le résultat",
     adm_errCampi: "Renseignez le nom de la gagnante pour chaque catégorie de l'étape.",
     adm_ok: "Résultat enregistré.",
+    adm_precompilato: "Pré-rempli depuis amisdesreines.it (non officiel) — vérifiez et confirmez.",
+    adm_pressHints: "Articles liés",
     albo_title: "Palmarès",
     albo_sub: "Les Reines des Reines de la Finale régionale, une par catégorie.",
     albo_finaleCN: "Finale Croix-Noire",
     albo_note: "Données historiques vérifiées par la presse locale. 2020 non disputé comme finale officielle (Combat événement Covid).",
-    br_intro: "Finale régionale · {cat} ({peso}) · touchez la Reine qui gagnera chaque duel selon vous.",
+    br_intro: "Finale régionale · {cat} · {peso} · touchez la Reine qui gagnera chaque duel selon vous.",
     br_champion: "Votre Reine championne",
     br_reine: "Reine 2026",
     br_nodata: "Données du tableau indisponibles pour cette catégorie.",
@@ -169,6 +190,8 @@ const DICT = {
     fol_comune: "Commune",
     fol_allevatore: "Éleveur",
     fol_potenza: "Puissance",
+    fol_peso: "Poids",
+    fol_pesoStimato: "* poids estimé",
     fol_cammino: "Son parcours",
     fol_seed: "Elle fait partie des têtes de série de la finale de {cat}. Ouvrez le tableau pour pronostiquer son parcours jusqu'au titre.",
     fol_qual: "Elle vise la qualification pour la finale de {cat} à la Croix-Noire du {date}.",
@@ -211,8 +234,29 @@ export function tr(lang: Lang, key: DictKey, vars?: Record<string, string>): str
   return s;
 }
 
+// Store reattivo condiviso: più componenti (App, SeasonView, ...) chiamano
+// useLang() e devono vedere LA STESSA lingua, re-renderizzando insieme
+// quando uno di loro cambia il toggle IT/FR.
+let currentLang: Lang = localStorage.getItem(LS_LANG) === "fr" ? "fr" : "it";
+const listeners = new Set<() => void>();
+
+function subscribe(fn: () => void): () => void {
+  listeners.add(fn);
+  return () => listeners.delete(fn);
+}
+
+function getSnapshot(): Lang {
+  return currentLang;
+}
+
+function setLangGlobal(l: Lang): void {
+  if (l === currentLang) return;
+  currentLang = l;
+  localStorage.setItem(LS_LANG, l);
+  for (const fn of listeners) fn();
+}
+
 export function useLang(): [Lang, (l: Lang) => void] {
-  const [lang, setLang] = useState<Lang>(() => (localStorage.getItem(LS_LANG) === "fr" ? "fr" : "it"));
-  useEffect(() => { localStorage.setItem(LS_LANG, lang); }, [lang]);
-  return [lang, setLang];
+  const lang = useSyncExternalStore(subscribe, getSnapshot);
+  return [lang, setLangGlobal];
 }

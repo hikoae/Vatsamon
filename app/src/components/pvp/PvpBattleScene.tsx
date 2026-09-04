@@ -222,11 +222,17 @@ export default function PvpBattleScene({ matchId, onClose, playClick }: {
       <div className="absolute inset-0 -z-10" style={{ background: "linear-gradient(180deg,#bae6fd 0%,#e0f2fe 30%,#dcfce7 62%,#bbf7d0 100%)" }} />
       <div className="absolute inset-x-0 bottom-0 -z-10 h-[42%]" style={{ background: "radial-gradient(120% 80% at 50% 100%, #86efac 0%, #4ade80 55%, #16a34a 100%)" }} />
 
-      <div className="flex items-center justify-between px-4 py-2 bg-slate-950/70 backdrop-blur border-b border-slate-800">
+      {/* Barra a filo schermo: la safe-area si somma a py-2 (0.5rem), altrimenti su
+          iPhone col notch titolo e X finiscono dentro la fascia (tap non affidabile). */}
+      <div className="flex items-center justify-between px-4 py-2 bg-slate-950/70 backdrop-blur border-b border-slate-800"
+        style={{ paddingTop: "calc(0.5rem + env(safe-area-inset-top))" }}>
         <span className="text-xs font-mono font-black text-slate-100">
           ⚔️ {view ? `vs ${view.oppNickname}` : "Sfida tra Allevatori"} {match ? `· ${match.mode === "live" ? "Live" : "Per corrispondenza"}` : ""}
         </span>
-        <button onClick={() => { playClick(); onClose(); }} className="text-slate-300 bg-slate-900/70 rounded-full p-1.5"><X size={16} /></button>
+        {/* aria-label con prefisso "Chiudi": è anche l'aggancio del tap target 44px (index.css).
+            La partita vive su Firestore: chiudere la scena NON è un forfeit (quello è il bottone
+            "Ritira" dentro), quindi l'etichetta dice che la sfida resta aperta. */}
+        <button onClick={() => { playClick(); onClose(); }} aria-label="Chiudi la sfida e torna alla mandria (la partita resta aperta)" className="text-slate-300 bg-slate-900/70 rounded-full p-1.5"><X size={16} /></button>
       </div>
 
       {banner && (
@@ -272,7 +278,10 @@ export default function PvpBattleScene({ matchId, onClose, playClick }: {
             )}
           </motion.div>
 
-          <div className="bg-slate-950/85 backdrop-blur border-t border-slate-800 p-3 space-y-2">
+          {/* Idem in basso: la safe-area si somma a p-3 (0.75rem), altrimenti le mosse
+              e "Ritira la Reina" stanno sull'home indicator. */}
+          <div className="bg-slate-950/85 backdrop-blur border-t border-slate-800 p-3 space-y-2"
+            style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom))" }}>
             {match.lastMove && (
               <div className="bg-slate-900/80 border border-slate-800 rounded-xl px-3 py-2 space-y-0.5">
                 <div className="text-[10px] font-mono leading-snug text-slate-200 line-clamp-2">❖ {match.lastMove.log}</div>

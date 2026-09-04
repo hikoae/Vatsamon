@@ -10,7 +10,7 @@ import { beginCriticalActivity, endCriticalActivity } from '../lib/swUpdate';
  * La foto resta sul dispositivo (IndexedDB), niente cloud, niente volti.
  */
 
-type Fase = 'idle' | 'camera' | 'checking' | 'confirmed' | 'rejected' | 'errore';
+type Fase = 'idle' | 'camera' | 'camera-errore' | 'checking' | 'confirmed' | 'rejected' | 'errore';
 
 export function ScattaView({ onSighting, playClick }: {
   /** dataUrl = foto verificata e ritagliata; null = avvistamento senza foto. */
@@ -35,8 +35,10 @@ export function ScattaView({ onSighting, playClick }: {
         videoRef.current.play().catch(() => {});
       }
     } catch {
-      // niente camera (permesso negato / desktop): torna all'upload
-      setFase('idle');
+      // permesso negato / nessuna fotocamera: mostra un messaggio esplicito
+      // con la via d'uscita (carica dalla galleria), invece di tornare muti a 'idle'.
+      stopCamera();
+      setFase('camera-errore');
     }
   };
 
@@ -133,6 +135,9 @@ export function ScattaView({ onSighting, playClick }: {
           diventa la carta d'avvistamento. La foto non lascia mai il dispositivo.
         </p>
 
+        {/* Input file sempre montato: usato sia da 'idle' sia dalla schermata d'errore fotocamera. */}
+        <input type="file" ref={fileInputRef} onChange={onFile} className="hidden" accept="image/*" />
+
         {fase === 'idle' && (
           <div className="mt-5 border-2 border-dashed border-slate-800 bg-slate-900/40 rounded-3xl p-8 flex flex-col items-center justify-center text-center space-y-4">
             <div className="space-y-4 max-w-sm">
@@ -158,8 +163,6 @@ export function ScattaView({ onSighting, playClick }: {
                   Carica una foto
                 </button>
               </div>
-
-              <input type="file" ref={fileInputRef} onChange={onFile} className="hidden" accept="image/*" />
 
               <div className="py-2 flex items-center text-slate-700 text-[10px] uppercase tracking-widest justify-center">
                 <div className="flex-grow border-t border-slate-800"></div>
@@ -202,6 +205,31 @@ export function ScattaView({ onSighting, playClick }: {
           </div>
         )}
 
+        {fase === 'camera-errore' && (
+          <div className="mt-5 max-w-sm mx-auto space-y-3 text-center" id="camera-error">
+            <div className="text-4xl" aria-hidden="true">🚫📷</div>
+            <p className="text-sm font-bold text-slate-200">Fotocamera non disponibile</p>
+            <p className="text-xs text-slate-400">
+              Permesso negato o nessuna fotocamera collegata. Puoi comunque
+              <b className="text-slate-300"> caricare una foto dalla galleria</b> per registrare l'avvistamento.
+            </p>
+            <div className="flex flex-col items-center justify-center gap-2 pt-1">
+              <button
+                onClick={() => { playClick(); fileInputRef.current?.click(); }}
+                className="w-full bg-[#10b981] hover:bg-emerald-400 text-[#0b0820] font-bold text-xs py-2.5 px-4 rounded-xl transition-colors cursor-pointer min-h-[44px]"
+              >
+                Carica una foto
+              </button>
+              <button
+                onClick={() => { playClick(); reset(); }}
+                className="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs py-2.5 px-4 rounded-xl transition-colors cursor-pointer min-h-[44px]"
+              >
+                Torna indietro
+              </button>
+            </div>
+          </div>
+        )}
+
         {fase === 'checking' && (
           <div className="py-8 space-y-4 max-w-sm mx-auto text-center" id="scan-bar-loader">
             <div className="w-14 h-14 mx-auto rounded-full border-4 border-slate-800 border-t-emerald-500 animate-spin flex items-center justify-center">
@@ -229,7 +257,7 @@ export function ScattaView({ onSighting, playClick }: {
             <div className="flex gap-2">
               <button
                 id="sighting-confirm"
-                onClick={() => { playClick(); onSighting(cardPhoto); }}
+                onClick={() => { playClick(); onSighting(cardPhoto); reset(); }}
                 className="flex-grow bg-emerald-500 hover:bg-emerald-400 text-[#0b0820] font-black text-xs py-3 rounded-xl border-b-4 border-emerald-700 min-h-[48px]"
               >
                 🔔 Avvicìnati col campanaccio

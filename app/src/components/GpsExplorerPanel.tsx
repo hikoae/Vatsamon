@@ -130,12 +130,22 @@ export function GpsExplorerPanel(props: Props) {
               <p className="text-xs text-slate-500 mt-0.5">{props.checkpointMission.detail}</p>
             </div>
           </div>
+          {/* Da acceso il bottone regge (6,33:1 misurati sui pixel: #7a4700 su
+              #f4e7d9). Da spento invece `disabled:opacity-45` sbiadiva l'INTERO
+              bottone a 2,03:1, e con esso la riga «Avvicìnati alla tappa con il
+              GPS attivo» — che è proprio l'istruzione su cosa fare per sbloccarlo.
+              Passa a `.is-disabled`, lo stato disabilitato vero del contratto
+              (fondo slate-855, inchiostro slate-400, cornice tratteggiata), che
+              qui NON tocca la geometria: il bottone ha già un `border` da 1px, la
+              classe ne cambia solo lo stile (verificato a runtime: Δ 0×0 px sul
+              bottone e Δ 0 px sull'altezza del pannello). Il cursore
+              `not-allowed` lo imposta la classe stessa. */}
           <button
             id="gps-checkpoint-btn"
             type="button"
             onClick={props.onCheckIn}
             disabled={!props.checkpointReady || props.checkpointClaimed}
-            className="w-full min-h-[44px] mt-3 rounded-xl border border-amber-600/50 bg-amber-500/10 text-amber-500 font-mono font-black text-xs disabled:opacity-45 disabled:cursor-not-allowed"
+            className="w-full min-h-[44px] mt-3 rounded-xl border border-amber-600/50 bg-amber-500/10 text-amber-500 font-mono font-black text-xs is-disabled"
           >
             {props.checkpointClaimed ? <><CheckCircle2 className="inline w-4 h-4 mr-1" />Timbro già registrato</> : props.checkpointReady ? 'Registra arrivo · +15 🪙 · +50 XP' : 'Avvicìnati alla tappa con il GPS attivo'}
           </button>
