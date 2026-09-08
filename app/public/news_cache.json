@@ -3,14 +3,6 @@
   "fonte": "Aggregatore RSS (AostaSera, Gazzetta Matin) — solo titolo, estratto e link alla fonte.",
   "items": [
     {
-      "id": "gazzetta-matin-batailles-de-reines-gitane-vilaine-e-voleine-vin",
-      "titolo": "Batailles de Reines: Gitane, Vilaine e Voleine vincono ad Aosta",
-      "fonte": "Gazzetta Matin",
-      "url": "https://www.gazzettamatin.com/2026/09/06/batailles-de-reines-gitane-vilaine-e-voleine-vincono-ad-aosta/",
-      "data": "2026-09-06",
-      "estratto": ""
-    },
-    {
       "id": "aostasera-batailles-tutto-in-famiglia-o-quasi-a-excenex-il",
       "titolo": "Batailles, tutto in famiglia (o quasi) a Excenex: il combat di Aosta sorride ai Grimod",
       "fonte": "AostaSera",
