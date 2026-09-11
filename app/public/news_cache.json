@@ -3,6 +3,14 @@
   "fonte": "Aggregatore RSS (AostaSera, Gazzetta Matin) — solo titolo, estratto e link alla fonte.",
   "items": [
     {
+      "id": "aostasera-aosta-pride-sabato-26-settembre-la-parata-a-cres",
+      "titolo": "Aosta Pride, sabato 26 settembre la parata “a cresta alta” dall’Arco d’Augusto all’Università",
+      "fonte": "AostaSera",
+      "url": "https://aostasera.it/notizie/societa/aosta-pride-2026-date-programma-tutti-gli-eventi/",
+      "data": "2026-09-11",
+      "estratto": "Presentati percorso e novità della terza edizione: le Karma B “Reines” del corteo, un secondo carro dedicato all’Europride Torino 2027 e l'arrivo davanti all'Un"
+    },
+    {
       "id": "aostasera-batailles-tutto-in-famiglia-o-quasi-a-excenex-il",
       "titolo": "Batailles, tutto in famiglia (o quasi) a Excenex: il combat di Aosta sorride ai Grimod",
       "fonte": "AostaSera",
