@@ -1,8 +1,11 @@
-import { useMemo, useState } from "react";
-import { ShieldCheck, Save, Loader2, CheckCircle2, AlertTriangle } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { ShieldCheck, Save, Loader2, CheckCircle2, AlertTriangle, Newspaper, ExternalLink } from "lucide-react";
 import { CALENDAR, CATEGORIES, CategoriaId } from "../data/season";
 import { REAL_COWS } from "../data/realCows";
-import { getCachedRisultato, setRisultato, RisultatoCategoria } from "../lib/risultati";
+import {
+  getCachedRisultato, setRisultato, RisultatoCategoria,
+  getAllRisultatiAuto, getCachedRisultatoAuto, getPressHints,
+} from "../lib/risultati";
 import { Lang, tr } from "../i18n/hub";
 
 /**
@@ -11,17 +14,34 @@ import { Lang, tr } from "../i18n/hub";
  * dell'utente loggato — vedi il gate in SeasonView. Scrive su
  * `risultati/{eventId}`, verificato anche (e soprattutto) lato
  * firestore.rules: un denial qui non deve mai far crashare la UI.
+ *
+ * G5: se non c'è ancora un risultato confermato su Firestore per la tappa,
+ * i campi si precompilano con la cache auto (letta dal tabellone pubblicato
+ * su amisdesreines.it, vedi lib/risultati.ts getCachedRisultatoAuto) — SOLO
+ * come suggerimento da verificare: l'admin conferma con un tap, esattamente
+ * come per un inserimento manuale. Mai una scrittura automatica su Firestore.
  */
 
 const EMPTY: Record<CategoriaId, string> = { "1": "", "2": "", "3": "" };
 
-function fromCache(eventId: string | undefined): { nomi: Record<CategoriaId, string>; note: Record<CategoriaId, string> } {
+function fromCache(eventId: string | undefined): { nomi: Record<CategoriaId, string>; note: Record<CategoriaId, string>; precompilato: boolean } {
   const existing = eventId ? getCachedRisultato(eventId) : undefined;
-  if (!existing) return { nomi: { ...EMPTY }, note: { ...EMPTY } };
-  return {
-    nomi: { "1": existing.cat1?.nome ?? "", "2": existing.cat2?.nome ?? "", "3": existing.cat3?.nome ?? "" },
-    note: { "1": existing.cat1?.note ?? "", "2": existing.cat2?.note ?? "", "3": existing.cat3?.note ?? "" },
-  };
+  if (existing) {
+    return {
+      nomi: { "1": existing.cat1?.nome ?? "", "2": existing.cat2?.nome ?? "", "3": existing.cat3?.nome ?? "" },
+      note: { "1": existing.cat1?.note ?? "", "2": existing.cat2?.note ?? "", "3": existing.cat3?.note ?? "" },
+      precompilato: false,
+    };
+  }
+  const auto = eventId ? getCachedRisultatoAuto(eventId) : undefined;
+  if (auto && (auto.cat1 || auto.cat2 || auto.cat3)) {
+    return {
+      nomi: { "1": auto.cat1?.nome ?? "", "2": auto.cat2?.nome ?? "", "3": auto.cat3?.nome ?? "" },
+      note: { ...EMPTY },
+      precompilato: true,
+    };
+  }
+  return { nomi: { ...EMPTY }, note: { ...EMPTY }, precompilato: false };
 }
 
 export function RisultatiAdmin({ lang, onSaved }: { lang: Lang; onSaved?: () => void }) {
@@ -29,11 +49,28 @@ export function RisultatiAdmin({ lang, onSaved }: { lang: Lang; onSaved?: () => 
   const [eventId, setEventId] = useState<string>(eventi[0]?.id ?? "");
   const [nomi, setNomi] = useState<Record<CategoriaId, string>>(() => fromCache(eventi[0]?.id).nomi);
   const [note, setNote] = useState<Record<CategoriaId, string>>(() => fromCache(eventi[0]?.id).note);
+  const [precompilato, setPrecompilato] = useState(() => fromCache(eventi[0]?.id).precompilato);
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState<{ ok: boolean; msg: string } | null>(null);
 
   const evento = eventi.find((e) => e.id === eventId) ?? null;
   const nomiOptions = useMemo(() => [...REAL_COWS].map((c) => c.name).sort((a, b) => a.localeCompare(b)), []);
+  const pressHints = eventId ? getPressHints(eventId) : [];
+
+  // La cache auto (G5) arriva da un fetch async: se al primo render non è
+  // ancora calda, questo effetto ri-precompila appena disponibile — MA solo
+  // se l'admin non ha già iniziato a scrivere (mai sovrascrivere un input in
+  // corso). Stesso pattern del bump di SeasonView.
+  useEffect(() => {
+    let alive = true;
+    getAllRisultatiAuto().then(() => {
+      if (!alive) return;
+      const loaded = fromCache(eventId);
+      setNomi((prev) => (Object.values(prev).every((v) => !v.trim()) ? loaded.nomi : prev));
+      if (loaded.precompilato) setPrecompilato(true);
+    });
+    return () => { alive = false; };
+  }, [eventId]);
 
   function selectEvento(id: string) {
     setEventId(id);
@@ -41,6 +78,7 @@ export function RisultatiAdmin({ lang, onSaved }: { lang: Lang; onSaved?: () => 
     const loaded = fromCache(id);
     setNomi(loaded.nomi);
     setNote(loaded.note);
+    setPrecompilato(loaded.precompilato);
   }
 
   async function submit() {
@@ -91,6 +129,33 @@ export function RisultatiAdmin({ lang, onSaved }: { lang: Lang; onSaved?: () => 
             ))}
           </select>
         </div>
+
+        {precompilato && (
+          <div className="flex items-start gap-2 bg-amber-500/10 border border-amber-600/40 rounded-xl p-2.5 text-[10px] font-mono text-amber-300">
+            <Newspaper className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+            {tr(lang, "adm_precompilato")}
+          </div>
+        )}
+
+        {pressHints.length > 0 && (
+          <div className="space-y-1">
+            <div className="text-[10px] font-mono font-black uppercase tracking-widest text-slate-400">
+              {tr(lang, "adm_pressHints")}
+            </div>
+            {pressHints.map((url) => (
+              <a
+                key={url}
+                href={url}
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center gap-1.5 text-[10px] font-mono text-sky-400 hover:text-sky-300 truncate"
+              >
+                <ExternalLink className="w-3 h-3 flex-shrink-0" />
+                <span className="truncate">{url}</span>
+              </a>
+            ))}
+          </div>
+        )}
 
         {evento?.categorie.map((cat) => {
           const c = CATEGORIES.find((x) => x.id === cat)!;

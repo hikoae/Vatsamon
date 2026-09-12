@@ -1,0 +1,76 @@
+{
+  "generatedAt": "2026-07-12T10:29:42.091Z",
+  "results": {
+    "el-01": {
+      "cat1": {
+        "nome": "Miccia"
+      },
+      "cat2": {
+        "nome": "Altesse"
+      },
+      "cat3": {
+        "nome": "Monella"
+      },
+      "confidence": "ufficiale-web",
+      "sourceUrl": "https://www.amisdesreines.it/gara/eliminatoria-di-pont-saint-martin-domenica-29-marzo-2026/",
+      "fetchedAt": "2026-07-12T10:29:40.811Z"
+    },
+    "el-02": {
+      "cat1": {
+        "nome": "Berleun"
+      },
+      "cat2": {
+        "nome": "Volga"
+      },
+      "cat3": {
+        "nome": "Champagne"
+      },
+      "confidence": "ufficiale-web",
+      "sourceUrl": "https://www.amisdesreines.it/gara/eliminatoria-di-saint-marcel-lunedi-06-aprile-2026/",
+      "fetchedAt": "2026-07-12T10:29:41.062Z"
+    },
+    "el-03": {
+      "cat1": {
+        "nome": "Pazzesca"
+      },
+      "cat2": {
+        "nome": "Tigre"
+      },
+      "cat3": {
+        "nome": "Euforie"
+      },
+      "confidence": "ufficiale-web",
+      "sourceUrl": "https://www.amisdesreines.it/gara/eliminatoria-di-jovencan-domenica-12-aprile-2026/",
+      "fetchedAt": "2026-07-12T10:29:41.323Z"
+    },
+    "el-04": {
+      "cat1": {
+        "nome": "Caprice"
+      },
+      "cat2": {
+        "nome": "Malizia"
+      },
+      "cat3": {
+        "nome": "Bambinò"
+      },
+      "confidence": "ufficiale-web",
+      "sourceUrl": "https://www.amisdesreines.it/gara/eliminatoria-di-gignod-domenica-19-aprile-2026/",
+      "fetchedAt": "2026-07-12T10:29:41.581Z"
+    },
+    "el-05": {
+      "cat1": {
+        "nome": "Negro’"
+      },
+      "cat2": {
+        "nome": "Jardin"
+      },
+      "cat3": {
+        "nome": "Samba"
+      },
+      "confidence": "ufficiale-web",
+      "sourceUrl": "https://www.amisdesreines.it/gara/eliminatoria-di-pollein-domenica-26-aprile-2026/",
+      "fetchedAt": "2026-07-12T10:29:41.832Z"
+    }
+  },
+  "pressHints": {}
+}

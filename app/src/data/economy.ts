@@ -22,13 +22,32 @@ export interface Valuta {
   descFr: string;
 }
 
+/** COLORE DELLE VALUTE — `--color-reward` (#7a4700) di index.css.
+ *
+ *  Prima erano due ambre da tema scuro (#fbbf24 e #e0b15e) che sulle superfici
+ *  chiare di oggi non reggono: la seconda, misurata sul chip dell'HUD, dà 1,80:1.
+ *  Il contratto UI ha un solo ambra "da testo" per il ruolo valuta/ricompensa, ed
+ *  è questo: 7,00:1 sulla superficie più chiara, 4,95:1 sulla più scura.
+ *
+ *  SÌ, ORA SONO UGUALI. Il colore qui codifica il RUOLO ("questa è valuta"), non
+ *  l'identità della singola moneta: a distinguere Denari e Fontina restano emoji,
+ *  nome e campo. È la stessa scelta già fatta dai componenti, che stampano
+ *  entrambi gli importi con `.tone-reward`.
+ *
+ *  DOPPIO RUOLO. Il valore è consumato come colore di testo e come bordo (con
+ *  l'alfa concatenata, `colore + "66"`) — per questo resta un hex letterale e non
+ *  una `var(--color-reward)`, che spezzerebbe la concatenazione. Come FONDO PIENO
+ *  non va usato così: lì servono `--color-reward-strong` (#e08a0a) e l'inchiostro
+ *  `--color-reward-ink`. */
+const COLORE_VALUTA = "#7a4700";
+
 export const VALUTE: Record<Valuta["id"], Valuta> = {
   denari: {
-    id: "denari", nome: "Denari d'Alpeggio", nomeFr: "Deniers d'alpage", emoji: "🪙", colore: "#fbbf24", campo: "coins",
+    id: "denari", nome: "Denari d'Alpeggio", nomeFr: "Deniers d'alpage", emoji: "🪙", colore: COLORE_VALUTA, campo: "coins",
     desc: "Moneta di tutti i giorni: cammino, casere, sfide.", descFr: "Monnaie de tous les jours : marche, fruitières, défis.",
   },
   fontina: {
-    id: "fontina", nome: "Forme di Fontina", nomeFr: "Meules de Fontina", emoji: "🧀", colore: "#e0b15e", campo: "fontina",
+    id: "fontina", nome: "Forme di Fontina", nomeFr: "Meules de Fontina", emoji: "🧀", colore: COLORE_VALUTA, campo: "fontina",
     desc: "Prestigio: vinci le Leghe e fai crescere le Reines.", descFr: "Prestige : gagne les Ligues et élève tes Reines.",
   },
 };

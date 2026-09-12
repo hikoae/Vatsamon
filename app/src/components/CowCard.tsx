@@ -119,10 +119,15 @@ export function CowCard({ cow }: { cow: Vatsamon }) {
       </div>
 
       {/* illustrazione / foto reale con cornice rarità */}
+      {/* Box 16:9 come la sorgente (vedi CowVisual, "FORMA DEL BOX"): il
+          riquadro quadrato `w-40 h-40` rendeva la Reina 160×90 con 70px vuoti
+          fra le due bande. A tutta larghezza la stessa foto rende ~289×163.
+          Il galleggiamento sta sulla cornice, non sull'immagine, così i due
+          non si scollano di 8px l'uno dall'altra. */}
       <div className="relative py-2 flex justify-center">
         <div className={`absolute inset-6 rounded-full pointer-events-none filter blur-xl ${r.glow}`} />
-        <div className={`relative z-10 rounded-2xl border-2 ${r.frame} p-1 bg-slate-950/40`}>
-          <CowVisual cow={cow} className="w-40 h-40 animate-float" />
+        <div className={`relative z-10 w-full rounded-2xl border-2 ${r.frame} p-1 bg-slate-950/40 animate-float`}>
+          <CowVisual cow={cow} fit="cover" className="w-full aspect-[16/9]" />
         </div>
       </div>
 
