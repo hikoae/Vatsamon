@@ -3,6 +3,22 @@
   "fonte": "Aggregatore RSS (AostaSera, Gazzetta Matin) — solo titolo, estratto e link alla fonte.",
   "items": [
     {
+      "id": "gazzetta-matin-cogne-le-bovine-di-casa-dominano-la-bataille-ber",
+      "titolo": "Cogne, le bovine di casa dominano la bataille: Berlin, Furie e Gitane regine",
+      "fonte": "Gazzetta Matin",
+      "url": "https://www.gazzettamatin.com/2026/09/13/cogne-le-bovine-di-casa-dominano-la-bataille-berlin-furie-e-gitane-regine/",
+      "data": "2026-09-13",
+      "estratto": ""
+    },
+    {
+      "id": "aostasera-batailles-a-cogne-non-passa-lo-straniero-success",
+      "titolo": "Batailles, a Cogne “non passa lo straniero”: successo degli allevatori locali, sorridono Massimiliano Garin e Ruben Bovet",
+      "fonte": "AostaSera",
+      "url": "https://aostasera.it/notizie/societa/batailles-a-cogne-non-passa-lo-straniero-successo-degli-allevatori-locali-sorridono-massimiliano-garin-e-ruben-bovet/",
+      "data": "2026-09-13",
+      "estratto": "Garin si impone oggi, domenica 13 settembre, con Berlin e Furie, già protagoniste entrambe alla Regionale, mentre Bovet conquista il terzo peso grazie a Gitane:"
+    },
+    {
       "id": "aostasera-aosta-pride-sabato-26-settembre-la-parata-a-cres",
       "titolo": "Aosta Pride, sabato 26 settembre la parata “a cresta alta” dall’Arco d’Augusto all’Università",
       "fonte": "AostaSera",
