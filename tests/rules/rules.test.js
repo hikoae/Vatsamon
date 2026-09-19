@@ -43,6 +43,10 @@ beforeEach(async () => {
 
 const OWNER_UID = 'owner-uid';
 const OTHER_UID = 'other-uid';
+// uid dell'admin risultati (S11). Fonte di verità: isRisultatiAdmin() in
+// firestore.rules, allineata con ADMIN_UIDS in app/src/lib/risultati.ts:
+// se cambia lì, va cambiato qui o i test risultati tornano a mentire.
+const RISULTATI_ADMIN_UID = '6f8lhVEeX2OI3jZZYGK7jMvEa1L2';
 
 function asOwner() {
   return testEnv.authenticatedContext(OWNER_UID).firestore();
@@ -433,7 +437,12 @@ test('pvpMatches: vittoria finta (esito "vinto" con stato non terminale) fallisc
 });
 
 test('pvpMatches: vittoria reale (barra >= 100, esito "vinto") riesce e chiude la partita su p1', async () => {
-  await seedAsAdmin('pvpMatches/m12', baseMatch());
+  // Copertura volutamente limitata: qui si certifica solo che una chiusura di
+  // partita a partire da uno stato già prossimo al terminale (seed sotto) venga
+  // accettata. La validazione lato server di questo ramo è in revisione: finché
+  // non è chiusa, non trattare questo test come garanzia completa sulle
+  // transizioni verso "finished".
+  await seedAsAdmin('pvpMatches/m12', baseMatch({ state: baseState({ barra: 92 }) }));
   await assertSucceeds(updateDoc(doc(asP1(), 'pvpMatches/m12'), {
     state: baseState({ barra: 100, turno: 1, esito: 'vinto' }),
     status: 'finished',
@@ -641,12 +650,12 @@ test('moves: lettura da un terzo utente NON in playerUids fallisce', async () =>
 
 // --- risultati/{eventId} (S11) ----------------------------------------------
 // Copre la collection dei risultati UFFICIALI di gara: lettura pubblica,
-// scrittura riservata all'allowlist admin. Il placeholder "__ADMIN_UID__" in
-// firestore.rules NON è un vero uid Firebase (TODO G7) — qui lo usiamo
-// letteralmente come uid del contesto di test "admin" per esercitare la
-// stessa logica di allowlist che girerà in produzione una volta sostituito.
+// scrittura riservata all'allowlist admin. G7 è chiuso: l'allowlist in
+// firestore.rules contiene l'uid reale, quindi il contesto "admin" qui usa
+// RISULTATI_ADMIN_UID (vedi in cima al file) — con un uid diverso i test
+// `assertFails` sullo schema passerebbero per il motivo sbagliato.
 
-function asRisultatiAdmin() { return testEnv.authenticatedContext('__ADMIN_UID__').firestore(); }
+function asRisultatiAdmin() { return testEnv.authenticatedContext(RISULTATI_ADMIN_UID).firestore(); }
 
 const VALID_RISULTATO = {
   cat1: { nome: 'Suisse' },

@@ -52,7 +52,21 @@ export function MossePanel({ id, mosse, st, busy, onMossa, onInfo, famiglieAbili
                 {m.emoji} {m.nome}
                 {usiLeft !== null && <span className="ml-1 text-[9px] text-amber-400">×{Math.max(0, usiLeft)}</span>}
               </div>
-              <div className="text-[10px] font-mono text-amber-500/90 leading-tight mt-0.5">
+              {/* Suggerimento tattico (counterHint, o il motivo del blocco): è la
+                  meccanica del gioco spiegata a chi sta scegliendo la mossa, quindi
+                  deve leggersi. Era `text-amber-500/90` e stava a 2,08:1 misurati
+                  sui pixel (ambra grezza #e08a0a su bg-slate-900): la correzione di
+                  contrasto di index.css agganciava la sola classe secca
+                  `.text-amber-500` e la variante con opacità le sfuggiva.
+                  Il colore giusto però va scelto QUI, non solo rattoppato là: nel
+                  contratto l'ambra è riservata a valuta e ricompensa
+                  (--color-reward), e questo è un testo informativo. Usiamo
+                  l'inchiostro attenuato `text-slate-400`, lo stesso che nella
+                  schermata di battaglia porta gli altri testi di supporto
+                  (descrizione dello Sac, riga «Indole …»): 6,17:1 misurati su
+                  bg-slate-900, e resta sotto al nome della mossa (slate-100) nella
+                  gerarchia. Regge anche se domani la regola globale cambia. */}
+              <div className="text-[10px] font-mono text-slate-400 leading-tight mt-0.5">
                 {guidataOff && hintDisabilitata ? hintDisabilitata : blocco ? `🔒 ${blocco}` : HINT[fam]}
               </div>
             </button>
