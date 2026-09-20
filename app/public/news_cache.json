@@ -3,6 +3,14 @@
   "fonte": "Aggregatore RSS (AostaSera, Gazzetta Matin) — solo titolo, estratto e link alla fonte.",
   "items": [
     {
+      "id": "gazzetta-matin-batailles-de-reines-a-courmayeur-vincono-ian-sei",
+      "titolo": "Batailles de reines: a Courmayeur vincono Ian Sei, Coquine e Merlitta",
+      "fonte": "Gazzetta Matin",
+      "url": "https://www.gazzettamatin.com/2026/09/20/batailles-de-reines-a-courmayeur-vincono-ian-sei-coquine-e-merlitta/",
+      "data": "2026-09-20",
+      "estratto": ""
+    },
+    {
       "id": "aostasera-batailles-a-cogne-non-passa-lo-straniero-success",
       "titolo": "Batailles, a Cogne “non passa lo straniero”: successo degli allevatori locali, sorridono Massimiliano Garin e Ruben Bovet",
       "fonte": "AostaSera",
