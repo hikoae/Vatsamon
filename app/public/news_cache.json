@@ -3,6 +3,14 @@
   "fonte": "Aggregatore RSS (AostaSera, Gazzetta Matin) — solo titolo, estratto e link alla fonte.",
   "items": [
     {
+      "id": "aostasera-batailles-due-eliminatorie-e-sar-tempo-di-region",
+      "titolo": "Batailles, due eliminatorie e sarà tempo di Regionale: a Courmayeur scopre le sue carte Merlitta di Silvia Balicco e Joseph Patruno",
+      "fonte": "AostaSera",
+      "url": "https://aostasera.it/notizie/societa/batailles-due-eliminatorie-e-sara-tempo-di-regionale-a-courmayeur-scopre-le-sue-carte-merlitta-di-silvia-balicco-e-joseph-patruno/",
+      "data": "2026-09-21",
+      "estratto": "Ieri l’eliminatoria di Dolonne ha permesso a due allevatori della Valdigne di festeggiare: in prima categoria successo di Ian Sei di Maura Mochet, in seconda to"
+    },
+    {
       "id": "gazzetta-matin-batailles-de-reines-a-courmayeur-vincono-ian-sei",
       "titolo": "Batailles de reines: a Courmayeur vincono Ian Sei, Coquine e Merlitta",
       "fonte": "Gazzetta Matin",
