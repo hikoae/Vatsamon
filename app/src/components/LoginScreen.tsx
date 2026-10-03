@@ -62,10 +62,12 @@ export default function LoginScreen() {
           </p>
         </div>
 
+        {/* NB scala slate INVERTITA (index.css): su fondo bianco serve un numero
+            BASSO (inchiostro), non slate-800 che qui è chiaro e illeggibile. */}
         <button
           onClick={handleGoogle}
           disabled={busy}
-          className="w-full flex items-center justify-center gap-3 bg-white text-slate-800 font-semibold rounded-2xl py-3 border border-slate-300 shadow-sm disabled:opacity-60"
+          className="w-full flex items-center justify-center gap-3 bg-white text-slate-100 font-semibold rounded-2xl py-3 border border-slate-300 shadow-sm disabled:opacity-60"
         >
           <GoogleGlyph />
           Continua con Google
@@ -113,7 +115,7 @@ export default function LoginScreen() {
             />
           </Field>
 
-          {error && <p className="text-sm text-rose-500 font-medium">{error}</p>}
+          {error && <p className="text-sm text-rose-300 font-medium">{error}</p>}
 
           <button
             type="submit"
@@ -132,7 +134,7 @@ export default function LoginScreen() {
               setError("");
               setMode(mode === "register" ? "login" : "register");
             }}
-            className="text-rose-500 font-semibold"
+            className="text-rose-300 font-semibold"
           >
             {mode === "register" ? "Accedi" : "Registrati"}
           </button>

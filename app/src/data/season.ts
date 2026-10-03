@@ -1,6 +1,6 @@
 import { Vatsamon } from "../types";
 import { REAL_COWS } from "./realCows";
-import { getCachedRisultato } from "../lib/risultati";
+import { getMergedRisultato, RisultatoConfidence } from "../lib/risultati";
 import { DESARPA_GIORNO } from "./arp";
 
 /**
@@ -87,8 +87,24 @@ export interface SeasonEvent {
   data: string;
   /** Data di fine (solo per la pausa). */
   dataFine?: string;
+  /**
+   * Data ISO con cui la tappa è PUBBLICATA sulla fonte (amisdesreines.it),
+   * quando diverge da `data` perché il calendario è stato spostato DOPO la
+   * pubblicazione del post e il sito non si è ancora allineato.
+   *
+   * NON è un errore e non è un doppione: `data` resta l'unica data vera,
+   * l'unica mostrata in app e l'unica usata da countdown/fasi/gioco.
+   * `dataFonte` serve SOLO a `scripts/build-risultati.mjs`, che risolve il
+   * post della gara dallo slug e dal titolo — entrambi costruiti sulla data
+   * vecchia. Senza questo campo la tappa spostata non verrebbe più trovata
+   * e non raccoglierebbe mai risultati. Si toglie quando la fonte si allinea.
+   */
+  dataFonte?: string;
   comune: string;
   luogo: string;
+  /** Variante FR di `luogo` (stessa convenzione di `noteFr`): se assente si
+   *  usa `luogo` — i toponimi propri non hanno bisogno di traduzione. */
+  luogoFr?: string;
   categorie: CategoriaId[];
   kind: EventKind;
   /** Fase della stagione (determina le soglie di peso applicate). */
@@ -103,14 +119,15 @@ export interface SeasonEvent {
 
 /**
  * Calendario REALE 2026 — 69ème Concours Régional (fonte: Amis des Batailles de
- * Reines, calendario approvato): 15 eliminatorie + finale del 25/10 alla
- * Croix-Noire. Pausa d'alpeggio (inalpa) tra le primaverili e le estive.
+ * Reines, calendario approvato): 15 eliminatorie + il weekend della finale alla
+ * Croix-Noire (Combats du Samedi il 24/10, finale regionale il 25/10).
+ * Pausa d'alpeggio (inalpa) tra le primaverili e le estive.
  * `disputata` riflette la timeline reale rispetto a "oggi" (stagione in corso).
  */
 export const CALENDAR: SeasonEvent[] = [
-  { id: "el-01", data: "2026-03-29", comune: "Pont-Saint-Martin", luogo: "Area combattimenti", categorie: ["1", "2", "3"], kind: "bataille", fase: "primavera", disputata: true },
-  { id: "el-02", data: "2026-04-06", comune: "Saint-Marcel", luogo: "Area combattimenti", categorie: ["1", "2", "3"], kind: "bataille", fase: "primavera", disputata: true },
-  { id: "el-03", data: "2026-04-12", comune: "Jovençan", luogo: "Area combattimenti", categorie: ["1", "2", "3"], kind: "bataille", fase: "primavera", disputata: true },
+  { id: "el-01", data: "2026-03-29", comune: "Pont-Saint-Martin", luogo: "Area combattimenti", luogoFr: "Aire de combat", categorie: ["1", "2", "3"], kind: "bataille", fase: "primavera", disputata: true },
+  { id: "el-02", data: "2026-04-06", comune: "Saint-Marcel", luogo: "Area combattimenti", luogoFr: "Aire de combat", categorie: ["1", "2", "3"], kind: "bataille", fase: "primavera", disputata: true },
+  { id: "el-03", data: "2026-04-12", comune: "Jovençan", luogo: "Area combattimenti", luogoFr: "Aire de combat", categorie: ["1", "2", "3"], kind: "bataille", fase: "primavera", disputata: true },
   { id: "el-04", data: "2026-04-19", comune: "Gignod", luogo: "Area Le Pré", categorie: ["1", "2", "3"], kind: "bataille", fase: "primavera", disputata: true },
   { id: "el-05", data: "2026-04-26", comune: "Pollein", luogo: "Area Grand-Place", categorie: ["1", "2", "3"], kind: "bataille", fase: "primavera", disputata: true },
 
@@ -121,9 +138,16 @@ export const CALENDAR: SeasonEvent[] = [
   { id: "el-08", data: "2026-08-16", comune: "Doues", luogo: "Champillon", categorie: ["1", "2", "3"], kind: "bataille", fase: "estate", disputata: false },
   { id: "el-09", data: "2026-08-23", comune: "Ayas", luogo: "Champoluc", categorie: ["1", "2", "3"], kind: "bataille", fase: "estate", disputata: false },
   { id: "el-10", data: "2026-08-30", comune: "Arnad", luogo: "Féhta dou Lar", categorie: ["1", "2", "3"], kind: "bataille", fase: "estate", disputata: false },
-  { id: "el-11", data: "2026-09-06", comune: "Aosta", luogo: "Area combattimenti", categorie: ["1", "2", "3"], kind: "bataille", fase: "autunno", disputata: false },
+  { id: "el-11", data: "2026-09-06", comune: "Aosta", luogo: "Area combattimenti", luogoFr: "Aire de combat", categorie: ["1", "2", "3"], kind: "bataille", fase: "autunno", disputata: false },
   { id: "el-12", data: "2026-09-13", comune: "Cogne", luogo: "Prato di Sant'Orso", categorie: ["1", "2", "3"], kind: "bataille", fase: "autunno", disputata: false },
-  { id: "el-13", data: "2026-09-27", comune: "Courmayeur", luogo: "Mont-Blanc", categorie: ["1", "2", "3"], kind: "bataille", fase: "autunno", disputata: false },
+  // COURMAYEUR SPOSTATA — l'Assemblea dell'Association ha anticipato
+  // l'eliminatoria di Mont-Blanc dal 27/09 a domenica 20/09/2026 (delibera del
+  // 15/07/2026, motivo dichiarato: concomitanza con altri eventi). È l'unica
+  // variazione del calendario 2026. `dataFonte` conserva la data VECCHIA
+  // perché amisdesreines.it non si è aggiornato: slug e titolo del post gara
+  // contengono ancora "27 settembre 2026" ed è da lì che
+  // scripts/build-risultati.mjs risolve la tappa (vedi `dataFonte` sopra).
+  { id: "el-13", data: "2026-09-20", dataFonte: "2026-09-27", comune: "Courmayeur", luogo: "Mont-Blanc", categorie: ["1", "2", "3"], kind: "bataille", fase: "autunno", disputata: false },
 
   // DÉSARPA (S14, dossier §10) — cerimonia della discesa dagli alpeggi, NON
   // una tappa: nessuna categoria, nessun vincitore di gara. Entra nel
@@ -134,10 +158,25 @@ export const CALENDAR: SeasonEvent[] = [
   // RisultatiAdmin) da tutto il resto del CALENDAR.
   { id: "desarpa", data: `${SEASON_META.anno}${DESARPA_GIORNO}`, comune: "Désarpa", luogo: "Cerimonia della discesa", categorie: [], kind: "cerimonia", note: "La cerimonia annuale della discesa dagli alpeggi: si incoronano le due Reines di mandria — la Reina di corne (più vittorie stagionali) e la Reine du lait (più produttiva all'alpe).", noteFr: "La cérémonie annuelle de la descente des alpages : on couronne les deux Reines de troupeau — la Reine de corne (la plus victorieuse de la saison) et la Reine du lait (la plus productive à l'alpage)." },
 
-  { id: "el-14", data: "2026-10-04", comune: "Châtillon-Pontey", luogo: "Area combattimenti", categorie: ["1", "2", "3"], kind: "bataille", fase: "autunno-finale", disputata: false },
-  { id: "el-15", data: "2026-10-11", comune: "Gressan", luogo: "Area combattimenti", categorie: ["1", "2", "3"], kind: "bataille", fase: "autunno-finale", disputata: false, note: "Ultima eliminatoria prima della finale.", noteFr: "Dernière éliminatoire avant la finale." },
+  { id: "el-14", data: "2026-10-04", comune: "Châtillon-Pontey", luogo: "Area combattimenti", luogoFr: "Aire de combat", categorie: ["1", "2", "3"], kind: "bataille", fase: "autunno-finale", disputata: false },
+  { id: "el-15", data: "2026-10-11", comune: "Gressan", luogo: "Area combattimenti", luogoFr: "Aire de combat", categorie: ["1", "2", "3"], kind: "bataille", fase: "autunno-finale", disputata: false, note: "Ultima eliminatoria prima della finale.", noteFr: "Dernière éliminatoire avant la finale." },
 
-  { id: "finale", data: "2026-10-25", comune: "Aosta", luogo: "Arena Croix-Noire", categorie: ["1", "2", "3"], kind: "bataille", fase: "finale", disputata: false, finale: true, note: "Finale regionale: si incoronano le tre Reines des Reines (una per categoria).", noteFr: "Finale régionale : on couronne les trois Reines des Reines (une par catégorie)." },
+  // LES COMBATS DU SAMEDI — la finale è un weekend di due giorni: il sabato
+  // 24/10 si combatte alla Croix-Noire con vincitrici proprie, che accedono di
+  // diritto alla Finale dell'anno successivo. Non compare sulla pagina
+  // calendario dell'organizzatore (che salta da Gressan alla finale), ma è
+  // confermato dal comunicato dell'Association.
+  // `kind: "bataille"` e non "cerimonia": la cerimonia (vedi Désarpa sopra) è
+  // per definizione senza vincitori di gara, e qui i vincitori ci sono.
+  // `categorie: []` perché il formato per categoria NON è pubblicato: lasciarlo
+  // vuoto è l'unico modo onesto di dire "non lo sappiamo" e tiene fuori
+  // vincitrici/pronostici per categoria finché il dato non c'è (winnersFor e la
+  // schedina iterano `categorie`). `fase: "finale"` serve al motore di fase
+  // (data/fase.ts): è il weekend della finale, non una dichiarazione sulle
+  // soglie di peso applicate al sabato.
+  { id: "combats-samedi", data: "2026-10-24", comune: "Aosta", luogo: "Arena Croix-Noire", categorie: [], kind: "bataille", fase: "finale", disputata: false, note: "Les Combats du Samedi: la finale è un weekend di due giorni e si apre il sabato. Ha vincitrici proprie, qualificate di diritto alla Finale dell'anno successivo.", noteFr: "Les Combats du Samedi : la finale est un week-end de deux jours et s'ouvre le samedi. Il a ses propres gagnantes, qualifiées de droit pour la Finale de l'année suivante." },
+
+  { id: "finale", data: "2026-10-25", comune: "Aosta", luogo: "Arena Croix-Noire", categorie: ["1", "2", "3"], kind: "bataille", fase: "finale", disputata: false, finale: true, note: "Finale regionale: si incoronano le tre Reines des Reines (una per categoria). Pesatura dalle 8:00 alle 10:00.", noteFr: "Finale régionale : on couronne les trois Reines des Reines (une par catégorie). Pesée de 8h00 à 10h00." },
 ];
 
 // ---------------------------------------------------------------------------
@@ -197,19 +236,29 @@ for (const ev of CALENDAR) {
 }
 
 /**
- * Vincitrice di una categoria per un evento, com'è mostrata in UI. `simulato:
- * true` = NESSUN risultato reale pubblicato per questo evento/categoria: è
- * il vecchio calcolo per `potenza` interna, fabbricato, mai un dato di gara.
- * `simulato: false` = risultato reale inserito dall'admin (S11) su Firestore
- * `risultati/{eventId}`. `cow` è presente solo se il nome è stato riconosciuto
- * tra le 73 REAL_COWS (match tollerante via `reinaByName`) — un nome libero
- * digitato dall'admin resta valido anche senza foto/illustrazione.
+ * Vincitrice di una categoria per un evento, com'è mostrata in UI. Tre stati
+ * possibili in `confidence`:
+ *  - "ufficiale": risultato confermato dall'admin (S11) su Firestore
+ *    `risultati/{eventId}` — l'unico che conta per pronostici/premi.
+ *  - "auto" (G5): pre-compilazione letta dal tabellone pubblicato su
+ *    amisdesreines.it via `scripts/build-risultati.mjs` — MAI confermata da
+ *    un umano, mostrata come "non ufficiale" in UI, mai un sostituto del
+ *    dato confermato.
+ *  - "simulato": NESSUN risultato reale pubblicato: il vecchio calcolo per
+ *    `potenza` interna, fabbricato, mai un dato di gara.
+ * `simulato: true` per qualunque cosa diversa da "ufficiale" (retro-
+ * compatibilità: i consumer che usano solo il booleano — pronostici,
+ * premi — restano corretti anche con la cache auto, che NON deve mai
+ * contare come dato confermato). `cow` è presente solo se il nome è stato
+ * riconosciuto tra le 73 REAL_COWS (match tollerante via `reinaByName`).
  */
 export interface WinnerEntry {
   nome: string;
   note?: string;
   cow?: Vatsamon;
   simulato: boolean;
+  confidence: RisultatoConfidence;
+  sourceUrl?: string;
 }
 
 const CAT_FIELD: Record<CategoriaId, "cat1" | "cat2" | "cat3"> = { "1": "cat1", "2": "cat2", "3": "cat3" };
@@ -217,18 +266,25 @@ const CAT_FIELD: Record<CategoriaId, "cat1" | "cat2" | "cat3"> = { "1": "cat1", 
 export function winnersFor(eventId: string): Partial<Record<CategoriaId, WinnerEntry>> {
   const ev = CALENDAR.find((e) => e.id === eventId);
   if (!ev) return {};
-  const real = getCachedRisultato(eventId);
+  const merged = getMergedRisultato(eventId);
   const simulated = WINNERS_BY_EVENT[eventId] ?? {};
   const out: Partial<Record<CategoriaId, WinnerEntry>> = {};
   for (const cat of ev.categorie) {
-    const r = real?.[CAT_FIELD[cat]];
+    const r = merged?.[CAT_FIELD[cat]];
     if (r && r.nome) {
-      out[cat] = { nome: r.nome, note: r.note, cow: reinaByName(r.nome), simulato: false };
+      out[cat] = {
+        nome: r.nome,
+        note: r.note,
+        cow: reinaByName(r.nome),
+        simulato: merged!.confidence !== "ufficiale",
+        confidence: merged!.confidence,
+        sourceUrl: merged!.sourceUrl,
+      };
       continue;
     }
     const simCow = simulated[cat];
     if (simCow) {
-      out[cat] = { nome: simCow.name, cow: simCow, simulato: true };
+      out[cat] = { nome: simCow.name, cow: simCow, simulato: true, confidence: "simulato" };
     }
   }
   return out;

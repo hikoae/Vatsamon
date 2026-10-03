@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react';
 import { ChevronRight, Compass, MapPin, Swords, Trophy } from 'lucide-react';
 import type { TrekRoute } from '../data/routes';
 import type { MapBattle } from '../data/mapBattles';
@@ -43,6 +44,34 @@ export function RoutesView({
     .map((dungeon) => ({ dungeon, distanceM: distanza(position, dungeon) }))
     .sort((a, b) => a.distanceM - b.distanceM)
     .slice(0, 3);
+
+  // Le sfide vicine sono qui, ma l'hint out-of-range/locked del parent finisce
+  // nel trekkingFeed montato solo sulla mappa: su questo tab i tap sembravano
+  // morti. Superficie di feedback locale al tab.
+  const [battleHint, setBattleHint] = useState<string | null>(null);
+  const hintTimer = useRef<number | null>(null);
+
+  useEffect(() => () => {
+    if (hintTimer.current !== null) window.clearTimeout(hintTimer.current);
+  }, []);
+
+  const flashHint = (msg: string) => {
+    setBattleHint(msg);
+    if (hintTimer.current !== null) window.clearTimeout(hintTimer.current);
+    hintTimer.current = window.setTimeout(() => setBattleHint(null), 2800);
+  };
+
+  const handleBattleTap = (battle: MapBattle, distanceM: number, locked: boolean) => {
+    if (locked) {
+      flashHint(`🔒 ${battle.name}: serve livello ${battle.reqLevel} per sfidarla.`);
+      return;
+    }
+    if (distanceM > 800) {
+      flashHint(`🧭 ${battle.name} è a ${fmtDist(distanceM)}: avvicinati per combattere.`);
+      return;
+    }
+    onStartBattle(battle);
+  };
 
   return (
     <section id="routes-view" className="space-y-5 pb-4" aria-labelledby="routes-title">
@@ -104,13 +133,23 @@ export function RoutesView({
         <h2 id="nearby-battles-title" className="text-xs font-mono font-extrabold uppercase text-slate-300 tracking-wider flex items-center gap-1.5">
           <Swords className="w-4 h-4 text-rose-500" aria-hidden="true" /> Sfide vicine
         </h2>
+        {battleHint && (
+          <p
+            id="battle-hint"
+            role="status"
+            aria-live="polite"
+            className="rounded-2xl border border-rose-700/50 bg-rose-950/40 px-3 py-2 text-xs font-mono font-bold text-rose-200 leading-snug"
+          >
+            {battleHint}
+          </p>
+        )}
         {nearbyBattles.map(({ battle, distanceM }) => {
           const locked = trainerLevel < battle.reqLevel;
           const inRange = distanceM <= 800;
           return (
-            <button key={battle.id} type="button" onClick={() => onStartBattle(battle)} disabled={locked} className={`w-full min-h-[64px] flex items-center gap-3 rounded-2xl border p-3 text-left ${locked ? 'opacity-50 border-slate-800 bg-slate-900/60' : inRange ? 'border-rose-700/50 bg-rose-950/30' : 'border-slate-800 bg-slate-900'}`}>
+            <button key={battle.id} type="button" onClick={() => handleBattleTap(battle, distanceM, locked)} aria-disabled={locked || undefined} className={`w-full min-h-[64px] flex items-center gap-3 rounded-2xl border p-3 text-left ${locked ? 'opacity-50 border-slate-800 bg-slate-900/60' : inRange ? 'border-rose-700/50 bg-rose-950/30' : 'border-slate-800 bg-slate-900'}`}>
               <span className="text-2xl" aria-hidden="true">{locked ? '🔒' : battle.emoji}</span>
-              <span className="min-w-0 flex-grow"><span className="block text-sm font-mono font-black text-slate-100 truncate">{battle.name}</span><span className="block text-xs text-slate-400 truncate">{battle.subtitle}</span></span>
+              <span className="min-w-0 flex-grow"><span className="block text-sm font-mono font-black text-slate-100 truncate">{battle.name}</span><span className="block text-xs text-slate-400 leading-snug">{battle.subtitle}</span></span>
               <span className={`text-right text-xs font-mono font-black shrink-0 ${locked ? 'text-slate-500' : inRange ? 'text-rose-400' : 'text-amber-400'}`}>{locked ? `Lv ${battle.reqLevel}` : inRange ? 'COMBATTI' : fmtDist(distanceM)}</span>
             </button>
           );

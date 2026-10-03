@@ -125,16 +125,24 @@ export default defineConfig(({ mode }) => ({
         // S4 perf: vendor pesanti in chunk separati, cachabili indipendentemente
         // dal codice applicativo (che cambia molto più spesso di React/Leaflet/
         // Firebase/Motion). Riduce anche il chunk principale del primo load.
-        manualChunks: {
-          "vendor-react": ["react", "react-dom"],
-          "vendor-leaflet": ["leaflet"],
-          "vendor-firebase": ["firebase/app", "firebase/auth", "firebase/firestore"],
-          "vendor-motion": ["motion"],
-          // TF.js + coco-ssd sono già dietro import() dinamico in lib/detector.ts
-          // (caricati solo al primo "Scatta la Reina"), ma senza un chunk-name
-          // stabile finiscono comunque nel precache PWA per via del globPatterns
-          // generico. Nome fisso qui sotto → escluso esplicitamente in globIgnores.
-          "detector-tfjs": ["@tensorflow/tfjs", "@tensorflow-models/coco-ssd"],
+        // Assegnazione per PATH del pacchetto, non per specifier: la forma a
+        // oggetto di manualChunks tirava dentro al chunk anche le dipendenze
+        // transitive, helper virtuali di Rollup compresi (commonjsHelpers).
+        // Quell'helper è condiviso con il codice dell'app: finito dentro
+        // "detector-tfjs", il chunk di App lo importava STATICAMENTE e i 1,9MB
+        // di TF.js venivano scaricati alla prima schermata di gioco invece che
+        // al primo "Scatta la Reina". Guardando solo i file reali di
+        // node_modules, i moduli condivisi restano fuori dai chunk vendor.
+        manualChunks(id) {
+          if (!id.includes("/node_modules/")) return;
+          // TF.js + coco-ssd sono dietro import() dinamico in lib/detector.ts,
+          // ma senza un chunk-name stabile finirebbero nel precache PWA per via
+          // del globPatterns generico. Nome fisso qui → escluso in globIgnores.
+          if (id.includes("/node_modules/@tensorflow")) return "detector-tfjs";
+          if (/\/node_modules\/(react|react-dom|scheduler)\//.test(id)) return "vendor-react";
+          if (id.includes("/node_modules/leaflet/")) return "vendor-leaflet";
+          if (/\/node_modules\/(firebase|@firebase)\//.test(id)) return "vendor-firebase";
+          if (/\/node_modules\/(motion|motion-dom|motion-utils|framer-motion)\//.test(id)) return "vendor-motion";
         },
       },
     },

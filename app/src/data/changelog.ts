@@ -25,6 +25,15 @@ export interface ChangelogEntry {
   version: string;
   /** YYYY-MM-DD */
   date: string;
+  /**
+   * Cappello introduttivo mostrato SOPRA la lista degli highlight, solo per la
+   * versione corrente (WhatsNewModal lo rende fra la riga versione/data e la
+   * <ul>). Opzionale: le entry storiche non ce l'hanno e restano invariate,
+   * e nello storico "Versioni precedenti" non viene mai mostrato.
+   * Poche righe di invito a provare le novità — non un riassunto degli
+   * highlight, che sono già lì sotto.
+   */
+  intro?: string;
   highlights: ChangelogHighlight[];
 }
 
@@ -32,6 +41,8 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     version: "1.6.0",
     date: "2026-07-12",
+    intro:
+      "La stagione è nel vivo e Vatsamon cresce con lei. Da questo aggiornamento puoi sfidare altri allevatori, pronosticare ogni tappa e seguire una Reina vera fino alla finale del 25 ottobre alla Croix-Noire. Le trovi qui sotto — poi vai a provarle. Buona bataille.",
     highlights: [
       {
         emoji: "🤝",
@@ -40,8 +51,8 @@ export const CHANGELOG: ChangelogEntry[] = [
       },
       {
         emoji: "🏆",
-        titolo: "Risultati veri delle tappe",
-        descrizione: "I vincitori del Calendario ora possono essere quelli reali delle Batailles: ogni nome porta il badge UFFICIALE o SIMULATO, così sai sempre cosa stai guardando.",
+        titolo: "I risultati veri, senza aspettare",
+        descrizione: "I vincitori delle tappe ora arrivano da soli ogni settimana dal tabellone degli Amis des Batailles. Ogni nome porta il suo badge — UFFICIALE, non ufficiale (auto) o SIMULATO — così sai sempre cosa stai guardando.",
       },
       {
         emoji: "🎟️",
@@ -60,13 +71,13 @@ export const CHANGELOG: ChangelogEntry[] = [
       },
       {
         emoji: "⚡",
-        titolo: "App più veloce e leggera",
-        descrizione: "Avvio più rapido e aggiornamenti più piccoli. In più: queste Novità di versione a ogni aggiornamento e il bottone per uscire dall'account in sicurezza.",
+        titolo: "Più veloce, e più comoda da usare sul telefono",
+        descrizione: "Parte molto più leggera di prima, e una lunga passata sui dettagli del telefono: la battaglia si avvia al primo tocco, le due Reine non si accavallano più sugli schermi piccoli, il tasto Indietro fa quello che ti aspetti.",
       },
     ],
   },
   {
-    version: "1.4.0-dev",
+    version: "1.4.0",
     date: "2026-07-12",
     highlights: [
       {
