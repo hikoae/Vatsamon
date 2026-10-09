@@ -3,6 +3,14 @@
   "fonte": "Aggregatore RSS (AostaSera, Gazzetta Matin) — solo titolo, estratto e link alla fonte.",
   "items": [
     {
+      "id": "aostasera-batailles-de-moudzons-il-17-ottobre-tutta-la-val",
+      "titolo": "Batailles de Moudzons, il 17 ottobre tutta la Valle d’Aosta si ritrova all’Arena Croix-Noire",
+      "fonte": "AostaSera",
+      "url": "https://aostasera.it/notizie/pubbliredazionali/batailles-de-moudzons-il-17-ottobre-tutta-la-valle-daosta-si-ritrova-allarena-croix-noire/",
+      "data": "2026-10-09",
+      "estratto": "Il Trophée Ville d’Aoste festeggia trent’anni e riunisce allevatori e giovani bovini provenienti da tutta la regione. Pesatura dalle 8 alle 10, combats dalle 12"
+    },
+    {
       "id": "aostasera-batailles-numeri-da-record-al-combat-di-ch-tillo",
       "titolo": "Batailles, numeri da record al combat di Châtillon: vincono Sirène, Espoir e Bufera",
       "fonte": "AostaSera",
