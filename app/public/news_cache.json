@@ -3,6 +3,22 @@
   "fonte": "Aggregatore RSS (AostaSera, Gazzetta Matin) — solo titolo, estratto e link alla fonte.",
   "items": [
     {
+      "id": "gazzetta-matin-batailles-de-reines-a-gressan-vincono-royal-fauv",
+      "titolo": "Batailles de reines: a Gressan vincono Royal, Fauvette e Koala",
+      "fonte": "Gazzetta Matin",
+      "url": "https://www.gazzettamatin.com/2026/10/11/batailles-de-reines-gressan-vincono-royal-fauvette-e-koala/",
+      "data": "2026-10-11",
+      "estratto": ""
+    },
+    {
+      "id": "aostasera-batailles-de-reines-chiusi-i-conti-per-la-region",
+      "titolo": "Batailles de Reines, chiusi i conti per la Regionale: Gressan incorona Royal, Fauvette e Koala",
+      "fonte": "AostaSera",
+      "url": "https://aostasera.it/notizie/societa/batailles-de-reines-chiusi-i-conti-per-la-regionale-gressan-incorona-royal-fauvette-e-koala/",
+      "data": "2026-10-11",
+      "estratto": "Ultima eliminatoria della stagione oggi, domenica 11 ottobre, a Gressan, a due settimane dall’appuntamento più atteso dell’anno: il comitato di casa sorride gra"
+    },
+    {
       "id": "aostasera-batailles-de-moudzons-il-17-ottobre-tutta-la-val",
       "titolo": "Batailles de Moudzons, il 17 ottobre tutta la Valle d’Aosta si ritrova all’Arena Croix-Noire",
       "fonte": "AostaSera",
