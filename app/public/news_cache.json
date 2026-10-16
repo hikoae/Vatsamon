@@ -3,6 +3,14 @@
   "fonte": "Aggregatore RSS (AostaSera, Gazzetta Matin) — solo titolo, estratto e link alla fonte.",
   "items": [
     {
+      "id": "aostasera-le-reines-tornano-all-arena-croix-noire-il-24-e-",
+      "titolo": "Le Reines tornano all’Arena Croix-Noire: il 24 e 25 ottobre il grande appuntamento con la finale delle Batailles",
+      "fonte": "AostaSera",
+      "url": "https://aostasera.it/notizie/pubbliredazionali/le-reines-tornano-allarena-croix-noire-il-24-e-25-ottobre-il-grande-appuntamento-con-la-finale-delle-batailles/",
+      "data": "2026-10-16",
+      "estratto": "Due giornate dedicate a una delle tradizioni più amate della Valle d’Aosta. Sabato spazio ai combats delle giovani bovine e delle Communautés de montagne, domen"
+    },
+    {
       "id": "aostasera-bataille-des-reines-il-gran-finale-si-rinnova-co",
       "titolo": "Bataille des Reines: il gran finale si rinnova con &#8220;Ardita&#8221; e il Fantareines",
       "fonte": "AostaSera",
