@@ -3,18 +3,18 @@
   "fonte": "Aggregatore RSS (AostaSera, Gazzetta Matin) — solo titolo, estratto e link alla fonte.",
   "items": [
     {
-      "id": "gazzetta-matin-fanta-reines-250-crediti-per-creare-la-propria-s",
-      "titolo": "Fanta Reines, 250 crediti per creare la propria stalla e sfidare gli amici",
-      "fonte": "Gazzetta Matin",
-      "url": "https://www.gazzettamatin.com/wgl/fanta-reines-250-crediti-per-creare-la-propria-stalla-e-sfidare-gli-amici-gall-20261019095538-0/",
-      "data": "2026-10-19",
-      "estratto": ""
+      "id": "aostasera-crea-la-tua-stalla-e-prova-a-vincere-per-la-fina",
+      "titolo": "Crea la tua stalla e prova a vincere: per la finale delle Batailles arriva il Fantareines",
+      "fonte": "AostaSera",
+      "url": "https://aostasera.it/notizie/societa/finale-batailles-fantareines-regolamento-iscrizioni-app/",
+      "data": "2026-10-20",
+      "estratto": "Il gioco gratuito ideato da studenti e studentesse dell’Institut Agricole ha già più di 800 iscritti. Per comporre la propria stalla di regine c’è tempo fino al"
     },
     {
       "id": "gazzetta-matin-fanta-reines-250-crediti-per-creare-la-propria-s",
       "titolo": "Fanta Reines, 250 crediti per creare la propria stalla e sfidare gli amici",
       "fonte": "Gazzetta Matin",
-      "url": "https://www.gazzettamatin.com/2026/10/19/fanta-reines-250-crediti-per-creare-la-propria-stalla-e-sfidare-gli-amici/",
+      "url": "https://www.gazzettamatin.com/wgl/fanta-reines-250-crediti-per-creare-la-propria-stalla-e-sfidare-gli-amici-gall-20261019095538-0/",
       "data": "2026-10-19",
       "estratto": ""
     },
