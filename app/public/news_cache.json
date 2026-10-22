@@ -3,6 +3,14 @@
   "fonte": "Aggregatore RSS (AostaSera, Gazzetta Matin) — solo titolo, estratto e link alla fonte.",
   "items": [
     {
+      "id": "aostasera-batailles-la-regionale-2026-un-appuntamento-con-",
+      "titolo": "Batailles, la Regionale 2026 è un appuntamento con la Storia",
+      "fonte": "AostaSera",
+      "url": "https://aostasera.it/notizie/societa/finale-batailles-de-reines-pronostici-terza-categoria/",
+      "data": "2026-10-22",
+      "estratto": "Domenica la finalissima delle batailles. Per la prima volta in quasi settant’anni di combats Falchetta di Renzo Rosset proverà a conquistare il quinto titolo co"
+    },
+    {
       "id": "aostasera-crea-la-tua-stalla-e-prova-a-vincere-per-la-fina",
       "titolo": "Crea la tua stalla e prova a vincere: per la finale delle Batailles arriva il Fantareines",
       "fonte": "AostaSera",
