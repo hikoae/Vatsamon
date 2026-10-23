@@ -3,6 +3,14 @@
   "fonte": "Aggregatore RSS (AostaSera, Gazzetta Matin) — solo titolo, estratto e link alla fonte.",
   "items": [
     {
+      "id": "gazzetta-matin-ardita-esce-dalla-stalla-fabien-lucianax-canta-l",
+      "titolo": "Ardita esce dalla stalla: Fabien Lucianax canta le Batailles de Reines",
+      "fonte": "Gazzetta Matin",
+      "url": "https://www.gazzettamatin.com/2026/10/23/ardita-esce-dalla-stalla-fabien-lucianax-canta-le-batailles-de-reines/",
+      "data": "2026-10-23",
+      "estratto": ""
+    },
+    {
       "id": "aostasera-suisse-vuole-imitare-venise-e-guerra-la-reina-di",
       "titolo": "Suisse vuole imitare Venise e Guerra: la reina di Ymak Frassy a caccia del tris alla Regionale",
       "fonte": "AostaSera",
