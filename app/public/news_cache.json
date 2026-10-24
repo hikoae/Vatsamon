@@ -3,6 +3,14 @@
   "fonte": "Aggregatore RSS (AostaSera, Gazzetta Matin) — solo titolo, estratto e link alla fonte.",
   "items": [
     {
+      "id": "gazzetta-matin-batailles-de-reines-malice-malika-dragon-e-tulip",
+      "titolo": "Batailles de reines: Malice, Malika, Dragon e Tulipe regine dei combats du samedi",
+      "fonte": "Gazzetta Matin",
+      "url": "https://www.gazzettamatin.com/2026/10/24/batailles-de-reines-malice-malika-dragon-e-tulipe-regine-dei-combats-du-samedi/",
+      "data": "2026-10-24",
+      "estratto": ""
+    },
+    {
       "id": "aostasera-le-emozioni-della-bataille-des-reines-in-ardita-",
       "titolo": "Le emozioni della Bataille des reines in “Ardita” di Fabien Lucianaz",
       "fonte": "AostaSera",
@@ -17,14 +25,6 @@
       "url": "https://aostasera.it/notizie/societa/batailles-dragon-de-lo-citrin-prenota-il-2027-e-lei-la-reina-del-deuxieme-veau/",
       "data": "2026-10-24",
       "estratto": "Domani alla Croix-Noire la Regionale dei record, oggi spazio agli altri concorsi: la bovina de Lo Citrin della famiglia Volget si qualifica per la finalissima d"
-    },
-    {
-      "id": "gazzetta-matin-ardita-esce-dalla-stalla-fabien-lucianax-canta-l",
-      "titolo": "Ardita esce dalla stalla: Fabien Lucianax canta le Batailles de Reines",
-      "fonte": "Gazzetta Matin",
-      "url": "https://www.gazzettamatin.com/2026/10/23/ardita-esce-dalla-stalla-fabien-lucianax-canta-le-batailles-de-reines/",
-      "data": "2026-10-23",
-      "estratto": ""
     },
     {
       "id": "aostasera-suisse-vuole-imitare-venise-e-guerra-la-reina-di",
