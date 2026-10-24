@@ -1,4 +1,6 @@
 import { X } from "lucide-react";
+import { useScrollLock } from "../../lib/useScrollLock";
+import { useBackCloser } from "../../lib/useBackCloser";
 import { AzioneId, AZIONI } from "../../lib/spinta";
 import { Mossa } from "../../data/mosse";
 import { GLOSSARIO } from "../../data/bataillesContent";
@@ -31,6 +33,9 @@ export function MossaInfoSheet({ mossa, onClose, playClick }: {
   onClose: () => void;
   playClick: () => void;
 }) {
+  useScrollLock(true);
+  // Il tasto Indietro chiude la scheda, non annulla la battaglia in corso (H3).
+  useBackCloser(true, onClose);
   const rar = RARITA_LABEL[mossa.rarita];
   const matrice = MATRICE[mossa.famiglia];
   const glossa = mossa.glossarioKey ? GLOSSARIO.find((g) => g.chiave === mossa.glossarioKey) : undefined;
@@ -46,13 +51,15 @@ export function MossaInfoSheet({ mossa, onClose, playClick }: {
   return (
     <div
       className="fixed inset-0 bg-slate-950/90 z-[80] flex items-end sm:items-center justify-center p-4 backdrop-blur-xs animate-fade-in"
+      style={{ paddingBottom: "calc(1rem + env(safe-area-inset-bottom))" }}
       onClick={() => { playClick(); onClose(); }}
     >
       <div
-        className="bg-slate-900 border-2 border-slate-700 rounded-3xl max-w-md w-full p-5 shadow-2xl space-y-3"
+        className="bg-slate-900 border-2 border-slate-700 rounded-3xl max-w-md w-full px-5 pb-5 pt-0 shadow-2xl space-y-3 overflow-y-auto no-scrollbar overscroll-contain"
+        style={{ maxHeight: "calc(88dvh - env(safe-area-inset-bottom))" }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-start justify-between gap-2">
+        <div className="flex items-start justify-between gap-2 sticky top-0 z-10 bg-slate-900 -mx-5 px-5 pt-5 pb-3 rounded-t-3xl">
           <div>
             <div className="text-base font-mono font-black text-slate-100">{mossa.emoji} {mossa.nome}</div>
             <div className="flex gap-1.5 mt-1">
@@ -60,7 +67,7 @@ export function MossaInfoSheet({ mossa, onClose, playClick }: {
               <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded-full border ${rar.classe}`}>{rar.label}</span>
             </div>
           </div>
-          <button onClick={() => { playClick(); onClose(); }} aria-label="Chiudi" className="bg-slate-800 rounded-full p-1.5 min-h-[32px] min-w-[32px]"><X size={14} /></button>
+          <button onClick={() => { playClick(); onClose(); }} aria-label="Chiudi la scheda della mossa" className="bg-slate-800 rounded-full p-1.5 min-h-[32px] min-w-[32px]"><X size={14} /></button>
         </div>
 
         <p className="text-[12px] text-slate-300 italic leading-snug">«{mossa.desc}»</p>

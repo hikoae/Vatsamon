@@ -6,8 +6,9 @@
  * la decisione finale sul brand col cliente è un'unica modifica.
  */
 
-/** Versione mostrata nell'app (fonte unica; package.json va tenuto allineato). */
-export const APP_VERSION = "1.4.0-dev";
+/** Versione mostrata nell'app — deriva da __APP_VERSION__ (vite.config.ts define,
+ * iniettato da package.json) così footer e modale "Novità" non possono divergere. */
+export const APP_VERSION = __APP_VERSION__;
 
 export const BRAND = {
   /** Nome dell'hub istituzionale (titolo ufficiale dell'evento). */

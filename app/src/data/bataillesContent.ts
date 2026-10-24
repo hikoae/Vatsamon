@@ -1,7 +1,7 @@
 /**
  * CONTENUTI HUB — cultura, glossario e fonti del mondo Batailles de Reines.
- * Testi divulgativi verificati (vedi materiali/BATAILLES_DOSSIER.md). Statici,
- * pronti per i18n (per ora IT; il FR si aggiunge nello stesso schema).
+ * Testi divulgativi verificati (vedi materiali/BATAILLES_DOSSIER.md). Statici e
+ * bilingui IT/FR nello stesso schema: ogni campo IT ha il gemello `<campo>Fr`.
  */
 
 export interface SchedaCultura {
@@ -83,6 +83,7 @@ export interface MilestoneStoria {
   emoji: string;
   titolo: string;
   testo: string;
+  epocaFr: string;     // stessa etichetta in FR; sugli anni resta identica a `epoca`
   titoloFr: string;
   testoFr: string;
 }
@@ -100,6 +101,7 @@ export const STORIA: MilestoneStoria[] = [
     titolo: "Nasce all'alpeggio, per istinto",
     testo:
       "La bataille non l'ha inventata l'uomo: quando, all'inalpa, mandrie diverse si mescolano ai pascoli d'alta quota, le mucche più combattive si spingono fronte contro fronte per stabilire chi guida. La vincitrice è la «reina» dell'alpeggio. Tutto qui comincia: dall'istinto, non da una regola.",
+    epocaFr: "De tout temps",
     titoloFr: "Née à l'alpage, par instinct",
     testoFr:
       "La bataille n'a pas été inventée par l'homme : quand, à l'inalpe, des troupeaux différents se mêlent aux pâturages d'altitude, les vaches les plus combatives se poussent front contre front pour décider qui mène. La gagnante est la « reine » de l'alpage. Tout commence ici : par l'instinct, pas par une règle.",
@@ -109,6 +111,7 @@ export const STORIA: MilestoneStoria[] = [
     titolo: "Le prime testimonianze scritte",
     testo:
       "Le sfide tra mucche sono documentate almeno dalla metà dell'Ottocento. Il poeta in patois Jean-Baptiste Cerlogne descrive le battaglie dell'alpeggio di Vertosan: da qui il torneo è noto e raccontato, prima ancora di avere regole ufficiali.",
+    epocaFr: "1858",
     titoloFr: "Les premiers témoignages écrits",
     testoFr:
       "Les défis entre vaches sont attestés au moins depuis le milieu du XIXe siècle. Le poète en patois Jean-Baptiste Cerlogne décrit les batailles de l'alpage de Vertosan : dès lors le tournoi est connu et raconté, avant même d'avoir des règles officielles.",
@@ -118,6 +121,7 @@ export const STORIA: MilestoneStoria[] = [
     titolo: "Appuntamento di villaggio",
     testo:
       "Le battaglie diventano un rito comunitario: alla désarpa, la discesa di fine settembre, ci si ritrova per vedere chi è la «reina di corne», la più combattiva. La regina è l'orgoglio dell'allevatore e di tutto il paese.",
+    epocaFr: "Fin XIXᵉ – début XXᵉ",   // ᵉ in apice: il badge è in CSS uppercase, "XIXe" diventerebbe "XIXE"
     titoloFr: "Rendez-vous de village",
     testoFr:
       "Les batailles deviennent un rite communautaire : à la désalpe, la descente de fin septembre, on se retrouve pour voir qui est la « reine des cornes », la plus combative. La reine est la fierté de l'éleveur et de tout le village.",
@@ -127,6 +131,7 @@ export const STORIA: MilestoneStoria[] = [
     titolo: "Nasce il campionato",
     testo:
       "L'anno della svolta: nasce l'Association Régionale Amis des Batailles de Reines e si disputa la prima finale regionale. Gli scontri spontanei diventano un vero campionato, con iscrizioni, categorie di peso, calendario e regole condivise.",
+    epocaFr: "1958",
     titoloFr: "Naissance du championnat",
     testoFr:
       "L'année du tournant : naît l'Association Régionale Amis des Batailles de Reines et se dispute la première finale régionale. Les affrontements spontanés deviennent un véritable championnat, avec inscriptions, catégories de poids, calendrier et règles partagées.",
@@ -136,6 +141,7 @@ export const STORIA: MilestoneStoria[] = [
     titolo: "La casa della finale: la Croix-Noire",
     testo:
       "La grande finale trova casa in un'arena permanente alla periferia di Aosta, la Croix-Noire. Migliaia di spettatori si ritrovano in autunno per incoronare le tre Reines des Reines, una per categoria di peso.",
+    epocaFr: "Décennies récentes",
     titoloFr: "La maison de la finale : la Croix-Noire",
     testoFr:
       "La grande finale trouve sa maison dans une arène permanente à la périphérie d'Aoste, la Croix-Noire. Des milliers de spectateurs se réunissent en automne pour couronner les trois Reines des Reines, une par catégorie de poids.",
@@ -145,6 +151,7 @@ export const STORIA: MilestoneStoria[] = [
     titolo: "Una tradizione viva",
     testo:
       "Oggi il campionato è alla 69ª edizione: una quindicina di eliminatorie in tutta la regione da fine marzo a ottobre, con la pausa d'alpeggio, e centinaia di bovine in gara nella stagione. Le Batailles restano un simbolo identitario della Valle d'Aosta.",
+    epocaFr: "Aujourd'hui · 2026",
     titoloFr: "Une tradition vivante",
     testoFr:
       "Aujourd'hui le championnat en est à sa 69e édition : une quinzaine d'éliminatoires dans toute la région de fin mars à octobre, avec la pause d'alpage, et des centaines de vaches en lice dans la saison. Les Batailles restent un symbole identitaire de la Vallée d'Aoste.",
@@ -154,6 +161,7 @@ export const STORIA: MilestoneStoria[] = [
     titolo: "Le cugine del Vallese",
     testo:
       "Oltre confine, nel Vallese svizzero, le mucche di razza Hérens danno vita ai «Combats de Reines», con una grande finale ad Aproz. Stessa anima, mondo distinto: due tradizioni vicine da non confondere.",
+    epocaFr: "Tradition jumelle",
     titoloFr: "Les cousines du Valais",
     testoFr:
       "De l'autre côté de la frontière, en Valais suisse, les vaches de race Hérens animent les « Combats de Reines », avec une grande finale à Aproz. Même âme, monde distinct : deux traditions voisines à ne pas confondre.",
@@ -167,21 +175,22 @@ export interface GlossarioVoce {
   fr: string;
   patois?: string;
   def: string;
+  defFr: string;
 }
 
 export const GLOSSARIO: GlossarioVoce[] = [
-  { chiave: "reine", it: "Regina", fr: "Reine", patois: "reina", def: "La mucca dominante che guida la mandria. Plurale: Reines." },
-  { chiave: "reine_des_reines", it: "Regina delle Regine", fr: "Reine des Reines", patois: "reina di reine", def: "Titolo supremo: una per ciascuna delle 3 categorie, incoronata in finale." },
-  { chiave: "bataille", it: "Combattimento", fr: "Bataille", patois: "bataille", def: "Lo scontro incruento tra due bovine, a colpi di corna." },
-  { chiave: "moudzon", it: "Manza / giovenca", fr: "Moudzon", patois: "modzon", def: "Giovane bovina femmina." },
-  { chiave: "inarpa", it: "Salita all'alpeggio", fr: "Inalpe", patois: "inarpa", def: "La monticazione: trasferimento delle mandrie ai pascoli estivi, a metà giugno." },
-  { chiave: "desarpa", it: "Discesa dagli alpeggi", fr: "Désalpe", patois: "désarpa", def: "La smonticazione: ritorno dei bovini a valle, fine settembre (29/9, San Michele)." },
-  { chiave: "alpeggio", it: "Alpeggio / pascolo estivo", fr: "Alpage", patois: "arp", def: "Pascolo d'alta quota (1500–2000+ m) occupato da giugno a fine settembre, legato alla Fontina DOP." },
-  { chiave: "bosquet", it: "Addobbo della regina", fr: "Bosquet", patois: "mécro", def: "Rami decorati con fiori rossi di cartapesta, premio della Reine des Reines." },
-  { chiave: "reina_corne", it: "Regina delle corna", fr: "Reine des cornes", patois: "reina di corne", def: "La più combattiva alla désarpa (bosquet con fiori rossi)." },
-  { chiave: "reina_latte", it: "Regina del latte", fr: "Reine du lait", patois: "reina di lasi", def: "La più produttiva alla désarpa (bosquet con fiori bianchi)." },
-  { chiave: "razza_valdostana", it: "Razza Valdostana", fr: "Race Valdôtaine", patois: "vatse valdotèna", def: "La razza bovina protagonista: Pezzata Nera e Castana le combattive, Pezzata Rossa da latte." },
-  { chiave: "herens", it: "Razza Hérens", fr: "Race d'Hérens", def: "Razza del Vallese svizzero, monocromatica; ammessa e usata anche in Valle d'Aosta." },
+  { chiave: "reine", it: "Regina", fr: "Reine", patois: "reina", def: "La mucca dominante che guida la mandria. Plurale: Reines.", defFr: "La vache dominante qui mène le troupeau. Pluriel : Reines." },
+  { chiave: "reine_des_reines", it: "Regina delle Regine", fr: "Reine des Reines", patois: "reina di reine", def: "Titolo supremo: una per ciascuna delle 3 categorie, incoronata in finale.", defFr: "Titre suprême : une pour chacune des 3 catégories, couronnée en finale." },
+  { chiave: "bataille", it: "Combattimento", fr: "Bataille", patois: "bataille", def: "Lo scontro incruento tra due bovine, a colpi di corna.", defFr: "L'affrontement non sanglant entre deux vaches, à coups de cornes." },
+  { chiave: "moudzon", it: "Manza / giovenca", fr: "Moudzon", patois: "modzon", def: "Giovane bovina femmina.", defFr: "Jeune femelle bovine, génisse." },
+  { chiave: "inarpa", it: "Salita all'alpeggio", fr: "Inalpe", patois: "inarpa", def: "La monticazione: trasferimento delle mandrie ai pascoli estivi, a metà giugno.", defFr: "La montée à l'alpage : transfert des troupeaux vers les pâturages d'été, à la mi-juin." },
+  { chiave: "desarpa", it: "Discesa dagli alpeggi", fr: "Désalpe", patois: "désarpa", def: "La smonticazione: ritorno dei bovini a valle, fine settembre (29/9, San Michele).", defFr: "La descente de l'alpage : retour des bovins dans la vallée, fin septembre (29/9, Saint-Michel)." },
+  { chiave: "alpeggio", it: "Alpeggio / pascolo estivo", fr: "Alpage", patois: "arp", def: "Pascolo d'alta quota (1500–2000+ m) occupato da giugno a fine settembre, legato alla Fontina DOP.", defFr: "Pâturage d'altitude (1500–2000+ m) occupé de juin à fin septembre, lié à la Fontina AOP." },
+  { chiave: "bosquet", it: "Addobbo della regina", fr: "Bosquet", patois: "mécro", def: "Rami decorati con fiori rossi di cartapesta, premio della Reine des Reines.", defFr: "Rameaux ornés de fleurs rouges en papier mâché, prix de la Reine des Reines." },
+  { chiave: "reina_corne", it: "Regina delle corna", fr: "Reine des cornes", patois: "reina di corne", def: "La più combattiva alla désarpa (bosquet con fiori rossi).", defFr: "La plus combative à la désalpe (bosquet à fleurs rouges)." },
+  { chiave: "reina_latte", it: "Regina del latte", fr: "Reine du lait", patois: "reina di lasi", def: "La più produttiva alla désarpa (bosquet con fiori bianchi).", defFr: "La plus productive à la désalpe (bosquet à fleurs blanches)." },
+  { chiave: "razza_valdostana", it: "Razza Valdostana", fr: "Race Valdôtaine", patois: "vatse valdotèna", def: "La razza bovina protagonista: Pezzata Nera e Castana le combattive, Pezzata Rossa da latte.", defFr: "La race bovine protagoniste : Pie Noire et Castaine les combatives, Pie Rouge laitière." },
+  { chiave: "herens", it: "Razza Hérens", fr: "Race d'Hérens", def: "Razza del Vallese svizzero, monocromatica; ammessa e usata anche in Valle d'Aosta.", defFr: "Race du Valais suisse, à robe unie ; admise et utilisée aussi en Vallée d'Aoste." },
 ];
 
 /** Fonti ufficiali e canali (per Notizie e sezione Ente). */
