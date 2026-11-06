@@ -29,3 +29,16 @@ app/dist-netlify/
 # backup/temp locali
 *.bak
 app/.env.local.bak
+
+# env locali — copertura totale, presente e futura (il repo e' PUBBLICO)
+# NB: l'eccezione va SEMPRE dopo la regola che cattura, e deve restare
+# l'ultima riga che tocca .env.example, altrimenti torna ignorato.
+.env*
+!.env.example
+
+# output di build alternativi (dist-fbtest/, dist-fbfinale/, ...)
+# solo directory: il dist/ canonico resta gestito da app/dist/ sopra
+dist-*/
+
+# cache CLI/emulatori Firebase (i *-debug.log sono gia' coperti da *.log)
+.firebase/

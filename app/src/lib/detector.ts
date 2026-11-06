@@ -3,7 +3,9 @@
  * bovina (modello COCO-SSD lite, ~18MB, servito da /models/ssdlite in questo
  * stesso sito: funziona offline dopo il primo caricamento, nessun dato esce
  * dal dispositivo). TensorFlow.js è caricato in lazy (code-splitting): il
- * bundle iniziale dell'app non lo paga.
+ * bundle iniziale dell'app non lo paga — ma solo finché nessun chunk caricato
+ * prima importa "detector-tfjs" in modo statico, cosa che il chunking di
+ * Rollup può reintrodurre da sé (vedi manualChunks in vite.config.ts).
  */
 
 export interface DetectResult {
