@@ -1,7 +1,15 @@
 {
-  "generato": "2026-11-08",
+  "generato": "2026-11-09",
   "fonte": "Aggregatore RSS (AostaSera, Gazzetta Matin) — solo titolo, estratto e link alla fonte.",
   "items": [
+    {
+      "id": "gazzetta-matin-batailles-des-ch-vres-leoncina-brighella-biricch",
+      "titolo": "Batailles des chèvres: Leoncina, Brighella, Biricchina e Mirage regine del 29º Concours",
+      "fonte": "Gazzetta Matin",
+      "url": "https://www.gazzettamatin.com/2026/11/09/batailles-des-chevres-leoncina-brighella-biricchina-e-mirage-regine-del-29o-concours/",
+      "data": "2026-11-08",
+      "estratto": ""
+    },
     {
       "id": "aostasera-la-bataille-vista-dai-box-tensione-affetto-e-la-",
       "titolo": "La Bataille vista dai box: tensione, affetto e la ola per Farchetta",
