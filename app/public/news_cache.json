@@ -3,6 +3,14 @@
   "fonte": "Aggregatore RSS (AostaSera, Gazzetta Matin) — solo titolo, estratto e link alla fonte.",
   "items": [
     {
+      "id": "aostasera-presentati-i-sei-progetti-che-si-contenderanno-i",
+      "titolo": "Presentati i sei progetti che si contenderanno il Premio Arte Contemporanea Valle d’Aosta",
+      "fonte": "AostaSera",
+      "url": "https://aostasera.it/notizie/cultura-e-spettacolo/presentati-i-sei-progetti-ispirati-al-paesaggio-valdostano-che-si-contenderanno-il-premio-arte-contemporanea-valle-daosta/",
+      "data": "2026-11-09",
+      "estratto": "Dalle tradizioni di Chamois ai ghiacciai, dalle batailles de reines alla solitudine: sei artisti raccontano il territorio attraverso sculture, video, suoni e pe"
+    },
+    {
       "id": "gazzetta-matin-batailles-des-ch-vres-leoncina-brighella-biricch",
       "titolo": "Batailles des chèvres: Leoncina, Brighella, Biricchina e Mirage regine del 29º Concours",
       "fonte": "Gazzetta Matin",
