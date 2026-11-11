@@ -3,20 +3,20 @@
   "fonte": "Aggregatore RSS (AostaSera, Gazzetta Matin) — solo titolo, estratto e link alla fonte.",
   "items": [
     {
+      "id": "aostasera-due-giorni-tra-allevamento-e-tradizioni-rurali-l",
+      "titolo": "Due giorni tra allevamento e tradizioni rurali, la Foire des Alpes ha richiamato &#8220;un pubblico ampio e diversificato”",
+      "fonte": "AostaSera",
+      "url": "https://aostasera.it/notizie/economia/due-giorni-dedicate-allallevamento-valdostano-e-alle-tradizioni-rurali-ecco-la-foire-des-alpes/",
+      "data": "2026-11-11",
+      "estratto": "Per la Foire des Alpes, l'Assessorato all'Agricoltura è soddisfatto: “Tantissime famiglie che hanno raggiunto l’Arena Croix-Noire per trascorrere una giornata a"
+    },
+    {
       "id": "aostasera-presentati-i-sei-progetti-che-si-contenderanno-i",
       "titolo": "Presentati i sei progetti che si contenderanno il Premio Arte Contemporanea Valle d’Aosta",
       "fonte": "AostaSera",
       "url": "https://aostasera.it/notizie/cultura-e-spettacolo/presentati-i-sei-progetti-ispirati-al-paesaggio-valdostano-che-si-contenderanno-il-premio-arte-contemporanea-valle-daosta/",
       "data": "2026-11-09",
       "estratto": "Dalle tradizioni di Chamois ai ghiacciai, dalle batailles de reines alla solitudine: sei artisti raccontano il territorio attraverso sculture, video, suoni e pe"
-    },
-    {
-      "id": "aostasera-la-bataille-vista-dai-box-tensione-affetto-e-la-",
-      "titolo": "La Bataille vista dai box: tensione, affetto e la ola per Farchetta",
-      "fonte": "AostaSera",
-      "url": "https://aostasera.it/notizie/societa/la-bataille-vista-dai-box-tensione-affetto-e-la-ola-per-farchetta/",
-      "data": "2026-10-26",
-      "estratto": "Tanti giovani, già allevatori o che sperano di diventarlo, fanno ben sperare nel futuro delle Batailles che il prossimo anno compiranno 70 anni.\nContinua la let"
     }
   ]
 }
