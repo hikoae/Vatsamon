@@ -230,9 +230,13 @@ export default function DungeonRun({
     return (
       <div className="fixed inset-0 z-[70] flex flex-col bg-slate-950 text-slate-100" id="dungeon-scene">
         <div className="aurora-bg" />
-        <div className="flex items-center justify-between px-4 py-2 bg-slate-950/80 border-b border-slate-800">
+        {/* Barra a filo schermo: la safe-area si somma a py-2 (0.5rem), altrimenti su
+            iPhone col notch titolo e X finiscono dentro la fascia (tap non affidabile). */}
+        <div className="flex items-center justify-between px-4 py-2 bg-slate-950/80 border-b border-slate-800"
+          style={{ paddingTop: "calc(0.5rem + env(safe-area-inset-top))" }}>
           <span className="text-xs font-mono font-black">{dungeon.emoji} {dungeon.league}</span>
-          <button onClick={() => { playClick(); onClose(); }} className="bg-slate-900 rounded-full p-1.5"><X size={16} /></button>
+          {/* aria-label con prefisso "Chiudi": è anche l'aggancio del tap target 44px (index.css). */}
+          <button onClick={() => { playClick(); onClose(); }} aria-label="Chiudi la lega e torna alla mappa" className="bg-slate-900 rounded-full p-1.5"><X size={16} /></button>
         </div>
         <div className="flex-1 overflow-y-auto p-4 space-y-3">
           <p className="text-[11px] text-slate-300 text-center bg-slate-900/70 border border-slate-800 rounded-2xl p-3">
@@ -253,7 +257,9 @@ export default function DungeonRun({
             })}
           </div>
         </div>
-        <div className="p-3 bg-slate-950/80 border-t border-slate-800 space-y-2">
+        {/* Idem in basso: la safe-area si somma a p-3 (0.75rem), altrimenti i CTA stanno sull'home indicator. */}
+        <div className="p-3 bg-slate-950/80 border-t border-slate-800 space-y-2"
+          style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom))" }}>
           {/* Lo Sac du Berger + rito della limatura */}
           <div className="flex gap-1.5 flex-wrap justify-center">
             {backpack.filter((b) => SAC_ITEMS[b.id] && b.quantity > 0).map((b) => {
@@ -294,9 +300,12 @@ export default function DungeonRun({
   return (
     <div className="fixed inset-0 z-[70] flex flex-col bg-slate-950 text-slate-100" id="dungeon-scene">
       <div className="absolute inset-0 -z-10" style={{ background: "linear-gradient(180deg,#cdd5e3 0%,#e2e8f0 35%,#dcfce7 70%,#bbf7d0 100%)" }} />
-      <div className="flex items-center justify-between px-4 py-2 bg-slate-950/75 backdrop-blur border-b border-slate-800">
+      <div className="flex items-center justify-between px-4 py-2 bg-slate-950/75 backdrop-blur border-b border-slate-800"
+        style={{ paddingTop: "calc(0.5rem + env(safe-area-inset-top))" }}>
         <span className="text-xs font-mono font-black">{dungeon.emoji} {dungeon.league} · Spinta {oppIdx + 1}/5</span>
-        <button onClick={() => { playClick(); onClose(); }} className="bg-slate-900/70 rounded-full p-1.5"><X size={16} /></button>
+        {/* aria-label con prefisso "Chiudi": è anche l'aggancio del tap target 44px (index.css).
+            Qui la Lega è già iniziata: chiudere la abbandona, quindi l'etichetta lo dice. */}
+        <button onClick={() => { playClick(); onClose(); }} aria-label="Chiudi la lega, abbandona la scalata e torna alla mappa" className="bg-slate-900/70 rounded-full p-1.5"><X size={16} /></button>
       </div>
 
       {phase === "fight" && (
@@ -342,7 +351,8 @@ export default function DungeonRun({
         </div>
       )}
 
-      <div className="bg-slate-950/85 backdrop-blur border-t border-slate-800 p-3 space-y-2">
+      <div className="bg-slate-950/85 backdrop-blur border-t border-slate-800 p-3 space-y-2"
+        style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom))" }}>
         <div className="bg-slate-900/80 border border-slate-800 rounded-xl px-3 py-2 h-[50px] overflow-y-auto no-scrollbar">
           {log.map((l, i) => <div key={i} className={`text-[10px] font-mono leading-snug ${i === 0 ? "text-slate-100" : "text-slate-500"}`}>❖ {l}</div>)}
         </div>

@@ -31,8 +31,11 @@ export function ConfirmDialog({
 }: ConfirmDialogProps) {
   const hasCancel = !!onCancel;
   return (
+    // Su mobile è un bottom-sheet (items-end): la safe-area si somma a p-4 (1rem),
+    // altrimenti i bottoni di scelta finiscono sull'home indicator.
     <div
       className="fixed inset-0 bg-slate-950/90 z-[95] flex items-end sm:items-center justify-center p-4 backdrop-blur-xs"
+      style={{ paddingBottom: "calc(1rem + env(safe-area-inset-bottom))" }}
       onClick={() => { (onCancel ?? onConfirm)(); }}
       role="alertdialog"
       aria-modal="true"
@@ -46,7 +49,13 @@ export function ConfirmDialog({
         onClick={(e) => e.stopPropagation()}
       >
         <div>
-          <div id="confirm-dialog-title" className={`text-base font-mono font-black ${danger ? "text-rose-400" : "text-slate-100"}`}>
+          {/* Il rosso resta (l'azione è distruttiva), cambia solo la tinta:
+              `rose-400` è il rosa chiaro di Tailwind, non ritoccato dal tema
+              invertito, e sulla card chiara (slate-900 = #ece8f6) dava 2,38:1
+              misurati sui pixel — sotto il 4,5:1 richiesto a 16px, anche in
+              nero. `text-primary-strong` è il rosso-testo del contratto UI,
+              sicuro su qualsiasi superficie: stessi pixel, 7,01:1. */}
+          <div id="confirm-dialog-title" className={`text-base font-mono font-black ${danger ? "text-primary-strong" : "text-slate-100"}`}>
             {title}
           </div>
           <p className="text-[12px] text-slate-300 leading-snug mt-1.5 whitespace-pre-line">{message}</p>

@@ -24,7 +24,7 @@ Questa versione porta il PvP in Piazza, i risultati ufficiali di gara, la schedi
 - Test rules: `tests/rules/rules.test.js`, 72/72 PASS su Firestore Emulator (richiede JDK).
 
 ### Risultati ufficiali + pronostici + ponte realtà (S11–S13)
-- `firestore.rules`: collection `risultati/{eventId}` — lettura pubblica, scrittura solo allowlist admin (placeholder `__ADMIN_UID__`, vedi azioni post-deploy), delete sempre negato.
+- `firestore.rules`: collection `risultati/{eventId}` — lettura pubblica, scrittura solo allowlist admin (uid dell'operatore, G7 chiuso il 12/07), delete sempre negato.
 - `app/src/lib/risultati.ts`: cache bulk in memoria + `setRisultato`; `ADMIN_UIDS` lato client (solo gating UI del tab Admin).
 - `data/season.ts` `winnersFor()`: prima il risultato reale, fallback simulato sempre marcato `{simulato: true}`.
 - Pronostici per tappa: `poolPronosticoTappa`/`tappaPronosticabile`/`esitoPronosticoTappa` (`data/eliminatoire.ts`), chiavi `vatsamon_pronostici_tappa` + `vatsamon_pronostici_scored` in `SAVE_KEYS`.
@@ -48,10 +48,10 @@ Questa versione porta il PvP in Piazza, i risultati ufficiali di gara, la schedi
 Il deploy Netlify pubblica **solo il client**. Le Firestore rules NON si deployano da sole:
 
 1. **Pubblicare `firestore.rules` aggiornate** sul progetto Firebase (console → Firestore → Regole, incollando il file versionato in root, oppure `firebase deploy --only firestore:rules,firestore:indexes` con firebase-tools autenticato). Senza questo passo il PvP online e i risultati ufficiali NON funzionano in produzione (le collection `pvpChallenges`/`pvpMatches`/`risultati` cadono sul deny-by-default).
-2. **Sostituire il placeholder admin con l'uid reale** (TODO G7), in DUE punti che devono restare allineati:
-   - `firestore.rules` → funzione admin: `request.auth.uid in ["__ADMIN_UID__"]` → mettere l'uid Firebase dell'operatore (e ri-pubblicare le rules);
-   - `app/src/lib/risultati.ts` → `export const ADMIN_UIDS: string[] = []` → stesso uid (gating UI del tab Admin; richiede un commit + deploy client).
-   Finché restano i placeholder, nessuno può pubblicare risultati ufficiali: il Calendario mostra solo badge SIMULATO (comportamento sicuro, non un bug).
+2. ~~**Sostituire il placeholder admin con l'uid reale**~~ — **fatto il 12/07 (G7 chiuso).** L'uid
+   dell'operatore è già in entrambi i punti, che vanno tenuti allineati fra loro:
+   - `firestore.rules` → funzione `isRisultatiAdmin()` (ri-pubblicare le rules dopo ogni modifica);
+   - `app/src/lib/risultati.ts` → `ADMIN_UIDS` (gating UI del tab Admin; richiede un commit + deploy client).
 3. *(Consigliato)* Rieseguire `tests/rules` (`npm test` in `tests/rules/`, richiede JDK per l'emulator) dopo la sostituzione dell'uid, prima di pubblicare le rules.
 
 *Grazie per giocare e diffondere la tradizione delle Batailles de Reines!*

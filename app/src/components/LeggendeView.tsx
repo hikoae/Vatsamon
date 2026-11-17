@@ -135,13 +135,20 @@ export default function LeggendeView({ playerCows, respectScore, battute, onWin,
   return (
     <div className="fixed inset-0 z-[70] flex flex-col bg-slate-950 text-slate-100" id="leggende-scene">
       <div className="absolute inset-0 -z-10" style={{ background: "linear-gradient(180deg,#fef9c3 0%,#f5f3fb 40%,#e0e7ff 100%)" }} />
-      <div className="flex items-center justify-between px-4 py-2 bg-slate-950/80 backdrop-blur border-b border-slate-800">
+      {/* Barra a filo schermo: la safe-area si somma a py-2 (0.5rem), altrimenti su
+          iPhone col notch titolo e X finiscono dentro la fascia (tap non affidabile). */}
+      <div className="flex items-center justify-between px-4 py-2 bg-slate-950/80 backdrop-blur border-b border-slate-800"
+        style={{ paddingTop: "calc(0.5rem + env(safe-area-inset-top))" }}>
         <span className="text-xs font-mono font-black">🏛️ L'Albo delle Leggende</span>
         <button onClick={() => { playClick(); onClose(); }} aria-label="Chiudi" className="bg-slate-900/70 rounded-full p-1.5 min-h-[36px] min-w-[36px]"><X size={16} /></button>
       </div>
 
       {phase === "scelta" && (
-        <div className="flex-1 overflow-y-auto p-4 space-y-3">
+        // Qui la lista è l'ultimo elemento a filo schermo (nessuna barra sotto): la
+        // safe-area si somma a p-4 (1rem), altrimenti a fondo scroll l'ultima
+        // leggenda resta sotto l'home indicator.
+        <div className="flex-1 overflow-y-auto p-4 space-y-3"
+          style={{ paddingBottom: "calc(1rem + env(safe-area-inset-bottom))" }}>
           <p className="text-[11px] text-slate-300 text-center bg-slate-900/70 border border-slate-800 rounded-2xl p-3">
             Le campionesse vere dell'albo d'oro, ricostruite per una <b className="text-amber-400">sfida della
             memoria</b> (fuori calendario, il loro stile è un'interpretazione di gioco). Battile per la cartolina
@@ -224,7 +231,10 @@ export default function LeggendeView({ playerCows, respectScore, battute, onWin,
             </div>
           </div>
 
-          <div className="bg-slate-950/85 backdrop-blur border-t border-slate-800 p-3 space-y-2">
+          {/* Idem in basso: la safe-area si somma a p-3 (0.75rem), altrimenti le mosse
+              e i CTA di fine sfida stanno sull'home indicator. */}
+          <div className="bg-slate-950/85 backdrop-blur border-t border-slate-800 p-3 space-y-2"
+            style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom))" }}>
             <div className="bg-slate-900/80 border border-slate-800 rounded-xl px-3 py-2 h-[46px] overflow-y-auto no-scrollbar">
               {log.map((l, i) => <div key={i} className={`text-[10px] font-mono leading-snug ${i === 0 ? "text-slate-100" : "text-slate-500"}`}>❖ {l}</div>)}
             </div>

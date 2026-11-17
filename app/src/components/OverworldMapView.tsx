@@ -72,6 +72,76 @@ type Props = {
   buyBottega: (id: string, prezzo: number, nome: string) => void;
 };
 
+/* --- Radar "Sguardo del Pastore": nodi che non si accavallano ---------------
+   Le posizioni del radar arrivano dai dati veri (svgXY in data/realCows.ts per
+   le casere, getSvgCoords in App.tsx per le Reines selvatiche) e due gruppi
+   finiscono per forza uno addosso all'altro: Fénis e Nus distano il 4% in
+   orizzontale, e le selvatiche nascono tutte entro ~1,3 km dal giocatore,
+   quindi cadono praticamente sullo stesso punto. Qui i nodi che si toccano
+   vengono allontanati di pochi PIXEL: lo scarto è in px (non in %) così non
+   cambia al variare della larghezza, e i conti si fanno sulla cornice più
+   stretta prevista — se ci stanno lì, ci stanno anche su schermi più larghi.
+   Nessun random: stesso ingresso, stessa uscita. */
+const RADAR_REF_W = 317; // px: larghezza della cornice sul telefono più stretto (375)
+const RADAR_H = 460; // px: altezza fissa della cornice (h-[460px])
+const RADAR_BOTTOM_BAND = 44; // px: fascia in fondo riservata al nastro "N Vatsamon selvatici …"
+const RADAR_GAP = 6; // px: aria minima fra due nodi
+// Giri di assestamento e tetto al singolo spostamento: con questi due valori la
+// simulazione su 361 posizioni di spawn diverse chiude a zero sovrapposizioni.
+const RADAR_PASSES = 48;
+const RADAR_PUSH_CAP = 3;
+
+type RadarNode = { id: string; x: number; y: number; w: number; h: number; fixed?: boolean };
+
+function spreadRadarNodes(nodes: RadarNode[]): Record<string, { dx: number; dy: number }> {
+  const p = nodes.map((n) => ({ ...n, cx: (n.x / 100) * RADAR_REF_W, cy: (n.y / 100) * RADAR_H }));
+  for (let pass = 0; pass < RADAR_PASSES; pass++) {
+    let moved = false;
+    for (let i = 0; i < p.length; i++) {
+      for (let j = i + 1; j < p.length; j++) {
+        const a = p[i];
+        const b = p[j];
+        if (a.fixed && b.fixed) continue;
+        // Distanza minima fra i due centri, asse per asse: due rettangoli non si
+        // toccano quando ne basta UNO dei due a essere abbastanza lontano, cioè
+        // quando il massimo fra i due rapporti arriva a 1.
+        const rx = (a.w + b.w) / 2 + RADAR_GAP;
+        const ry = (a.h + b.h) / 2 + RADAR_GAP;
+        let dx = b.cx - a.cx;
+        let dy = b.cy - a.cy;
+        if (dx === 0 && dy === 0) { dx = 1; dy = 1; } // centri identici: verso fisso, mai casuale
+        const ratio = Math.max(Math.abs(dx) / rx, Math.abs(dy) / ry);
+        if (ratio >= 1) continue; // non si toccano
+        moved = true;
+        // Si allontanano lungo la congiungente (così la direzione relativa fra i
+        // due resta quella vera), con un tetto al passo per non sparare via i
+        // nodi quasi coincidenti al primo giro.
+        const push = Math.min(1 / Math.max(ratio, 0.02), RADAR_PUSH_CAP) - 1;
+        const qa = a.fixed ? 0 : b.fixed ? 1 : 0.5; // il nodo fisso non si muove:
+        const qb = b.fixed ? 0 : a.fixed ? 1 : 0.5; // l'altro si sposta il doppio
+        a.cx -= dx * push * qa;
+        a.cy -= dy * push * qa;
+        b.cx += dx * push * qb;
+        b.cy += dy * push * qb;
+      }
+    }
+    for (const n of p) {
+      if (n.fixed) continue;
+      n.cx = Math.min(RADAR_REF_W - n.w / 2 - 4, Math.max(n.w / 2 + 4, n.cx));
+      n.cy = Math.min(RADAR_H - RADAR_BOTTOM_BAND - n.h / 2, Math.max(n.h / 2 + 4, n.cy));
+    }
+    if (!moved) break;
+  }
+  const out: Record<string, { dx: number; dy: number }> = {};
+  p.forEach((n) => {
+    out[n.id] = {
+      dx: Math.round(n.cx - (n.x / 100) * RADAR_REF_W),
+      dy: Math.round(n.cy - (n.y / 100) * RADAR_H),
+    };
+  });
+  return out;
+}
+
 /** VIEW 1: MAPPA — esplorazione overworld (mappa reale/radar, GPS, sentieri, casere). */
 export function OverworldMapView({
   isActiveTab,
@@ -121,6 +191,28 @@ export function OverworldMapView({
   coins,
   buyBottega,
 }: Props) {
+  // Le selvatiche nascono tutte sullo stesso punto: prima le si apre a rosetta
+  // attorno ad esso (ventaglio deterministico per indice), poi ci pensa
+  // spreadRadarNodes a staccare quello che resta attaccato.
+  const radarWild = wildCows.map((wc, i) => {
+    const a = ((i * 90 + 45) * Math.PI) / 180;
+    return {
+      wc,
+      x: wc.x + (Math.cos(a) * 52 * 100) / RADAR_REF_W,
+      y: wc.y + (Math.sin(a) * 52 * 100) / RADAR_H,
+    };
+  });
+  const radarOffsets =
+    mapMode === 'radar'
+      ? spreadRadarNodes([
+          // il giocatore resta al centro: sono gli altri a spostarsi
+          { id: '__giocatore', x: 48, y: 50, w: 78, h: 68, fixed: true },
+          ...REAL_CASERE.map((hp) => ({ id: hp.id, x: hp.x, y: hp.y, w: 40, h: 40 })),
+          ...radarWild.map(({ wc, x, y }) => ({ id: wc.id, x, y, w: 66, h: 62 })),
+        ])
+      : {};
+  const radarNudge = (id: string) => radarOffsets[id] ?? { dx: 0, dy: 0 };
+
   return (
     <>
       {isActiveTab && (
@@ -144,13 +236,13 @@ export function OverworldMapView({
               <div className="flex items-center gap-1 bg-slate-900 border border-slate-800 p-1 rounded-xl">
                 <button
                   onClick={() => { playClickSfx(); setMapMode('real'); }}
-                  className={`font-mono text-[10px] font-bold px-2.5 py-1.5 rounded-lg transition-all ${mapMode === 'real' ? 'bg-emerald-500 text-[#0b0820] font-black' : 'text-slate-400 hover:bg-slate-850'}`}
+                  className={`font-mono text-[10px] font-bold px-2.5 py-1.5 rounded-lg transition-all inline-flex items-center justify-center min-h-[44px] ${mapMode === 'real' ? 'bg-emerald-500 text-[#0b0820] font-black' : 'text-slate-400 hover:bg-slate-850'}`}
                 >
                   Mappa OSM Reale
                 </button>
                 <button
                   onClick={() => { playClickSfx(); setMapMode('radar'); }}
-                  className={`font-mono text-[10px] font-bold px-2.5 py-1.5 rounded-lg transition-all ${mapMode === 'radar' ? 'bg-emerald-500 text-[#0b0820] font-black' : 'text-slate-400 hover:bg-slate-850'}`}
+                  className={`font-mono text-[10px] font-bold px-2.5 py-1.5 rounded-lg transition-all inline-flex items-center justify-center min-h-[44px] ${mapMode === 'radar' ? 'bg-emerald-500 text-[#0b0820] font-black' : 'text-slate-400 hover:bg-slate-850'}`}
                 >
                   Sguardo del Pastore
                 </button>
@@ -184,12 +276,39 @@ export function OverworldMapView({
 
           {/* Conditional Map View Frame */}
           {mapMode === 'real' ? (
-            /* GEOGRAPHIC INTERACTIVE REAL MAP VIEW */
-            <div className="relative w-full h-[460px] bg-slate-900 border-2 border-emerald-500/20 rounded-2xl overflow-hidden shadow-inner group z-0">
+            /* GEOGRAPHIC INTERACTIVE REAL MAP VIEW.
+               ALTEZZA ADATTIVA (era `h-[460px]` secchi). Su iPhone SE (375x667)
+               con le fasce, sopra il riquadro ci sono 448px fra fascia alta,
+               intestazione, riga PvP e cappello della scheda: con 460px fissi il
+               CENTRO della mappa cadeva a 678px, cioè 110px SOTTO la barra in
+               basso — e il centro è dove Leaflet tiene il giocatore e le Reines
+               vicine. Risultato: 119px di mappa utili, zero mucche, 2 marker
+               raggiungibili su 5. Accorciare il riquadro non sposta il suo
+               bordo alto, ma tira su il centro: è quello che rimette in pagina
+               giocatore e mucche.
+               La formula ha pendenza > 1 apposta: lo spazio speso sopra la mappa
+               è quasi costante fra un telefono e l'altro, mentre quello
+               disponibile cresce con lo schermo. Da 839px di viewport in su
+               satura a 460 — quindi 844, 852 e 932 restano IDENTICI a prima, con
+               e senza fasce — e stringe solo quando lo schermo è davvero corto
+               (667 → ~219px, mai sotto i 200 del minimo).
+               `h-[460px]` resta come fondo: se un browser non conosce `dvh`
+               scarta la regola in stile e si ricade sull'altezza di prima.
+               Leaflet va avvisato quando il riquadro cambia misura: l'osservatore
+               sta in App.tsx accanto al `resize` della finestra. */
+            <div
+              className="relative w-full h-[460px] bg-slate-900 border-2 border-emerald-500/20 rounded-2xl overflow-hidden shadow-inner group z-0"
+              style={{ height: 'clamp(200px, calc(140dvh - 715px), 460px)' }}
+            >
               <div ref={mapContainerRef} className="w-full h-full" id="real-gps-map" />
 
-              {/* Overlay HUD status regarding current trekking location */}
-              <div className="absolute top-3 left-3 bg-slate-950/95 border border-slate-855 font-mono text-[9px] text-slate-200 px-3.5 py-2.5 rounded-2xl backdrop-blur-md shadow-2xl pointer-events-none z-35 max-w-[260px] space-y-1.5">
+              {/* Overlay HUD status regarding current trekking location.
+                  z-[660]: i pannelli di Leaflet stanno fra 200 e 700 e i controlli
+                  a 800, quindi con z-35 questo riquadro finiva SOTTO le tile e sullo
+                  schermo non si vedeva affatto. 660 lo mette sopra i marker (600) ma
+                  sotto popup (700) e controlli (800).
+                  A destra perché l'angolo in alto a sinistra è dello zoom Leaflet. */}
+              <div className="absolute top-3 right-3 bg-slate-950/95 border border-slate-855 font-mono text-[9px] text-slate-200 px-3.5 py-2.5 rounded-2xl backdrop-blur-md shadow-2xl pointer-events-none z-[660] max-w-[240px] space-y-1.5">
                 <span className="text-emerald-400 font-extrabold uppercase block tracking-wider flex items-center gap-1">
                   <MapPin className="w-3 h-3 text-emerald-500 animate-bounce" />
                   {gpsOn ? 'Posizione GPS' : 'Tappa attuale'}
@@ -208,14 +327,32 @@ export function OverworldMapView({
                 </div>
               </div>
 
-              {/* Leaflet Tip Ribbon overlay */}
-              <div className="absolute bottom-2.5 right-2.5 bg-slate-950/80 border border-slate-850 rounded-full py-0.5 px-3 text-[10px] text-slate-400 font-mono tracking-tight text-center whitespace-nowrap backdrop-blur-xs z-35">
-                🧀 Tocca i campanacci sulla mappa reale per interagire
+              {/* Leaflet Tip Ribbon overlay. Stesso z-[660] dell'HUD (con z-35 era
+                  sepolto sotto le tile). Centrato e sollevato a bottom-8: in basso a
+                  sinistra c'è il credito OpenStreetMap, obbligatorio per la licenza
+                  ODbL, e da destra questo nastro gli finiva sopra.
+                  `pointer-events-none` come l'HUD qui sopra: è un cartello, non un
+                  comando, e stava mangiando i tocchi dei marker che gli finivano
+                  sotto. Su una mappa alta 460px era una striscia in fondo; con
+                  l'altezza adattiva, su iPhone SE copre una fetta molto più grande
+                  del riquadro — misurato: marker raggiungibili 5,4 → 3,8 a 375x667
+                  senza fasce, tornati a 5,4 una volta reso trasparente al tocco. */}
+              <div className="absolute bottom-8 left-1/2 -translate-x-1/2 max-w-[calc(100%-1.25rem)] bg-slate-950/80 border border-slate-850 rounded-full py-0.5 px-3 text-[10px] text-slate-400 font-mono tracking-tight text-center whitespace-nowrap overflow-hidden text-ellipsis backdrop-blur-xs pointer-events-none z-[660]">
+                🧀 Tocca i campanacci per interagire
               </div>
             </div>
           ) : (
-            /* RADAR MAP INTERACTIVE SVG VISUAL FALLBACK */
-            <div className="relative aspect-[16/10] bg-gradient-to-b from-slate-900 to-emerald-950/60 rounded-3xl border-2 border-emerald-500/20 overflow-hidden shadow-inner group">
+            /* RADAR MAP INTERACTIVE SVG VISUAL FALLBACK.
+               Altezza fissa 460px (era aspect-[16/10] ≈ 209px): il doppio di
+               spazio verticale per i nodi.
+               Qui NON si applica l'altezza adattiva della mappa reale: le
+               posizioni dei nodi le calcola `spreadRadarNodes` su una cornice di
+               `RADAR_H = 460` px, ed è una simulazione tarata su quel numero
+               (48 giri, zero sovrapposizioni su 361 posizioni di spawn). Con una
+               cornice più bassa i nodi finirebbero fuori o uno sull'altro, quindi
+               il radar tiene i suoi 460 e si scorre. È una vista secondaria, in
+               cui si entra apposta; l'Alpeggio su cui si atterra è la mappa reale. */
+            <div className="relative w-full h-[460px] bg-gradient-to-b from-slate-900 to-emerald-950/60 rounded-3xl border-2 border-emerald-500/20 overflow-hidden shadow-inner group" id="radar-map">
 
               {/* Geodesic radar sonar pinging ring */}
               <div className="absolute top-[48%] left-[50%] -translate-x-1/2 -translate-y-1/2 w-[70%] h-[70%] rounded-full border border-emerald-500/10 pointer-events-none animate-radar"></div>
@@ -227,8 +364,9 @@ export function OverworldMapView({
                 <path d="M 0 240 Q 180 180, 360 270 T 720 220 T 1200 300 L 1200 800 L 0 800 Z" fill="#10b981" />
               </svg>
 
-              {/* Trainer in the very center */}
-              <div className="absolute top-[48%] left-[50%] -translate-x-1/2 -translate-y-1/2 z-20 flex flex-col items-center">
+              {/* Trainer in the very center — z-30: il puntino "dove sono io" deve
+                  restare sopra ogni altro nodo del radar */}
+              <div className="absolute top-[48%] left-[50%] -translate-x-1/2 -translate-y-1/2 z-30 flex flex-col items-center">
                 <div className="w-10 h-10 rounded-full bg-emerald-500 border-2 border-slate-100 flex items-center justify-center shadow-lg relative animate-float">
                   <span className="text-xl">🧑‍🌾</span>
                   <span className="absolute -inset-1 rounded-full border-2 border-emerald-300 animate-ping opacity-30"></span>
@@ -241,49 +379,58 @@ export function OverworldMapView({
               {/* POKESTOPS: Traditional Dairy Casere — pascoli reali */}
               {REAL_CASERE.map((hp) => {
                 const onCooldown = caseraCooldowns[hp.id] && caseraCooldowns[hp.id] > Date.now();
+                const off = radarNudge(hp.id);
                 return (
                   <button
                     key={hp.id}
                     onClick={() => { playClickSfx(); setSelectedCasera(hp); setSpinState('idle'); setSpinRewards([]); }}
+                    aria-label={`Casera ${hp.name} (${hp.valley})`}
+                    title={`${hp.name} — ${hp.valley}`}
                     className="absolute transform -translate-x-1/2 -translate-y-1/2 cursor-pointer focus:outline-none z-10"
-                    style={{ left: `${hp.x}%`, top: `${hp.y}%` }}
+                    style={{ left: `calc(${hp.x}% + ${off.dx}px)`, top: `calc(${hp.y}% + ${off.dy}px)` }}
                   >
-                    <div className="flex flex-col items-center group/marker">
-                      <div className={`w-8 h-8 rounded-full ${onCooldown ? 'bg-slate-700 border-slate-500' : 'bg-blue-500 border-white'} text-white flex items-center justify-center border-2 shadow-lg transition-transform hover:scale-110`}>
-                        <RotateCw className={`w-4 h-4 ${onCooldown ? 'text-slate-400' : 'text-blue-200 animate-spin-slow'}`} />
-                      </div>
-                      <span className="text-[10px] bg-slate-950/80 font-mono text-slate-300 py-0.5 px-1.5 rounded-md mt-1 group-hover/marker:bg-slate-950 border border-slate-800">
-                        {hp.name.split(" ")[0]} 🥛
-                      </span>
+                    {/* Niente più targhetta sotto il pallino: sei casere su un
+                        radar largo 317px davano etichette di 70-115px che si
+                        tagliavano a vicenda (e tre dicevano "Pascolo/Pascoli").
+                        Il nome per esteso arriva toccando, nella scheda casera. */}
+                    <div className={`w-8 h-8 rounded-full ${onCooldown ? 'bg-slate-700 border-slate-500' : 'bg-blue-500 border-white'} text-white flex items-center justify-center border-2 shadow-lg transition-transform hover:scale-110`}>
+                      <RotateCw className={`w-4 h-4 ${onCooldown ? 'text-slate-400' : 'text-blue-200 animate-spin-slow'}`} />
                     </div>
                   </button>
                 );
               })}
 
               {/* WILD ROAMING VATSAMONS POPPING OUT */}
-              {wildCows.map((wc) => (
-                <button
-                  key={wc.id}
-                  onClick={() => initiateCatchWild(wc)}
-                  className="absolute transform -translate-x-1/2 -translate-y-1/2 cursor-pointer focus:outline-none z-10 animate-float"
-                  style={{ left: `${wc.x}%`, top: `${wc.y}%`, animationDelay: `${wc.x % 2}s` }}
-                >
-                  <div className="flex flex-col items-center group/cow">
-                    <div className="relative">
+              {radarWild.map(({ wc, x, y }) => {
+                const off = radarNudge(wc.id);
+                return (
+                  <button
+                    key={wc.id}
+                    onClick={() => initiateCatchWild(wc)}
+                    aria-label={`${wc.vatsa.name} · Potenza ${wc.vatsa.cp}`}
+                    className="absolute transform -translate-x-1/2 -translate-y-1/2 cursor-pointer focus:outline-none z-10 animate-float"
+                    style={{ left: `calc(${x}% + ${off.dx}px)`, top: `calc(${y}% + ${off.dy}px)`, animationDelay: `${wc.x % 2}s` }}
+                  >
+                    <div className="relative group/cow">
                       {/* Sparkly pointer background */}
                       <div className="absolute -inset-1.5 bg-yellow-500/20 rounded-full animate-ping opacity-60"></div>
                       <VatsamonAvatar breed={wc.vatsa.breed} rarity={wc.vatsa.rarity} className="w-14 h-14 bg-slate-950/40 rounded-full border border-amber-500/30 p-1 backdrop-blur-xs transition-transform group-hover/cow:scale-125" />
+                      {/* La potenza va nell'angolo come sui marker della mappa reale
+                          (CP…): sotto l'avatar era un'etichetta larga 88px che si
+                          accavallava con quelle vicine. Il testo esteso resta
+                          nell'aria-label. */}
+                      <span className="absolute -top-1 -right-1 text-[9px] font-mono font-black bg-slate-950/95 text-yellow-400 border border-amber-500/20 px-1 rounded-full leading-tight shadow">
+                        CP{wc.vatsa.cp}
+                      </span>
                     </div>
-                    <span className="text-[10px] font-mono font-black bg-slate-950/95 text-yellow-400 border border-amber-500/20 px-1.5 py-0.5 rounded shadow">
-                      Potenza {wc.vatsa.cp}
-                    </span>
-                  </div>
-                </button>
-              ))}
+                  </button>
+                );
+              })}
 
-              {/* Bottom instructions ribbon */}
-              <div className="absolute bottom-2 left-1/2 -translate-x-1/2 bg-slate-950/80 border border-slate-800/80 rounded-full py-1 px-4 text-[10px] text-slate-400 font-mono tracking-tight text-center whitespace-nowrap backdrop-blur-xs">
-                🐮 Sintonizzati {wildCows.length} Vatsamon selvatici nelle vicinanze
+              {/* Bottom instructions ribbon — i nodi non scendono mai qui sotto
+                  (RADAR_BOTTOM_BAND), e la max-w evita il taglio sugli schermi stretti */}
+              <div className="absolute bottom-2 left-1/2 -translate-x-1/2 z-20 max-w-[calc(100%-1rem)] bg-slate-950/80 border border-slate-800/80 rounded-full py-1 px-4 text-[10px] text-slate-400 font-mono tracking-tight text-center whitespace-nowrap overflow-hidden text-ellipsis backdrop-blur-xs">
+                🐮 {wildCows.length} Vatsamon selvatici nelle vicinanze
               </div>
             </div>
           )}
@@ -322,7 +469,7 @@ export function OverworldMapView({
           <div className="flex flex-wrap gap-2">
             <button
               onClick={() => { playClickSfx(); setSelectedTrailId(null); }}
-              className={`text-[10px] font-mono font-bold px-3 py-1.5 rounded-full border transition-all ${selectedTrailId === null ? 'bg-emerald-500 text-[#0b0820] border-emerald-400' : 'bg-slate-900 text-slate-300 border-slate-800 hover:bg-slate-850'}`}
+              className={`text-[10px] font-mono font-bold px-3 py-1.5 rounded-full border transition-all inline-flex items-center justify-center min-h-[44px] ${selectedTrailId === null ? 'bg-emerald-500 text-[#0b0820] border-emerald-400' : 'bg-slate-900 text-slate-300 border-slate-800 hover:bg-slate-850'}`}
             >
               🧭 Esplora libera
             </button>
@@ -330,7 +477,7 @@ export function OverworldMapView({
               <button
                 key={t.id}
                 onClick={() => { playClickSfx(); setMapMode('real'); setSelectedTrailId(t.id); }}
-                className={`text-[10px] font-mono font-bold px-3 py-1.5 rounded-full border transition-all ${selectedTrailId === t.id ? 'bg-amber-500 text-[#0b0820] border-amber-400' : 'bg-slate-900 text-amber-200 border-amber-700/40 hover:bg-slate-850'}`}
+                className={`text-[10px] font-mono font-bold px-3 py-1.5 rounded-full border transition-all inline-flex items-center justify-center min-h-[44px] ${selectedTrailId === t.id ? 'bg-amber-500 text-[#0b0820] border-amber-400' : 'bg-slate-900 text-amber-200 border-amber-700/40 hover:bg-slate-850'}`}
               >
                 {t.location}
               </button>
@@ -432,7 +579,8 @@ export function OverworldMapView({
 
             <button
               onClick={() => { playClickSfx(); setSelectedCasera(null); }}
-              className="absolute top-4 right-4 text-slate-400 hover:text-slate-200 transition-colors p-1"
+              aria-label="Chiudi"
+              className="absolute top-3 right-3 text-slate-400 hover:text-slate-200 transition-colors flex items-center justify-center min-h-[44px] min-w-[44px]"
             >
               <X className="w-6 h-6" />
             </button>
@@ -517,7 +665,7 @@ export function OverworldMapView({
                     data-buy={it.id}
                     onClick={() => buyBottega(it.id, it.prezzo, it.nome)}
                     disabled={coins < it.prezzo}
-                    className="flex-shrink-0 bg-amber-600 hover:bg-amber-500 disabled:opacity-40 text-[#0b0820] font-mono font-black text-[10px] px-2.5 py-1.5 rounded-lg min-h-[36px]"
+                    className="flex-shrink-0 inline-flex items-center justify-center bg-amber-600 hover:bg-amber-500 disabled:opacity-40 text-[#0b0820] font-mono font-black text-[10px] px-2.5 py-1.5 rounded-lg min-h-[36px]"
                   >
                     {it.prezzo} 🪙
                   </button>
