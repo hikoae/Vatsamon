@@ -1,13 +1,29 @@
 {
-  "generato": "2026-11-14",
+  "generato": "2026-11-25",
   "fonte": "Aggregatore RSS (AostaSera, Gazzetta Matin) — solo titolo, estratto e link alla fonte.",
   "items": [
     {
-      "id": "gazzetta-matin-perloz-oggi-sabato-14-novembre-160-capre-per-44-",
-      "titolo": "Perloz: oggi, sabato 14 novembre, 160 capre per 44ª finale della bataille de tchèvre",
+      "id": "gazzetta-matin-anche-lo-charaban-celebra-farchetta-la-reina-pi-",
+      "titolo": "Anche Lo Charaban celebra Farchetta, la reina più longeva dei governi regionali",
       "fonte": "Gazzetta Matin",
-      "url": "https://www.gazzettamatin.com/2026/11/14/perloz-oggi-sabato-14-novembre-160-capre-per-la-44a-finale-della-bataille-de-tchevre/",
-      "data": "2026-11-14",
+      "url": "https://www.gazzettamatin.com/wgl/anche-lo-charaban-celebra-farchetta-la-reina-piu-longeva-dei-governi-regionali-gall-20261125050425-0/",
+      "data": "2026-11-25",
+      "estratto": ""
+    },
+    {
+      "id": "gazzetta-matin-anche-lo-charaban-celebra-farchetta-la-reina-pi-",
+      "titolo": "Anche Lo Charaban celebra Farchetta, la reina più longeva dei governi regionali",
+      "fonte": "Gazzetta Matin",
+      "url": "https://www.gazzettamatin.com/wgl/anche-lo-charaban-celebra-farchetta-la-reina-piu-longeva-dei-governi-regionali-gall-20261125050531-0/",
+      "data": "2026-11-25",
+      "estratto": ""
+    },
+    {
+      "id": "gazzetta-matin-anche-lo-charaban-celebra-farchetta-la-reina-pi-",
+      "titolo": "Anche Lo Charaban celebra Farchetta, la reina più longeva dei governi regionali",
+      "fonte": "Gazzetta Matin",
+      "url": "https://www.gazzettamatin.com/2026/11/25/anche-lo-charaban-celebra-farchetta-la-reina-piu-longeva-dei-governi-regionali/",
+      "data": "2026-11-25",
       "estratto": ""
     }
   ]
